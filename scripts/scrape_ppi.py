@@ -28,17 +28,15 @@ if not firebase_admin._apps:
 
 db = firestore.client()
 
-# 国土交通省PPIサイトのエリア（地方整備局）リスト
+# 公共工事入札情報サイト（i-ppi.jp）のURL
+# 実際のサイト構造に合わせて、検索条件やURLを調整してください
+BASE_URL = 'https://www.i-ppi.jp/IPPI/SearchServices/Web/Index.htm'
+
+# エリア別の検索条件（実際のサイト構造に合わせて調整が必要）
+# 現在は全件検索として実装。必要に応じてエリア別の検索条件を追加
 AREAS = [
-    {'name': '北海道', 'url': 'https://www.pps.go.jp/odr/odr_list.php?area=01'},
-    {'name': '東北', 'url': 'https://www.pps.go.jp/odr/odr_list.php?area=02'},
-    {'name': '関東', 'url': 'https://www.pps.go.jp/odr/odr_list.php?area=03'},
-    {'name': '北陸', 'url': 'https://www.pps.go.jp/odr/odr_list.php?area=04'},
-    {'name': '中部', 'url': 'https://www.pps.go.jp/odr/odr_list.php?area=05'},
-    {'name': '近畿', 'url': 'https://www.pps.go.jp/odr/odr_list.php?area=06'},
-    {'name': '中国', 'url': 'https://www.pps.go.jp/odr/odr_list.php?area=07'},
-    {'name': '四国', 'url': 'https://www.pps.go.jp/odr/odr_list.php?area=08'},
-    {'name': '九州', 'url': 'https://www.pps.go.jp/odr/odr_list.php?area=09'},
+    {'name': '全国', 'url': BASE_URL},
+    # エリア別の検索が必要な場合は、実際のサイトの検索パラメータを確認して追加
 ]
 
 def setup_driver():
