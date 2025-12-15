@@ -117,6 +117,7 @@ def scrape_area(driver, area_info):
         driver.get(url)
         
         # アラートが表示された場合は閉じる（複数回試行）
+        alert_shown = False
         for attempt in range(3):
             try:
                 WebDriverWait(driver, 1).until(EC.alert_is_present())
@@ -124,9 +125,25 @@ def scrape_area(driver, area_info):
                 alert_text = alert.text
                 print(f'  アラート検出（試行{attempt+1}）: {alert_text}')
                 alert.accept()
+                alert_shown = True
                 time.sleep(2)
             except:
                 break  # アラートがない場合は終了
+        
+        # アラートが表示された場合は、ページをリロード
+        if alert_shown:
+            print('  アラートが表示されたため、ページをリロードします...')
+            driver.refresh()
+            time.sleep(3)
+            
+            # リロード後もアラートが表示される可能性がある
+            try:
+                WebDriverWait(driver, 2).until(EC.alert_is_present())
+                alert = driver.switch_to.alert
+                alert.accept()
+                time.sleep(2)
+            except:
+                pass
         
         # ページ読み込み待機
         WebDriverWait(driver, 15).until(
@@ -142,6 +159,9 @@ def scrape_area(driver, area_info):
             print(f'  遅延アラート検出: {alert_text}')
             alert.accept()
             time.sleep(2)
+            # アラート後に再度リロード
+            driver.refresh()
+            time.sleep(3)
         except:
             pass
         
