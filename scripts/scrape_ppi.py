@@ -97,12 +97,33 @@ def scrape_area(driver, area_info):
     try:
         # タイムアウトを長めに設定
         driver.set_page_load_timeout(30)
+        
+        # まずトップページにアクセスしてから、目的のページに遷移（自然な遷移に見せる）
+        try:
+            driver.get('https://www.i-ppi.jp/IPPI/SearchServices/Web/Index.htm')
+            time.sleep(2)
+        except:
+            pass
+        
+        # 目的のページにアクセス
         driver.get(url)
+        
+        # アラートが表示された場合は閉じる
+        try:
+            WebDriverWait(driver, 2).until(EC.alert_is_present())
+            alert = driver.switch_to.alert
+            alert_text = alert.text
+            print(f'  アラート検出: {alert_text}')
+            alert.accept()
+            time.sleep(1)
+        except:
+            pass  # アラートがない場合は何もしない
+        
         # ページ読み込み待機
-        WebDriverWait(driver, 10).until(
+        WebDriverWait(driver, 15).until(
             EC.presence_of_element_located((By.TAG_NAME, "body"))
         )
-        time.sleep(3)  # 追加の待機時間
+        time.sleep(5)  # JavaScriptの読み込みを待つ
         
         # デバッグ: ページのHTMLを確認
         page_source = driver.page_source
