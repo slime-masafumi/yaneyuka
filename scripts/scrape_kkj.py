@@ -206,32 +206,51 @@ def fetch_rss_feed(feed_info):
                 search_response = requests.get(search_url, headers=headers, timeout=30)
                 if search_response.status_code == 200:
                     html_content = search_response.text
+                    print(f'  検索結果ページのHTMLサイズ: {len(html_content)}文字')
                     rss_url = None
                     
                     # パターン1: <link rel="alternate" type="application/rss+xml" href="..."> を探す
                     rss_link_match = re.search(r'<link[^>]*rel=["\']alternate["\'][^>]*type=["\']application/rss\+xml["\'][^>]*href=["\']([^"\']+)["\']', html_content, re.IGNORECASE)
                     if rss_link_match:
                         rss_url = rss_link_match.group(1)
+                        print(f'  パターン1でRSSリンクを発見: {rss_url}')
                     
-                    # パターン2: <a>タグでRSSを含むリンクを探す（より広範囲に検索）
+                    # パターン2: RSSボタンやアイコンのリンクを探す（より広範囲に検索）
                     if not rss_url:
-                        rss_button_matches = re.findall(r'<a[^>]*href=["\']([^"\']*rss[^"\']*|/[^"\']*r[^"\']*)["\'][^>]*>', html_content, re.IGNORECASE)
+                        # RSSという文字を含むリンクを探す
+                        rss_button_matches = re.findall(r'<a[^>]*href=["\']([^"\']+)["\'][^>]*>.*?[Rr][Ss][Ss]', html_content, re.IGNORECASE | re.DOTALL)
+                        if not rss_button_matches:
+                            # 逆順でも探す（RSSという文字がリンクの前にある場合）
+                            rss_button_matches = re.findall(r'[Rr][Ss][Ss].*?<a[^>]*href=["\']([^"\']+)["\']', html_content, re.IGNORECASE | re.DOTALL)
                         for match in rss_button_matches:
-                            if 'rss' in match.lower() or match.startswith('/r/'):
+                            if 'rss' in match.lower() or match.startswith('/r/') or '/rss' in match.lower():
                                 rss_url = match
+                                print(f'  パターン2でRSSリンクを発見: {rss_url}')
                                 break
                     
                     # パターン3: /r/ で始まるURLを探す（東京都エリアの成功パターン）
                     if not rss_url:
-                        r_pattern_match = re.search(r'href=["\'](/r/[^"\']+)["\']', html_content, re.IGNORECASE)
-                        if r_pattern_match:
-                            rss_url = r_pattern_match.group(1)
+                        r_pattern_matches = re.findall(r'href=["\'](/r/[^"\']+)["\']', html_content, re.IGNORECASE)
+                        if r_pattern_matches:
+                            # 最初に見つかった/r/リンクを使用
+                            rss_url = r_pattern_matches[0]
+                            print(f'  パターン3でRSSリンクを発見: {rss_url}')
                     
-                    # パターン4: JavaScript内のRSS URLを探す
+                    # パターン4: /rss/ で始まるURLを探す
                     if not rss_url:
-                        js_rss_match = re.search(r'["\']([^"\']*rss[^"\']*)["\']', html_content, re.IGNORECASE)
-                        if js_rss_match and ('rss' in js_rss_match.group(1).lower() or '/r/' in js_rss_match.group(1)):
-                            rss_url = js_rss_match.group(1)
+                        rss_path_matches = re.findall(r'href=["\'](/rss/[^"\']+)["\']', html_content, re.IGNORECASE)
+                        if rss_path_matches:
+                            rss_url = rss_path_matches[0]
+                            print(f'  パターン4でRSSリンクを発見: {rss_url}')
+                    
+                    # パターン5: JavaScript内のRSS URLを探す
+                    if not rss_url:
+                        js_rss_matches = re.findall(r'["\']([^"\']*rss[^"\']*)["\']', html_content, re.IGNORECASE)
+                        for match in js_rss_matches:
+                            if ('rss' in match.lower() or '/r/' in match) and ('http' in match or match.startswith('/')):
+                                rss_url = match
+                                print(f'  パターン5でRSSリンクを発見: {rss_url}')
+                                break
                     
                     if rss_url:
                         # 相対URLの場合は絶対URLに変換
@@ -245,8 +264,6 @@ def fetch_rss_feed(feed_info):
                         response = requests.get(rss_url, headers=headers, timeout=30)
                     else:
                         # RSSリンクが見つからない場合、検索パラメータから直接RSS URLを生成してみる
-                        # 東京都エリアの成功パターン: /r/ で始まるエンコードされたURL
-                        # 検索パラメータをエンコードしてRSS URLを生成
                         from urllib.parse import urlparse, parse_qs, urlencode
                         parsed = urlparse(search_url)
                         params = parse_qs(parsed.query)
@@ -261,22 +278,38 @@ def fetch_rss_feed(feed_info):
                         if 'pr' in rss_params:
                             del rss_params['pr']
                         
-                        # パラメータをエンコードしてRSS URLを生成
+                        # フォールバック1: /r/ エンドポイントを使用（東京都エリアの成功パターン）
                         encoded_params = urlencode(rss_params, quote_via=quote)
-                        # 東京都エリアの成功パターンに基づいて、/r/ エンドポイントを使用
-                        fallback_rss_url = f'https://www.kkj.go.jp/r/?{encoded_params}'
-                        print(f'  フォールバック: 検索パラメータからRSS URLを生成: {fallback_rss_url}')
+                        fallback_rss_url_1 = f'https://www.kkj.go.jp/r/?{encoded_params}'
+                        print(f'  フォールバック1: /r/ エンドポイントを使用: {fallback_rss_url_1}')
                         
                         try:
-                            response = requests.get(fallback_rss_url, headers=headers, timeout=30)
-                            if response.status_code == 200 and '<?xml' in response.text[:100]:
-                                print(f'  フォールバックRSS URLが有効でした')
+                            test_response = requests.get(fallback_rss_url_1, headers=headers, timeout=30)
+                            if test_response.status_code == 200 and '<?xml' in test_response.text[:100]:
+                                print(f'  フォールバック1が有効でした')
+                                response = test_response
+                                rss_url = fallback_rss_url_1
                             else:
-                                raise Exception(f'フォールバックRSS URLが無効でした (ステータス: {response.status_code})')
-                        except Exception as fallback_error:
-                            print(f'  フォールバックRSS URLも失敗: {fallback_error}')
-                            print(f'  検索結果ページのHTML（最初の5000文字）: {html_content[:5000]}')
-                            raise Exception('RSSリンクが見つかりませんでした')
+                                raise Exception(f'フォールバック1が無効でした (ステータス: {test_response.status_code})')
+                        except Exception as e1:
+                            print(f'  フォールバック1が失敗: {e1}')
+                            
+                            # フォールバック2: /rss/ エンドポイントを使用
+                            fallback_rss_url_2 = f'https://www.kkj.go.jp/rss/?{encoded_params}'
+                            print(f'  フォールバック2: /rss/ エンドポイントを使用: {fallback_rss_url_2}')
+                            
+                            try:
+                                test_response = requests.get(fallback_rss_url_2, headers=headers, timeout=30)
+                                if test_response.status_code == 200 and '<?xml' in test_response.text[:100]:
+                                    print(f'  フォールバック2が有効でした')
+                                    response = test_response
+                                    rss_url = fallback_rss_url_2
+                                else:
+                                    raise Exception(f'フォールバック2が無効でした (ステータス: {test_response.status_code})')
+                            except Exception as e2:
+                                print(f'  フォールバック2も失敗: {e2}')
+                                print(f'  検索結果ページのHTML（最初の10000文字）: {html_content[:10000]}')
+                                raise Exception('RSSリンクが見つかりませんでした')
             except Exception as e:
                 print(f'  検索結果ページからのRSSリンク取得中にエラー: {e}')
                 raise
