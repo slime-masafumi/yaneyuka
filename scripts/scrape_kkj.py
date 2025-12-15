@@ -37,17 +37,17 @@ db = firestore.client()
 # - pr=13: 都道府県コード（13=東京都など）
 # - ca=2: 受注内容（2=工事）
 # - U=0-all: 検索範囲（0-all=すべて）
-# - rc=10: 表示件数（10件）
+# - rc=100: 表示件数（100件、最大取得可能件数）
 RSS_FEEDS = [
     {
         'name': '東京都',
         # 検索結果ページのURLパラメータをそのまま使用（pr=13は東京都）
-        'url': 'https://www.kkj.go.jp/rss/?U=0-all&S=&ti=&on=&rc=10&X=%E6%A4%9C%E3%80%80%E7%B4%A2&ca=2&ty=1&pr=13',
+        'url': 'https://www.kkj.go.jp/rss/?U=0-all&S=&ti=&on=&rc=100&X=%E6%A4%9C%E3%80%80%E7%B4%A2&ca=2&ty=1&pr=13',
     },
     {
         'name': '全国',
         # 全国の工事（都道府県指定なし）
-        'url': 'https://www.kkj.go.jp/rss/?U=0-all&S=&ti=&on=&rc=10&X=%E6%A4%9C%E3%80%80%E7%B4%A2&ca=2&ty=1',
+        'url': 'https://www.kkj.go.jp/rss/?U=0-all&S=&ti=&on=&rc=100&X=%E6%A4%9C%E3%80%80%E7%B4%A2&ca=2&ty=1',
     },
     # 他の都道府県を追加する場合は、prパラメータを変更
     # 例: {'name': '大阪府', 'url': 'https://www.kkj.go.jp/rss/?U=0-all&S=&ti=&on=&rc=10&X=%E6%A4%9C%E3%80%80%E7%B4%A2&ca=2&ty=1&pr=27'},
