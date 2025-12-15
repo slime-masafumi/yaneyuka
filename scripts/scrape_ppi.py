@@ -100,30 +100,50 @@ def scrape_area(driver, area_info):
         
         # まずトップページにアクセスしてから、目的のページに遷移（自然な遷移に見せる）
         try:
+            print('  トップページにアクセス中...')
             driver.get('https://www.i-ppi.jp/IPPI/SearchServices/Web/Index.htm')
-            time.sleep(2)
-        except:
-            pass
+            time.sleep(3)  # 人間らしい待機時間
+            
+            # マウスを動かす（人間らしい動作）
+            from selenium.webdriver.common.action_chains import ActionChains
+            actions = ActionChains(driver)
+            actions.move_by_offset(100, 100).perform()
+            time.sleep(1)
+        except Exception as e:
+            print(f'  トップページアクセスでエラー（続行）: {e}')
         
         # 目的のページにアクセス
+        print('  入札情報ページにアクセス中...')
         driver.get(url)
         
-        # アラートが表示された場合は閉じる
-        try:
-            WebDriverWait(driver, 2).until(EC.alert_is_present())
-            alert = driver.switch_to.alert
-            alert_text = alert.text
-            print(f'  アラート検出: {alert_text}')
-            alert.accept()
-            time.sleep(1)
-        except:
-            pass  # アラートがない場合は何もしない
+        # アラートが表示された場合は閉じる（複数回試行）
+        for attempt in range(3):
+            try:
+                WebDriverWait(driver, 1).until(EC.alert_is_present())
+                alert = driver.switch_to.alert
+                alert_text = alert.text
+                print(f'  アラート検出（試行{attempt+1}）: {alert_text}')
+                alert.accept()
+                time.sleep(2)
+            except:
+                break  # アラートがない場合は終了
         
         # ページ読み込み待機
         WebDriverWait(driver, 15).until(
             EC.presence_of_element_located((By.TAG_NAME, "body"))
         )
         time.sleep(5)  # JavaScriptの読み込みを待つ
+        
+        # 再度アラートチェック（ページ読み込み後に表示される場合がある）
+        try:
+            WebDriverWait(driver, 2).until(EC.alert_is_present())
+            alert = driver.switch_to.alert
+            alert_text = alert.text
+            print(f'  遅延アラート検出: {alert_text}')
+            alert.accept()
+            time.sleep(2)
+        except:
+            pass
         
         # デバッグ: ページのHTMLを確認
         page_source = driver.page_source
