@@ -292,6 +292,16 @@ def fetch_rss_feed(feed_info):
                         
                         # フォールバック: 検索結果ページのHTMLから/r/リンクを再度探す（より詳しく）
                         print(f'  フォールバック: HTMLから/r/リンクを再検索...')
+                        
+                        # デバッグ: HTML全体から/r/パターンを探す（より広範囲に）
+                        # まず、すべてのhref属性を確認
+                        all_hrefs = re.findall(r'href=["\']([^"\']+)["\']', html_content, re.IGNORECASE)
+                        rss_related_hrefs = [h for h in all_hrefs if '/r/' in h or 'rss' in h.lower()]
+                        if rss_related_hrefs:
+                            print(f'  RSS関連のリンクを{len(rss_related_hrefs)}個発見:')
+                            for i, href in enumerate(rss_related_hrefs[:10]):  # 最初の10個を表示
+                                print(f'    [{i+1}] {href}')
+                        
                         all_r_links = re.findall(r'href=["\'](/r/[^"\']+)["\']', html_content, re.IGNORECASE)
                         if all_r_links:
                             print(f'  /r/リンクを{len(all_r_links)}個発見、それぞれをテストします...')
@@ -359,8 +369,39 @@ def fetch_rss_feed(feed_info):
                                         raise Exception(f'フォールバック2が無効でした (ステータス: {test_response.status_code})')
                                 except Exception as e2:
                                     print(f'  フォールバック2も失敗: {e2}')
-                                    print(f'  検索結果ページのHTML（最初の15000文字）: {html_content[:15000]}')
-                                    raise Exception('RSSリンクが見つかりませんでした')
+                                    # デバッグ: HTML全体を確認（検索結果が含まれる部分を探す）
+                                    # 検索結果テーブルやリストがある部分を探す
+                                    if '<table' in html_content or '<div class="result' in html_content.lower() or '検索結果' in html_content:
+                                        print(f'  検索結果が含まれている可能性があります')
+                                    else:
+                                        print(f'  警告: 検索結果が含まれていない可能性があります')
+                                    
+                                    # HTMLの後半部分も確認（検索結果は後半にある可能性）
+                                    if len(html_content) > 50000:
+                                        print(f'  HTMLの後半部分（50000文字目以降、最初の10000文字）:')
+                                        print(f'  {html_content[50000:60000]}')
+                                    
+                                    # /r/パターンを直接HTML全体から探す（より柔軟に）
+                                    direct_r_patterns = re.findall(r'/r/[^"\'\s<>]+', html_content, re.IGNORECASE)
+                                    if direct_r_patterns:
+                                        print(f'  HTML全体から/r/パターンを{len(direct_r_patterns)}個発見:')
+                                        for i, pattern in enumerate(set(direct_r_patterns[:5])):  # 重複を除いて最初の5個
+                                            print(f'    [{i+1}] {pattern}')
+                                            # このパターンでRSS URLを生成してみる
+                                            test_url = f'https://www.kkj.go.jp{pattern}'
+                                            try:
+                                                test_resp = requests.get(test_url, headers=headers, timeout=10)
+                                                if test_resp.status_code == 200 and '<item>' in test_resp.text:
+                                                    print(f'    有効なRSSフィードを発見！: {test_url}')
+                                                    response = test_resp
+                                                    rss_url = test_url
+                                                    break
+                                            except:
+                                                pass
+                                    
+                                    if not rss_url:
+                                        print(f'  検索結果ページのHTML（最初の20000文字）: {html_content[:20000]}')
+                                        raise Exception('RSSリンクが見つかりませんでした')
             except Exception as e:
                 print(f'  検索結果ページからのRSSリンク取得中にエラー: {e}')
                 raise
