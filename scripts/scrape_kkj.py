@@ -30,22 +30,25 @@ if not firebase_admin._apps:
 db = firestore.client()
 
 # 官公需情報ポータルサイトのRSSフィードURL
-# 検索条件に基づいてRSSフィードのURLを生成
+# 検索結果ページのURLパラメータに基づいてRSSフィードのURLを生成
 # パラメータ:
 # - ty=1: 工事
 # - pr=01: 都道府県コード（01=北海道, 13=東京都など）
 # - ca=2: 受注内容（2=工事）
+# RSSフィードのURLは検索結果ページのURLパラメータをそのまま使用
 RSS_FEEDS = [
     {
         'name': '東京都',
-        'url': 'https://www.kkj.go.jp/rss/?ty=1&pr=13&ca=2',  # 東京都の工事
+        # 検索結果ページのURLパラメータをそのまま使用
+        'url': 'https://www.kkj.go.jp/rss/?U=0-all&S=&ti=&on=&rc=10&X=%E6%A4%9C%E3%80%80%E7%B4%A2&ca=2&ty=1&pr=13',
     },
     {
         'name': '全国',
-        'url': 'https://www.kkj.go.jp/rss/?ty=1&ca=2',  # 全国の工事
+        # 全国の工事（都道府県指定なし）
+        'url': 'https://www.kkj.go.jp/rss/?U=0-all&S=&ti=&on=&rc=10&X=%E6%A4%9C%E3%80%80%E7%B4%A2&ca=2&ty=1',
     },
     # 他の都道府県を追加する場合は、prパラメータを変更
-    # 例: {'name': '大阪府', 'url': 'https://www.kkj.go.jp/rss/?ty=1&pr=27&ca=2'},
+    # 例: {'name': '大阪府', 'url': 'https://www.kkj.go.jp/rss/?U=0-all&S=&ti=&on=&rc=10&X=%E6%A4%9C%E3%80%80%E7%B4%A2&ca=2&ty=1&pr=27'},
 ]
 
 def get_document_id(url):
