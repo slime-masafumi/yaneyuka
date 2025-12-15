@@ -80,8 +80,11 @@ def scrape_area(driver, area_info):
     url = area_info['url']
     
     print(f'[{datetime.now()}] {area_name}エリアのスクレイピングを開始...')
+    print(f'  アクセスURL: {url}')
     
     try:
+        # タイムアウトを長めに設定
+        driver.set_page_load_timeout(30)
         driver.get(url)
         # ページ読み込み待機
         WebDriverWait(driver, 10).until(

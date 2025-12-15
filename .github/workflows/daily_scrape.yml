@@ -45,6 +45,13 @@ jobs:
         run: |
           pip install -r scripts/requirements.txt
       
+      - name: Test network connectivity
+        run: |
+          echo "Testing DNS resolution..."
+          nslookup www.pps.go.jp || echo "DNS lookup failed"
+          echo "Testing HTTP connection..."
+          curl -I https://www.pps.go.jp/ || echo "HTTP connection failed"
+      
       - name: Run scraping script
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
