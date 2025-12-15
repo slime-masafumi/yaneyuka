@@ -188,12 +188,55 @@ def fetch_rss_feed(feed_info):
     try:
         # RSSフィードを取得
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+            'Referer': 'https://www.kkj.go.jp/'
         }
         response = requests.get(url, headers=headers, timeout=30)
+        
+        # 404エラーの場合は、検索結果ページからRSSリンクを探す
+        if response.status_code == 404:
+            print(f'  404エラー: 検索結果ページからRSSリンクを探します...')
+            # 検索結果ページのURLを生成（/rss/ を /s/ に置き換える）
+            search_url = url.replace('/rss/', '/s/')
+            print(f'  検索結果ページURL: {search_url}')
+            
+            try:
+                # 検索結果ページにアクセス
+                search_response = requests.get(search_url, headers=headers, timeout=30)
+                if search_response.status_code == 200:
+                    # HTMLからRSSリンクを探す
+                    import re
+                    # <link rel="alternate" type="application/rss+xml" href="..."> を探す
+                    rss_link_match = re.search(r'<link[^>]*rel=["\']alternate["\'][^>]*type=["\']application/rss\+xml["\'][^>]*href=["\']([^"\']+)["\']', search_response.text, re.IGNORECASE)
+                    if rss_link_match:
+                        rss_url = rss_link_match.group(1)
+                        if not rss_url.startswith('http'):
+                            rss_url = 'https://www.kkj.go.jp' + rss_url
+                        print(f'  見つかったRSS URL: {rss_url}')
+                        # 見つかったRSS URLで再度取得
+                        response = requests.get(rss_url, headers=headers, timeout=30)
+                    else:
+                        # RSSリンクが見つからない場合、HTMLからRSSボタンのリンクを探す
+                        rss_button_match = re.search(r'<a[^>]*href=["\']([^"\']*rss[^"\']*)["\']', search_response.text, re.IGNORECASE)
+                        if rss_button_match:
+                            rss_url = rss_button_match.group(1)
+                            if not rss_url.startswith('http'):
+                                rss_url = 'https://www.kkj.go.jp' + rss_url
+                            print(f'  RSSボタンのリンクを発見: {rss_url}')
+                            response = requests.get(rss_url, headers=headers, timeout=30)
+                        else:
+                            print(f'  RSSリンクが見つかりませんでした')
+                            print(f'  検索結果ページのHTML（最初の2000文字）: {search_response.text[:2000]}')
+                            raise Exception('RSSリンクが見つかりませんでした')
+            except Exception as e:
+                print(f'  検索結果ページからのRSSリンク取得中にエラー: {e}')
+                raise
+        
         response.raise_for_status()
         
         print(f'  レスポンスサイズ: {len(response.text)}文字')
+        print(f'  レスポンスの最初の500文字: {response.text[:500]}')
         
         # RSSフィードをパース
         scraped_data = parse_rss_feed(response.text, area_name)
