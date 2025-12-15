@@ -95,13 +95,46 @@ def scrape_area(driver, area_info):
         print(f'  ページタイトル: {driver.title}')
         print(f'  ページソースの長さ: {len(page_source)}文字')
         
+        # ページのHTML構造を確認（最初の2000文字を出力）
+        print(f'\n  ページのHTML構造（最初の2000文字）:')
+        print(page_source[:2000])
+        
+        # フォーム要素を探す
+        forms = driver.find_elements(By.CSS_SELECTOR, 'form')
+        print(f'\n  見つかったフォーム数: {len(forms)}')
+        for idx, form in enumerate(forms, 1):
+            form_action = form.get_attribute('action')
+            form_method = form.get_attribute('method')
+            print(f'    フォーム{idx}: action={form_action}, method={form_method}')
+        
+        # 入力フィールドを探す
+        inputs = driver.find_elements(By.CSS_SELECTOR, 'input, select, textarea')
+        print(f'\n  見つかった入力フィールド数: {len(inputs)}')
+        for idx, inp in enumerate(inputs[:10], 1):  # 最初の10個だけ
+            inp_type = inp.get_attribute('type')
+            inp_name = inp.get_attribute('name')
+            inp_id = inp.get_attribute('id')
+            print(f'    入力{idx}: type={inp_type}, name={inp_name}, id={inp_id}')
+        
+        # ボタンを探す
+        buttons = driver.find_elements(By.CSS_SELECTOR, 'button, input[type="submit"], input[type="button"]')
+        print(f'\n  見つかったボタン数: {len(buttons)}')
+        for idx, btn in enumerate(buttons[:10], 1):  # 最初の10個だけ
+            btn_text = btn.text.strip() or btn.get_attribute('value') or btn.get_attribute('title')
+            btn_type = btn.get_attribute('type')
+            print(f'    ボタン{idx}: text={btn_text[:50]}, type={btn_type}')
+        
         # 入札情報のテーブルを取得
         # 実際のサイト構造に合わせてセレクタを調整してください
         tables = driver.find_elements(By.CSS_SELECTOR, 'table')
-        print(f'  見つかったテーブル数: {len(tables)}')
+        print(f'\n  見つかったテーブル数: {len(tables)}')
         
         rows = driver.find_elements(By.CSS_SELECTOR, 'table tr')
         print(f'  見つかった行数: {len(rows)}')
+        
+        # リスト形式の可能性もある
+        list_items = driver.find_elements(By.CSS_SELECTOR, 'ul li, ol li, div.item, div.result')
+        print(f'  見つかったリスト項目数: {len(list_items)}')
         
         scraped_data = []
         
@@ -134,9 +167,9 @@ def scrape_area(driver, area_info):
                 
                 # 相対URLを絶対URLに変換
                 if link.startswith('/'):
-                    link = f'https://www.pps.go.jp{link}'
+                    link = f'https://www.i-ppi.jp{link}'
                 elif not link.startswith('http'):
-                    link = f'https://www.pps.go.jp/{link}'
+                    link = f'https://www.i-ppi.jp/{link}'
                 
                 scraped_data.append({
                     'date': date,
