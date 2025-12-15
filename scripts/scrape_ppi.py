@@ -89,16 +89,27 @@ def scrape_area(driver, area_info):
         )
         time.sleep(3)  # 追加の待機時間
         
+        # デバッグ: ページのHTMLを確認
+        page_source = driver.page_source
+        print(f'  ページタイトル: {driver.title}')
+        print(f'  ページソースの長さ: {len(page_source)}文字')
+        
         # 入札情報のテーブルを取得
         # 実際のサイト構造に合わせてセレクタを調整してください
+        tables = driver.find_elements(By.CSS_SELECTOR, 'table')
+        print(f'  見つかったテーブル数: {len(tables)}')
+        
         rows = driver.find_elements(By.CSS_SELECTOR, 'table tr')
+        print(f'  見つかった行数: {len(rows)}')
         
         scraped_data = []
         
-        for row in rows[1:]:  # ヘッダー行をスキップ
+        for idx, row in enumerate(rows[1:], 1):  # ヘッダー行をスキップ
             try:
                 cells = row.find_elements(By.TAG_NAME, 'td')
-                if len(cells) < 5:
+                if len(cells) < 3:
+                    if idx <= 3:  # 最初の3行だけデバッグ出力
+                        print(f'    行{idx}: セル数が少ない ({len(cells)}個)')
                     continue
                 
                 # セルの内容を取得（実際のサイト構造に合わせて調整）
@@ -106,9 +117,16 @@ def scrape_area(driver, area_info):
                 organization = cells[1].text.strip() if len(cells) > 1 else ''
                 title = cells[2].text.strip() if len(cells) > 2 else ''
                 
-                # リンクを取得
-                link_element = cells[2].find_elements(By.TAG_NAME, 'a')
-                link = link_element[0].get_attribute('href') if link_element else ''
+                # リンクを取得（複数のセルからリンクを探す）
+                link = ''
+                for cell in cells:
+                    link_elements = cell.find_elements(By.TAG_NAME, 'a')
+                    if link_elements:
+                        link = link_elements[0].get_attribute('href')
+                        break
+                
+                if idx <= 3:  # 最初の3行だけデバッグ出力
+                    print(f'    行{idx}: 日付={date[:20]}, 機関={organization[:20]}, タイトル={title[:30]}, リンク={link[:50] if link else "なし"}')
                 
                 if not link or not title:
                     continue
