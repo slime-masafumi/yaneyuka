@@ -51,7 +51,22 @@ def setup_driver():
     chrome_options.add_argument('--window-size=1920,1080')
     chrome_options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
     
-    service = Service(ChromeDriverManager().install())
+    # GitHub Actions環境では、システムにインストールされたchromedriverを使用
+    import os
+    if os.path.exists('/usr/local/bin/chromedriver'):
+        # GitHub Actions環境: システムのchromedriverを使用
+        driver_path = '/usr/local/bin/chromedriver'
+        service = Service(driver_path)
+    else:
+        # ローカル環境: webdriver-managerを使用
+        try:
+            driver_path = ChromeDriverManager().install()
+            service = Service(driver_path)
+        except Exception as e:
+            print(f'ChromeDriverManagerでエラー: {e}')
+            # フォールバック: システムのchromedriverを使用
+            service = Service()
+    
     driver = webdriver.Chrome(service=service, options=chrome_options)
     return driver
 
