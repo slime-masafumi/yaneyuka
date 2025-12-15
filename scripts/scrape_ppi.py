@@ -2,6 +2,7 @@ import os
 import json
 import time
 import hashlib
+import re
 from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -29,14 +30,12 @@ if not firebase_admin._apps:
 db = firestore.client()
 
 # 公共工事入札情報サイト（i-ppi.jp）のURL
-# 実際のサイト構造に合わせて、検索条件やURLを調整してください
-BASE_URL = 'https://www.i-ppi.jp/IPPI/SearchServices/Web/Index.htm'
-
-# エリア別の検索条件（実際のサイト構造に合わせて調整が必要）
-# 現在は全件検索として実装。必要に応じてエリア別の検索条件を追加
+# エリア別の入札情報一覧ページ
+# tabパラメータ: 10=東京都, その他のエリアのtab番号は要確認
 AREAS = [
-    {'name': '全国', 'url': BASE_URL},
-    # エリア別の検索が必要な場合は、実際のサイトの検索パラメータを確認して追加
+    {'name': '東京都', 'url': 'https://www.i-ppi.jp/IPPI/SearchServices/Web/Koji/Kokoku/List.aspx?tab=10'},
+    # 他のエリアのURLを追加する場合は、tabパラメータを変更
+    # 例: {'name': '大阪府', 'url': 'https://www.i-ppi.jp/IPPI/SearchServices/Web/Koji/Kokoku/List.aspx?tab=XX'},
 ]
 
 def setup_driver():
