@@ -214,6 +214,14 @@ def fetch_rss_feed(feed_info):
                     if rss_link_match:
                         rss_url = rss_link_match.group(1)
                         print(f'  パターン1でRSSリンクを発見: {rss_url}')
+                    else:
+                        # より緩い条件で探す（rel="alternate"のみ）
+                        rss_link_match = re.search(r'<link[^>]*rel=["\']alternate["\'][^>]*href=["\']([^"\']+)["\']', html_content, re.IGNORECASE)
+                        if rss_link_match:
+                            potential_url = rss_link_match.group(1)
+                            if 'rss' in potential_url.lower() or '/r/' in potential_url:
+                                rss_url = potential_url
+                                print(f'  パターン1（緩い条件）でRSSリンクを発見: {rss_url}')
                     
                     # パターン2: RSSボタンやアイコンのリンクを探す（より広範囲に検索）
                     if not rss_url:
@@ -232,7 +240,11 @@ def fetch_rss_feed(feed_info):
                     if not rss_url:
                         r_pattern_matches = re.findall(r'href=["\'](/r/[^"\']+)["\']', html_content, re.IGNORECASE)
                         if r_pattern_matches:
-                            # 最初に見つかった/r/リンクを使用
+                            # すべての/r/リンクを確認して、最も適切なものを選択
+                            print(f'  /r/リンクを{len(r_pattern_matches)}個発見')
+                            for i, match in enumerate(r_pattern_matches):
+                                print(f'    [{i+1}] {match}')
+                            # 最初に見つかった/r/リンクを使用（通常はRSSボタンのリンク）
                             rss_url = r_pattern_matches[0]
                             print(f'  パターン3でRSSリンクを発見: {rss_url}')
                     
@@ -278,38 +290,77 @@ def fetch_rss_feed(feed_info):
                         if 'pr' in rss_params:
                             del rss_params['pr']
                         
-                        # フォールバック1: /r/ エンドポイントを使用（東京都エリアの成功パターン）
-                        encoded_params = urlencode(rss_params, quote_via=quote)
-                        fallback_rss_url_1 = f'https://www.kkj.go.jp/r/?{encoded_params}'
-                        print(f'  フォールバック1: /r/ エンドポイントを使用: {fallback_rss_url_1}')
-                        
-                        try:
-                            test_response = requests.get(fallback_rss_url_1, headers=headers, timeout=30)
-                            if test_response.status_code == 200 and '<?xml' in test_response.text[:100]:
-                                print(f'  フォールバック1が有効でした')
-                                response = test_response
-                                rss_url = fallback_rss_url_1
-                            else:
-                                raise Exception(f'フォールバック1が無効でした (ステータス: {test_response.status_code})')
-                        except Exception as e1:
-                            print(f'  フォールバック1が失敗: {e1}')
+                        # フォールバック: 検索結果ページのHTMLから/r/リンクを再度探す（より詳しく）
+                        print(f'  フォールバック: HTMLから/r/リンクを再検索...')
+                        all_r_links = re.findall(r'href=["\'](/r/[^"\']+)["\']', html_content, re.IGNORECASE)
+                        if all_r_links:
+                            print(f'  /r/リンクを{len(all_r_links)}個発見、それぞれをテストします...')
+                            for i, link in enumerate(all_r_links):
+                                test_rss_url = 'https://www.kkj.go.jp' + link if link.startswith('/') else 'https://www.kkj.go.jp/' + link
+                                print(f'    テスト[{i+1}/{len(all_r_links)}]: {test_rss_url}')
+                                try:
+                                    test_response = requests.get(test_rss_url, headers=headers, timeout=30)
+                                    if test_response.status_code == 200 and '<?xml' in test_response.text[:100]:
+                                        # <item>タグがあるか確認
+                                        if '<item>' in test_response.text:
+                                            print(f'    有効なRSSフィードを発見！({len(test_response.text)}文字, <item>タグあり)')
+                                            response = test_response
+                                            rss_url = test_rss_url
+                                            break
+                                        else:
+                                            print(f'    RSSフィードは空です（<item>タグなし）')
+                                    else:
+                                        print(f'    無効なレスポンス (ステータス: {test_response.status_code})')
+                                except Exception as test_error:
+                                    print(f'    エラー: {test_error}')
                             
-                            # フォールバック2: /rss/ エンドポイントを使用
-                            fallback_rss_url_2 = f'https://www.kkj.go.jp/rss/?{encoded_params}'
-                            print(f'  フォールバック2: /rss/ エンドポイントを使用: {fallback_rss_url_2}')
+                            if not rss_url:
+                                print(f'  すべての/r/リンクをテストしましたが、有効なRSSフィードが見つかりませんでした')
+                        
+                        # それでも見つからない場合、パラメータから直接RSS URLを生成
+                        if not rss_url:
+                            print(f'  パラメータからRSS URLを生成します...')
+                            encoded_params = urlencode(rss_params, quote_via=quote)
+                            
+                            # フォールバック1: /r/ エンドポイントを使用（東京都エリアの成功パターン）
+                            fallback_rss_url_1 = f'https://www.kkj.go.jp/r/?{encoded_params}'
+                            print(f'  フォールバック1: /r/ エンドポイントを使用: {fallback_rss_url_1}')
                             
                             try:
-                                test_response = requests.get(fallback_rss_url_2, headers=headers, timeout=30)
+                                test_response = requests.get(fallback_rss_url_1, headers=headers, timeout=30)
                                 if test_response.status_code == 200 and '<?xml' in test_response.text[:100]:
-                                    print(f'  フォールバック2が有効でした')
-                                    response = test_response
-                                    rss_url = fallback_rss_url_2
+                                    if '<item>' in test_response.text:
+                                        print(f'  フォールバック1が有効でした（<item>タグあり）')
+                                        response = test_response
+                                        rss_url = fallback_rss_url_1
+                                    else:
+                                        print(f'  フォールバック1は空のRSSフィードです（<item>タグなし）')
+                                        raise Exception('空のRSSフィード')
                                 else:
-                                    raise Exception(f'フォールバック2が無効でした (ステータス: {test_response.status_code})')
-                            except Exception as e2:
-                                print(f'  フォールバック2も失敗: {e2}')
-                                print(f'  検索結果ページのHTML（最初の10000文字）: {html_content[:10000]}')
-                                raise Exception('RSSリンクが見つかりませんでした')
+                                    raise Exception(f'フォールバック1が無効でした (ステータス: {test_response.status_code})')
+                            except Exception as e1:
+                                print(f'  フォールバック1が失敗: {e1}')
+                                
+                                # フォールバック2: /rss/ エンドポイントを使用
+                                fallback_rss_url_2 = f'https://www.kkj.go.jp/rss/?{encoded_params}'
+                                print(f'  フォールバック2: /rss/ エンドポイントを使用: {fallback_rss_url_2}')
+                                
+                                try:
+                                    test_response = requests.get(fallback_rss_url_2, headers=headers, timeout=30)
+                                    if test_response.status_code == 200 and '<?xml' in test_response.text[:100]:
+                                        if '<item>' in test_response.text:
+                                            print(f'  フォールバック2が有効でした（<item>タグあり）')
+                                            response = test_response
+                                            rss_url = fallback_rss_url_2
+                                        else:
+                                            print(f'  フォールバック2も空のRSSフィードです（<item>タグなし）')
+                                            raise Exception('空のRSSフィード')
+                                    else:
+                                        raise Exception(f'フォールバック2が無効でした (ステータス: {test_response.status_code})')
+                                except Exception as e2:
+                                    print(f'  フォールバック2も失敗: {e2}')
+                                    print(f'  検索結果ページのHTML（最初の15000文字）: {html_content[:15000]}')
+                                    raise Exception('RSSリンクが見つかりませんでした')
             except Exception as e:
                 print(f'  検索結果ページからのRSSリンク取得中にエラー: {e}')
                 raise
