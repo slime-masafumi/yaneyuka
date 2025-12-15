@@ -72,12 +72,39 @@ def parse_date(date_str):
         pass
     return None
 
-def is_recent_date(date_obj, days=3):
-    """日付が最近（デフォルト3日以内）かどうかを判定"""
+def is_recent_date(date_obj, days=45):
+    """日付が最近（デフォルト45日以内）かどうかを判定"""
     if not date_obj:
         return False
     cutoff_date = datetime.now() - timedelta(days=days)
     return date_obj >= cutoff_date
+
+def categorize_work(title):
+    """タイトルから工事区分を自動判定（優先順位順）"""
+    title_lower = title.lower()
+    
+    # 1. 設備（電気・空調） - 最優先
+    equipment_keywords = ['空調', '暖房', 'ボイラー', '電気', '電源', '照明', 'led', '監視', '通信', '警報', 'ポンプ', '浄化槽', '機械', '昇降機']
+    if any(keyword in title for keyword in equipment_keywords):
+        return '設備（電気・空調）'
+    
+    # 2. 建築・解体
+    building_keywords = ['建築', '増築', '新営', '改修', '修繕', '建具', '天井', 'トイレ', '塗装', '屋根', '防水', '解体', '撤去']
+    if any(keyword in title for keyword in building_keywords):
+        return '建築・解体'
+    
+    # 3. 水路・河川
+    water_keywords = ['水路', '河川', '護岸', '堤防', 'ダム', '砂防', '下水', '管きょ', '排水', '浚渫']
+    if any(keyword in title for keyword in water_keywords):
+        return '水路・河川'
+    
+    # 4. 業務・その他
+    business_keywords = ['業務', '委託', '支援', '調査', '設計', 'システム', '点検', '清掃', '伐採', '運搬']
+    if any(keyword in title for keyword in business_keywords):
+        return '業務・その他'
+    
+    # 5. 土木・道路（デフォルト）
+    return '土木・道路'
 
 def parse_search_results(html_content, prefecture_code, prefecture_name):
     """検索結果ページのHTMLを解析してデータを抽出"""
@@ -151,10 +178,26 @@ def parse_search_results(html_content, prefecture_code, prefecture_name):
                 # 日付をパース
                 date_obj = parse_date(date_str)
                 
+                # 45日より前の日付が出現したら処理を中断（降順で取得しているため）
+                if date_obj and not is_recent_date(date_obj, days=45):
+                    print(f'    45日より前の日付を検出、処理を中断: {date_str}')
+                    # この時点で処理を中断するため、oldest_dateを設定して返す
+                    if oldest_date is None:
+                        oldest_date = date_obj
+                    break
+                
                 # 最も古い日付を記録
                 if date_obj:
                     if oldest_date is None or date_obj < oldest_date:
                         oldest_date = date_obj
+                
+                # 工事区分を自動判定
+                category = categorize_work(title)
+                
+                # expireAtを計算（公告日 + 45日）
+                expire_at = None
+                if date_obj:
+                    expire_at = (date_obj + timedelta(days=45)).isoformat()
                 
                 scraped_data.append({
                     'date': date_str,
@@ -163,6 +206,8 @@ def parse_search_results(html_content, prefecture_code, prefecture_name):
                     'title': title,
                     'link': link,
                     'description': '',
+                    'category': category,
+                    'expireAt': expire_at,
                     'scrapedAt': datetime.now().isoformat(),
                 })
                 
@@ -221,21 +266,26 @@ def fetch_prefecture_data(prefecture_code, prefecture_name):
                 should_continue = False
                 break
             
-            # 日付判定: 3日以内のデータのみを保存
+            # 日付判定: 45日以内のデータのみを保存
             recent_data = []
             for item in page_data:
                 date_obj = parse_date(item['date'])
-                if is_recent_date(date_obj, days=3):
+                if is_recent_date(date_obj, days=45):
                     recent_data.append(item)
                 else:
                     print(f'    古いデータをスキップ: {item["date"]} - {item["title"][:50]}...')
             
             all_data.extend(recent_data)
-            print(f'  ページ{page}: {len(page_data)}件取得、{len(recent_data)}件が3日以内')
+            print(f'  ページ{page}: {len(page_data)}件取得、{len(recent_data)}件が45日以内')
             
             # 日付が古くなったら、その都道府県の処理を打ち切る
-            if oldest_date and not is_recent_date(oldest_date, days=3):
-                print(f'  最も古い日付が3日を超えているため、{prefecture_name}の処理を終了します')
+            if oldest_date and not is_recent_date(oldest_date, days=45):
+                print(f'  最も古い日付が45日を超えているため、{prefecture_name}の処理を終了します')
+                should_continue = False
+                break
+            
+            # parse_search_results内で45日より前の日付が検出された場合も中断
+            if oldest_date and not is_recent_date(oldest_date, days=45):
                 should_continue = False
                 break
             
