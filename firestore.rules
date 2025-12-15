@@ -1,0 +1,249 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 掲示板本体（未ログインでも閲覧可）
+    match /forumPosts/{postId} {
+      allow read: if true;
+      allow create, update: if request.auth != null;
+      // 削除: 自分の投稿または管理者（slime-a@outlook.com）のみ
+      allow delete: if request.auth != null
+        && (resource.data.uid == request.auth.uid
+            || request.auth.token.email == 'slime-a@outlook.com');
+
+      // 返信（未ログインでも閲覧可）
+      match /replies/{replyId} {
+        allow read: if true;
+        allow create, update: if request.auth != null;
+        // 削除: 自分の返信または管理者（slime-a@outlook.com）のみ
+        allow delete: if request.auth != null
+          && (resource.data.uid == request.auth.uid
+              || request.auth.token.email == 'slime-a@outlook.com');
+      }
+    }
+
+    // 各ユーザー配下のブックマーク（本人のみ）
+    match /users/{uid}/forumBookmarks/{docId} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Team Boards（オーナー or メンバーのみ）
+    match /boards/{boardId} {
+      allow read: if request.auth != null
+        && (resource.data.ownerUid == request.auth.uid
+            || (resource.data.memberUids != null && request.auth.uid in resource.data.memberUids));
+      // 作成は自分がオーナーのボードのみ
+      allow create: if request.auth != null
+        && request.resource.data.ownerUid == request.auth.uid;
+      // 更新・削除はオーナーのみ
+      allow update, delete: if request.auth != null
+        && resource.data.ownerUid == request.auth.uid;
+
+      // ボード配下のタスク（ボードのオーナー・メンバーのみ）
+      match /tasks/{taskId} {
+        allow read, create, update, delete: if request.auth != null
+          && (
+            get(/databases/$(database)/documents/boards/$(boardId)).data.ownerUid == request.auth.uid
+            || request.auth.uid in get(/databases/$(database)/documents/boards/$(boardId)).data.memberUids
+          );
+      }
+    }
+
+    // ユーザープロファイル（読み出しはログイン済み全ユーザー、書き込みは本人のみ）
+    match /users/{uid} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // そのほかユーザー配下データは原則本人のみ（必要に応じて拡張）
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // ファイル転送ツールの設定
+    match /config/{docId} {
+      allow read: if request.auth != null;
+    }
+
+    // ファイル転送ツールの使用量メトリクス
+    match /usage/{usageId} {
+      allow read: if request.auth != null
+        && (
+          usageId.matches('^site_.*')
+          || usageId.matches('^' + request.auth.uid + '_.*')
+        );
+      // 書き込み: 自分の使用量またはサイト全体の使用量のみ
+      allow write: if request.auth != null
+        && (
+          usageId.matches('^' + request.auth.uid + '_.*')
+          || usageId.matches('^site_.*')
+        )
+        && request.resource.data.keys().hasOnly(['uploadedBytes', 'downloadedBytes']);
+    }
+
+    // ファイル転送ツールのアップロードメタデータ
+    match /uploads/{uploadId} {
+      allow read, delete: if request.auth != null && resource.data.owner == request.auth.uid;
+
+      allow create: if request.auth != null
+        && request.resource.data.owner == request.auth.uid
+        && request.resource.data.keys().hasOnly([
+          'owner',
+          'fileName',
+          'size',
+          'path',
+          'downloadUrl',
+          'createdAt',
+          'expiresAt',
+          'shortCode',
+          'retentionDays'
+        ]);
+
+      allow update: if request.auth != null
+        && resource.data.owner == request.auth.uid
+        && request.resource.data.owner == request.auth.uid;
+    }
+
+    // 短縮共有リンク
+    match /shareLinks/{code} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && request.resource.data.owner == request.auth.uid
+        && request.resource.data.keys().hasOnly([
+          'owner',
+          'fileId',
+          'path',
+          'downloadUrl',
+          'fileName',
+          'createdAt',
+          'expiresAt',
+          'retentionDays'
+        ]);
+      allow delete: if request.auth != null && resource.data.owner == request.auth.uid;
+    }
+
+    // チャットルーム（参加者のみ読み書き可能）
+    match /chatRooms/{roomId} {
+      // チャットルームの読み取りは参加者のみ
+      allow read: if request.auth != null
+        && request.auth.uid in resource.data.participants;
+      
+      // チャットルームの作成は、作成者が参加者に含まれている場合のみ
+      allow create: if request.auth != null
+        && request.auth.uid in request.resource.data.participants
+        && request.resource.data.participants.size() == 2; // 2人用チャットのみ
+      
+      // チャットルームの更新は参加者のみ
+      allow update: if request.auth != null
+        && request.auth.uid in resource.data.participants;
+      
+      // チャットルームの削除は参加者のみ（通常は削除しない）
+      allow delete: if request.auth != null
+        && request.auth.uid in resource.data.participants;
+
+      // ▼▼▼ 修正箇所：メッセージ（チャットルームの参加者のみ読み書き可能） ▼▼▼
+      match /messages/{messageId} {
+        // 読み取り許可
+        allow read: if request.auth != null
+          && request.auth.uid in get(/databases/$(database)/documents/chatRooms/$(roomId)).data.participants;
+        
+        // 作成許可：送信者が自分自身であること（厳しいフィールド制限は削除）
+        allow create: if request.auth != null
+          && request.auth.uid in get(/databases/$(database)/documents/chatRooms/$(roomId)).data.participants
+          && request.resource.data.senderId == request.auth.uid;
+        
+        // 更新許可：送信者本人の修正、または受信者による既読状態の更新のみ許可
+        allow update: if request.auth != null
+          && request.auth.uid in get(/databases/$(database)/documents/chatRooms/$(roomId)).data.participants
+          && (
+            // 送信者は自分のメッセージを更新可能
+            resource.data.senderId == request.auth.uid
+            // または、変更されたフィールドが 'readBy' か 'readAt' のみであれば許可（受信者の既読処理）
+            || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy', 'readAt'])
+          );
+        
+        // 削除許可：送信者のみ
+        allow delete: if request.auth != null
+          && request.auth.uid in get(/databases/$(database)/documents/chatRooms/$(roomId)).data.participants
+          && resource.data.senderId == request.auth.uid;
+      }
+    }
+
+    // スケジュール調整ツール
+    match /schedules/{scheduleId} {
+      // 読み取り: 公開設定なら誰でも、非公開ならログインユーザーのみ
+      allow read: if resource.data.isPublic == true
+        || (request.auth != null && resource.data.ownerUid == request.auth.uid);
+      
+      // 作成: ログインユーザーなら誰でも作成可能（ownerUidが自分のuidであることを確認）
+      allow create: if request.auth != null
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerUid is string;
+      
+      // 更新・削除: オーナーのみ
+      allow update, delete: if request.auth != null
+        && resource.data.ownerUid == request.auth.uid;
+
+      // オプション（候補）
+      match /options/{optionId} {
+        allow read: if get(/databases/$(database)/documents/schedules/$(scheduleId)).data.isPublic == true
+          || (request.auth != null && get(/databases/$(database)/documents/schedules/$(scheduleId)).data.ownerUid == request.auth.uid);
+        allow create, update, delete: if request.auth != null
+          && get(/databases/$(database)/documents/schedules/$(scheduleId)).data.ownerUid == request.auth.uid;
+      }
+
+      // 参加者
+      match /participants/{participantId} {
+        allow read: if get(/databases/$(database)/documents/schedules/$(scheduleId)).data.isPublic == true
+          || (request.auth != null && get(/databases/$(database)/documents/schedules/$(scheduleId)).data.ownerUid == request.auth.uid);
+        // 作成: 公開なら誰でも、非公開ならログインユーザーのみ
+        allow create: if get(/databases/$(database)/documents/schedules/$(scheduleId)).data.isPublic == true
+          || request.auth != null;
+        // 更新・削除: オーナーまたは本人（名前で判定は難しいので、オーナーのみ）
+        allow update, delete: if request.auth != null
+          && get(/databases/$(database)/documents/schedules/$(scheduleId)).data.ownerUid == request.auth.uid;
+      }
+
+      // 回答
+      match /responses/{responseId} {
+        allow read: if get(/databases/$(database)/documents/schedules/$(scheduleId)).data.isPublic == true
+          || (request.auth != null && get(/databases/$(database)/documents/schedules/$(scheduleId)).data.ownerUid == request.auth.uid);
+        // 作成・更新: 公開なら誰でも、非公開ならログインユーザーのみ
+        allow create, update: if get(/databases/$(database)/documents/schedules/$(scheduleId)).data.isPublic == true
+          || request.auth != null;
+        // 削除: オーナーのみ
+        allow delete: if request.auth != null
+          && get(/databases/$(database)/documents/schedules/$(scheduleId)).data.ownerUid == request.auth.uid;
+      }
+    }
+
+    // 一時ファイル（24時間限定ファイル置き場）
+    match /tempFiles/{fileId} {
+      // 読み取り: 自分のファイルのみ
+      allow read: if request.auth != null
+        && resource.data.userId == request.auth.uid;
+      
+      // 作成: ログインユーザーなら誰でも作成可能
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.keys().hasAll(['name', 'url', 'storagePath', 'createdAt', 'expiresAt', 'userId'])
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.expiresAt is timestamp
+        && (request.resource.data.size == null || request.resource.data.size is number);
+      
+      // 更新: 自分のファイルのみ（通常は更新しないが、念のため）
+      allow update: if request.auth != null
+        && resource.data.userId == request.auth.uid;
+      
+      // 削除: 自分のファイルのみ
+      allow delete: if request.auth != null
+        && resource.data.userId == request.auth.uid;
+    }
+
+    // 公共工事入札情報（誰でも読み取り可能、書き込みはサーバーのみ）
+    match /public_works/{workId} {
+      allow read: if true; // 誰でも読み取り可能
+      allow write: if false; // 書き込みはサーバー（GitHub Actions）からのみ
+    }
+  }
+}

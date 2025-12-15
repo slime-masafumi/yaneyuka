@@ -1,0 +1,196 @@
+import os
+import json
+import time
+import hashlib
+from datetime import datetime
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from webdriver_manager.chrome import ChromeDriverManager
+import firebase_admin
+from firebase_admin import credentials, firestore
+
+# Firebase初期化
+firebase_service_account = os.environ.get('FIREBASE_SERVICE_ACCOUNT')
+if not firebase_service_account:
+    raise ValueError('FIREBASE_SERVICE_ACCOUNT環境変数が設定されていません')
+
+# JSON文字列をパース
+service_account_info = json.loads(firebase_service_account)
+
+# Firebase Admin SDK初期化（既に初期化されている場合はスキップ）
+if not firebase_admin._apps:
+    cred = credentials.Certificate(service_account_info)
+    firebase_admin.initialize_app(cred)
+
+db = firestore.client()
+
+# 国土交通省PPIサイトのエリア（地方整備局）リスト
+AREAS = [
+    {'name': '北海道', 'url': 'https://www.pps.go.jp/odr/odr_list.php?area=01'},
+    {'name': '東北', 'url': 'https://www.pps.go.jp/odr/odr_list.php?area=02'},
+    {'name': '関東', 'url': 'https://www.pps.go.jp/odr/odr_list.php?area=03'},
+    {'name': '北陸', 'url': 'https://www.pps.go.jp/odr/odr_list.php?area=04'},
+    {'name': '中部', 'url': 'https://www.pps.go.jp/odr/odr_list.php?area=05'},
+    {'name': '近畿', 'url': 'https://www.pps.go.jp/odr/odr_list.php?area=06'},
+    {'name': '中国', 'url': 'https://www.pps.go.jp/odr/odr_list.php?area=07'},
+    {'name': '四国', 'url': 'https://www.pps.go.jp/odr/odr_list.php?area=08'},
+    {'name': '九州', 'url': 'https://www.pps.go.jp/odr/odr_list.php?area=09'},
+]
+
+def setup_driver():
+    """Chromeドライバーのセットアップ"""
+    chrome_options = Options()
+    chrome_options.add_argument('--headless')
+    chrome_options.add_argument('--no-sandbox')
+    chrome_options.add_argument('--disable-dev-shm-usage')
+    chrome_options.add_argument('--disable-gpu')
+    chrome_options.add_argument('--window-size=1920,1080')
+    chrome_options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+    
+    service = Service(ChromeDriverManager().install())
+    driver = webdriver.Chrome(service=service, options=chrome_options)
+    return driver
+
+def get_document_id(url):
+    """URLからドキュメントIDを生成（重複チェック用）"""
+    return hashlib.md5(url.encode()).hexdigest()
+
+def scrape_area(driver, area_info):
+    """特定エリアの入札情報をスクレイピング"""
+    area_name = area_info['name']
+    url = area_info['url']
+    
+    print(f'[{datetime.now()}] {area_name}エリアのスクレイピングを開始...')
+    
+    try:
+        driver.get(url)
+        # ページ読み込み待機
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.TAG_NAME, "body"))
+        )
+        time.sleep(3)  # 追加の待機時間
+        
+        # 入札情報のテーブルを取得
+        # 実際のサイト構造に合わせてセレクタを調整してください
+        rows = driver.find_elements(By.CSS_SELECTOR, 'table tr')
+        
+        scraped_data = []
+        
+        for row in rows[1:]:  # ヘッダー行をスキップ
+            try:
+                cells = row.find_elements(By.TAG_NAME, 'td')
+                if len(cells) < 5:
+                    continue
+                
+                # セルの内容を取得（実際のサイト構造に合わせて調整）
+                date = cells[0].text.strip() if len(cells) > 0 else ''
+                organization = cells[1].text.strip() if len(cells) > 1 else ''
+                title = cells[2].text.strip() if len(cells) > 2 else ''
+                
+                # リンクを取得
+                link_element = cells[2].find_elements(By.TAG_NAME, 'a')
+                link = link_element[0].get_attribute('href') if link_element else ''
+                
+                if not link or not title:
+                    continue
+                
+                # 相対URLを絶対URLに変換
+                if link.startswith('/'):
+                    link = f'https://www.pps.go.jp{link}'
+                elif not link.startswith('http'):
+                    link = f'https://www.pps.go.jp/{link}'
+                
+                scraped_data.append({
+                    'date': date,
+                    'area': area_name,
+                    'organization': organization,
+                    'title': title,
+                    'link': link,
+                    'scrapedAt': datetime.now().isoformat(),
+                })
+                
+            except Exception as e:
+                print(f'  行の処理中にエラー: {e}')
+                continue
+        
+        print(f'  {len(scraped_data)}件のデータを取得')
+        return scraped_data
+        
+    except Exception as e:
+        print(f'  {area_name}エリアのスクレイピング中にエラー: {e}')
+        return []
+
+def save_to_firestore(data_list):
+    """Firestoreにデータを保存（重複チェック付き）"""
+    collection_ref = db.collection('public_works')
+    saved_count = 0
+    updated_count = 0
+    
+    for data in data_list:
+        doc_id = get_document_id(data['link'])
+        
+        try:
+            # merge=Trueで既存データがあれば更新、なければ新規作成
+            collection_ref.document(doc_id).set({
+                'date': data['date'],
+                'area': data['area'],
+                'organization': data['organization'],
+                'title': data['title'],
+                'link': data['link'],
+                'scrapedAt': data['scrapedAt'],
+            }, merge=True)
+            
+            # 既存ドキュメントかどうかを確認
+            doc = collection_ref.document(doc_id).get()
+            if doc.exists:
+                updated_count += 1
+            else:
+                saved_count += 1
+                
+        except Exception as e:
+            print(f'  Firestore保存エラー ({data["title"][:30]}...): {e}')
+    
+    print(f'保存完了: 新規{saved_count}件、更新{updated_count}件')
+
+def main():
+    """メイン処理"""
+    print(f'[{datetime.now()}] スクレイピング開始')
+    
+    driver = None
+    try:
+        driver = setup_driver()
+        all_data = []
+        
+        for i, area_info in enumerate(AREAS):
+            # 各エリアのスクレイピング
+            area_data = scrape_area(driver, area_info)
+            all_data.extend(area_data)
+            
+            # 最後のエリア以外は30秒待機
+            if i < len(AREAS) - 1:
+                print(f'  30秒待機中...')
+                time.sleep(30)
+        
+        # Firestoreに保存
+        if all_data:
+            print(f'[{datetime.now()}] Firestoreへの保存を開始...')
+            save_to_firestore(all_data)
+        else:
+            print('取得したデータがありません')
+        
+        print(f'[{datetime.now()}] スクレイピング完了')
+        
+    except Exception as e:
+        print(f'エラーが発生しました: {e}')
+        raise
+    finally:
+        if driver:
+            driver.quit()
+
+if __name__ == '__main__':
+    main()
+
