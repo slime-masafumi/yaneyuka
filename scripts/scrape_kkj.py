@@ -298,30 +298,47 @@ def parse_search_results(html_content, prefecture_code, prefecture_name):
                         if date_match:
                             date_str = date_match.group(0)
                 
-                # 発注機関と地域: 水色背景（#CAD8DD）のspanタグから抽出（優先）
+                # 発注機関と地域: テキストの長さと構造に基づいて抽出
                 organization = ''
                 area = prefecture_name
                 
-                # パターン1: 背景色が #CAD8DD のspanタグを全て探す
-                spans_with_bg = box.find_all('span', style=lambda x: x and ('CAD8DD' in x.upper() or 'background-color' in x.lower()))
+                # パターン1: spanタグから抽出（テキストの長さと構造に基づく）
+                all_spans = box.find_all('span')
                 
-                if spans_with_bg:
-                    # 1つ目が発注機関（例：東京都中央区）
-                    org_text = spans_with_bg[0].get_text(strip=True)
-                    if org_text:
-                        organization = org_text
-                        if len(scraped_data) < 3:
-                            print(f'    発注機関取得（水色span）: "{organization}"')
+                # NGワードリスト（システム文言）
+                ng_words = ['詳細', '地図', '入札', '公告', '検索', '一覧', '戻る', '次へ', '前へ']
+                
+                # 日付パターン（年・月・日を表す数字の並び）
+                date_pattern = re.compile(r'\d{4}.*\d{1,2}.*\d{1,2}')
+                
+                # 候補の絞り込み
+                candidates = []
+                for span in all_spans:
+                    text = span.get_text(strip=True)
                     
-                    # 2つ目があれば地域（例：東京都）
-                    if len(spans_with_bg) > 1:
-                        area_text = spans_with_bg[1].get_text(strip=True)
-                        if area_text and area_text in PREFECTURES.values():
-                            area = area_text
-                            if len(scraped_data) < 3:
-                                print(f'    エリア取得（水色span）: "{area}"')
+                    # 条件チェック
+                    # 1. 文字数チェック: 1 < len(text) <= 25
+                    if not (1 < len(text) <= 25):
+                        continue
+                    
+                    # 2. 日付除外: テキスト内に年・月・日を表す数字の並びが含まれていない
+                    if date_pattern.search(text):
+                        continue
+                    
+                    # 3. NGワード除外: システム文言と完全一致しない
+                    if text in ng_words:
+                        continue
+                    
+                    # すべての条件を満たす場合、候補に追加
+                    candidates.append(text)
                 
-                # パターン2: 水色spanが見つからない場合、dd要素から抽出（フォールバック）
+                # 採用ルール: リストの先頭（1番目）を採用
+                if candidates:
+                    organization = candidates[0]
+                    if len(scraped_data) < 3:
+                        print(f'    発注機関取得（spanタグ）: "{organization}"')
+                
+                # パターン2: spanタグで見つからない場合、dd要素から抽出（フォールバック）
                 if not organization:
                     dd = box.find('dd')
                     if dd:
@@ -332,34 +349,38 @@ def parse_search_results(html_content, prefecture_code, prefecture_name):
                             parts = [p.strip() for p in dd_text_separated.split('|') if p.strip()]
                             
                             # 日付パターン（YYYY-MM-DD形式）を除外
-                            date_pattern = re.compile(r'^\d{4}-\d{2}-\d{2}')
+                            date_pattern_dd = re.compile(r'^\d{4}-\d{2}-\d{2}')
                             # 都道府県名を除外
                             prefecture_names_list = list(PREFECTURES.values())
                             
                             # 発注機関の候補を探す
-                            candidates = []
+                            dd_candidates = []
                             for part in parts:
+                                # 文字数チェック: 1 < len(part) <= 25
+                                if not (1 < len(part) <= 25):
+                                    continue
                                 # 日付や都道府県名でない、かつ空でないものを候補に
-                                if not date_pattern.match(part) and part not in prefecture_names_list and len(part) > 0:
-                                    candidates.append(part)
+                                if not date_pattern_dd.match(part) and part not in prefecture_names_list:
+                                    # NGワード除外
+                                    if part not in ng_words:
+                                        dd_candidates.append(part)
                             
                             # 発注機関のキーワードを含むものを優先
                             org_keywords = ['省', '県', '市', '町', '村', '局', 'センター', '大学', '病院', '事務所', '庁', '署', '所', '課', '部', '室']
-                            for candidate in candidates:
+                            for candidate in dd_candidates:
                                 if any(keyword in candidate for keyword in org_keywords):
                                     organization = candidate
                                     break
                             
-                            # キーワードマッチがない場合、一番長い文字列を採用
-                            if not organization and candidates:
-                                organization = max(candidates, key=len)
+                            # キーワードマッチがない場合、最初の候補を採用
+                            if not organization and dd_candidates:
+                                organization = dd_candidates[0]
                             
                             if len(scraped_data) < 3:
                                 print(f'    発注機関取得（dd要素）: "{organization}"')
                 
-                # 発注機関が取得できなかった場合、詳細ページから取得を試みる
-                # 条件: 空文字列、またはタイトルと同じ（誤取得）、または長すぎる（本文を取得してしまった）
-                if not organization or len(organization.strip()) == 0 or organization == title[:50] or len(organization) > 100:
+                # パターン3: 最終手段 - 詳細ページから取得
+                if not organization or len(organization.strip()) == 0:
                     if len(scraped_data) < 3:
                         print(f'    発注機関が取得できなかったため、詳細ページから取得を試みます: {link[:60]}...')
                     detail_org = fetch_organization_from_detail_page(link)
