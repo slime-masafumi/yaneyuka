@@ -603,10 +603,16 @@ export default function PublicWorksList() {
       ) : (
         <>
           <div className="grid gap-3 grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-            {works.map((work, index) => (
+            {works.map((work, index) => {
+              // 20件ごとにグループ化して色を変える
+              const groupIndex = Math.floor(index / 20);
+              const isAlternateGroup = groupIndex % 2 === 1;
+              const bgColor = isAlternateGroup ? 'bg-blue-50' : 'bg-white';
+              
+              return (
               <div
                 key={work.id}
-                className={`border border-gray-200 rounded-lg p-4 bg-white text-sm w-full min-h-[200px] shadow-sm transition-all duration-300 flex flex-col hover:shadow-xl hover:-translate-y-1 hover:border-blue-400 ${
+                className={`border border-gray-200 rounded-lg p-4 ${bgColor} text-sm w-full min-h-[200px] shadow-sm transition-all duration-300 flex flex-col hover:shadow-xl hover:-translate-y-1 hover:border-blue-400 ${
                   activeList[index] ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
                 }`}
               >
@@ -651,7 +657,8 @@ export default function PublicWorksList() {
                   </a>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* もっと見るボタン */}
