@@ -176,9 +176,9 @@ export default function PublicWorksList() {
 
       // 日付でソート（ソート順に応じて）
       if (sortOrder === 'newest') {
-        queries.push(orderBy('date', 'desc'))
+        queries.push(orderBy('date', 'desc')) // 降順（新しい順）
       } else {
-        queries.push(orderBy('date', 'asc'))
+        queries.push(orderBy('date', 'asc')) // 昇順（古い順）
       }
       
       // ページネーション
@@ -293,13 +293,13 @@ export default function PublicWorksList() {
           filteredWorks.sort((a, b) => {
             const dateA = new Date(a.date).getTime()
             const dateB = new Date(b.date).getTime()
-            return dateB - dateA // 降順（新しい順）
+            return dateA - dateB // 昇順（新しい順）← 修正: dateB - dateAからdateA - dateBに変更
           })
         } else {
           filteredWorks.sort((a, b) => {
             const dateA = new Date(a.date).getTime()
             const dateB = new Date(b.date).getTime()
-            return dateA - dateB // 昇順（古い順）
+            return dateB - dateA // 降順（古い順）← 修正: dateA - dateBからdateB - dateAに変更
           })
         }
       }
