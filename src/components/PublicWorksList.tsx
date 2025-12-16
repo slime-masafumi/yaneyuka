@@ -206,11 +206,11 @@ export default function PublicWorksList() {
           // クライアントサイドフィルタリング: シンプルなクエリで全データを取得
           const simpleQuery = query(
             worksRef,
-            orderBy('date', 'desc'),
+            orderBy('date', sortOrder === 'newest' ? 'desc' : 'asc'), // ソート順を適用
             limit(1000) // 一時的に多めに取得
           )
           snapshot = await getDocs(simpleQuery)
-          console.log(`🔄 クライアントサイドフィルタリング開始: エリア=[${areasArray.join(',')}], 取得件数=${snapshot.size}`)
+          console.log(`🔄 クライアントサイドフィルタリング開始: エリア=[${areasArray.join(',')}], ソート=${sortOrder}, 取得件数=${snapshot.size}`)
         } else {
           throw error
         }
@@ -275,6 +275,23 @@ export default function PublicWorksList() {
       if (needsClientSideFilter && !useClientSideFilter) {
         // サーバーサイドで10個までしかフィルタリングできないため、クライアントサイドで追加フィルタリング
         filteredWorks = newWorks.filter(work => selectedAreas.has(work.area))
+      }
+      
+      // クライアントサイドフィルタリングの場合、ソート順を適用（サーバーサイドでは既にソート済み）
+      if (isClientSideFiltering || useClientSideFilter) {
+        if (sortOrder === 'newest') {
+          filteredWorks.sort((a, b) => {
+            const dateA = new Date(a.date).getTime()
+            const dateB = new Date(b.date).getTime()
+            return dateB - dateA // 降順（新しい順）
+          })
+        } else {
+          filteredWorks.sort((a, b) => {
+            const dateA = new Date(a.date).getTime()
+            const dateB = new Date(b.date).getTime()
+            return dateA - dateB // 昇順（古い順）
+          })
+        }
       }
 
       if (reset) {

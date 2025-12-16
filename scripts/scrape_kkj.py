@@ -296,55 +296,64 @@ def parse_search_results(html_content, prefecture_code, prefecture_name):
                         if date_match:
                             date_str = date_match.group(0)
                 
-                # 発注機関と地域: .box_contents dd から抽出
+                # 発注機関と地域: 水色背景（#CAD8DD）のspanタグから抽出（優先）
                 organization = ''
                 area = prefecture_name
                 
-                dd = box.find('dd')
-                if dd:
-                    # パターン1: dd要素内のテキストを区切り文字付きで全取得
-                    dd_text_separated = dd.get_text(separator='|', strip=True)
-                    if dd_text_separated:
-                        # |で分割してリスト化
-                        parts = [p.strip() for p in dd_text_separated.split('|') if p.strip()]
-                        
-                        # 日付パターン（YYYY-MM-DD形式）を除外
-                        date_pattern = re.compile(r'^\d{4}-\d{2}-\d{2}')
-                        # 都道府県名を除外
-                        prefecture_names_list = list(PREFECTURES.values())
-                        
-                        # 発注機関の候補を探す
-                        candidates = []
-                        for part in parts:
-                            # 日付や都道府県名でない、かつ空でないものを候補に
-                            if not date_pattern.match(part) and part not in prefecture_names_list and len(part) > 0:
-                                candidates.append(part)
-                        
-                        # 発注機関のキーワードを含むものを優先
-                        org_keywords = ['省', '県', '市', '町', '村', '局', 'センター', '大学', '病院', '事務所', '庁', '署', '所', '課', '部', '室']
-                        for candidate in candidates:
-                            if any(keyword in candidate for keyword in org_keywords):
-                                organization = candidate
-                                break
-                        
-                        # キーワードマッチがない場合、一番長い文字列を採用
-                        if not organization and candidates:
-                            organization = max(candidates, key=len)
-                        
-                        # それでも特定できない場合、ddの全テキストをそのまま入れる
-                        if not organization:
-                            dd_full_text = dd.get_text(separator=' ', strip=True)
-                            # 日付と都道府県名を除去
-                            cleaned_text = dd_full_text
-                            for pref in prefecture_names_list:
-                                cleaned_text = cleaned_text.replace(pref, '')
-                            cleaned_text = re.sub(r'\d{4}-\d{2}-\d{2}', '', cleaned_text).strip()
-                            if cleaned_text:
-                                organization = cleaned_text
+                # パターン1: 背景色が #CAD8DD のspanタグを全て探す
+                spans_with_bg = box.find_all('span', style=lambda x: x and ('CAD8DD' in x.upper() or 'background-color' in x.lower()))
+                
+                if spans_with_bg:
+                    # 1つ目が発注機関（例：東京都中央区）
+                    org_text = spans_with_bg[0].get_text(strip=True)
+                    if org_text:
+                        organization = org_text
+                        if len(scraped_data) < 3:
+                            print(f'    発注機関取得（水色span）: "{organization}"')
                     
-                    # デバッグ: 最初の数件で発注機関取得結果を確認
-                    if len(scraped_data) < 3:
-                        print(f'    発注機関取得（リストページ）: "{organization}"')
+                    # 2つ目があれば地域（例：東京都）
+                    if len(spans_with_bg) > 1:
+                        area_text = spans_with_bg[1].get_text(strip=True)
+                        if area_text and area_text in PREFECTURES.values():
+                            area = area_text
+                            if len(scraped_data) < 3:
+                                print(f'    エリア取得（水色span）: "{area}"')
+                
+                # パターン2: 水色spanが見つからない場合、dd要素から抽出（フォールバック）
+                if not organization:
+                    dd = box.find('dd')
+                    if dd:
+                        # dd要素内のテキストを区切り文字付きで全取得
+                        dd_text_separated = dd.get_text(separator='|', strip=True)
+                        if dd_text_separated:
+                            # |で分割してリスト化
+                            parts = [p.strip() for p in dd_text_separated.split('|') if p.strip()]
+                            
+                            # 日付パターン（YYYY-MM-DD形式）を除外
+                            date_pattern = re.compile(r'^\d{4}-\d{2}-\d{2}')
+                            # 都道府県名を除外
+                            prefecture_names_list = list(PREFECTURES.values())
+                            
+                            # 発注機関の候補を探す
+                            candidates = []
+                            for part in parts:
+                                # 日付や都道府県名でない、かつ空でないものを候補に
+                                if not date_pattern.match(part) and part not in prefecture_names_list and len(part) > 0:
+                                    candidates.append(part)
+                            
+                            # 発注機関のキーワードを含むものを優先
+                            org_keywords = ['省', '県', '市', '町', '村', '局', 'センター', '大学', '病院', '事務所', '庁', '署', '所', '課', '部', '室']
+                            for candidate in candidates:
+                                if any(keyword in candidate for keyword in org_keywords):
+                                    organization = candidate
+                                    break
+                            
+                            # キーワードマッチがない場合、一番長い文字列を採用
+                            if not organization and candidates:
+                                organization = max(candidates, key=len)
+                            
+                            if len(scraped_data) < 3:
+                                print(f'    発注機関取得（dd要素）: "{organization}"')
                 
                 # 発注機関が取得できなかった場合、詳細ページから取得を試みる
                 if not organization or len(organization.strip()) == 0 or organization == title[:50]:
