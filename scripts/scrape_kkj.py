@@ -225,26 +225,50 @@ def parse_search_results(html_content, prefecture_code, prefecture_name):
                         if date_match:
                             date_str = date_match.group(0)
                 
-                # 発注機関と地域: .box_contents dd span
+                # 発注機関と地域: .box_contents dd から抽出
                 organization = ''
                 area = prefecture_name
                 
                 dd = box.find('dd')
                 if dd:
+                    # より柔軟な抽出方法を試す
+                    # パターン1: span要素から取得
                     spans = dd.find_all('span')
-                    if len(spans) >= 1:
-                        organization = spans[0].get_text(strip=True)
-                    if len(spans) >= 2:
-                        # 2つ目のspanが地域情報の可能性
-                        area_info = spans[1].get_text(strip=True)
-                        if area_info:
-                            area = area_info
+                    if spans:
+                        for span in spans:
+                            text = span.get_text(strip=True)
+                            if text and not organization:
+                                organization = text
+                            elif text and organization and len(text) > len(organization):
+                                # より長いテキストを発注機関として採用
+                                organization = text
+                    
+                    # パターン2: spanが見つからない場合、ddの直接のテキストから取得
+                    if not organization:
+                        dd_text = dd.get_text(strip=True)
+                        # 改行や区切り文字で分割して最初の部分を発注機関として採用
+                        lines = [line.strip() for line in dd_text.split('\n') if line.strip()]
+                        if lines:
+                            organization = lines[0]
+                    
+                    # パターン3: 特定のクラスや属性を持つ要素を探す
+                    if not organization:
+                        # 発注機関を示す可能性のある要素を探す
+                        org_elem = dd.find(class_=re.compile(r'org|organization|発注', re.I))
+                        if org_elem:
+                            organization = org_elem.get_text(strip=True)
+                    
+                    # デバッグ: 最初の数件でHTML構造を確認
+                    if len(scraped_data) < 3:
+                        print(f'    dd要素のHTML構造: {str(dd)[:200]}...')
+                        print(f'    抽出された発注機関: "{organization}"')
                 
                 # 発注機関名から都道府県を判定（タイトルと発注機関の両方を確認）
                 detected_area = detect_prefecture_from_text(title + ' ' + organization)
                 if detected_area:
                     area = detected_area
-                    print(f'    エリア判定: "{title[:30]}..." (発注機関: {organization[:20]}...) -> {area}')
+                    if organization:
+                        print(f'    エリア判定: "{title[:30]}..." (発注機関: {organization[:20]}...) -> {area}')
                 
                 # 日付をパース
                 date_obj = parse_date(date_str)
