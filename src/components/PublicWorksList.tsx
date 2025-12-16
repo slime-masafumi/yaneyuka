@@ -66,11 +66,21 @@ export default function PublicWorksList() {
   const [loadingCount, setLoadingCount] = useState(false)
   const [isAreaModalOpen, setIsAreaModalOpen] = useState(false)
 
+  // iOS Safari対応: 日付を安全に変換するヘルパー関数
+  const safeParseDate = (dateStr: string): Date => {
+    if (!dateStr) return new Date();
+    // iOS Safari対応: ハイフンをスラッシュに置換
+    const safeDateStr = dateStr.replace(/-/g, '/');
+    const date = new Date(safeDateStr);
+    // Invalid Dateの場合は現在の日付を返す
+    return isNaN(date.getTime()) ? new Date() : date;
+  };
+
   // 45日以内のデータかどうかを判定
   const isWithin45Days = (dateStr: string): boolean => {
     if (!dateStr) return false
     try {
-      const workDate = new Date(dateStr)
+      const workDate = safeParseDate(dateStr)
       const now = new Date()
       const diffTime = now.getTime() - workDate.getTime()
       const diffDays = diffTime / (1000 * 60 * 60 * 24)
@@ -305,14 +315,14 @@ export default function PublicWorksList() {
         console.log(`🔄 クライアントサイドでソート適用: sortOrder=${sortOrder}`)
         if (sortOrder === 'newest') {
           filteredWorks.sort((a, b) => {
-            const dateA = new Date(a.date).getTime()
-            const dateB = new Date(b.date).getTime()
+            const dateA = safeParseDate(a.date).getTime()
+            const dateB = safeParseDate(b.date).getTime()
             return dateB - dateA // 降順（新しい順）
           })
         } else {
           filteredWorks.sort((a, b) => {
-            const dateA = new Date(a.date).getTime()
-            const dateB = new Date(b.date).getTime()
+            const dateA = safeParseDate(a.date).getTime()
+            const dateB = safeParseDate(b.date).getTime()
             return dateA - dateB // 昇順（古い順）
           })
         }
@@ -431,7 +441,7 @@ export default function PublicWorksList() {
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '日付不明'
     try {
-      const date = new Date(dateStr)
+      const date = safeParseDate(dateStr)
       return date.toLocaleDateString('ja-JP', {
         year: 'numeric',
         month: 'long',
