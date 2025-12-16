@@ -40,7 +40,7 @@ const ITEMS_PER_PAGE = 20
 
 export default function PublicWorksList() {
   const [works, setWorks] = useState<PublicWork[]>([])
-  const [selectedAreas, setSelectedAreas] = useState<Set<string>>(new Set()) // 初期状態は全件表示
+  const [selectedAreas, setSelectedAreas] = useState<Set<string>>(new Set(['東京'])) // 初期状態は東京のみ表示
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest')
   const [loading, setLoading] = useState(true)
@@ -87,16 +87,16 @@ export default function PublicWorksList() {
       
       // エリアフィルター（最大10個まで）
       const areasArray = Array.from(selectedAreas)
-      // エリアが選択されていない場合は全件表示（フィルターなし）
-
+      
       // Firestoreのwhere('area', 'in', ...)は最大10個まで
       let queries: any[] = []
       let needsClientSideFilter = false
       
       if (areasArray.length === 0) {
-        // エリアが選択されていない場合はフィルターなし
+        // エリアが選択されていない場合はフィルターなし（全件表示）
         queries = []
       } else if (areasArray.length <= 10) {
+        // 10個以下の場合はサーバーサイドでフィルタリング
         queries = [where('area', 'in', areasArray)]
       } else {
         // 10個を超える場合は警告を出して、最初の10個のみ使用
@@ -129,6 +129,7 @@ export default function PublicWorksList() {
         snapshot = await getDocs(q)
         setIndexError(null)
         setUseClientSideFilter(false)
+        console.log(`サーバーサイドフィルタリング: エリア=${areasArray.join(',')}, 取得件数=${snapshot.size}`)
       } catch (error: any) {
         // インデックスエラーの場合、クライアントサイドフィルタリングにフォールバック
         if (error?.code === 'failed-precondition' && error?.message?.includes('index')) {
@@ -143,6 +144,7 @@ export default function PublicWorksList() {
             limit(1000) // 一時的に多めに取得
           )
           snapshot = await getDocs(simpleQuery)
+          console.log(`クライアントサイドフィルタリング: エリア=${areasArray.join(',')}, 取得件数=${snapshot.size}`)
         } else {
           throw error
         }
@@ -157,10 +159,12 @@ export default function PublicWorksList() {
         }
         
         // クライアントサイドフィルタリングの場合、エリアとカテゴリでフィルタ
-        if (useClientSideFilter || areasArray.length === 0) {
+        if (useClientSideFilter) {
+          // エリアフィルター
           if (areasArray.length > 0 && !areasArray.includes(data.area)) {
             return
           }
+          // カテゴリフィルター
           if (selectedCategory !== 'all' && data.category !== selectedCategory) {
             return
           }
@@ -172,12 +176,11 @@ export default function PublicWorksList() {
         } as PublicWork)
       })
 
-      // 10個を超えるエリア選択、またはエリア未選択の場合、クライアントサイドでフィルタリング
+      // 10個を超えるエリア選択の場合、クライアントサイドでフィルタリング
       let filteredWorks = newWorks
-      if ((needsClientSideFilter || areasArray.length === 0) && !useClientSideFilter) {
-        if (areasArray.length > 0) {
-          filteredWorks = newWorks.filter(work => selectedAreas.has(work.area))
-        }
+      if (needsClientSideFilter && !useClientSideFilter) {
+        // サーバーサイドで10個までしかフィルタリングできないため、クライアントサイドで追加フィルタリング
+        filteredWorks = newWorks.filter(work => selectedAreas.has(work.area))
       }
 
       if (reset) {
