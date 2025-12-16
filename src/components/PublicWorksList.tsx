@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { collection, query, orderBy, getDocs, where, limit, startAfter, QueryDocumentSnapshot, DocumentData } from 'firebase/firestore'
+import { collection, query, orderBy, getDocs, where, limit, startAfter, QueryDocumentSnapshot, DocumentData, getCountFromServer } from 'firebase/firestore'
 import { db } from '@/lib/firebaseClient'
 
 interface PublicWork {
@@ -51,6 +51,8 @@ export default function PublicWorksList() {
   const [availableAreas, setAvailableAreas] = useState<string[]>(PREFECTURE_ORDER)
   const [indexError, setIndexError] = useState<string | null>(null)
   const [useClientSideFilter, setUseClientSideFilter] = useState(false)
+  const [totalCount, setTotalCount] = useState<number | null>(null)
+  const [loadingCount, setLoadingCount] = useState(false)
 
   // 45日以内のデータかどうかを判定
   const isWithin45Days = (dateStr: string): boolean => {
@@ -70,6 +72,66 @@ export default function PublicWorksList() {
   const getWorkCategory = (work: PublicWork): string => {
     return work.category || '土木・道路'
   }
+
+  // 総件数を取得する関数
+  const fetchTotalCount = useCallback(async () => {
+    try {
+      setLoadingCount(true)
+      const worksRef = collection(db, 'public_works')
+      const areasArray = Array.from(selectedAreas)
+      
+      let countQueries: any[] = []
+      
+      if (areasArray.length === 0) {
+        // エリアが選択されていない場合は全件カウント
+        countQueries = []
+      } else if (areasArray.length <= 10) {
+        // 10個以下の場合はサーバーサイドでフィルタリング
+        countQueries = [where('area', 'in', areasArray)]
+      } else {
+        // 10個を超える場合は最初の10個のみ使用（後でクライアントサイドでフィルタリング）
+        countQueries = [where('area', 'in', areasArray.slice(0, 10))]
+      }
+      
+      // カテゴリフィルター
+      if (selectedCategory !== 'all') {
+        countQueries.push(where('category', '==', selectedCategory))
+      }
+      
+      // 45日以内のデータのみをカウントするため、全データを取得してフィルタリング
+      const simpleQuery = query(
+        worksRef,
+        ...countQueries,
+        orderBy('date', 'desc'),
+        limit(1000) // 一時的に多めに取得
+      )
+      const snapshot = await getDocs(simpleQuery)
+      
+      let filteredCount = 0
+      snapshot.forEach((doc) => {
+        const data = doc.data() as PublicWork
+        // 45日以内のデータのみをカウント
+        if (isWithin45Days(data.date)) {
+          // 10個を超えるエリア選択の場合、クライアントサイドでフィルタリング
+          if (areasArray.length > 10) {
+            if (areasArray.includes(data.area)) {
+              filteredCount++
+            }
+          } else {
+            filteredCount++
+          }
+        }
+      })
+      
+      setTotalCount(filteredCount)
+    } catch (error: any) {
+      console.error('総件数の取得に失敗しました:', error)
+      // エラー時はnullのまま（件数非表示）
+      setTotalCount(null)
+    } finally {
+      setLoadingCount(false)
+    }
+  }, [selectedAreas, selectedCategory])
 
   // データ取得関数
   const fetchWorks = useCallback(async (reset: boolean = false) => {
@@ -259,6 +321,7 @@ export default function PublicWorksList() {
   // エリア、カテゴリ、ソート順が変更されたときに再取得
   useEffect(() => {
     fetchWorks(true)
+    fetchTotalCount() // 総件数も更新
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedAreas, selectedCategory, sortOrder])
 
