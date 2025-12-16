@@ -1,0 +1,128 @@
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "functions": {
+    "source": "functions",
+    "predeploy": [
+      "npm --prefix \"$RESOURCE_DIR\" run build"
+    ]
+  },
+  "hosting": {
+    "source": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**",
+      "out/**",
+      ".next/**",
+      ".git/**",
+      "**/*.log",
+      "DEPLOY.md",
+      "FIREBASE_DEPLOY_STEPS.txt",
+      "firebase続き.txt",
+      "**/scripts/**",
+      "**/prisma/**",
+      "**/tsconfig.tsbuildinfo",
+      "**/api_bak/**",
+      "next.static.config.js",
+      "firebase-debug.log",
+      "src/app/news/**",
+      "src/app/chatbot/**",
+      "src/app/login/**",
+      "src/app/register/**",
+      "**/*.md",
+      "src/**/*.txt",
+      "public/tenkei/**/*.txt",
+      "public/fonts/**/*.txt",
+      "public/image/**/*.txt",
+      "**/README.md",
+      "**/CHANGELOG.md",
+      "**/LICENSE*",
+      "**/*.test.*",
+      "**/*.spec.*",
+      "**/__tests__/**",
+      "**/test/**",
+      "**/tests/**",
+      "**/.env*",
+      "**/coverage/**",
+      "**/.nyc_output/**",
+      "**/.eslintcache",
+      "**/package-lock.json",
+      "**/yarn.lock",
+      "**/pnpm-lock.yaml",
+      "**/.cursor/**",
+      "**/.vscode/**",
+      "**/.idea/**",
+      "**/*.swp",
+      "**/*.swo",
+      "**/*~",
+      "**/.DS_Store",
+      "**/Thumbs.db",
+      "**/.turbo/**",
+      "**/dist/**",
+      "**/build/**",
+      ".firebase/**",
+      "**/sw.js",
+      "**/sw.js.map",
+      "**/workbox-*.js",
+      "**/workbox-*.js.map",
+      "**/worker-*.js",
+      "**/worker-*.js.map"
+    ],
+    "frameworksBackend": {
+      "region": "us-central1",
+      "use": true
+    },
+    "headers": [
+      {
+        "source": "/image/**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=31536000, immutable"
+          }
+        ]
+      },
+      {
+        "source": "/css/**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=31536000, immutable"
+          }
+        ]
+      },
+      {
+        "source": "/fonts/**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=31536000, immutable"
+          }
+        ]
+      },
+      {
+        "source": "/_next/static/**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=31536000, immutable"
+          }
+        ]
+      },
+      {
+        "source": "/favicon.ico",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=86400"
+          }
+        ]
+      }
+    ]
+  }
+}
