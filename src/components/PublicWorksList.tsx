@@ -297,10 +297,12 @@ export default function PublicWorksList() {
       if (needsClientSideFilter && !useClientSideFilter) {
         // サーバーサイドで10個までしかフィルタリングできないため、クライアントサイドで追加フィルタリング
         filteredWorks = newWorks.filter(work => selectedAreas.has(work.area))
+        // サーバーサイドでソート済みなので、順序は維持される
       }
       
-      // クライアントサイドフィルタリングの場合、ソート順を適用（サーバーサイドでは既にソート済み）
+      // クライアントサイドフィルタリングの場合のみ、ソート順を適用（サーバーサイドでは既にソート済み）
       if (isClientSideFiltering || useClientSideFilter) {
+        console.log(`🔄 クライアントサイドでソート適用: sortOrder=${sortOrder}`)
         if (sortOrder === 'newest') {
           filteredWorks.sort((a, b) => {
             const dateA = new Date(a.date).getTime()
@@ -314,6 +316,9 @@ export default function PublicWorksList() {
             return dateA - dateB // 昇順（古い順）
           })
         }
+      } else {
+        // サーバーサイドでソート済みなので、そのまま使用
+        console.log(`✅ サーバーサイドでソート済み: sortOrder=${sortOrder}`)
       }
 
       if (reset) {
@@ -355,7 +360,7 @@ export default function PublicWorksList() {
       setLoading(false)
       setLoadingMore(false)
     }
-  }, [selectedAreas, selectedCategory, lastVisible, works.length])
+  }, [selectedAreas, selectedCategory, sortOrder, lastVisible, works.length])
 
   // エリア、カテゴリ、ソート順が変更されたときに再取得
   useEffect(() => {
