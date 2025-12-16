@@ -344,7 +344,20 @@ def parse_search_results(html_content, prefecture_code, prefecture_name):
                     
                     # デバッグ: 最初の数件で発注機関取得結果を確認
                     if len(scraped_data) < 3:
-                        print(f'    発注機関取得: "{organization}"')
+                        print(f'    発注機関取得（リストページ）: "{organization}"')
+                
+                # 発注機関が取得できなかった場合、詳細ページから取得を試みる
+                if not organization or len(organization.strip()) == 0 or organization == title[:50]:
+                    if len(scraped_data) < 3:
+                        print(f'    発注機関が取得できなかったため、詳細ページから取得を試みます: {link[:60]}...')
+                    detail_org = fetch_organization_from_detail_page(link)
+                    if detail_org:
+                        organization = detail_org
+                        if len(scraped_data) < 3:
+                            print(f'    詳細ページから発注機関を取得: "{organization}"')
+                    else:
+                        if len(scraped_data) < 3:
+                            print(f'    詳細ページからも発注機関を取得できませんでした')
                 
                 # 発注機関名から都道府県を判定（タイトルと発注機関の両方を確認）
                 detected_area = detect_prefecture_from_text(title + ' ' + organization)
