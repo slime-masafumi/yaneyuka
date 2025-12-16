@@ -197,16 +197,26 @@ export default function PublicWorksList() {
         console.log(`✅ サーバーサイドフィルタリング成功: エリア=${areasArray.join(',')}, 取得件数=${snapshot.size}`)
       } catch (error: any) {
         // インデックスエラーの場合、クライアントサイドフィルタリングにフォールバック
-        if (error?.code === 'failed-precondition' && error?.message?.includes('index')) {
+        if (error?.code === 'failed-precondition' && (error?.message?.includes('index') || error?.message?.includes('requires an index'))) {
           console.warn('⚠️ インデックスが作成されていません。クライアントサイドフィルタリングにフォールバックします。')
-          setIndexError(error.message)
+          
+          // エラーメッセージからインデックスURLを抽出
+          const indexUrlMatch = error?.message?.match(/https:\/\/[^\s\)]+/)
+          if (indexUrlMatch) {
+            setIndexError(`インデックスが必要です: ${indexUrlMatch[0]}`)
+            console.error('Firestoreインデックスが必要です。以下のURLをクリックしてインデックスを作成してください:', indexUrlMatch[0])
+          } else {
+            setIndexError('Firestoreインデックスが必要です。エラーメッセージを確認してください。')
+          }
+          
           setUseClientSideFilter(true)
           isClientSideFiltering = true
           
           // クライアントサイドフィルタリング: シンプルなクエリで全データを取得
+          // ソート順は後でクライアントサイドで適用するため、ここではdescで取得
           const simpleQuery = query(
             worksRef,
-            orderBy('date', sortOrder === 'newest' ? 'desc' : 'asc'), // ソート順を適用
+            orderBy('date', 'desc'), // クライアントサイドでソートするため、ここではdesc固定
             limit(1000) // 一時的に多めに取得
           )
           snapshot = await getDocs(simpleQuery)
