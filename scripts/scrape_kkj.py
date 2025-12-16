@@ -231,17 +231,17 @@ def parse_search_results(html_content, prefecture_code, prefecture_name):
                 
                 dd = box.find('dd')
                 if dd:
-                    # より柔軟な抽出方法を試す
-                    # パターン1: span要素から取得
+                    # デバッグ: 最初の数件でHTML構造を確認
+                    if len(scraped_data) < 3:
+                        print(f'    dd要素のHTML構造: {str(dd)[:500]}...')
+                    
+                    # パターン1: span要素から取得（最初のspanが発注機関の可能性が高い）
                     spans = dd.find_all('span')
                     if spans:
-                        for span in spans:
-                            text = span.get_text(strip=True)
-                            if text and not organization:
-                                organization = text
-                            elif text and organization and len(text) > len(organization):
-                                # より長いテキストを発注機関として採用
-                                organization = text
+                        # 最初のspanを発注機関として採用
+                        organization = spans[0].get_text(strip=True)
+                        if len(scraped_data) < 3:
+                            print(f'    パターン1（span）: 発注機関="{organization}"')
                     
                     # パターン2: spanが見つからない場合、ddの直接のテキストから取得
                     if not organization:
@@ -250,6 +250,8 @@ def parse_search_results(html_content, prefecture_code, prefecture_name):
                         lines = [line.strip() for line in dd_text.split('\n') if line.strip()]
                         if lines:
                             organization = lines[0]
+                            if len(scraped_data) < 3:
+                                print(f'    パターン2（ddテキスト）: 発注機関="{organization}"')
                     
                     # パターン3: 特定のクラスや属性を持つ要素を探す
                     if not organization:
@@ -257,11 +259,25 @@ def parse_search_results(html_content, prefecture_code, prefecture_name):
                         org_elem = dd.find(class_=re.compile(r'org|organization|発注', re.I))
                         if org_elem:
                             organization = org_elem.get_text(strip=True)
+                            if len(scraped_data) < 3:
+                                print(f'    パターン3（クラス検索）: 発注機関="{organization}"')
                     
-                    # デバッグ: 最初の数件でHTML構造を確認
+                    # パターン4: すべてのテキストノードを確認
+                    if not organization:
+                        # dd要素内のすべてのテキストを取得
+                        all_text = dd.get_text(separator=' ', strip=True)
+                        # 最初の意味のあるテキストを発注機関として採用
+                        if all_text:
+                            # 空白で分割して最初の非空要素を取得
+                            parts = [p.strip() for p in all_text.split() if p.strip()]
+                            if parts:
+                                organization = parts[0]
+                                if len(scraped_data) < 3:
+                                    print(f'    パターン4（全テキスト）: 発注機関="{organization}"')
+                    
+                    # 最終確認: 発注機関が取得できたか
                     if len(scraped_data) < 3:
-                        print(f'    dd要素のHTML構造: {str(dd)[:200]}...')
-                        print(f'    抽出された発注機関: "{organization}"')
+                        print(f'    最終的な発注機関: "{organization}"')
                 
                 # 発注機関名から都道府県を判定（タイトルと発注機関の両方を確認）
                 detected_area = detect_prefecture_from_text(title + ' ' + organization)
