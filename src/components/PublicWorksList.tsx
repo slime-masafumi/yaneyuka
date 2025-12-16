@@ -87,6 +87,7 @@ export default function PublicWorksList() {
       
       // エリアフィルター（最大10個まで）
       const areasArray = Array.from(selectedAreas)
+      console.log(`🔍 デバッグ: selectedAreas.size=${selectedAreas.size}, areasArray=[${areasArray.join(',')}], length=${areasArray.length}`)
       
       // Firestoreのwhere('area', 'in', ...)は最大10個まで
       let queries: any[] = []
@@ -100,7 +101,8 @@ export default function PublicWorksList() {
         queries = [where('area', 'in', areasArray)]
       } else {
         // 10個を超える場合は警告を出して、最初の10個のみ使用
-        console.warn('エリア選択が10個を超えています。最初の10個のみ適用されます。')
+        console.warn(`⚠️ エリア選択が10個を超えています（${areasArray.length}個）。最初の10個のみ適用されます。`)
+        console.warn(`   選択されたエリア: [${areasArray.join(',')}]`)
         queries = [where('area', 'in', areasArray.slice(0, 10))]
         needsClientSideFilter = true
       }
@@ -169,9 +171,11 @@ export default function PublicWorksList() {
         // クライアントサイドフィルタリングの場合、エリアとカテゴリでフィルタ
         if (isClientSideFiltering || useClientSideFilter) {
           // エリアフィルター
-          if (areasArray.length > 0 && !areasArray.includes(data.area)) {
-            filteredByArea++
-            return
+          if (areasArray.length > 0) {
+            if (!areasArray.includes(data.area)) {
+              filteredByArea++
+              return
+            }
           }
           // カテゴリフィルター
           if (selectedCategory !== 'all' && data.category !== selectedCategory) {
@@ -189,12 +193,16 @@ export default function PublicWorksList() {
       if (isClientSideFiltering || useClientSideFilter) {
         console.log(`📊 クライアントサイドフィルタリング結果: エリア=[${areasArray.join(',')}], 取得=${snapshot.size}件, 表示=${newWorks.length}件, エリア除外=${filteredByArea}件, カテゴリ除外=${filteredByCategory}件, 日付除外=${filteredByDate}件`)
         if (filteredByArea === 0 && areasArray.length > 0) {
-          console.warn('⚠️ エリアフィルターが動作していません。データのareaフィールドを確認してください。')
-          // 最初の5件のareaフィールドを確認
-          snapshot.forEach((doc, idx) => {
-            if (idx < 5) {
+          console.warn(`⚠️ エリアフィルターが動作していません。フィルタ対象エリア=[${areasArray.join(',')}]`)
+          console.warn(`   データのareaフィールドを確認してください。`)
+          // 最初の10件のareaフィールドを確認
+          let sampleCount = 0
+          snapshot.forEach((doc) => {
+            if (sampleCount < 10) {
               const data = doc.data() as PublicWork
-              console.log(`  サンプル${idx + 1}: area="${data.area}", title="${data.title?.substring(0, 30)}..."`)
+              const isIncluded = areasArray.includes(data.area)
+              console.log(`  サンプル${sampleCount + 1}: area="${data.area}" ${isIncluded ? '✅' : '❌'}, title="${data.title?.substring(0, 40)}..."`)
+              sampleCount++
             }
           })
         }
