@@ -480,13 +480,14 @@ export default function PublicWorksList() {
 
         {/* エリア選択モーダル */}
         {isAreaModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setIsAreaModalOpen(false)}>
-            <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]" onClick={() => setIsAreaModalOpen(false)}>
+            <div className="bg-white rounded-lg p-6 max-w-2xl w-full h-auto max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold">エリアを選択</h2>
                 <button
                   onClick={() => setIsAreaModalOpen(false)}
-                  className="text-gray-500 hover:text-gray-700 text-xl"
+                  className="text-gray-500 hover:text-gray-700 text-xl font-bold"
+                  aria-label="閉じる"
                 >
                   ×
                 </button>
@@ -532,15 +533,6 @@ export default function PublicWorksList() {
                     </div>
                   )
                 })}
-              </div>
-
-              <div className="mt-4 flex justify-end gap-2">
-                <button
-                  onClick={() => setIsAreaModalOpen(false)}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 text-sm"
-                >
-                  閉じる
-                </button>
               </div>
             </div>
           </div>
