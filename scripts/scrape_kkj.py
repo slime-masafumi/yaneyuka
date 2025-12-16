@@ -358,7 +358,8 @@ def parse_search_results(html_content, prefecture_code, prefecture_name):
                                 print(f'    発注機関取得（dd要素）: "{organization}"')
                 
                 # 発注機関が取得できなかった場合、詳細ページから取得を試みる
-                if not organization or len(organization.strip()) == 0 or organization == title[:50]:
+                # 条件: 空文字列、またはタイトルと同じ（誤取得）、または長すぎる（本文を取得してしまった）
+                if not organization or len(organization.strip()) == 0 or organization == title[:50] or len(organization) > 100:
                     if len(scraped_data) < 3:
                         print(f'    発注機関が取得できなかったため、詳細ページから取得を試みます: {link[:60]}...')
                     detail_org = fetch_organization_from_detail_page(link)
