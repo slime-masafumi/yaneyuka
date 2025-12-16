@@ -53,8 +53,25 @@ export default function PublicWorksList() {
     return work.category || '土木・道路'
   }
 
+  // 45日以内のデータかどうかを判定
+  const isWithin45Days = (dateStr: string): boolean => {
+    if (!dateStr) return false
+    try {
+      const workDate = new Date(dateStr)
+      const now = new Date()
+      const diffTime = now.getTime() - workDate.getTime()
+      const diffDays = diffTime / (1000 * 60 * 60 * 24)
+      return diffDays <= 45 && diffDays >= 0
+    } catch {
+      return false
+    }
+  }
+
   useEffect(() => {
     let filtered = works
+    
+    // 45日以内のデータのみをフィルター
+    filtered = filtered.filter(work => isWithin45Days(work.date))
     
     // エリアでフィルター（チェックボックス）
     if (selectedAreas.size > 0) {
@@ -95,27 +112,49 @@ export default function PublicWorksList() {
     }
   }
 
+  // 45日以内のデータかどうかを判定
+  const isWithin45Days = (dateStr: string): boolean => {
+    if (!dateStr) return false
+    try {
+      const workDate = new Date(dateStr)
+      const now = new Date()
+      const diffTime = now.getTime() - workDate.getTime()
+      const diffDays = diffTime / (1000 * 60 * 60 * 24)
+      return diffDays <= 45 && diffDays >= 0
+    } catch {
+      return false
+    }
+  }
+
   const fetchWorks = async () => {
     try {
       const worksRef = collection(db, 'public_works')
-      const q = query(worksRef, orderBy('scrapedAt', 'desc'))
+      // 日付でソート（新しい順）
+      const q = query(worksRef, orderBy('date', 'desc'))
       const snapshot = await getDocs(q)
       
       const worksData: PublicWork[] = []
+      const allData: PublicWork[] = []
+      
       snapshot.forEach((doc) => {
-        worksData.push({
+        allData.push({
           id: doc.id,
           ...doc.data(),
         } as PublicWork)
       })
       
-      setWorks(worksData)
-      setFilteredWorks(worksData)
+      // 45日以内のデータのみをフィルタリング
+      const filtered45Days = allData.filter(work => isWithin45Days(work.date))
+      
+      console.log(`取得したデータ: ${allData.length}件, 45日以内: ${filtered45Days.length}件`)
+      
+      setWorks(filtered45Days)
+      setFilteredWorks(filtered45Days)
       
       // アニメーション用の状態を初期化
-      setActiveList(new Array(worksData.length).fill(false))
+      setActiveList(new Array(filtered45Days.length).fill(false))
       setTimeout(() => {
-        setActiveList(new Array(worksData.length).fill(true))
+        setActiveList(new Array(filtered45Days.length).fill(true))
       }, 50)
     } catch (error) {
       console.error('データの取得に失敗しました:', error)
