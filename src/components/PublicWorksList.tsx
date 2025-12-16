@@ -40,8 +40,9 @@ const ITEMS_PER_PAGE = 20
 
 export default function PublicWorksList() {
   const [works, setWorks] = useState<PublicWork[]>([])
-  const [selectedAreas, setSelectedAreas] = useState<Set<string>>(new Set(['東京']))
+  const [selectedAreas, setSelectedAreas] = useState<Set<string>>(new Set()) // 初期状態は全件表示
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest')
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(true)
@@ -86,18 +87,16 @@ export default function PublicWorksList() {
       
       // エリアフィルター（最大10個まで）
       const areasArray = Array.from(selectedAreas)
-      if (areasArray.length === 0) {
-        setWorks([])
-        setLoading(false)
-        setLoadingMore(false)
-        return
-      }
+      // エリアが選択されていない場合は全件表示（フィルターなし）
 
       // Firestoreのwhere('area', 'in', ...)は最大10個まで
       let queries: any[] = []
       let needsClientSideFilter = false
       
-      if (areasArray.length <= 10) {
+      if (areasArray.length === 0) {
+        // エリアが選択されていない場合はフィルターなし
+        queries = []
+      } else if (areasArray.length <= 10) {
         queries = [where('area', 'in', areasArray)]
       } else {
         // 10個を超える場合は警告を出して、最初の10個のみ使用
@@ -111,8 +110,12 @@ export default function PublicWorksList() {
         queries.push(where('category', '==', selectedCategory))
       }
 
-      // 日付でソート
-      queries.push(orderBy('date', 'desc'))
+      // 日付でソート（ソート順に応じて）
+      if (sortOrder === 'newest') {
+        queries.push(orderBy('date', 'desc'))
+      } else {
+        queries.push(orderBy('date', 'asc'))
+      }
       
       // ページネーション
       queries.push(limit(ITEMS_PER_PAGE))
@@ -154,7 +157,7 @@ export default function PublicWorksList() {
         }
         
         // クライアントサイドフィルタリングの場合、エリアとカテゴリでフィルタ
-        if (useClientSideFilter) {
+        if (useClientSideFilter || areasArray.length === 0) {
           if (areasArray.length > 0 && !areasArray.includes(data.area)) {
             return
           }
@@ -169,10 +172,12 @@ export default function PublicWorksList() {
         } as PublicWork)
       })
 
-      // 10個を超えるエリア選択の場合、クライアントサイドでフィルタリング
+      // 10個を超えるエリア選択、またはエリア未選択の場合、クライアントサイドでフィルタリング
       let filteredWorks = newWorks
-      if (needsClientSideFilter && !useClientSideFilter) {
-        filteredWorks = newWorks.filter(work => selectedAreas.has(work.area))
+      if ((needsClientSideFilter || areasArray.length === 0) && !useClientSideFilter) {
+        if (areasArray.length > 0) {
+          filteredWorks = newWorks.filter(work => selectedAreas.has(work.area))
+        }
       }
 
       if (reset) {
@@ -216,17 +221,11 @@ export default function PublicWorksList() {
     }
   }, [selectedAreas, selectedCategory, lastVisible, works.length])
 
-  // エリアまたはカテゴリが変更されたときに再取得
+  // エリア、カテゴリ、ソート順が変更されたときに再取得
   useEffect(() => {
-    // エリアが空の場合はスキップ
-    if (selectedAreas.size === 0) {
-      setWorks([])
-      setLoading(false)
-      return
-    }
     fetchWorks(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedAreas, selectedCategory])
+  }, [selectedAreas, selectedCategory, sortOrder])
 
   // エリアのチェックボックスをトグル
   const toggleArea = (area: string) => {
@@ -325,21 +324,35 @@ export default function PublicWorksList() {
           </div>
         </div>
         
-        {/* 工事内容フィルター */}
-        <div className="flex items-center gap-2">
-          <label className="text-xs font-medium">工事内容:</label>
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="border rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">すべて</option>
-            {WORK_CATEGORIES.map(category => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
-          </select>
+        {/* 工事内容フィルターとソート */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium">工事内容:</label>
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="border rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">すべて</option>
+              {WORK_CATEGORIES.map(category => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium">並び順:</label>
+            <select
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')}
+              className="border rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="newest">新しい順</option>
+              <option value="oldest">古い順</option>
+            </select>
+          </div>
           
           <span className="text-xs text-gray-600">
             {works.length}件
