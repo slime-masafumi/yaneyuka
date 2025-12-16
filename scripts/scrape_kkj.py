@@ -176,6 +176,8 @@ def categorize_work(title):
 def fetch_organization_from_detail_page(detail_url):
     """詳細ページから発注機関を取得"""
     try:
+        # サーバー負荷軽減のため、1秒待機
+        time.sleep(1)
         # リクエストを送信
         response = requests.get(detail_url, timeout=10)
         response.raise_for_status()
