@@ -383,6 +383,38 @@ export default function PublicWorksList() {
     }
   }
 
+  // 地域内のすべてのエリアを選択/解除
+  const toggleRegionAreas = (regionPrefectures: string[]) => {
+    const newSelectedAreas = new Set(selectedAreas)
+    const allSelected = regionPrefectures.every(pref => selectedAreas.has(pref))
+    
+    if (allSelected) {
+      // すべて選択されている場合は解除
+      regionPrefectures.forEach(pref => newSelectedAreas.delete(pref))
+    } else {
+      // 一部または未選択の場合は選択
+      regionPrefectures.forEach(pref => newSelectedAreas.add(pref))
+    }
+    
+    setSelectedAreas(newSelectedAreas)
+  }
+
+  // 選択中のエリアの表示テキストを生成
+  const getSelectedAreasText = () => {
+    if (selectedAreas.size === 0) {
+      return '未選択（全件表示）'
+    }
+    
+    const selectedArray = Array.from(selectedAreas)
+    if (selectedArray.length <= 3) {
+      return selectedArray.join(', ')
+    }
+    
+    const firstThree = selectedArray.slice(0, 3).join(', ')
+    const remaining = selectedArray.length - 3
+    return `${firstThree} (+他${remaining}件)`
+  }
+
   // もっと見るボタンの処理
   const loadMore = () => {
     if (!loadingMore && hasMore) {
