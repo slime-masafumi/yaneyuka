@@ -79,9 +79,19 @@ export function logEvent(eventName: string, params?: Record<string, any>) {
 export let messaging: Messaging | null = null
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
   try {
-    messaging = getMessaging(app)
-  } catch (error) {
-    console.warn('Firebase Messagingの初期化に失敗しました:', error)
+    // messagingSenderIdとappIdが設定されている場合のみ初期化を試みる
+    if (process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID && process.env.NEXT_PUBLIC_FIREBASE_APP_ID) {
+      messaging = getMessaging(app)
+    } else {
+      console.warn('⚠️ Firebase Messagingの設定が不完全です。messagingSenderIdまたはappIdが設定されていません。')
+    }
+  } catch (error: any) {
+    // 403 PERMISSION_DENIEDエラーは、FCM APIが有効化されていない場合に発生するが、アプリの動作には影響しない
+    if (error?.code === 'installations/request-failed' || error?.message?.includes('PERMISSION_DENIED')) {
+      console.warn('⚠️ Firebase Cloud Messaging APIが有効化されていないか、権限が不足しています。プッシュ通知機能は使用できませんが、アプリの動作には影響しません。')
+    } else {
+      console.warn('Firebase Messagingの初期化に失敗しました:', error)
+    }
   }
 }
 
