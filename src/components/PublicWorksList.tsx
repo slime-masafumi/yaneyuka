@@ -11,14 +11,36 @@ interface PublicWork {
   organization: string
   title: string
   link: string
+  category?: string
   scrapedAt: string
 }
+
+// 都道府県の順序（北海道から）
+const PREFECTURE_ORDER = [
+  '北海道', '青森', '岩手', '宮城', '秋田', '山形', '福島',
+  '茨城', '栃木', '群馬', '埼玉', '千葉', '東京', '神奈川',
+  '新潟', '富山', '石川', '福井', '山梨', '長野',
+  '岐阜', '静岡', '愛知', '三重',
+  '滋賀', '京都', '大阪', '兵庫', '奈良', '和歌山',
+  '鳥取', '島根', '岡山', '広島', '山口',
+  '徳島', '香川', '愛媛', '高知',
+  '福岡', '佐賀', '長崎', '熊本', '大分', '宮崎', '鹿児島', '沖縄'
+]
+
+// 工事内容のカテゴリ
+const WORK_CATEGORIES = [
+  '設備（電気・空調）',
+  '建築・解体',
+  '水路・河川',
+  '業務・その他',
+  '土木・道路'
+]
 
 export default function PublicWorksList() {
   const [works, setWorks] = useState<PublicWork[]>([])
   const [filteredWorks, setFilteredWorks] = useState<PublicWork[]>([])
-  const [selectedArea, setSelectedArea] = useState<string>('all')
-  const [selectedWorkType, setSelectedWorkType] = useState<string>('all')
+  const [selectedAreas, setSelectedAreas] = useState<Set<string>>(new Set())
+  const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [loading, setLoading] = useState(true)
   const [activeList, setActiveList] = useState<boolean[]>([])
 
@@ -26,35 +48,22 @@ export default function PublicWorksList() {
     fetchWorks()
   }, [])
 
-  // 工事内容を判定する関数
-  const getWorkType = (work: PublicWork): string => {
-    const title = (work.title || '').toLowerCase()
-    const description = (work.description || '').toLowerCase()
-    const text = title + ' ' + description
-    
-    if (text.includes('新築') || text.includes('新設') || text.includes('建設')) {
-      return '新築'
-    }
-    if (text.includes('改修') || text.includes('改築') || text.includes('リニューアル') || text.includes('補修') || text.includes('補強')) {
-      return '改修'
-    }
-    if (text.includes('解体') || text.includes('撤去') || text.includes('除却')) {
-      return '解体'
-    }
-    return 'その他'
+  // 工事内容を取得（categoryフィールドを使用、なければデフォルト）
+  const getWorkCategory = (work: PublicWork): string => {
+    return work.category || '土木・道路'
   }
 
   useEffect(() => {
     let filtered = works
     
-    // エリアでフィルター
-    if (selectedArea !== 'all') {
-      filtered = filtered.filter(work => work.area === selectedArea)
+    // エリアでフィルター（チェックボックス）
+    if (selectedAreas.size > 0) {
+      filtered = filtered.filter(work => selectedAreas.has(work.area))
     }
     
     // 工事内容でフィルター
-    if (selectedWorkType !== 'all') {
-      filtered = filtered.filter(work => getWorkType(work) === selectedWorkType)
+    if (selectedCategory !== 'all') {
+      filtered = filtered.filter(work => getWorkCategory(work) === selectedCategory)
     }
     
     setFilteredWorks(filtered)
@@ -64,7 +73,27 @@ export default function PublicWorksList() {
     setTimeout(() => {
       setActiveList(new Array(filtered.length).fill(true))
     }, 50)
-  }, [selectedArea, selectedWorkType, works])
+  }, [selectedAreas, selectedCategory, works])
+  
+  // エリアのチェックボックスをトグル
+  const toggleArea = (area: string) => {
+    const newSelectedAreas = new Set(selectedAreas)
+    if (newSelectedAreas.has(area)) {
+      newSelectedAreas.delete(area)
+    } else {
+      newSelectedAreas.add(area)
+    }
+    setSelectedAreas(newSelectedAreas)
+  }
+  
+  // すべてのエリアを選択/解除
+  const toggleAllAreas = () => {
+    if (selectedAreas.size === availableAreas.length) {
+      setSelectedAreas(new Set())
+    } else {
+      setSelectedAreas(new Set(availableAreas))
+    }
+  }
 
   const fetchWorks = async () => {
     try {
@@ -95,7 +124,17 @@ export default function PublicWorksList() {
     }
   }
 
-  const areas = ['all', ...Array.from(new Set(works.map(w => w.area)))]
+  // エリアを都道府県順にソート
+  const availableAreas = Array.from(new Set(works.map(w => w.area)))
+    .sort((a, b) => {
+      const indexA = PREFECTURE_ORDER.indexOf(a)
+      const indexB = PREFECTURE_ORDER.indexOf(b)
+      // 順序リストにないものは最後に
+      if (indexA === -1 && indexB === -1) return a.localeCompare(b)
+      if (indexA === -1) return 1
+      if (indexB === -1) return -1
+      return indexA - indexB
+    })
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '日付不明'
@@ -122,39 +161,53 @@ export default function PublicWorksList() {
   return (
     <div>
       {/* フィルター */}
-      <div className="mb-4 flex flex-wrap gap-3 items-center">
-        <div className="flex items-center gap-2">
-          <label className="text-xs font-medium">エリア:</label>
-          <select
-            value={selectedArea}
-            onChange={(e) => setSelectedArea(e.target.value)}
-            className="border rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            {areas.map(area => (
-              <option key={area} value={area}>
-                {area === 'all' ? 'すべて' : area}
-              </option>
+      <div className="mb-4 space-y-3">
+        {/* エリアフィルター（チェックボックス） */}
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <label className="text-xs font-medium">エリア:</label>
+            <button
+              onClick={toggleAllAreas}
+              className="text-xs text-blue-600 hover:text-blue-800 underline"
+            >
+              {selectedAreas.size === availableAreas.length ? 'すべて解除' : 'すべて選択'}
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto border rounded p-2">
+            {availableAreas.map(area => (
+              <label key={area} className="flex items-center gap-1 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selectedAreas.has(area)}
+                  onChange={() => toggleArea(area)}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <span className="text-xs">{area}</span>
+              </label>
             ))}
-          </select>
+          </div>
         </div>
         
+        {/* 工事内容フィルター */}
         <div className="flex items-center gap-2">
           <label className="text-xs font-medium">工事内容:</label>
           <select
-            value={selectedWorkType}
-            onChange={(e) => setSelectedWorkType(e.target.value)}
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
             className="border rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">すべて</option>
-            <option value="新築">新築</option>
-            <option value="改修">改修</option>
-            <option value="解体">解体</option>
+            {WORK_CATEGORIES.map(category => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
           </select>
+          
+          <span className="text-xs text-gray-600">
+            {filteredWorks.length}件
+          </span>
         </div>
-        
-        <span className="text-xs text-gray-600">
-          {filteredWorks.length}件
-        </span>
       </div>
 
       {/* カード式グリッドレイアウト */}
@@ -174,11 +227,9 @@ export default function PublicWorksList() {
                 <span className="inline-block px-2 py-1 text-xs rounded bg-blue-100 text-blue-700 font-medium">
                   {work.area}
                 </span>
-                {getWorkType(work) !== 'その他' && (
-                  <span className="inline-block px-2 py-1 text-xs rounded bg-green-100 text-green-700 font-medium">
-                    {getWorkType(work)}
-                  </span>
-                )}
+                <span className="inline-block px-2 py-1 text-xs rounded bg-green-100 text-green-700 font-medium">
+                  {getWorkCategory(work)}
+                </span>
               </div>
 
               {/* タイトル */}
