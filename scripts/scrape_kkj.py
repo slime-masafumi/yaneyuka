@@ -81,26 +81,30 @@ def is_recent_date(date_obj, days=45):
 
 def categorize_work(title):
     """タイトルから工事区分を自動判定（優先順位順）"""
-    title_lower = title.lower()
+    if not title:
+        return '土木・道路'
+    
+    # タイトルを正規化（全角・半角の統一は不要だが、検索しやすくする）
+    title_normalized = title
     
     # 1. 設備（電気・空調） - 最優先
-    equipment_keywords = ['空調', '暖房', 'ボイラー', '電気', '電源', '照明', 'led', '監視', '通信', '警報', 'ポンプ', '浄化槽', '機械', '昇降機']
-    if any(keyword in title for keyword in equipment_keywords):
+    equipment_keywords = ['空調', '暖房', 'ボイラー', '電気', '電源', '照明', 'LED', 'led', '監視', '通信', '警報', 'ポンプ', '浄化槽', '機械', '昇降機', 'エアコン', '空調設備']
+    if any(keyword in title_normalized for keyword in equipment_keywords):
         return '設備（電気・空調）'
     
     # 2. 建築・解体
-    building_keywords = ['建築', '増築', '新営', '改修', '修繕', '建具', '天井', 'トイレ', '塗装', '屋根', '防水', '解体', '撤去']
-    if any(keyword in title for keyword in building_keywords):
+    building_keywords = ['建築', '増築', '新営', '改修', '修繕', '建具', '天井', 'トイレ', '塗装', '屋根', '防水', '解体', '撤去', '内装', '外装', '改築', 'リニューアル']
+    if any(keyword in title_normalized for keyword in building_keywords):
         return '建築・解体'
     
     # 3. 水路・河川
-    water_keywords = ['水路', '河川', '護岸', '堤防', 'ダム', '砂防', '下水', '管きょ', '排水', '浚渫']
-    if any(keyword in title for keyword in water_keywords):
+    water_keywords = ['水路', '河川', '護岸', '堤防', 'ダム', '砂防', '下水', '管きょ', '管渠', '排水', '浚渫', '用水路', '排水路']
+    if any(keyword in title_normalized for keyword in water_keywords):
         return '水路・河川'
     
     # 4. 業務・その他
-    business_keywords = ['業務', '委託', '支援', '調査', '設計', 'システム', '点検', '清掃', '伐採', '運搬']
-    if any(keyword in title for keyword in business_keywords):
+    business_keywords = ['業務', '委託', '支援', '調査', '設計', 'システム', '点検', '清掃', '伐採', '運搬', '管理', '維持', '補修業務']
+    if any(keyword in title_normalized for keyword in business_keywords):
         return '業務・その他'
     
     # 5. 土木・道路（デフォルト）
@@ -197,6 +201,9 @@ def parse_search_results(html_content, prefecture_code, prefecture_name):
                 
                 # 工事区分を自動判定
                 category = categorize_work(title)
+                # デバッグ: カテゴリ判定結果をログ出力（最初の10件のみ）
+                if len(scraped_data) < 10:
+                    print(f'    カテゴリ判定: "{title[:40]}..." -> {category}')
                 
                 # expireAtを計算（公告日 + 45日）
                 expire_at = (date_obj + timedelta(days=45)).isoformat()
