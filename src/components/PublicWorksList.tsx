@@ -165,7 +165,7 @@ export default function PublicWorksList() {
         }
         
         // クライアントサイドフィルタリングの場合、エリアとカテゴリでフィルタ
-        if (useClientSideFilter) {
+        if (isClientSideFiltering || useClientSideFilter) {
           // エリアフィルター
           if (areasArray.length > 0 && !areasArray.includes(data.area)) {
             filteredByArea++
@@ -184,8 +184,18 @@ export default function PublicWorksList() {
         } as PublicWork)
       })
       
-      if (useClientSideFilter) {
-        console.log(`クライアントサイドフィルタリング結果: エリア=${areasArray.join(',')}, 取得=${snapshot.size}件, 表示=${newWorks.length}件, エリア除外=${filteredByArea}件, カテゴリ除外=${filteredByCategory}件, 日付除外=${filteredByDate}件`)
+      if (isClientSideFiltering || useClientSideFilter) {
+        console.log(`📊 クライアントサイドフィルタリング結果: エリア=[${areasArray.join(',')}], 取得=${snapshot.size}件, 表示=${newWorks.length}件, エリア除外=${filteredByArea}件, カテゴリ除外=${filteredByCategory}件, 日付除外=${filteredByDate}件`)
+        if (filteredByArea === 0 && areasArray.length > 0) {
+          console.warn('⚠️ エリアフィルターが動作していません。データのareaフィールドを確認してください。')
+          // 最初の5件のareaフィールドを確認
+          snapshot.forEach((doc, idx) => {
+            if (idx < 5) {
+              const data = doc.data() as PublicWork
+              console.log(`  サンプル${idx + 1}: area="${data.area}", title="${data.title?.substring(0, 30)}..."`)
+            }
+          })
+        }
       }
 
       // 10個を超えるエリア選択の場合、クライアントサイドでフィルタリング
