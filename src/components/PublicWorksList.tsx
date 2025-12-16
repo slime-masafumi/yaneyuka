@@ -615,9 +615,12 @@ export default function PublicWorksList() {
               const bgColor = isAlternateGroup ? 'bg-blue-50' : 'bg-white';
               
               return (
-              <div
+              <a
                 key={work.id}
-                className={`border border-gray-200 rounded-lg p-4 ${bgColor} text-sm w-full min-h-[200px] shadow-sm transition-all duration-300 flex flex-col hover:shadow-xl hover:-translate-y-1 hover:border-blue-400 ${
+                href={work.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`border border-gray-200 rounded-lg p-4 ${bgColor} text-sm w-full min-h-[200px] shadow-sm transition-all duration-300 flex flex-col hover:shadow-xl hover:-translate-y-1 hover:border-blue-400 cursor-pointer ${
                   activeList[index] ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
                 }`}
               >
@@ -651,17 +654,12 @@ export default function PublicWorksList() {
 
                 {/* リンクボタン */}
                 <div className="mt-auto pt-3 border-t border-gray-100">
-                  <a
-                    href={work.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-end gap-1 text-xs text-blue-600 hover:text-blue-800 transition-colors"
-                  >
+                  <div className="flex items-center justify-end gap-1 text-xs text-blue-600">
                     <span>詳細</span>
                     <ExternalLink size={14} />
-                  </a>
+                  </div>
                 </div>
-              </div>
+              </a>
               );
             })}
           </div>
