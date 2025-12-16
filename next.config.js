@@ -91,6 +91,8 @@ try {
 const nextConfig = {
   output: 'standalone',
   trailingSlash: true,
+  // Next.js 16ではTurbopackがデフォルトだが、next-pwaはwebpackベースのためwebpackを使用
+  turbopack: {}, // 空の設定でエラーを回避（実際には--webpackフラグでwebpackを使用）
   // 画像最適化: 環境変数で制御可能（デフォルトは無効化）
   // NEXT_PUBLIC_ENABLE_IMAGE_OPTIMIZATION=true で有効化
   images: {
