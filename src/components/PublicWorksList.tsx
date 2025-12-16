@@ -151,10 +151,16 @@ export default function PublicWorksList() {
       }
 
       const newWorks: PublicWork[] = []
+      let filteredByArea = 0
+      let filteredByCategory = 0
+      let filteredByDate = 0
+      
       snapshot.forEach((doc) => {
         const data = doc.data() as PublicWork
+        
         // 45日以内のデータのみを追加
         if (!isWithin45Days(data.date)) {
+          filteredByDate++
           return
         }
         
@@ -162,10 +168,12 @@ export default function PublicWorksList() {
         if (useClientSideFilter) {
           // エリアフィルター
           if (areasArray.length > 0 && !areasArray.includes(data.area)) {
+            filteredByArea++
             return
           }
           // カテゴリフィルター
           if (selectedCategory !== 'all' && data.category !== selectedCategory) {
+            filteredByCategory++
             return
           }
         }
@@ -175,6 +183,10 @@ export default function PublicWorksList() {
           ...data,
         } as PublicWork)
       })
+      
+      if (useClientSideFilter) {
+        console.log(`クライアントサイドフィルタリング結果: エリア=${areasArray.join(',')}, 取得=${snapshot.size}件, 表示=${newWorks.length}件, エリア除外=${filteredByArea}件, カテゴリ除外=${filteredByCategory}件, 日付除外=${filteredByDate}件`)
+      }
 
       // 10個を超えるエリア選択の場合、クライアントサイドでフィルタリング
       let filteredWorks = newWorks
