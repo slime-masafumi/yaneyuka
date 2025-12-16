@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { collection, query, orderBy, getDocs, where, limit, startAfter, QueryDocumentSnapshot, DocumentData, getCountFromServer } from 'firebase/firestore'
 import { db } from '@/lib/firebaseClient'
+import { Building2, Calendar, ExternalLink, MapPin } from 'lucide-react'
 
 interface PublicWork {
   id: string
