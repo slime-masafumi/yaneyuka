@@ -429,36 +429,90 @@ export default function PublicWorksList() {
       
       {/* フィルター */}
       <div className="mb-4 space-y-3">
-        {/* エリアフィルター（チェックボックス） */}
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <label className="text-xs font-medium">エリア:</label>
-            <button
-              onClick={toggleAllAreas}
-              className="text-xs text-blue-600 hover:text-blue-800 underline"
-            >
-              {selectedAreas.size === availableAreas.length ? 'すべて解除' : 'すべて選択'}
-            </button>
-            {selectedAreas.size > 10 && (
-              <span className="text-xs text-orange-600">
-                （10個を超える選択はクライアントサイドでフィルタリングされます）
-              </span>
-            )}
-          </div>
-          <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto border rounded p-2">
-            {availableAreas.map(area => (
-              <label key={area} className="flex items-center gap-1 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={selectedAreas.has(area)}
-                  onChange={() => toggleArea(area)}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                />
-                <span className="text-xs">{area}</span>
-              </label>
-            ))}
-          </div>
+        {/* エリアフィルター（モーダル形式） */}
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-medium">エリア:</label>
+          <span className="text-xs text-gray-700">{getSelectedAreasText()}</span>
+          <button
+            onClick={() => setIsAreaModalOpen(true)}
+            className="text-xs text-blue-600 hover:text-blue-800 underline"
+          >
+            エリアを変更
+          </button>
+          {selectedAreas.size > 10 && (
+            <span className="text-xs text-orange-600">
+              （10個を超える選択はクライアントサイドでフィルタリングされます）
+            </span>
+          )}
         </div>
+
+        {/* エリア選択モーダル */}
+        {isAreaModalOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setIsAreaModalOpen(false)}>
+            <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold">エリアを選択</h2>
+                <button
+                  onClick={() => setIsAreaModalOpen(false)}
+                  className="text-gray-500 hover:text-gray-700 text-xl"
+                >
+                  ×
+                </button>
+              </div>
+              
+              <div className="mb-4 flex items-center gap-2">
+                <button
+                  onClick={toggleAllAreas}
+                  className="text-xs text-blue-600 hover:text-blue-800 underline"
+                >
+                  {selectedAreas.size === availableAreas.length ? 'すべて解除' : 'すべて選択'}
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {Object.entries(REGIONS).map(([regionName, prefectures]) => {
+                  const allSelected = prefectures.every(pref => selectedAreas.has(pref))
+                  
+                  return (
+                    <div key={regionName} className="border rounded p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-sm font-semibold">{regionName}</h3>
+                        <button
+                          onClick={() => toggleRegionAreas(prefectures)}
+                          className="text-xs text-blue-600 hover:text-blue-800 underline"
+                        >
+                          {allSelected ? 'この地域をすべて解除' : 'この地域をすべて選択'}
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {prefectures.map(prefecture => (
+                          <label key={prefecture} className="flex items-center gap-1 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={selectedAreas.has(prefecture)}
+                              onChange={() => toggleArea(prefecture)}
+                              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                            />
+                            <span className="text-xs">{prefecture}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              <div className="mt-4 flex justify-end gap-2">
+                <button
+                  onClick={() => setIsAreaModalOpen(false)}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 text-sm"
+                >
+                  閉じる
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         
         {/* 工事内容フィルターとソート */}
         <div className="flex items-center gap-2 flex-wrap">
