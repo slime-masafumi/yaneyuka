@@ -112,20 +112,6 @@ export default function PublicWorksList() {
     }
   }
 
-  // 45日以内のデータかどうかを判定
-  const isWithin45Days = (dateStr: string): boolean => {
-    if (!dateStr) return false
-    try {
-      const workDate = new Date(dateStr)
-      const now = new Date()
-      const diffTime = now.getTime() - workDate.getTime()
-      const diffDays = diffTime / (1000 * 60 * 60 * 24)
-      return diffDays <= 45 && diffDays >= 0
-    } catch {
-      return false
-    }
-  }
-
   const fetchWorks = async () => {
     try {
       const worksRef = collection(db, 'public_works')
