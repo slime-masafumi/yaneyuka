@@ -48,6 +48,8 @@ export default function PublicWorksList() {
   const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null)
   const [activeList, setActiveList] = useState<boolean[]>([])
   const [availableAreas, setAvailableAreas] = useState<string[]>(PREFECTURE_ORDER)
+  const [indexError, setIndexError] = useState<string | null>(null)
+  const [useClientSideFilter, setUseClientSideFilter] = useState(false)
 
   // 45日以内のデータかどうかを判定
   const isWithin45Days = (dateStr: string): boolean => {
@@ -118,24 +120,58 @@ export default function PublicWorksList() {
         queries.push(startAfter(lastVisible))
       }
 
-      const q = query(worksRef, ...queries)
-      const snapshot = await getDocs(q)
+      let snapshot
+      try {
+        const q = query(worksRef, ...queries)
+        snapshot = await getDocs(q)
+        setIndexError(null)
+        setUseClientSideFilter(false)
+      } catch (error: any) {
+        // インデックスエラーの場合、クライアントサイドフィルタリングにフォールバック
+        if (error?.code === 'failed-precondition' && error?.message?.includes('index')) {
+          console.warn('インデックスが作成されていません。クライアントサイドフィルタリングにフォールバックします。')
+          setIndexError(error.message)
+          setUseClientSideFilter(true)
+          
+          // クライアントサイドフィルタリング: シンプルなクエリで全データを取得
+          const simpleQuery = query(
+            worksRef,
+            orderBy('date', 'desc'),
+            limit(1000) // 一時的に多めに取得
+          )
+          snapshot = await getDocs(simpleQuery)
+        } else {
+          throw error
+        }
+      }
 
       const newWorks: PublicWork[] = []
       snapshot.forEach((doc) => {
         const data = doc.data() as PublicWork
         // 45日以内のデータのみを追加
-        if (isWithin45Days(data.date)) {
-          newWorks.push({
-            id: doc.id,
-            ...data,
-          } as PublicWork)
+        if (!isWithin45Days(data.date)) {
+          return
         }
+        
+        // クライアントサイドフィルタリングの場合、エリアとカテゴリでフィルタ
+        if (useClientSideFilter) {
+          if (areasArray.length > 0 && !areasArray.includes(data.area)) {
+            return
+          }
+          if (selectedCategory !== 'all' && data.category !== selectedCategory) {
+            return
+          }
+        }
+        
+        newWorks.push({
+          id: doc.id,
+          ...data,
+        } as PublicWork)
       })
 
       // 10個を超えるエリア選択の場合、クライアントサイドでフィルタリング
       let filteredWorks = newWorks
-      if (needsClientSideFilter) {
+      if (needsClientSideFilter && !useClientSideFilter) {
         filteredWorks = newWorks.filter(work => selectedAreas.has(work.area))
       }
 
@@ -160,11 +196,19 @@ export default function PublicWorksList() {
         setActiveList(new Array(totalWorks).fill(true))
       }, 50)
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('データの取得に失敗しました:', error)
       // エラーが発生した場合、インデックスが必要な可能性がある
-      if (error instanceof Error && error.message.includes('index')) {
-        console.error('Firestoreインデックスが必要です。エラーメッセージ内のURLをクリックしてインデックスを作成してください。')
+      if (error?.code === 'failed-precondition' && error?.message?.includes('index')) {
+        const indexUrl = error.message.match(/https:\/\/[^\s]+/)?.[0]
+        if (indexUrl) {
+          setIndexError(`インデックスが必要です: ${indexUrl}`)
+          console.error('Firestoreインデックスが必要です。以下のURLをクリックしてインデックスを作成してください:', indexUrl)
+        }
+      }
+      // エラー時は空の配列を設定して無限ループを防ぐ
+      if (reset) {
+        setWorks([])
       }
     } finally {
       setLoading(false)
@@ -174,6 +218,12 @@ export default function PublicWorksList() {
 
   // エリアまたはカテゴリが変更されたときに再取得
   useEffect(() => {
+    // エリアが空の場合はスキップ
+    if (selectedAreas.size === 0) {
+      setWorks([])
+      setLoading(false)
+      return
+    }
     fetchWorks(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedAreas, selectedCategory])
@@ -229,6 +279,19 @@ export default function PublicWorksList() {
 
   return (
     <div>
+      {/* インデックスエラーの警告 */}
+      {indexError && (
+        <div className="mb-4 p-3 bg-yellow-100 border border-yellow-400 rounded text-sm">
+          <p className="font-bold text-yellow-800 mb-2">⚠️ Firestoreインデックスが必要です</p>
+          <p className="text-yellow-700 mb-2">
+            現在はクライアントサイドフィルタリングで動作していますが、パフォーマンス向上のためインデックスを作成してください。
+          </p>
+          <p className="text-yellow-600 text-xs">
+            エラーメッセージ内のURLをクリックしてインデックスを作成してください。
+          </p>
+        </div>
+      )}
+      
       {/* フィルター */}
       <div className="mb-4 space-y-3">
         {/* エリアフィルター（チェックボックス） */}
