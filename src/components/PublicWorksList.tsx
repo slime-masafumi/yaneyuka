@@ -124,18 +124,20 @@ export default function PublicWorksList() {
       }
 
       let snapshot
+      let isClientSideFiltering = false
       try {
         const q = query(worksRef, ...queries)
         snapshot = await getDocs(q)
         setIndexError(null)
         setUseClientSideFilter(false)
-        console.log(`サーバーサイドフィルタリング: エリア=${areasArray.join(',')}, 取得件数=${snapshot.size}`)
+        console.log(`✅ サーバーサイドフィルタリング成功: エリア=${areasArray.join(',')}, 取得件数=${snapshot.size}`)
       } catch (error: any) {
         // インデックスエラーの場合、クライアントサイドフィルタリングにフォールバック
         if (error?.code === 'failed-precondition' && error?.message?.includes('index')) {
-          console.warn('インデックスが作成されていません。クライアントサイドフィルタリングにフォールバックします。')
+          console.warn('⚠️ インデックスが作成されていません。クライアントサイドフィルタリングにフォールバックします。')
           setIndexError(error.message)
           setUseClientSideFilter(true)
+          isClientSideFiltering = true
           
           // クライアントサイドフィルタリング: シンプルなクエリで全データを取得
           const simpleQuery = query(
@@ -144,7 +146,7 @@ export default function PublicWorksList() {
             limit(1000) // 一時的に多めに取得
           )
           snapshot = await getDocs(simpleQuery)
-          console.log(`クライアントサイドフィルタリング開始: エリア=${areasArray.join(',')}, 取得件数=${snapshot.size}`)
+          console.log(`🔄 クライアントサイドフィルタリング開始: エリア=[${areasArray.join(',')}], 取得件数=${snapshot.size}`)
         } else {
           throw error
         }
