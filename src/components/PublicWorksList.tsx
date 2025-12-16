@@ -144,7 +144,7 @@ export default function PublicWorksList() {
             limit(1000) // 一時的に多めに取得
           )
           snapshot = await getDocs(simpleQuery)
-          console.log(`クライアントサイドフィルタリング: エリア=${areasArray.join(',')}, 取得件数=${snapshot.size}`)
+          console.log(`クライアントサイドフィルタリング開始: エリア=${areasArray.join(',')}, 取得件数=${snapshot.size}`)
         } else {
           throw error
         }
