@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { collection, query, orderBy, getDocs } from 'firebase/firestore'
+import { useState, useEffect, useCallback } from 'react'
+import { collection, query, orderBy, getDocs, where, limit, startAfter, QueryDocumentSnapshot, DocumentData } from 'firebase/firestore'
 import { db } from '@/lib/firebaseClient'
 
 interface PublicWork {
@@ -36,22 +36,18 @@ const WORK_CATEGORIES = [
   '土木・道路'
 ]
 
+const ITEMS_PER_PAGE = 20
+
 export default function PublicWorksList() {
   const [works, setWorks] = useState<PublicWork[]>([])
-  const [filteredWorks, setFilteredWorks] = useState<PublicWork[]>([])
-  const [selectedAreas, setSelectedAreas] = useState<Set<string>>(new Set())
+  const [selectedAreas, setSelectedAreas] = useState<Set<string>>(new Set(['東京']))
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
+  const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null)
   const [activeList, setActiveList] = useState<boolean[]>([])
-
-  useEffect(() => {
-    fetchWorks()
-  }, [])
-
-  // 工事内容を取得（categoryフィールドを使用、なければデフォルト）
-  const getWorkCategory = (work: PublicWork): string => {
-    return work.category || '土木・道路'
-  }
+  const [availableAreas, setAvailableAreas] = useState<string[]>(PREFECTURE_ORDER)
 
   // 45日以内のデータかどうかを判定
   const isWithin45Days = (dateStr: string): boolean => {
@@ -67,31 +63,121 @@ export default function PublicWorksList() {
     }
   }
 
+  // 工事内容を取得（categoryフィールドを使用、なければデフォルト）
+  const getWorkCategory = (work: PublicWork): string => {
+    return work.category || '土木・道路'
+  }
+
+  // データ取得関数
+  const fetchWorks = useCallback(async (reset: boolean = false) => {
+    try {
+      if (reset) {
+        setLoading(true)
+        setWorks([])
+        setLastVisible(null)
+        setHasMore(true)
+      } else {
+        setLoadingMore(true)
+      }
+
+      const worksRef = collection(db, 'public_works')
+      
+      // エリアフィルター（最大10個まで）
+      const areasArray = Array.from(selectedAreas)
+      if (areasArray.length === 0) {
+        setWorks([])
+        setLoading(false)
+        setLoadingMore(false)
+        return
+      }
+
+      // Firestoreのwhere('area', 'in', ...)は最大10個まで
+      let queries: any[] = []
+      let needsClientSideFilter = false
+      
+      if (areasArray.length <= 10) {
+        queries = [where('area', 'in', areasArray)]
+      } else {
+        // 10個を超える場合は警告を出して、最初の10個のみ使用
+        console.warn('エリア選択が10個を超えています。最初の10個のみ適用されます。')
+        queries = [where('area', 'in', areasArray.slice(0, 10))]
+        needsClientSideFilter = true
+      }
+
+      // カテゴリフィルター
+      if (selectedCategory !== 'all') {
+        queries.push(where('category', '==', selectedCategory))
+      }
+
+      // 日付でソート
+      queries.push(orderBy('date', 'desc'))
+      
+      // ページネーション
+      queries.push(limit(ITEMS_PER_PAGE))
+      if (lastVisible && !reset) {
+        queries.push(startAfter(lastVisible))
+      }
+
+      const q = query(worksRef, ...queries)
+      const snapshot = await getDocs(q)
+
+      const newWorks: PublicWork[] = []
+      snapshot.forEach((doc) => {
+        const data = doc.data() as PublicWork
+        // 45日以内のデータのみを追加
+        if (isWithin45Days(data.date)) {
+          newWorks.push({
+            id: doc.id,
+            ...data,
+          } as PublicWork)
+        }
+      })
+
+      // 10個を超えるエリア選択の場合、クライアントサイドでフィルタリング
+      let filteredWorks = newWorks
+      if (needsClientSideFilter) {
+        filteredWorks = newWorks.filter(work => selectedAreas.has(work.area))
+      }
+
+      if (reset) {
+        setWorks(filteredWorks)
+      } else {
+        setWorks(prev => [...prev, ...filteredWorks])
+      }
+
+      // ページネーション用の状態を更新
+      if (snapshot.docs.length > 0) {
+        setLastVisible(snapshot.docs[snapshot.docs.length - 1])
+        setHasMore(snapshot.docs.length === ITEMS_PER_PAGE)
+      } else {
+        setHasMore(false)
+      }
+
+      // アニメーション用の状態を更新
+      const totalWorks = reset ? filteredWorks.length : works.length + filteredWorks.length
+      setActiveList(new Array(totalWorks).fill(false))
+      setTimeout(() => {
+        setActiveList(new Array(totalWorks).fill(true))
+      }, 50)
+
+    } catch (error) {
+      console.error('データの取得に失敗しました:', error)
+      // エラーが発生した場合、インデックスが必要な可能性がある
+      if (error instanceof Error && error.message.includes('index')) {
+        console.error('Firestoreインデックスが必要です。エラーメッセージ内のURLをクリックしてインデックスを作成してください。')
+      }
+    } finally {
+      setLoading(false)
+      setLoadingMore(false)
+    }
+  }, [selectedAreas, selectedCategory, lastVisible, works.length])
+
+  // エリアまたはカテゴリが変更されたときに再取得
   useEffect(() => {
-    let filtered = works
-    
-    // 45日以内のデータのみをフィルター
-    filtered = filtered.filter(work => isWithin45Days(work.date))
-    
-    // エリアでフィルター（チェックボックス）
-    if (selectedAreas.size > 0) {
-      filtered = filtered.filter(work => selectedAreas.has(work.area))
-    }
-    
-    // 工事内容でフィルター
-    if (selectedCategory !== 'all') {
-      filtered = filtered.filter(work => getWorkCategory(work) === selectedCategory)
-    }
-    
-    setFilteredWorks(filtered)
-    
-    // フィルター変更時にアニメーションをリセット
-    setActiveList(new Array(filtered.length).fill(false))
-    setTimeout(() => {
-      setActiveList(new Array(filtered.length).fill(true))
-    }, 50)
-  }, [selectedAreas, selectedCategory, works])
-  
+    fetchWorks(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedAreas, selectedCategory])
+
   // エリアのチェックボックスをトグル
   const toggleArea = (area: string) => {
     const newSelectedAreas = new Set(selectedAreas)
@@ -102,7 +188,7 @@ export default function PublicWorksList() {
     }
     setSelectedAreas(newSelectedAreas)
   }
-  
+
   // すべてのエリアを選択/解除
   const toggleAllAreas = () => {
     if (selectedAreas.size === availableAreas.length) {
@@ -112,54 +198,12 @@ export default function PublicWorksList() {
     }
   }
 
-  const fetchWorks = async () => {
-    try {
-      const worksRef = collection(db, 'public_works')
-      // 日付でソート（新しい順）
-      const q = query(worksRef, orderBy('date', 'desc'))
-      const snapshot = await getDocs(q)
-      
-      const worksData: PublicWork[] = []
-      const allData: PublicWork[] = []
-      
-      snapshot.forEach((doc) => {
-        allData.push({
-          id: doc.id,
-          ...doc.data(),
-        } as PublicWork)
-      })
-      
-      // 45日以内のデータのみをフィルタリング
-      const filtered45Days = allData.filter(work => isWithin45Days(work.date))
-      
-      console.log(`取得したデータ: ${allData.length}件, 45日以内: ${filtered45Days.length}件`)
-      
-      setWorks(filtered45Days)
-      setFilteredWorks(filtered45Days)
-      
-      // アニメーション用の状態を初期化
-      setActiveList(new Array(filtered45Days.length).fill(false))
-      setTimeout(() => {
-        setActiveList(new Array(filtered45Days.length).fill(true))
-      }, 50)
-    } catch (error) {
-      console.error('データの取得に失敗しました:', error)
-    } finally {
-      setLoading(false)
+  // もっと見るボタンの処理
+  const loadMore = () => {
+    if (!loadingMore && hasMore) {
+      fetchWorks(false)
     }
   }
-
-  // エリアを都道府県順にソート
-  const availableAreas = Array.from(new Set(works.map(w => w.area)))
-    .sort((a, b) => {
-      const indexA = PREFECTURE_ORDER.indexOf(a)
-      const indexB = PREFECTURE_ORDER.indexOf(b)
-      // 順序リストにないものは最後に
-      if (indexA === -1 && indexB === -1) return a.localeCompare(b)
-      if (indexA === -1) return 1
-      if (indexB === -1) return -1
-      return indexA - indexB
-    })
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '日付不明'
@@ -197,6 +241,11 @@ export default function PublicWorksList() {
             >
               {selectedAreas.size === availableAreas.length ? 'すべて解除' : 'すべて選択'}
             </button>
+            {selectedAreas.size > 10 && (
+              <span className="text-xs text-orange-600">
+                （10個を超える選択はクライアントサイドでフィルタリングされます）
+              </span>
+            )}
           </div>
           <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto border rounded p-2">
             {availableAreas.map(area => (
@@ -230,73 +279,87 @@ export default function PublicWorksList() {
           </select>
           
           <span className="text-xs text-gray-600">
-            {filteredWorks.length}件
+            {works.length}件
           </span>
         </div>
       </div>
 
       {/* カード式グリッドレイアウト */}
-      {filteredWorks.length === 0 ? (
+      {works.length === 0 ? (
         <p className="text-gray-700 text-xs">データがありません</p>
       ) : (
-        <div className="grid gap-3 grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-          {filteredWorks.map((work, index) => (
-            <div
-              key={work.id}
-              className={`border rounded p-3 bg-white text-sm w-full h-[350px] dynamic-card transition-all duration-500 flex flex-col hover:shadow-lg hover:border-blue-300 ${
-                activeList[index] ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
-              }`}
-            >
-              {/* バッジ */}
-              <div className="mb-2 flex flex-wrap gap-1">
-                <span className="inline-block px-2 py-1 text-xs rounded bg-blue-100 text-blue-700 font-medium">
-                  {work.area}
-                </span>
-                <span className="inline-block px-2 py-1 text-xs rounded bg-green-100 text-green-700 font-medium">
-                  {getWorkCategory(work)}
-                </span>
-              </div>
-
-              {/* タイトル */}
-              <h3 className="font-bold text-sm mb-1 line-clamp-2 flex-1">
-                <a
-                  href={work.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:text-blue-800 hover:underline"
-                >
-                  {work.title}
-                </a>
-              </h3>
-
-              {/* 詳細情報 */}
-              <div className="space-y-1 text-xs text-gray-600 mb-3 flex-shrink-0">
-                <div className="flex items-start">
-                  <span className="font-medium text-gray-700 min-w-[80px]">発注機関:</span>
-                  <span className="line-clamp-2">{work.organization || '未記載'}</span>
+        <>
+          <div className="grid gap-3 grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+            {works.map((work, index) => (
+              <div
+                key={work.id}
+                className={`border rounded p-3 bg-white text-sm w-full h-[350px] dynamic-card transition-all duration-500 flex flex-col hover:shadow-lg hover:border-blue-300 ${
+                  activeList[index] ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
+                }`}
+              >
+                {/* バッジ */}
+                <div className="mb-2 flex flex-wrap gap-1">
+                  <span className="inline-block px-2 py-1 text-xs rounded bg-blue-100 text-blue-700 font-medium">
+                    {work.area}
+                  </span>
+                  <span className="inline-block px-2 py-1 text-xs rounded bg-green-100 text-green-700 font-medium">
+                    {getWorkCategory(work)}
+                  </span>
                 </div>
-                <div className="flex items-start">
-                  <span className="font-medium text-gray-700 min-w-[80px]">日付:</span>
-                  <span>{formatDate(work.date)}</span>
+
+                {/* タイトル */}
+                <h3 className="font-bold text-sm mb-1 line-clamp-2 flex-1">
+                  <a
+                    href={work.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800 hover:underline"
+                  >
+                    {work.title}
+                  </a>
+                </h3>
+
+                {/* 詳細情報 */}
+                <div className="space-y-1 text-xs text-gray-600 mb-3 flex-shrink-0">
+                  <div className="flex items-start">
+                    <span className="font-medium text-gray-700 min-w-[80px]">発注機関:</span>
+                    <span className="line-clamp-2">{work.organization || '未記載'}</span>
+                  </div>
+                  <div className="flex items-start">
+                    <span className="font-medium text-gray-700 min-w-[80px]">日付:</span>
+                    <span>{formatDate(work.date)}</span>
+                  </div>
+                </div>
+
+                {/* リンクボタン */}
+                <div className="mt-auto pt-2 border-t">
+                  <a
+                    href={work.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block text-center text-xs bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 transition-colors"
+                  >
+                    詳細を見る →
+                  </a>
                 </div>
               </div>
+            ))}
+          </div>
 
-              {/* リンクボタン */}
-              <div className="mt-auto pt-2 border-t">
-                <a
-                  href={work.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block text-center text-xs bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 transition-colors"
-                >
-                  詳細を見る →
-                </a>
-              </div>
+          {/* もっと見るボタン */}
+          {hasMore && (
+            <div className="mt-4 text-center">
+              <button
+                onClick={loadMore}
+                disabled={loadingMore}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                {loadingMore ? '読み込み中...' : 'もっと見る'}
+              </button>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
     </div>
   )
 }
-

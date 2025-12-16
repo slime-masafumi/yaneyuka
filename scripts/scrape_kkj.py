@@ -84,30 +84,27 @@ def categorize_work(title):
     if not title:
         return '土木・道路'
     
-    # タイトルを正規化（全角・半角の統一は不要だが、検索しやすくする）
-    title_normalized = title
-    
-    # 1. 設備（電気・空調） - 最優先
-    equipment_keywords = ['空調', '暖房', 'ボイラー', '電気', '電源', '照明', 'LED', 'led', '監視', '通信', '警報', 'ポンプ', '浄化槽', '機械', '昇降機', 'エアコン', '空調設備']
-    if any(keyword in title_normalized for keyword in equipment_keywords):
-        return '設備（電気・空調）'
-    
-    # 2. 建築・解体
-    building_keywords = ['建築', '増築', '新営', '改修', '修繕', '建具', '天井', 'トイレ', '塗装', '屋根', '防水', '解体', '撤去', '内装', '外装', '改築', 'リニューアル']
-    if any(keyword in title_normalized for keyword in building_keywords):
-        return '建築・解体'
-    
-    # 3. 水路・河川
-    water_keywords = ['水路', '河川', '護岸', '堤防', 'ダム', '砂防', '下水', '管きょ', '管渠', '排水', '浚渫', '用水路', '排水路']
-    if any(keyword in title_normalized for keyword in water_keywords):
-        return '水路・河川'
-    
-    # 4. 業務・その他
-    business_keywords = ['業務', '委託', '支援', '調査', '設計', 'システム', '点検', '清掃', '伐採', '運搬', '管理', '維持', '補修業務']
-    if any(keyword in title_normalized for keyword in business_keywords):
+    # 優先度1：業務・委託（工事ではないもの）を最優先で除外
+    service_keywords = ['業務', '委託', '支援', '調査', '設計', '測量', '点検', '清掃', '警備', 'リース', '保守', '運転', '運搬', '剪定', '伐採', '除雪', 'システム', '借入']
+    if any(keyword in title for keyword in service_keywords):
         return '業務・その他'
     
-    # 5. 土木・道路（デフォルト）
+    # 優先度2：設備（特定のキーワードが強い）
+    equipment_keywords = ['空調', '暖房', '冷房', 'ボイラー', '電気', '電源', '盤', 'LED', '照明', '監視', '通信', '警報', 'ポンプ', '昇降機', 'エレベーター', '浄化槽', '機械', '弁']
+    if any(keyword in title for keyword in equipment_keywords):
+        return '設備（電気・空調）'
+    
+    # 優先度3：建築・解体（建物系）
+    architecture_keywords = ['建築', '新築', '新営', '増築', '改修', '修繕', '建具', '天井', 'トイレ', '塗装', '屋根', '防水', '解体', '撤去', '庁舎', '校舎', '宿舎', '住宅', '体育館']
+    if any(keyword in title for keyword in architecture_keywords):
+        return '建築・解体'
+    
+    # 優先度4：水路・河川
+    river_keywords = ['水路', '河川', '護岸', '堤防', 'ダム', '砂防', '下水', '管きょ', '管渠', '排水', '浚渫', '用水']
+    if any(keyword in title for keyword in river_keywords):
+        return '水路・河川'
+    
+    # 優先度5：土木・道路（その他すべて）
     return '土木・道路'
 
 def parse_search_results(html_content, prefecture_code, prefecture_name):
