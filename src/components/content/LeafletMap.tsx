@@ -27,6 +27,7 @@ interface LeafletMapProps {
 const LeafletMap: React.FC<LeafletMapProps> = ({ center }) => {
   const [isMounted, setIsMounted] = useState(false);
   const mapInstanceRef = useRef<L.Map | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // クライアントサイドでのみマウント
@@ -46,14 +47,15 @@ const LeafletMap: React.FC<LeafletMapProps> = ({ center }) => {
   }, []);
 
   // centerが変更されたときにマップを再初期化するためのkey
-  const mapKey = isMounted ? `${center[0]}-${center[1]}` : 'initial';
+  // JSON.stringifyで一意なキーを生成
+  const mapKey = isMounted ? JSON.stringify(center) : 'initial';
 
   if (!isMounted) {
     return <div style={{ height: '100%', width: '100%' }} />;
   }
 
   return (
-    <div style={{ height: '100%', width: '100%' }}>
+    <div ref={containerRef} style={{ height: '100%', width: '100%' }}>
       <MapContainer
         key={mapKey}
         center={center}
