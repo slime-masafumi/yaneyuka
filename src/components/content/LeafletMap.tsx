@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 const icon = L.divIcon({
   className: 'yaneyuka-map-pin',
@@ -24,24 +25,35 @@ interface LeafletMapProps {
 }
 
 const LeafletMap: React.FC<LeafletMapProps> = ({ center }) => {
-  const mapRef = useRef<L.Map | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [isMounted, setIsMounted] = useState(false);
+  const mapInstanceRef = useRef<L.Map | null>(null);
 
   useEffect(() => {
-    // クリーンアップ: コンポーネントがアンマウントされる際にマップを破棄
+    // クライアントサイドでのみマウント
+    setIsMounted(true);
+
     return () => {
-      if (mapRef.current) {
-        mapRef.current.remove();
-        mapRef.current = null;
+      // クリーンアップ: マップインスタンスを破棄
+      if (mapInstanceRef.current) {
+        try {
+          mapInstanceRef.current.remove();
+        } catch (e) {
+          // 既に破棄されている場合は無視
+        }
+        mapInstanceRef.current = null;
       }
     };
   }, []);
 
   // centerが変更されたときにマップを再初期化するためのkey
-  const mapKey = `${center[0]}-${center[1]}`;
+  const mapKey = isMounted ? `${center[0]}-${center[1]}` : 'initial';
+
+  if (!isMounted) {
+    return <div style={{ height: '100%', width: '100%' }} />;
+  }
 
   return (
-    <div ref={containerRef} style={{ height: '100%', width: '100%' }}>
+    <div style={{ height: '100%', width: '100%' }}>
       <MapContainer
         key={mapKey}
         center={center}
@@ -49,7 +61,7 @@ const LeafletMap: React.FC<LeafletMapProps> = ({ center }) => {
         style={{ height: '100%', width: '100%' }}
         zoomControl={false}
         whenCreated={(map) => {
-          mapRef.current = map;
+          mapInstanceRef.current = map;
         }}
       >
         <ChangeView center={center} />
