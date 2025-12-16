@@ -186,18 +186,20 @@ def parse_search_results(html_content, prefecture_code, prefecture_name):
                         oldest_date = date_obj
                     break
                 
+                # 日付が無効または45日以内の場合のみ処理を続行
+                if not date_obj:
+                    print(f'    日付が無効なデータをスキップ: {title[:50]}...')
+                    continue
+                
                 # 最も古い日付を記録
-                if date_obj:
-                    if oldest_date is None or date_obj < oldest_date:
-                        oldest_date = date_obj
+                if oldest_date is None or date_obj < oldest_date:
+                    oldest_date = date_obj
                 
                 # 工事区分を自動判定
                 category = categorize_work(title)
                 
                 # expireAtを計算（公告日 + 45日）
-                expire_at = None
-                if date_obj:
-                    expire_at = (date_obj + timedelta(days=45)).isoformat()
+                expire_at = (date_obj + timedelta(days=45)).isoformat()
                 
                 scraped_data.append({
                     'date': date_str,
@@ -258,7 +260,7 @@ def fetch_prefecture_data(prefecture_code, prefecture_name):
             response = requests.get(url, headers=headers, timeout=30)
             response.raise_for_status()
             
-            # HTMLを解析
+            # HTMLを解析（parse_search_results内で既に45日以内のデータのみが返される）
             page_data, oldest_date = parse_search_results(response.text, prefecture_code, prefecture_name)
             
             if not page_data:
@@ -266,26 +268,13 @@ def fetch_prefecture_data(prefecture_code, prefecture_name):
                 should_continue = False
                 break
             
-            # 日付判定: 45日以内のデータのみを保存
-            recent_data = []
-            for item in page_data:
-                date_obj = parse_date(item['date'])
-                if is_recent_date(date_obj, days=45):
-                    recent_data.append(item)
-                else:
-                    print(f'    古いデータをスキップ: {item["date"]} - {item["title"][:50]}...')
-            
-            all_data.extend(recent_data)
-            print(f'  ページ{page}: {len(page_data)}件取得、{len(recent_data)}件が45日以内')
+            # parse_search_results内で既に45日以内のデータのみがフィルタリングされている
+            all_data.extend(page_data)
+            print(f'  ページ{page}: {len(page_data)}件取得（全て45日以内）')
             
             # 日付が古くなったら、その都道府県の処理を打ち切る
             if oldest_date and not is_recent_date(oldest_date, days=45):
                 print(f'  最も古い日付が45日を超えているため、{prefecture_name}の処理を終了します')
-                should_continue = False
-                break
-            
-            # parse_search_results内で45日より前の日付が検出された場合も中断
-            if oldest_date and not is_recent_date(oldest_date, days=45):
                 should_continue = False
                 break
             
