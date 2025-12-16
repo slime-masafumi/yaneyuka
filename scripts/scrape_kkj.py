@@ -148,23 +148,25 @@ def categorize_work(title):
     if not title:
         return '土木・道路'
     
+    # 上から順に判定し、マッチしたら確定（return）
+    
     # 優先度1：業務・委託（工事ではないもの）を最優先で除外
-    service_keywords = ['業務', '委託', '支援', '調査', '設計', '測量', '点検', '清掃', '警備', 'リース', '保守', '運転', '運搬', '剪定', '伐採', '除雪', 'システム', '借入']
+    service_keywords = ['業務', '委託', '支援', '調査', '設計', '点検', '清掃', '警備', '保守', '運転', '運搬', '剪定', '伐採', '除雪', 'システム', '借入']
     if any(keyword in title for keyword in service_keywords):
         return '業務・その他'
     
     # 優先度2：設備（特定のキーワードが強い）
-    equipment_keywords = ['空調', '暖房', '冷房', 'ボイラー', '電気', '電源', '盤', 'LED', '照明', '監視', '通信', '警報', 'ポンプ', '昇降機', 'エレベーター', '浄化槽', '機械', '弁']
+    equipment_keywords = ['空調', '暖房', '冷房', 'ボイラー', '電気', '電源', '盤', 'LED', '照明', '監視', '通信', '警報', 'ポンプ', '昇降機', '浄化槽', '機械']
     if any(keyword in title for keyword in equipment_keywords):
         return '設備（電気・空調）'
     
     # 優先度3：建築・解体（建物系）
-    architecture_keywords = ['建築', '新築', '新営', '増築', '改修', '修繕', '建具', '天井', 'トイレ', '塗装', '屋根', '防水', '解体', '撤去', '庁舎', '校舎', '宿舎', '住宅', '体育館']
+    architecture_keywords = ['建築', '新築', '改修', '修繕', '建具', '天井', 'トイレ', '塗装', '屋根', '防水', '解体', '撤去', '庁舎', '校舎', '宿舎', '住宅']
     if any(keyword in title for keyword in architecture_keywords):
         return '建築・解体'
     
     # 優先度4：水路・河川
-    river_keywords = ['水路', '河川', '護岸', '堤防', 'ダム', '砂防', '下水', '管きょ', '管渠', '排水', '浚渫', '用水']
+    river_keywords = ['水路', '河川', '護岸', '堤防', 'ダム', '下水', '管きょ', '排水', '浚渫']
     if any(keyword in title for keyword in river_keywords):
         return '水路・河川'
     
