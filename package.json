@@ -38,6 +38,7 @@
     "html2pdf.js": "^0.12.1",
     "jszip": "^3.10.1",
     "leaflet": "^1.9.4",
+    "lucide-react": "^0.561.0",
     "material-icons": "^1.13.14",
     "next": "^16.0.10",
     "next-auth": "^4.24.11",

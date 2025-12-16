@@ -597,53 +597,48 @@ export default function PublicWorksList() {
             {works.map((work, index) => (
               <div
                 key={work.id}
-                className={`border rounded p-3 bg-white text-sm w-full h-[350px] dynamic-card transition-all duration-500 flex flex-col hover:shadow-lg hover:border-blue-300 ${
+                className={`border border-gray-200 rounded-lg p-4 bg-white text-sm w-full h-[350px] shadow-sm transition-all duration-300 flex flex-col hover:shadow-xl hover:-translate-y-1 hover:border-blue-400 ${
                   activeList[index] ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
                 }`}
               >
                 {/* バッジ */}
-                <div className="mb-2 flex flex-wrap gap-1">
-                  <span className="inline-block px-2 py-1 text-xs rounded bg-blue-100 text-blue-700 font-medium">
+                <div className="mb-3 flex flex-wrap gap-1.5">
+                  <span className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md bg-blue-50 text-blue-700 font-medium border border-blue-200">
+                    <MapPin size={12} />
                     {work.area}
                   </span>
-                  <span className="inline-block px-2 py-1 text-xs rounded bg-green-100 text-green-700 font-medium">
+                  <span className="inline-block px-2 py-1 text-xs rounded-md bg-green-50 text-green-700 font-medium border border-green-200">
                     {getWorkCategory(work)}
                   </span>
                 </div>
 
                 {/* タイトル */}
-                <h3 className="font-bold text-sm mb-1 line-clamp-2 flex-1">
-                  <a
-                    href={work.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-800 hover:underline"
-                  >
-                    {work.title}
-                  </a>
+                <h3 className="font-bold text-sm mb-3 line-clamp-2 flex-1 text-gray-900">
+                  {work.title}
                 </h3>
 
                 {/* 詳細情報 */}
-                <div className="space-y-1 text-xs text-gray-600 mb-3 flex-shrink-0">
-                  <div className="flex items-start">
-                    <span className="font-medium text-gray-700 min-w-[80px]">発注機関:</span>
-                    <span className="line-clamp-2">{work.organization || '未記載'}</span>
+                <div className="space-y-2 text-xs text-gray-600 mb-4 flex-shrink-0">
+                  <div className="flex items-start gap-2">
+                    <Building2 size={14} className="text-gray-400 mt-0.5 flex-shrink-0" />
+                    <span className="line-clamp-2 text-gray-700">{work.organization || '未記載'}</span>
                   </div>
-                  <div className="flex items-start">
-                    <span className="font-medium text-gray-700 min-w-[80px]">日付:</span>
-                    <span>{formatDate(work.date)}</span>
+                  <div className="flex items-center gap-2">
+                    <Calendar size={14} className="text-gray-400 flex-shrink-0" />
+                    <span className="text-gray-700">{formatDate(work.date)}</span>
                   </div>
                 </div>
 
                 {/* リンクボタン */}
-                <div className="mt-auto pt-2 border-t">
+                <div className="mt-auto pt-3 border-t border-gray-100">
                   <a
                     href={work.link}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="block text-center text-xs bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 transition-colors"
+                    className="flex items-center justify-end gap-1 text-xs text-blue-600 hover:text-blue-800 transition-colors"
                   >
-                    詳細を見る →
+                    <span>詳細</span>
+                    <ExternalLink size={14} />
                   </a>
                 </div>
               </div>
