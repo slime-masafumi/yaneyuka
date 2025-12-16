@@ -460,24 +460,78 @@ export default function PublicWorksList() {
         </div>
       )}
       
-      {/* フィルター */}
-      <div className="mb-4 space-y-3">
-        {/* エリアフィルター（モーダル形式） */}
-        <div className="flex items-center gap-2">
-          <label className="text-xs font-medium">エリア:</label>
-          <span className="text-xs text-gray-700">{getSelectedAreasText()}</span>
-          <button
-            onClick={() => setIsAreaModalOpen(true)}
-            className="text-xs text-blue-600 hover:text-blue-800 underline"
-          >
-            エリアを変更
-          </button>
-          {selectedAreas.size > 10 && (
-            <span className="text-xs text-orange-600">
-              （10個を超える選択はクライアントサイドでフィルタリングされます）
-            </span>
-          )}
+      {/* フィルターコントロールバー */}
+      <div className="mb-4 bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          {/* 上段（または左側）: エリア選択と件数表示 */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 flex-1">
+            {/* エリアフィルター（モーダル形式） */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <label className="text-xs font-medium text-gray-700">エリア:</label>
+              <span className="text-xs text-gray-700">{getSelectedAreasText()}</span>
+              <button
+                onClick={() => setIsAreaModalOpen(true)}
+                className="text-xs text-blue-600 hover:text-blue-800 underline"
+              >
+                エリアを変更
+              </button>
+              {selectedAreas.size > 10 && (
+                <span className="text-xs text-orange-600">
+                  （10個を超える選択はクライアントサイドでフィルタリングされます）
+                </span>
+              )}
+            </div>
+            
+            {/* 総件数表示 */}
+            <div className="flex items-center">
+              {loadingCount ? (
+                <span className="text-xs text-gray-400">読み込み中...</span>
+              ) : totalCount !== null ? (
+                <span className="text-xs text-gray-600 font-medium">
+                  全 {totalCount.toLocaleString()} 件中 {works.length.toLocaleString()} 件を表示
+                </span>
+              ) : (
+                <span className="text-xs text-gray-600 font-medium">
+                  {works.length.toLocaleString()}件
+                </span>
+              )}
+            </div>
+          </div>
+          
+          {/* 下段（または右側）: 工事内容と並び順 */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+            {/* 工事内容フィルター */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-medium text-gray-700 whitespace-nowrap">工事内容:</label>
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="bg-gray-50 border border-gray-300 rounded-md px-3 py-1.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              >
+                <option value="all">すべて</option>
+                {WORK_CATEGORIES.map(category => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            {/* 並び順 */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-medium text-gray-700 whitespace-nowrap">並び順:</label>
+              <select
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')}
+                className="bg-gray-50 border border-gray-300 rounded-md px-3 py-1.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              >
+                <option value="newest">新しい順</option>
+                <option value="oldest">古い順</option>
+              </select>
+            </div>
+          </div>
         </div>
+      </div>
 
         {/* エリア選択モーダル */}
         {isAreaModalOpen && (
@@ -542,51 +596,6 @@ export default function PublicWorksList() {
             </div>
           </div>
         )}
-        
-        {/* 工事内容フィルターとソート */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-medium">工事内容:</label>
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="border rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">すべて</option>
-              {WORK_CATEGORIES.map(category => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-medium">並び順:</label>
-            <select
-              value={sortOrder}
-              onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')}
-              className="border rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="newest">新しい順</option>
-              <option value="oldest">古い順</option>
-            </select>
-          </div>
-          
-          {/* 総件数表示 */}
-          {loadingCount ? (
-            <span className="text-xs text-gray-400">読み込み中...</span>
-          ) : totalCount !== null ? (
-            <span className="text-xs text-gray-600">
-              全 {totalCount.toLocaleString()} 件中 {works.length.toLocaleString()} 件を表示
-            </span>
-          ) : (
-            <span className="text-xs text-gray-600">
-              {works.length.toLocaleString()}件
-            </span>
-          )}
-        </div>
-      </div>
 
       {/* カード式グリッドレイアウト */}
       {works.length === 0 ? (
