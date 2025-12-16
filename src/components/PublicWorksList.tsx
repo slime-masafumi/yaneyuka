@@ -606,7 +606,7 @@ export default function PublicWorksList() {
             {works.map((work, index) => (
               <div
                 key={work.id}
-                className={`border border-gray-200 rounded-lg p-4 bg-white text-sm w-full h-[350px] shadow-sm transition-all duration-300 flex flex-col hover:shadow-xl hover:-translate-y-1 hover:border-blue-400 ${
+                className={`border border-gray-200 rounded-lg p-4 bg-white text-sm w-full min-h-[200px] shadow-sm transition-all duration-300 flex flex-col hover:shadow-xl hover:-translate-y-1 hover:border-blue-400 ${
                   activeList[index] ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
                 }`}
               >
