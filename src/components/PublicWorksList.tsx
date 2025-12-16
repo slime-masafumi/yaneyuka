@@ -257,8 +257,8 @@ export default function PublicWorksList() {
         }
         
         newWorks.push({
-          id: doc.id,
           ...data,
+          id: doc.id, // doc.idで上書き
         } as PublicWork)
       })
       
