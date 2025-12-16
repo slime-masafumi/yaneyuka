@@ -452,9 +452,18 @@ export default function PublicWorksList() {
             </select>
           </div>
           
-          <span className="text-xs text-gray-600">
-            {works.length}件
-          </span>
+          {/* 総件数表示 */}
+          {loadingCount ? (
+            <span className="text-xs text-gray-400">読み込み中...</span>
+          ) : totalCount !== null ? (
+            <span className="text-xs text-gray-600">
+              全 {totalCount.toLocaleString()} 件中 {works.length.toLocaleString()} 件を表示
+            </span>
+          ) : (
+            <span className="text-xs text-gray-600">
+              {works.length.toLocaleString()}件
+            </span>
+          )}
         </div>
       </div>
 
@@ -521,7 +530,7 @@ export default function PublicWorksList() {
           </div>
 
           {/* もっと見るボタン */}
-          {hasMore && (
+          {hasMore && totalCount !== null && works.length < totalCount && (
             <div className="mt-4 text-center">
               <button
                 onClick={loadMore}
@@ -530,6 +539,11 @@ export default function PublicWorksList() {
               >
                 {loadingMore ? '読み込み中...' : 'もっと見る'}
               </button>
+            </div>
+          )}
+          {totalCount !== null && works.length >= totalCount && works.length > 0 && (
+            <div className="mt-4 text-center text-xs text-gray-500">
+              すべてのデータを表示しました
             </div>
           )}
         </>
