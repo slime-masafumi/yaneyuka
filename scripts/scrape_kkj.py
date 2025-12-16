@@ -173,6 +173,75 @@ def categorize_work(title):
     # 優先度5：土木・道路（その他すべて）
     return '土木・道路'
 
+def fetch_organization_from_detail_page(detail_url):
+    """詳細ページから発注機関を取得"""
+    try:
+        # リクエストを送信
+        response = requests.get(detail_url, timeout=10)
+        response.raise_for_status()
+        
+        soup = BeautifulSoup(response.content, 'html.parser')
+        
+        # テーブル構造から「組織」を探す
+        # パターン1: テーブルの行（tr）から「組織」というラベルを含む行を探す
+        tables = soup.find_all('table')
+        for table in tables:
+            rows = table.find_all('tr')
+            for row in rows:
+                cells = row.find_all(['td', 'th'])
+                if len(cells) >= 2:
+                    # 最初のセルに「組織」が含まれているか確認
+                    first_cell_text = cells[0].get_text(strip=True)
+                    if '組織' in first_cell_text:
+                        # 2番目のセルが組織名
+                        org_text = cells[1].get_text(strip=True)
+                        if org_text:
+                            return org_text
+        
+        # パターン2: テーブル以外の構造（divやdlなど）から探す
+        # 「組織：」というテキストを含む要素を探す
+        org_patterns = [
+            soup.find(string=re.compile(r'組織\s*[:：]')),
+            soup.find(string=re.compile(r'発注機関\s*[:：]')),
+            soup.find(string=re.compile(r'組織名\s*[:：]')),
+        ]
+        
+        for pattern in org_patterns:
+            if pattern:
+                # 親要素を取得して、その中のテキストから組織名を抽出
+                parent = pattern.parent
+                if parent:
+                    # 次の要素やテキストノードから組織名を取得
+                    next_sibling = parent.find_next_sibling()
+                    if next_sibling:
+                        org_text = next_sibling.get_text(strip=True)
+                        if org_text:
+                            return org_text
+                    # 親要素全体から「組織：」の後のテキストを抽出
+                    full_text = parent.get_text()
+                    match = re.search(r'組織\s*[:：]\s*([^\n\r]+)', full_text)
+                    if match:
+                        org_text = match.group(1).strip()
+                        if org_text:
+                            return org_text
+        
+        # パターン3: 定義リスト（dl）から探す
+        dl_elements = soup.find_all('dl')
+        for dl in dl_elements:
+            dts = dl.find_all('dt')
+            dds = dl.find_all('dd')
+            for dt, dd in zip(dts, dds):
+                dt_text = dt.get_text(strip=True)
+                if '組織' in dt_text:
+                    org_text = dd.get_text(strip=True)
+                    if org_text:
+                        return org_text
+        
+        return None
+    except Exception as e:
+        print(f'    詳細ページからの発注機関取得エラー ({detail_url[:50]}...): {e}')
+        return None
+
 def parse_search_results(html_content, prefecture_code, prefecture_name):
     """検索結果ページのHTMLを解析してデータを抽出"""
     scraped_data = []
