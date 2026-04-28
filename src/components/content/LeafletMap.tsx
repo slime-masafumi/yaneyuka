@@ -61,9 +61,7 @@ const LeafletMap: React.FC<LeafletMapProps> = ({ center }) => {
         zoom={15}
         style={{ height: '100%', width: '100%' }}
         zoomControl={false}
-        whenCreated={(map) => {
-          mapInstanceRef.current = map;
-        }}
+        ref={mapInstanceRef}
       >
         <ChangeView center={center} />
         <TileLayer
