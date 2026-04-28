@@ -1,0 +1,50 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# build
+.next/
+out/
+build/
+dist/
+
+# Firebase deploy cache
+.firebase/
+
+# env files (API keys, secrets)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+firebase-debug*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# TypeScript
+tsconfig.tsbuildinfo
+
+# misc
+*.tgz
+
+# local working notes / scratch logs (not for git)
+error-full.txt
+log.txt
+firebase続き.txt
+cursor-claude改善案.md
+cursor-claude改善案
+共有/
