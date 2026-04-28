@@ -37,60 +37,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [role, setRole] = useState<'admin' | 'user' | undefined>(undefined);
 
   useEffect(() => {
-    let isMounted = true;
-    
-    const unsub = onAuthStateChanged(auth, async (u) => {
-      try {
-        if (!isMounted) return;
-        setFirebaseUser(u);
-        
-        if (u) {
-          try {
-            // upsert user profile for lookups (email/displayName)
-            await setDoc(doc(db, 'users', u.uid), {
-              email: u.email || null,
-              displayName: u.displayName || (u.email || '')?.split('@')[0] || null,
-              updatedAt: serverTimestamp(),
-            }, { merge: true });
-          } catch (err) {
-            console.warn('Failed to update user profile:', err);
-          }
-          
-          try {
-            const ref = doc(db, 'users', u.uid);
-            const snap = await getDoc(ref);
-            if (!isMounted) return;
-            const data = snap.exists() ? (snap.data() as any) : null;
-            setRole((data?.role as 'admin' | 'user') || 'user');
-          } catch (err) {
-            console.warn('Failed to fetch user role:', err);
-            if (!isMounted) return;
-            setRole('user');
-          }
-        } else {
-          setRole(undefined);
-        }
-        
-        if (!isMounted) return;
-        setLoading(false);
-      } catch (err: any) {
-        console.error('Auth state change error:', err);
-        if (!isMounted) return;
-        setLoading(false);
-      }
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setFirebaseUser(u);
+      setLoading(false);
     });
-    
-    return () => {
-      isMounted = false;
-      unsub();
-    };
+    return () => unsub();
   }, []);
+
+  useEffect(() => {
+    (async () => {
+      if (!firebaseUser) { setRole(undefined); return; }
+      try {
+        // upsert user profile for lookups (email/displayName)
+        await setDoc(doc(db, 'users', firebaseUser.uid), {
+          email: firebaseUser.email || null,
+          displayName: firebaseUser.displayName || (firebaseUser.email || '')?.split('@')[0] || null,
+          updatedAt: serverTimestamp(),
+        }, { merge: true })
+      } catch (err) {
+        console.warn('ユーザープロファイルの保存に失敗:', err);
+      }
+      try {
+        const ref = doc(db, 'users', firebaseUser.uid);
+        const snap = await getDoc(ref);
+        const data = snap.exists() ? (snap.data() as any) : null;
+        setRole((data?.role as 'admin' | 'user') || 'user');
+      } catch (err) {
+        console.warn('ユーザーロールの取得に失敗:', err);
+        setRole('user');
+      }
+    })();
+  }, [firebaseUser]);
 
   const login = async (email: string, password: string) => {
     try {
       const cred = await signInWithEmailAndPassword(auth, email, password);
       if (!cred.user.emailVerified) {
-        try { await sendEmailVerification(cred.user); } catch {}
+        try { await sendEmailVerification(cred.user); } catch (err) { console.warn('確認メール再送失敗:', err); }
         await signOut(auth);
         return { success: false, requiresVerification: true };
       }
@@ -101,10 +84,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         switch (error.code) {
           case 'auth/user-not-found':
           case 'auth/wrong-password':
+          case 'auth/invalid-credential':
             message = 'メールアドレスまたはパスワードが正しくありません。';
             break;
           case 'auth/too-many-requests':
             message = 'ログイン試行が多すぎます。時間をおいて再度お試しください。';
+            break;
+          case 'auth/user-disabled':
+            message = 'このアカウントは無効化されています。管理者にお問い合わせください。';
+            break;
+          case 'auth/network-request-failed':
+            message = 'ネットワーク接続をご確認ください。';
             break;
         }
       }
@@ -118,7 +108,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (displayName) {
         await updateProfile(cred.user, { displayName });
       }
-      try { await sendEmailVerification(cred.user); } catch {}
+      try {
+        await sendEmailVerification(cred.user);
+      } catch (emailError) {
+        console.warn('確認メール送信に失敗:', emailError);
+      }
       await signOut(auth);
       return { success: true, requiresVerification: true };
     } catch (error: any) {
@@ -133,6 +127,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             break;
           case 'auth/weak-password':
             message = 'パスワードが安全ではありません。別のパスワードをお試しください。';
+            break;
+          case 'auth/operation-not-allowed':
+            message = 'メール/パスワード認証が有効化されていません。管理者にお問い合わせください。';
+            break;
+          case 'auth/network-request-failed':
+            message = 'ネットワーク接続をご確認ください。';
             break;
         }
       }
@@ -153,10 +153,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isAdmin: role === 'admin'
   }), [firebaseUser, role]);
 
-  // loading中でも空のdivを返す（nullではなく）- iOS Safari対応
-  if (loading) {
-    return <div style={{ display: 'none' }} />;
-  }
+  if (loading) return null;
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

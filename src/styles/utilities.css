@@ -1,0 +1,42 @@
+/* ユーティリティクラス */
+
+/* レスポンシブ用のユーティリティ */
+.container-fluid {
+  @apply w-full px-4 mx-auto;
+}
+
+.container-sm {
+  @apply max-w-screen-sm mx-auto px-4;
+}
+
+.container-md {
+  @apply max-w-screen-md mx-auto px-4;
+}
+
+.container-lg {
+  @apply max-w-screen-lg mx-auto px-4;
+}
+
+/* テキスト用のユーティリティ */
+.text-gradient {
+  background: linear-gradient(45deg, #3b82f6, #8b5cf6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* アニメーション用のユーティリティ */
+.fade-in {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+} 

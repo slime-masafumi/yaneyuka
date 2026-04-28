@@ -37,7 +37,7 @@ const Projects: React.FC<ProjectsProps> = ({ onNavigateToRegistration, initialCa
         period: '2024年4月～2026年3月',
         status: '設計段階',
         category: 'public',
-        image: '/image/demo project.png?v=1'
+        image: '/image/demo project.webp?v=1'
       },
       {
         id: 'public2',
@@ -48,7 +48,7 @@ const Projects: React.FC<ProjectsProps> = ({ onNavigateToRegistration, initialCa
         period: '2024年7月～2025年3月',
         status: '施工中',
         category: 'public',
-        image: '/image/demo project.png?v=1'
+        image: '/image/demo project.webp?v=1'
       },
       {
         id: 'public3',
@@ -59,7 +59,7 @@ const Projects: React.FC<ProjectsProps> = ({ onNavigateToRegistration, initialCa
         period: '2024年10月～2026年3月',
         status: '入札準備中',
         category: 'public',
-        image: '/image/demo project.png?v=1'
+        image: '/image/demo project.webp?v=1'
       }
     ],
     private: [
@@ -72,7 +72,7 @@ const Projects: React.FC<ProjectsProps> = ({ onNavigateToRegistration, initialCa
         period: '2024年6月～2027年3月',
         status: '設計段階',
         category: 'private',
-        image: '/image/demo project.png?v=1'
+        image: '/image/demo project.webp?v=1'
       },
       {
         id: 'private2',
@@ -83,7 +83,7 @@ const Projects: React.FC<ProjectsProps> = ({ onNavigateToRegistration, initialCa
         period: '2024年4月～2026年12月',
         status: '施工中',
         category: 'private',
-        image: '/image/demo project.png?v=1'
+        image: '/image/demo project.webp?v=1'
       },
       {
         id: 'private3',
@@ -94,7 +94,7 @@ const Projects: React.FC<ProjectsProps> = ({ onNavigateToRegistration, initialCa
         period: '2024年9月～2025年8月',
         status: '計画中',
         category: 'private',
-        image: '/image/demo project.png?v=1'
+        image: '/image/demo project.webp?v=1'
       }
     ],
     partner: [
@@ -107,7 +107,7 @@ const Projects: React.FC<ProjectsProps> = ({ onNavigateToRegistration, initialCa
         period: '長期',
         status: '募集中',
         category: 'partner',
-        image: '/image/demo project.png?v=1'
+        image: '/image/demo project.webp?v=1'
       },
       {
         id: 'partner2',
@@ -118,7 +118,7 @@ const Projects: React.FC<ProjectsProps> = ({ onNavigateToRegistration, initialCa
         period: '継続',
         status: '募集中',
         category: 'partner',
-        image: '/image/demo project.png?v=1'
+        image: '/image/demo project.webp?v=1'
       },
       {
         id: 'partner3',
@@ -129,7 +129,7 @@ const Projects: React.FC<ProjectsProps> = ({ onNavigateToRegistration, initialCa
         period: '継続',
         status: '募集中',
         category: 'partner',
-        image: '/image/demo project.png?v=1'
+        image: '/image/demo project.webp?v=1'
       }
     ],
     survey: [
@@ -142,7 +142,7 @@ const Projects: React.FC<ProjectsProps> = ({ onNavigateToRegistration, initialCa
         period: '2024年5月～2024年6月',
         status: '準備中',
         category: 'survey',
-        image: '/image/demo project.png?v=1'
+        image: '/image/demo project.webp?v=1'
       },
       {
         id: 'survey2',
@@ -153,7 +153,7 @@ const Projects: React.FC<ProjectsProps> = ({ onNavigateToRegistration, initialCa
         period: '2024年4月～2025年3月',
         status: '実施中',
         category: 'survey',
-        image: '/image/demo project.png?v=1'
+        image: '/image/demo project.webp?v=1'
       },
       {
         id: 'survey3',
@@ -164,7 +164,7 @@ const Projects: React.FC<ProjectsProps> = ({ onNavigateToRegistration, initialCa
         period: '2024年6月～2024年8月',
         status: '計画中',
         category: 'survey',
-        image: '/image/demo project.png?v=1'
+        image: '/image/demo project.webp?v=1'
       }
     ]
   };
@@ -271,7 +271,7 @@ const Projects: React.FC<ProjectsProps> = ({ onNavigateToRegistration, initialCa
               className="w-full h-32 object-contain bg-gray-50 rounded mb-2"
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
-                target.src = '/image/demo project.png?v=1';
+                target.src = '/image/demo project.webp?v=1';
               }}
             />
             <div className="font-bold text-sm mb-1">{item.title}</div>

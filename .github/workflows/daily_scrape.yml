@@ -58,3 +58,15 @@ jobs:
         run: |
           python scripts/scrape_kkj.py
 
+      - name: Keep workflow alive
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // GitHubは60日間コミットがないとスケジュール実行を無効化する
+            // この処理でワークフローを明示的に有効化し続ける
+            await github.rest.actions.enableWorkflow({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'daily_scrape.yml'
+            })
+

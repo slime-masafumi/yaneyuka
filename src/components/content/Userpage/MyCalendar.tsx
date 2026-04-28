@@ -56,6 +56,31 @@ function isDarkColor(hex: string) {
   return (0.299 * r + 0.587 * g + 0.114 * b) < 160;
 }
 
+// Tailwindクラス名を16進数カラーコードに変換する関数
+const convertTailwindToHex = (tailwindClass: string | null | undefined): string | null => {
+  if (!tailwindClass) return null;
+  const colorMap: Record<string, string> = {
+    'bg-red-200': '#FECACA',
+    'bg-rose-200': '#FECDD3',
+    'bg-pink-200': '#FBCFE8',
+    'bg-orange-200': '#FED7AA',
+    'bg-amber-200': '#FDE68A',
+    'bg-yellow-200': '#FEF08A',
+    'bg-lime-200': '#D9F99D',
+    'bg-green-200': '#BBF7D0',
+    'bg-emerald-200': '#A7F3D0',
+    'bg-teal-200': '#99F6E4',
+    'bg-cyan-200': '#A5F3FC',
+    'bg-sky-200': '#BAE6FD',
+    'bg-blue-200': '#BFDBFE',
+    'bg-indigo-200': '#C7D2FE',
+    'bg-violet-200': '#DDD6FE',
+    'bg-purple-200': '#E9D5FF',
+    'bg-fuchsia-200': '#F5D0FE',
+  };
+  return colorMap[tailwindClass] || null;
+}
+
 const formatDateForStorage = (date: Date) => {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 };
@@ -149,6 +174,11 @@ const MyCalendar: React.FC = () => {
   // 編集中のカテゴリー情報を保持するRef
   const editingCategoryRef = useRef<{ id: string | null; color: string }>({ id: null, color: '' });
   
+  // Teamタスク購読管理用のRef
+  const teamTasksUnsubsRef = useRef<Record<string, () => void>>({});
+  const teamTasksByBoardRef = useRef<Record<string, any[]>>({});
+  const boardsInfoRef = useRef<Record<string, any>>({}); // ボード情報（色など）を保存
+  
   useEffect(() => {
     editingCategoryRef.current = { id: editingCategoryId, color: editingCategoryColor };
   }, [editingCategoryId, editingCategoryColor]);
@@ -215,34 +245,140 @@ const MyCalendar: React.FC = () => {
   }, [isLoggedIn, currentUser]);
 
   useEffect(() => {
-    if (!isLoggedIn || !currentUser) return;
-    const boardsQuery = query(collection(db, 'boards'), where('memberUids', 'array-contains', currentUser.uid));
-    const unsubBoards = onSnapshot(boardsQuery, async (boardSnap) => {
-      const allTasks: any[] = [];
-      const boardPromises = boardSnap.docs.map(async (boardDoc) => {
-        const boardData = boardDoc.data();
-        const tasksRef = collection(db, 'boards', boardDoc.id, 'tasks');
-        const tasksSnap = await getDocs(tasksRef);
-        tasksSnap.forEach(taskDoc => {
+    if (!isLoggedIn || !currentUser) {
+      setTeamTasks([]);
+      return;
+    }
+
+    // オーナーとメンバーの両方のボードを取得
+    const ownerQ = query(collection(db, 'boards'), where('ownerUid', '==', currentUser.uid));
+    const memberQ = query(collection(db, 'boards'), where('memberUids', 'array-contains', currentUser.uid));
+
+    let ownerBoards: any[] = [];
+    let memberBoards: any[] = [];
+
+    const handleBoards = () => {
+      // マージして重複を除去
+      const map: Record<string, any> = {};
+      [...ownerBoards, ...memberBoards].forEach((b) => {
+        map[b.id] = b;
+      });
+      const merged = Object.values(map);
+
+      // 現在のボードIDセット
+      const currentBoardIds = new Set(merged.map((b: any) => b.id));
+
+      // 不要な購読を解除
+      Object.keys(teamTasksUnsubsRef.current).forEach((boardId) => {
+        if (!currentBoardIds.has(boardId)) {
+          try {
+            teamTasksUnsubsRef.current[boardId]?.();
+          } catch {}
+          delete teamTasksUnsubsRef.current[boardId];
+          delete teamTasksByBoardRef.current[boardId];
+          delete boardsInfoRef.current[boardId];
+        }
+      });
+
+      // ボード情報を保存
+      merged.forEach((board: any) => {
+        boardsInfoRef.current[board.id] = board;
+      });
+
+      // 各ボードのタスクをリアルタイム購読
+      merged.forEach((board: any) => {
+        const boardId = board.id;
+        if (!teamTasksUnsubsRef.current[boardId]) {
+          const tasksRef = collection(db, 'boards', boardId, 'tasks');
+          teamTasksUnsubsRef.current[boardId] = onSnapshot(
+            tasksRef,
+            (tasksSnap) => {
+              // 最新のボード情報を取得
+              const currentBoard = boardsInfoRef.current[boardId] || board;
+              
+              const tasks = tasksSnap.docs
+                .map((taskDoc) => {
           const task = taskDoc.data();
-          const date = task.dueDate || task.limit;
-          if (date) {
-            allTasks.push({
+                  const date = task.dueDate;
+                  if (!date) return null; // dueDateがないタスクはスキップ
+                  
+                  // ボードの色を取得（16進数カラーコードまたはTailwindクラス名から変換）
+                  let taskColor = '#6B7280'; // デフォルトはグレー
+                  if (currentBoard.color) {
+                    if (currentBoard.color.startsWith('#')) {
+                      taskColor = currentBoard.color;
+                    } else {
+                      // Tailwindクラス名の場合は16進数に変換
+                      const converted = convertTailwindToHex(currentBoard.color);
+                      if (converted) {
+                        taskColor = converted;
+                      }
+                      // 変換できない場合はデフォルトのグレーのまま
+                    }
+                  }
+                  
+                  return {
               id: taskDoc.id,
                 title: task.title,
               date: date, 
-              completed: task.status === '完了',
-              color: boardData.color || '#6B7280',
+                    completed: task.completed || false,
+                    color: taskColor,
               isTeamTask: true,
-              categoryId: boardDoc.id
-            });
-          }
-        });
+                    categoryId: boardId,
+                  };
+                })
+                .filter((t): t is NonNullable<typeof t> => t !== null);
+
+              // このボードのタスクを保存
+              teamTasksByBoardRef.current[boardId] = tasks;
+
+              // 全ボードのタスクを集約して更新
+              const allTasks = Object.values(teamTasksByBoardRef.current).flat();
+              setTeamTasks(allTasks);
+            },
+            (err) => {
+              console.error(`Team tasks(${boardId}) watch error:`, err);
+            }
+          );
+        }
       });
-      await Promise.all(boardPromises);
-      setTeamTasks(allTasks);
-    });
-    return () => unsubBoards();
+    };
+
+    const unsubOwner = onSnapshot(
+      ownerQ,
+      (snap) => {
+        ownerBoards = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+        handleBoards();
+      },
+      (err) => {
+        console.error('boards(owner) watch error:', err);
+      }
+    );
+
+    const unsubMember = onSnapshot(
+      memberQ,
+      (snap) => {
+        memberBoards = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+        handleBoards();
+      },
+      (err) => {
+        console.error('boards(member) watch error:', err);
+      }
+    );
+
+    return () => {
+      unsubOwner();
+      unsubMember();
+      // すべてのタスク購読を解除
+      Object.values(teamTasksUnsubsRef.current).forEach((unsub) => {
+        try {
+          unsub();
+        } catch {}
+      });
+      teamTasksUnsubsRef.current = {};
+      teamTasksByBoardRef.current = {};
+      boardsInfoRef.current = {};
+    };
   }, [isLoggedIn, currentUser]);
 
   useEffect(() => {
@@ -614,13 +750,16 @@ const MyCalendar: React.FC = () => {
         <div className="flex flex-col md:flex-row md:items-baseline justify-between mb-2 flex-shrink-0">
           <div className="flex items-baseline gap-4">
             <h2 className="text-xl font-semibold">Myカレンダー</h2>
-            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">Beta</span>
+            <span className="text-red-600 font-bold text-xs sm:text-sm ml-4">※この機能は現在β版です。ご意見をぜひお聞かせください。</span>
                     </div>
           <button onClick={() => setShowSettingsModal(true)} className="text-gray-500 hover:text-gray-700 text-xs flex items-center gap-1">
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
             設定・連携
                     </button>
                   </div>
+        <p className="text-[12px] text-gray-600 mb-3">
+          個人のスケジュールを管理し、会議や作業、締切などの予定をカレンダー形式で確認できます。MyタスクTeamタスクと連携して、タスクの期日も自動的に表示されます。繰り返し予定の設定や、カテゴリ別の色分け表示にも対応しています。
+        </p>
 
         {/* Main Card */}
         <div className="bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden flex flex-col md:flex-row flex-1">
@@ -928,7 +1067,7 @@ const MyCalendar: React.FC = () => {
                                 <div className="mt-1 border-t border-gray-300/30 pt-1 px-1">
                                     {dayTasks.map(task => (
                                         <div key={task.id || task.task?.id} className="flex items-center gap-1 text-[9px] opacity-80 h-[14px] mb-0.5">
-                                            <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{backgroundColor: task.color || '#3B82F6'}}></div>
+                                            <div className="w-2 h-2 rounded-full flex-shrink-0 border border-black/30" style={{backgroundColor: task.color || '#3B82F6'}}></div>
                                             <span className={`truncate ${(task.completed || task.task?.completed) ? 'line-through' : ''} ${isDarkColor(rightAreaBgColor) ? 'text-white' : 'text-gray-600'}`}>{task.title || task.task?.title}</span>
                                 </div>
                               ))}
