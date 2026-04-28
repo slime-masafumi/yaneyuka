@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useEffect, startTransition, useCallback } from 'react';
+import React, { useState, useEffect, startTransition, useCallback, useRef } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import Header from './Header';
 import Navigation from './Navigation';
+import RelatedPrivacyLinks from '../RelatedPrivacyLinks';
 import ReferenceResources from '../content/ReferenceResources';
 import Settings from '../content/Userpage/Settings';
 import Sidebar from './Sidebar';
@@ -33,11 +33,13 @@ import YyChat from '../content/Userpage/YyChat';
 import MyRegulations from '../content/Userpage/MyRegulations';
 import MyTasks from '../content/Userpage/MyTasks';
 import TeamTasks from '../content/Userpage/TeamTasks';
+import PdfDiffTool from '../content/Userpage/PdfDiffTool';
 import GeneralTools from '../content/Userpage/general-tools/GeneralTools';
 import ContactsManagement from '../content/Userpage/ContactsManagement';
 import DesignTools from '../content/Userpage/DesignTools';
 import DesignInfo from '../content/Userpage/DesignInfo';
 import MaterialInfo from '../content/Userpage/MaterialInfo';
+import Userpage_top from '../content/Userpage/Userpage_top';
 import Qualifications from '../content/Qualifications';
 import QualificationsVideos from '../content/QualificationsVideos';
 import UserpageMusicPanel from '../content/Userpage/UserpageMusicPanel';
@@ -65,6 +67,8 @@ import Mak17Exterior from '../content/leftcolumn-menu/mak_17_エクステリア'
 import PublicWorksList from '../PublicWorksList';
 import { AuthProvider, useAuth } from '../../lib/AuthContext';
 import CookieConsent from './CookieConsent';
+import Footer from './Footer';
+import UserpageBottomBar from './UserpageBottomBar';
 import { db } from '../../lib/firebaseClient';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { usePersistentState } from '../../lib/usePersistentState';
@@ -88,13 +92,122 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
   };
   
   const [activeContent, setActiveContent] = useState<string>(getInitialContent());
+  const previousContentRef = useRef<string>('');
+  const isPopStateHandlingRef = useRef<boolean>(false);
+  const activeContentRef = useRef<string>(getInitialContent());
+  const handleSubcategoryClickRef = useRef<(subcategory: string) => void>(() => {});
+  const handleMenuClickRef = useRef<(menuItem: string) => void>(() => {});
 
-  // pathnameが変更されたときにactiveContentを更新（常にトップページに戻る）
+  // activeContentが変更されたらrefも更新
   useEffect(() => {
+    activeContentRef.current = activeContent;
+  }, [activeContent]);
+
+  // pathnameが変更されたときにactiveContentを更新
+  // ただし、popstateイベントの処理中は更新しない
+  // userpageMenusのメニューが表示されている場合は、pathnameが変更されてもactiveContentを保持
+  // 注意: URLルートがあるページ（/shop, /electrical-systemsなど）への遷移時は
+  //       下のpathToContentMapベースのuseEffectで正しくactiveContentが設定されるため、ここではスキップする
+  useEffect(() => {
+    if (isPopStateHandlingRef.current) {
+      isPopStateHandlingRef.current = false;
+      return;
+    }
+
+    // userpageMenusのメニューが表示されている場合は、pathnameが変更されてもactiveContentを保持
+    // activeContentRefを使用して、最新の値を参照する（依存配列に含めないことで無限ループを防ぐ）
+    const userpageMenus = ['my-calendar', 'my-regulations', 'my-tasks', 'team-tasks', 'pdf-diff', 'general-tools', 'design-tools', 'design-info', 'material-info', 'contacts', 'settings', 'yychat', 'yymail', 'userpage-top'];
+    if (userpageMenus.includes(activeContentRef.current)) {
+      return;
+    }
+
     const normalizedPathname = pathname.endsWith('/') && pathname !== '/' ? pathname.slice(0, -1) : pathname;
+
+    // SPA的に管理されるページ（URL=/のままactiveContentで切替）はURLが/のままなら保持
+    // ただしURLが/から離れた場合は実ルート遷移なのでactiveContentをリセットしてchildrenを描画させる
+    const spaPages = ['chatbot', 'makerconect', 'registration', 'feedback', 'register', 'login', 'welcome', 'privacy-policy', 'topix'];
+    if (spaPages.includes(activeContentRef.current)) {
+      if (normalizedPathname === '/') {
+        return;
+      }
+      // URLが/以外に変わった → SPA状態を解除（'topix'にすれば renderContent は children を返す）
+      setActiveContent('topix');
+      return;
+    }
+
+    // URLルートがあるページへの遷移時は、pathToContentMapベースのuseEffectに任せる
+    const urlRoutedPaths = [
+      '/event', '/news', '/new-products', '/books-software', '/pickup',
+      '/regulations', '/qualifications', '/landscape-cad', '/shop',
+      '/projects', '/competitions', '/construction-companies', '/design-offices',
+      '/job-info', '/public-works', '/forum',
+      '/roof', '/exterior-wall', '/opening', '/external-floor', '/exterior-other',
+      '/internal-floor', '/internal-wall', '/internal-ceiling', '/internal-other',
+      '/waterproof', '/hardware', '/furniture', '/electrical-systems',
+      '/mechanical-systems', '/exterior-infrastructure', '/exterior',
+    ];
+    if (urlRoutedPaths.includes(normalizedPathname)) {
+      return;
+    }
+
     const newContent = normalizedPathname === '/' ? initialContent : 'topix';
-    setActiveContent(newContent);
+    if (activeContentRef.current !== newContent) {
+      setActiveContent(newContent);
+    }
   }, [pathname, initialContent]);
+
+  // ブラウザの戻るボタンやマウスの戻るボタンが押された場合の処理
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      const userpageMenus = ['my-calendar', 'my-regulations', 'my-tasks', 'team-tasks', 'pdf-diff', 'general-tools', 'design-tools', 'design-info', 'material-info', 'contacts', 'settings', 'yychat', 'yymail'];
+      
+      // 現在のactiveContentをrefから取得（最新の状態を確実に取得）
+      const currentContent = activeContentRef.current;
+      
+      // event.stateから前のコンテンツを取得
+      const state = event.state as { content?: string; previousContent?: string; fromUserpageTop?: boolean } | null;
+      const previousContent = state?.previousContent || previousContentRef.current;
+      const fromUserpageTop = state?.fromUserpageTop || false;
+      
+      console.log('[popstate] currentContent:', currentContent, 'previousContent:', previousContent, 'fromUserpageTop:', fromUserpageTop, 'state:', state);
+      
+      // 現在のactiveContentがUserpageのツールの場合
+      if (userpageMenus.includes(currentContent)) {
+        // Userpage_topから来た場合、userpage-topに遷移
+        if (fromUserpageTop || previousContent === 'userpage-top') {
+          console.log('[popstate] Redirecting to userpage-top from currentContent check');
+          // popstateイベントの処理中であることを示すフラグを設定
+          isPopStateHandlingRef.current = true;
+          setActiveContent('userpage-top');
+          // 履歴を更新（戻るボタンで再度戻れるように）
+          try {
+            window.history.replaceState({ content: 'userpage-top', fromUserpageTop: false }, '', window.location.pathname);
+          } catch (e) {
+            console.warn('Failed to replace state:', e);
+          }
+          return;
+        }
+      }
+      // Userpage_topから来た場合で、Userpageのツールから戻る場合、userpage-topに遷移（フォールバック）
+      if (fromUserpageTop && userpageMenus.includes(previousContent)) {
+        console.log('[popstate] Fallback: Redirecting to userpage-top');
+        // popstateイベントの処理中であることを示すフラグを設定
+        isPopStateHandlingRef.current = true;
+        setActiveContent('userpage-top');
+        // 履歴を更新（戻るボタンで再度戻れるように）
+        try {
+          window.history.replaceState({ content: 'userpage-top', fromUserpageTop: false }, '', window.location.pathname);
+        } catch (e) {
+          console.warn('Failed to replace state:', e);
+        }
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
   const { isLoggedIn, currentUser } = useAuth();
   const [totalUnreadCount, setTotalUnreadCount] = useState<number>(0);
   
@@ -325,7 +438,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
   const [mobileMechanicalSystemsOpen, setMobileMechanicalSystemsOpen] = useState<boolean>(false);
   const [mobileExteriorInfrastructureOpen, setMobileExteriorInfrastructureOpen] = useState<boolean>(false);
   const [mobileExteriorOpen, setMobileExteriorOpen] = useState<boolean>(false);
-  const [mobileUserpageOpen, setMobileUserpageOpen] = useState<boolean>(false);
 
   const handleSearchActiveChange = (active: boolean) => {
     setSearchActive(active);
@@ -378,19 +490,77 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
     };
     
     if (routeMap[menuItem]) {
-      // URLベースのルーティングがあるメニューは、Navigation.tsxで処理されるためここでは何もしない
+      // URLベースのルーティングがあるメニューでもactiveContentを更新
+      const currentContent = activeContent;
+      setActiveContent(menuItem);
+      activeContentRef.current = menuItem;
+
+      // URLベースのルーティングがあるページから、URLベースのルーティングがないメニューをクリックした時は/に戻す
+      const currentRoute = Object.keys(routeMap).find(key => routeMap[key] === pathname);
+      if (currentRoute) {
+        startTransition(() => {
+          router.replace('/');
+        });
+      }
+
+      // 全てのサブカテゴリーをリセット
+      setRoofSubcategory('');
+      setExteriorWallSubcategory('');
+      setOpeningSubcategory('');
+      setExternalFloorSubcategory('');
+      setExteriorOtherSubcategory('');
+      setInternalFloorSubcategory('');
+      setInternalWallSubcategory('');
+      setInternalCeilingSubcategory('');
+      setInternalOtherSubcategory('');
+      setWaterproofSubcategory('');
+      setHardwareSubcategory('');
+      setFurnitureSubcategory('');
+      setElectricalSystemsSubcategory('');
+      setMechanicalSystemsSubcategory('');
+      setExteriorInfrastructureSubcategory('');
+      setExteriorSubcategory('');
+      setSelectedSubcategory('');
+      setSearchActive(false);
+      setSearchQuery('');
+      try {
+        window.dispatchEvent(new Event('yaneyuka:search-clear'));
+      } catch {}
+
       return;
     }
     
-    // activeContentを先に更新（白フラッシュを防ぐため）
-    setActiveContent(menuItem);
+    // Userpageのツールに遷移する場合、履歴を追加
+    const userpageMenus = ['my-calendar', 'my-regulations', 'my-tasks', 'team-tasks', 'pdf-diff', 'general-tools', 'design-tools', 'design-info', 'material-info', 'contacts', 'settings', 'yychat', 'yymail'];
+    const isUserpageMenu = userpageMenus.includes(menuItem);
     
-    // URLベースのルーティングがあるページから、URLベースのルーティングがないメニューをクリックした時は/に戻す
-    const currentRoute = Object.keys(routeMap).find(key => routeMap[key] === pathname);
-    if (currentRoute) {
-      startTransition(() => {
-        router.replace('/');
-      });
+    // activeContentを先に更新（白フラッシュを防ぐため）
+    const currentContent = activeContent;
+    setActiveContent(menuItem);
+    activeContentRef.current = menuItem; // refも即座に更新（pathname変更useEffectとの競合を防ぐ）
+    
+    if (isUserpageMenu) {
+      // 現在のactiveContentを保存
+      previousContentRef.current = currentContent;
+      // Userpage_topから来たかどうかを記録
+      const fromUserpageTop = currentContent === 'userpage-top';
+      // 履歴に追加（URLは変更せずactiveContentのみ切り替え）
+      try {
+        window.history.pushState({ content: menuItem, previousContent: currentContent, fromUserpageTop }, '', '/');
+      } catch (e) {
+        console.warn('Failed to push state:', e);
+      }
+      // URLベースのページにいる場合、pathnameをブラウザ上で/に変更するが
+      // router.replaceは使わない（useEffectによるactiveContent上書きを防ぐ）
+      return;
+    } else {
+      // URLベースのルーティングがあるページから、URLベースのルーティングがないメニューをクリックした時は/に戻す
+      const currentRoute = Object.keys(routeMap).find(key => routeMap[key] === pathname);
+      if (currentRoute) {
+        startTransition(() => {
+          router.replace('/');
+        });
+      }
     }
     
     // 全てのサブカテゴリーをリセット
@@ -430,6 +600,33 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
       }, 100);
     }
   };
+
+  // refを常に最新のハンドラで更新（documentレベルのイベントハンドラから参照するため）
+  handleMenuClickRef.current = handleMenuClick;
+
+  // Userpage_topからのカスタムイベントをリッスン（handleMenuClickの定義後に配置）
+  // refを経由することでstale closure問題を回避する
+  useEffect(() => {
+    const handleUserpageMenuClick = (event: CustomEvent) => {
+      const menuId = event.detail?.menuId;
+      if (menuId) {
+        handleMenuClickRef.current(menuId);
+      }
+    };
+
+    window.addEventListener('userpage-menu-click', handleUserpageMenuClick as EventListener);
+
+    const handleNavigateEvent = (event: CustomEvent) => {
+      const page = event.detail;
+      if (page) handleMenuClickRef.current(page);
+    };
+    window.addEventListener('yaneyuka-navigate', handleNavigateEvent as EventListener);
+
+    return () => {
+      window.removeEventListener('userpage-menu-click', handleUserpageMenuClick as EventListener);
+      window.removeEventListener('yaneyuka-navigate', handleNavigateEvent as EventListener);
+    };
+  }, []);
 
   // ハンバーガーメニューが開いている時、背景のスクロールを無効化（スマホのみ）
   useEffect(() => {
@@ -608,7 +805,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
     if (category && categoryRouteMap[category]) {
       // URL遷移前にサブカテゴリーステートを設定（ハイライトを即座に表示するため）
       handleSubcategoryFromQuery(category, subcategory);
-      
+
       // カテゴリーページに遷移し、クエリパラメータでサブカテゴリーを指定
       const route = categoryRouteMap[category];
       const url = `${route}?subcategory=${encodeURIComponent(subcategory)}`;
@@ -1073,6 +1270,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
     console.log('No matching subcategory found for:', subcategory);
   };
 
+  // refを常に最新のハンドラで更新（documentレベルのイベントハンドラから参照するため）
+  handleSubcategoryClickRef.current = handleSubcategoryClick;
+
   // 左カラム（サイドバー）選択中ハイライト（黒い下線）
   useEffect(() => {
     try {
@@ -1143,32 +1343,31 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
 
   useEffect(() => {
     // サイドバーの小カテゴリーのクリックイベントをリスンする
+    // refを経由することでstale closure問題を回避する
     const handleSubcategoryClickEvent = (event: Event) => {
       const target = event.target as HTMLElement;
-      console.log('Click event detected on:', target);
 
       // 見出し横「掲載希望はコチラ」クリック時は登録フォームへ遷移
       const anchorEl = target.closest('a');
       if (anchorEl && anchorEl.textContent && anchorEl.textContent.includes('掲載希望はコチラ')) {
         event.preventDefault();
-        handleMenuClick('registration');
+        handleMenuClickRef.current('registration');
         return;
       }
 
       if (target.classList.contains('subcategory')) {
-        console.log('Subcategory element clicked');
         event.preventDefault(); // デフォルトのリンク動作を防ぐ
+        // Sidebarのハンドラで既に処理済みかチェック（二重呼び出し防止）
+        if ((event as any).__subcategoryHandled) return;
         const subcategory = target.getAttribute('data-page');
-        console.log('Data-page attribute:', subcategory);
         if (subcategory) {
-          handleSubcategoryClick(subcategory);
+          handleSubcategoryClickRef.current(subcategory);
         }
       }
     };
 
     // DOM要素が準備されるまで少し待つ
     const timer = setTimeout(() => {
-      console.log('Adding click event listener');
       document.addEventListener('click', handleSubcategoryClickEvent);
     }, 100);
 
@@ -1264,6 +1463,26 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
         return [
           { src: '/image/kagu_cm_sample.png', alt: '家具掲載希望広告', link: 'registration' }
         ];
+      case 'internal-ceiling':
+        return [
+          { src: '/image/掲載募集中a.png', alt: '内装天井材掲載希望広告', link: 'registration' }
+        ];
+      case 'electrical-systems':
+        return [
+          { src: '/image/掲載募集中a.png', alt: '電気設備掲載希望広告', link: 'registration' }
+        ];
+      case 'mechanical-systems':
+        return [
+          { src: '/image/掲載募集中a.png', alt: '機械設備掲載希望広告', link: 'registration' }
+        ];
+      case 'exterior-infrastructure':
+        return [
+          { src: '/image/掲載募集中a.png', alt: '外構掲載希望広告', link: 'registration' }
+        ];
+      case 'exterior':
+        return [
+          { src: '/image/掲載募集中a.png', alt: 'エクステリア掲載希望広告', link: 'registration' }
+        ];
       case 'construction-companies':
         return [
           { src: 'https://www20.a8.net/svt/bgt?aid=251123227493&wid=001&eno=01&mid=s00000020552003012000&mc=1', alt: 'A8広告', link: 'https://px.a8.net/svt/ejp?a8mat=45IFX7+85IQ0I+4EKW+HXKQP', trackingPixelSrc: 'https://www10.a8.net/0.gif?a8mat=45IFX7+85IQ0I+4EKW+HXKQP' },
@@ -1306,12 +1525,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
         ];
       case 'chatbot':
         return [
-          { src: '/image/testcmA.png', alt: 'デフォルト広告1', link: 'https://suzuri.jp/sperz' },
+          { src: '/image/testcmA.webp', alt: 'デフォルト広告1', link: 'https://suzuri.jp/sperz' },
           { src: '/image/gaiheki_cm_sample.png', alt: 'デフォルト広告2', link: null }
         ];
       case 'makerconect':
         return [
-          { src: '/image/testcmA.png', alt: 'デフォルト広告1', link: 'https://suzuri.jp/sperz' },
+          { src: '/image/testcmA.webp', alt: 'デフォルト広告1', link: 'https://suzuri.jp/sperz' },
           { src: '/image/gaiheki_cm_sample.png', alt: 'デフォルト広告2', link: null }
         ];
       case 'pickup':
@@ -1337,7 +1556,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
           { src: 'https://www26.a8.net/svt/bgt?aid=251122219144&wid=001&eno=01&mid=s00000018045001018000&mc=1', alt: 'A8広告', link: 'https://px.a8.net/svt/ejp?a8mat=45IF57+2DQFW2+3V8I+626XT', trackingPixelSrc: 'https://www13.a8.net/0.gif?a8mat=45IF57+2DQFW2+3V8I+626XT' },
           { src: 'https://www24.a8.net/svt/bgt?aid=251122219146&wid=001&eno=01&mid=s00000018952003004000&mc=1', alt: 'A8広告', link: 'https://px.a8.net/svt/ejp?a8mat=45IF57+2EXB3M+428G+HVV0H', trackingPixelSrc: 'https://www10.a8.net/0.gif?a8mat=45IF57+2EXB3M+428G+HVV0H' },
           { src: 'https://www23.a8.net/svt/bgt?aid=251122219190&wid=001&eno=01&mid=s00000027007001009000&mc=1', alt: 'A8広告', link: 'https://px.a8.net/svt/ejp?a8mat=45IF57+354DPU+5SDY+609HT', trackingPixelSrc: 'https://www16.a8.net/0.gif?a8mat=45IF57+354DPU+5SDY+609HT' },
-          { src: '/image/testcmA.png', alt: 'デフォルト広告1', link: 'https://suzuri.jp/sperz' }
+          { src: '/image/testcmA.webp', alt: 'デフォルト広告1', link: 'https://suzuri.jp/sperz' }
         ];
       case 'new-products':
         return [
@@ -1369,9 +1588,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
           { src: 'https://www22.a8.net/svt/bgt?aid=251122219253&wid=001&eno=01&mid=s00000020232001006000&mc=1', alt: 'A8広告', link: 'https://px.a8.net/svt/ejp?a8mat=45IF57+46MOTU+4C40+5ZMCH', trackingPixelSrc: 'https://www16.a8.net/0.gif?a8mat=45IF57+46MOTU+4C40+5ZMCH' },
           { src: 'https://www26.a8.net/svt/bgt?aid=251026036380&wid=001&eno=01&mid=s00000026912001004000&mc=1', alt: 'A8広告', link: 'https://px.a8.net/svt/ejp?a8mat=45GCXG+6A8QNM+5RNK+5Z6WX', trackingPixelSrc: 'https://www19.a8.net/0.gif?a8mat=45GCXG+6A8QNM+5RNK+5Z6WX' }
         ];
+      case 'topix':
+        // トップページは gaiheki_cm_sample.png を除外（ユーザー指示により）
+        return [
+          { src: '/image/testcmA.webp', alt: 'デフォルト広告1', link: 'https://suzuri.jp/sperz' }
+        ];
       default:
         return [
-          { src: '/image/testcmA.png', alt: 'デフォルト広告1', link: 'https://suzuri.jp/sperz' },
+          { src: '/image/testcmA.webp', alt: 'デフォルト広告1', link: 'https://suzuri.jp/sperz' },
           { src: '/image/gaiheki_cm_sample.png', alt: 'デフォルト広告2', link: null }
         ];
     }
@@ -1476,30 +1700,17 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
       case 'my-calendar':
         return <MyCalendar />;
       case 'yymail':
-        return (
-          <div>
-            <div className="flex items-baseline mb-2">
-              <h2 className="text-lg font-semibold">yymail</h2>
-              <span className="text-red-600 font-bold text-sm ml-4">※今後実装予定</span>
-            </div>
-            <YyMail />
-          </div>
-        );
+        return <YyMail />;
       case 'yychat':
-        return (
-          <div>
-            <div className="flex items-baseline mb-2">
-              <h2 className="text-lg font-semibold">yychat</h2>
-            </div>
-            <YyChat />
-          </div>
-        );
+        return <YyChat />;
       case 'my-regulations':
         return <MyRegulations />;
       case 'my-tasks':
         return <MyTasks />;
       case 'team-tasks':
         return <TeamTasks />;
+      case 'pdf-diff':
+        return <PdfDiffTool />;
       case 'general-tools':
         return <GeneralTools />;
       case 'design-tools':
@@ -1512,6 +1723,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
         return <ContactsManagement />;
       case 'settings':
         return <Settings />;
+      case 'userpage-top':
+        return <Userpage_top />;
       case 'public-works':
         return <Projects onNavigateToRegistration={() => handleMenuClick('registration')} initialCategory="public" />;
       case 'topix':
@@ -1522,7 +1735,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
 
   // Userpageのメニューかどうかを判定する関数
   const isUserpageMenu = () => {
-    const userpageMenus = ['my-calendar', 'my-regulations', 'my-tasks', 'team-tasks', 'general-tools', 'design-tools', 'design-info', 'material-info', 'contacts', 'settings', 'yychat'];
+    const userpageMenus = ['my-calendar', 'my-regulations', 'my-tasks', 'team-tasks', 'pdf-diff', 'general-tools', 'design-tools', 'design-info', 'material-info', 'contacts', 'settings', 'yychat', 'yymail', 'userpage-top'];
     return userpageMenus.includes(activeContent);
   };
 
@@ -1530,32 +1743,56 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
     <AuthProvider>
       <div className="min-h-screen">
         {/* サイト全体パスワードゲート（本番のみ有効） */}
-        <Header 
-          onNavigateToRegistration={() => handleMenuClick('registration')} 
-          onNavigateToFeedback={() => handleMenuClick('feedback')}
-          onNavigateToRegister={() => handleMenuClick('register')}
-          onNavigateToLogin={() => handleMenuClick('login')}
-          onNavigateToPrivacy={() => handleMenuClick('privacy-policy')}
-          onNavigateToSettings={() => handleMenuClick('settings')}
-          onNavigateToYyChat={() => handleMenuClick('yychat')}
-          onLogoClick={() => setActiveContent('topix')}
-          onSearchActiveChange={handleSearchActiveChange}
-          onSearchQueryChange={handleSearchQueryChange}
-          onMobileMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)}
-          mobileMenuOpen={mobileMenuOpen}
-          unreadCount={totalUnreadCount}
-          isDarkMode={isDarkMode}
-          setIsDarkMode={setIsDarkMode}
-        />
-        <Navigation onMenuClick={handleMenuClick} activeItem={activeContent} />
+        {/* Navigationはmain-layout-container内で左カラムの右に配置 */}
         {/* ハンバーガーメニュー（モバイルのみ） */}
         {mobileMenuOpen && (
-          <div className="lg:hidden fixed inset-0 bg-white" style={{ top: '140px', height: 'calc(100vh - 140px)', zIndex: 2147483647 }}>
+          <div className="lg:hidden fixed inset-0 bg-white" style={{ top: 'var(--header-height)', height: 'calc(100vh - var(--header-height))', zIndex: 2147483647 }}>
             <div className="h-full overflow-y-auto">
               <div className="px-4 py-2 border-b border-gray-200">
                 <h2 className="text-lg font-semibold text-gray-700">Menu</h2>
               </div>
               <div className="space-y-0">
+                {/* メインナビゲーション項目 */}
+                {[
+                  { id: 'event', label: 'イベント情報' },
+                  { id: 'news', label: 'NEWS' },
+                  { id: 'new-products', label: '新製品' },
+                  { id: 'books-software', label: '書籍・ソフト' },
+                  { id: 'pickup', label: 'Pickup' },
+                  { id: 'regulations', label: '法規' },
+                  { id: 'qualifications', label: '資格試験' },
+                  { id: 'landscape-cad', label: '添景・CAD' },
+                  { id: 'shop', label: 'Shop' },
+                  { id: 'projects', label: 'プロジェクト' },
+                  { id: 'competitions', label: 'コンペ' },
+                  { id: 'construction-companies', label: '施工会社' },
+                  { id: 'design-offices', label: '設計事務所' },
+                  { id: 'job-info', label: '求人情報' },
+                  { id: 'forum', label: '掲示板' },
+                ].map(item => (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      handleMenuClick(item.id);
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full text-left px-4 py-3 text-sm border-b border-gray-100 ${activeContent === item.id ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+                {/* Userpage */}
+                <button
+                  onClick={() => {
+                    handleMenuClick('userpage-top');
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 border-b border-gray-100"
+                >
+                  Userpage
+                </button>
+                {/* 区切り */}
+                <div className="border-b-2 border-gray-300 my-1"></div>
                 {/* 新規会員登録 */}
                 <button
                   onClick={() => {
@@ -1602,161 +1839,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
                     handleMenuClick('privacy-policy');
                     setMobileMenuOpen(false);
                   }}
-                  className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 border-b border-gray-100 flex items-center justify-between"
+                  className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 border-b border-gray-100"
                 >
-                  <span>プライバシーポリシー</span>
-                  {totalUnreadCount > 0 && (
-                    <span className="bg-red-500 text-white text-[10px] rounded-full px-2 py-0.5">
-                      {totalUnreadCount}
-                    </span>
-                  )}
+                  プライバシーポリシー
                 </button>
-                {/* トグルUserpage */}
-                <div className="border-b border-gray-100">
-                  <button
-                    onClick={() => setMobileUserpageOpen(!mobileUserpageOpen)}
-                    className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 flex items-center justify-between"
-                  >
-                    <span>Userpage</span>
-                    <span className={`transform transition-transform ${mobileUserpageOpen ? 'rotate-90' : ''}`}>▶</span>
-                  </button>
-                  {mobileUserpageOpen && (
-                    <ul className="bg-gray-50">
-                      <li>
-                        <button
-                          onClick={() => {
-                            handleMenuClick('yymail');
-                            setMobileMenuOpen(false);
-                          }}
-                          className="w-full text-left px-8 py-2 text-xs text-gray-600 hover:bg-gray-100"
-                        >
-                          yymail
-                        </button>
-                      </li>
-                      <li>
-                        <button
-                          onClick={() => {
-                            handleMenuClick('yychat');
-                            setMobileMenuOpen(false);
-                          }}
-                          className="w-full text-left px-8 py-2 text-xs text-gray-600 hover:bg-gray-100"
-                        >
-                          yychat
-                        </button>
-                      </li>
-                      <li>
-                        <button
-                          onClick={() => {
-                            handleMenuClick('my-calendar');
-                            setMobileMenuOpen(false);
-                          }}
-                          className="w-full text-left px-8 py-2 text-xs text-gray-600 hover:bg-gray-100"
-                        >
-                          Myカレンダー
-                        </button>
-                      </li>
-                      <li>
-                        <button
-                          onClick={() => {
-                            handleMenuClick('my-regulations');
-                            setMobileMenuOpen(false);
-                          }}
-                          className="w-full text-left px-8 py-2 text-xs text-gray-600 hover:bg-gray-100"
-                        >
-                          My法規
-                        </button>
-                      </li>
-                      <li>
-                        <button
-                          onClick={() => {
-                            handleMenuClick('my-tasks');
-                            setMobileMenuOpen(false);
-                          }}
-                          className="w-full text-left px-8 py-2 text-xs text-gray-600 hover:bg-gray-100"
-                        >
-                          Myタスク
-                        </button>
-                      </li>
-                      <li>
-                        <button
-                          onClick={() => {
-                            handleMenuClick('team-tasks');
-                            setMobileMenuOpen(false);
-                          }}
-                          className="w-full text-left px-8 py-2 text-xs text-gray-600 hover:bg-gray-100"
-                        >
-                          Teamタスク
-                        </button>
-                      </li>
-                      <li>
-                        <button
-                          onClick={() => {
-                            handleMenuClick('general-tools');
-                            setMobileMenuOpen(false);
-                          }}
-                          className="w-full text-left px-8 py-2 text-xs text-gray-600 hover:bg-gray-100"
-                        >
-                          一般ツール
-                        </button>
-                      </li>
-                      <li>
-                        <button
-                          onClick={() => {
-                            handleMenuClick('design-tools');
-                            setMobileMenuOpen(false);
-                          }}
-                          className="w-full text-left px-8 py-2 text-xs text-gray-600 hover:bg-gray-100"
-                        >
-                          設計ツール
-                        </button>
-                      </li>
-                      <li>
-                        <button
-                          onClick={() => {
-                            handleMenuClick('design-info');
-                            setMobileMenuOpen(false);
-                          }}
-                          className="w-full text-left px-8 py-2 text-xs text-gray-600 hover:bg-gray-100"
-                        >
-                          設計情報
-                        </button>
-                      </li>
-                      <li>
-                        <button
-                          onClick={() => {
-                            handleMenuClick('material-info');
-                            setMobileMenuOpen(false);
-                          }}
-                          className="w-full text-left px-8 py-2 text-xs text-gray-600 hover:bg-gray-100"
-                        >
-                          材料情報
-                        </button>
-                      </li>
-                      <li>
-                        <button
-                          onClick={() => {
-                            handleMenuClick('contacts');
-                            setMobileMenuOpen(false);
-                          }}
-                          className="w-full text-left px-8 py-2 text-xs text-gray-600 hover:bg-gray-100"
-                        >
-                          担当連絡先
-                        </button>
-                      </li>
-                      <li>
-                        <button
-                          onClick={() => {
-                            handleMenuClick('settings');
-                            setMobileMenuOpen(false);
-                          }}
-                          className="w-full text-left px-8 py-2 text-xs text-gray-600 hover:bg-gray-100"
-                        >
-                          ユーザー設定
-                        </button>
-                      </li>
-                    </ul>
-                  )}
-                </div>
                 {/* 建材検索 */}
                 <div className="border-b border-gray-100">
                   <button
@@ -2263,7 +2349,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
             </div>
           </div>
         )}
-        <div id="gcse-results-wrapper" className={`${searchActive ? 'block' : 'hidden'} w-full px-4 lg:px-8`}>
+        <div id="gcse-results-wrapper" className={`${searchActive ? 'block' : 'hidden'} w-full px-2 md:px-4 lg:px-8`}>
           {/* ★追加: ダークモード時のスタイル定義 (isDarkModeがtrueの時だけ適用) */}
           {isDarkMode && (
             <style dangerouslySetInnerHTML={{
@@ -2474,11 +2560,29 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
             <div id="gcse-results"></div>
           </div>
         </div>
-        <div id="main-layout-container" className={`${searchActive ? 'hidden' : 'flex'} flex-col md:flex-row md:items-start gap-2 p-4`}>
-          <div className="hidden lg:block">
-            <Sidebar onPageChange={handleSubcategoryClick} />
+        <div id="main-layout-container" className={`${searchActive ? 'hidden' : 'flex'} flex-col lg:flex-row lg:items-stretch`} style={{ minHeight: '100vh' }}>
+          {/* 左カラム：ページ最上部から最下部まで（フッターバーより前面） */}
+          <div className="hidden lg:block" style={{ zIndex: 10000, position: 'relative' }}>
+            <Sidebar
+              onPageChange={handleSubcategoryClick}
+              onLogoClick={() => {
+                // ロゴクリック時はトップページにリセット（URL=/, activeContent=initialContent）
+                // SPA系コンテンツ(privacy-policy等)で開いている場合、URLが/のままだとLinkだけでは中央/右が更新されないため
+                setActiveContent(initialContent);
+                activeContentRef.current = initialContent;
+                setSearchActive(false);
+                setSearchQuery('');
+                try {
+                  window.dispatchEvent(new Event('yaneyuka:search-clear'));
+                } catch {}
+              }}
+            />
           </div>
-          <main className="flex-1 min-w-0 px-4 py-4">
+          {/* 右側：ナビバー + コンテンツエリア */}
+          <div className="flex-1 min-w-0" style={{ paddingBottom: '34px' }}>
+            <Navigation onMenuClick={handleMenuClick} activeItem={activeContent} />
+            <div className="flex lg:flex-row flex-col lg:items-start gap-2 p-2 md:p-3 lg:p-4">
+          <main className="flex-1 min-w-0">
             {/* 中央カラム右エリアに参考資料（NEWSのブックマーク幅相当: 300px） */}
             <div className="lg:flex lg:gap-4 items-start">
               <div className="flex-1 min-w-0">
@@ -2487,7 +2591,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
               </div>
               {/* 右側: 参考資料 / 資格動画 */}
               {!isUserpageMenu() && (activeContent === 'regulations' || activeContent === 'qualifications') && (
-                <aside className={`hidden lg:block ${activeContent === 'qualifications' ? 'w-[360px]' : 'w-[300px]'} shrink-0`}>
+                <aside className={`hidden lg:block ${activeContent === 'qualifications' ? 'w-[360px]' : 'w-[275px]'} shrink-0`}>
                   <div className="sticky top-2" id={activeContent === 'qualifications' ? 'qual-right-sticky' : undefined}>
                     {activeContent === 'regulations' ? (
                       <ReferenceResources />
@@ -2498,23 +2602,44 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
                 </aside>
               )}
               {/* 右側: 折り畳み可能な作業music（Userpage内ツール向け） */}
-              <div className={`hidden ${isUserpageMenu() ? 'lg:block' : ''} shrink-0`}>
-                <UserpageMusicPanel />
-              </div>
+              {isUserpageMenu() && (
+                <div className="hidden lg:block shrink-0">
+                  <UserpageMusicPanel />
+                </div>
+              )}
             </div>
           </main>
           {/* 右サイドバー：広告欄（Userpageメニュー以外で表示） */}
-          {!isUserpageMenu() && (
-            <aside className="w-[300px] shrink-0 bg-white px-1 pt-0 pb-4 rounded text-sm overflow-y-auto overflow-x-hidden hidden md:block">
-              <h4 className="text-xs font-semibold mb-1">PR</h4>
-              {(() => {
-                // 対象ページリスト: event, news, new-products, books-software, pickup, qualifications, landscape-cad, shop, projects, competitions, construction-companies, design-offices, job-info, forum
+          {/* iPadサイズ(md:768px)以上で表示、最小200px〜最大300pxで縮小対応 */}
+          {!isUserpageMenu() && (() => {
+            // プライバシーポリシーページ判定（広告を非表示にして関連プライポリ一覧を出す）
+            // - 個別アプリページ: URLパス /xxx-app-privacy-policy/ で開いている
+            // - yaneyuka.com 本体のプライポリ: フッターバー「プライバシーポリシー」から SPA遷移 → URLは / のまま、activeContent='privacy-policy'
+            const isPrivacyPolicyPage =
+              /^\/(rules-app|dayline-app|kijyunhou-app|shoubouhou-app|epoch-camera)-privacy-policy(\/|$)/.test(pathname) ||
+              activeContent === 'privacy-policy';
+            return (
+            <aside className="w-[200px] 2xl:w-[300px] min-w-[200px] shrink bg-white px-1 pt-0 pb-4 rounded text-sm overflow-y-auto overflow-x-hidden hidden md:block">
+              {isPrivacyPolicyPage && (
+                <RelatedPrivacyLinks
+                  currentPath={pathname}
+                  isYaneyukaPrivacyActive={activeContent === 'privacy-policy'}
+                  onYaneyukaPrivacyClick={() => handleMenuClick('privacy-policy')}
+                />
+              )}
+              {!isPrivacyPolicyPage && (() => {
+                // 対象ページリスト
                 const targetPages = ['event', 'news', 'new-products', 'books-software', 'pickup', 'qualifications', 'landscape-cad', 'shop', 'projects', 'competitions', 'construction-companies', 'design-offices', 'job-info', 'forum'];
                 const isTargetPage = targetPages.includes(activeContent);
-                
+
+                // アフィリエイト広告をランダムに最大2個選択
+                const allAds = getAdContent(activeContent);
+                const shuffled = [...allAds].sort(() => Math.random() - 0.5);
+                const displayAds = shuffled.slice(0, 2);
+
                 return (
               <div className={isTargetPage ? '' : 'space-y-2'}>
-                {getAdContent(activeContent).map((ad, index) => {
+                {displayAds.map((ad, index) => {
                   // 対象ページの場合は個別にmargin-topを制御
                   let targetPageTopMarginClass = '';
                   if (isTargetPage) {
@@ -2638,9 +2763,54 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
               </div>
                 );
               })()}
+              {/* 下段：関連アプリ（縦並び・アイコン左＋アプリ名&説明右） */}
+              <div className="mt-4 rounded-lg p-3" style={{ backgroundColor: '#a3c4b8' }}>
+                <h4 className="text-[11px] font-semibold mb-2 text-gray-700 text-center">yaneyuka関連アプリ</h4>
+                <div className="space-y-2">
+                  <a href="https://dayline-yaneyuka.web.app" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 bg-white/60 rounded p-2 hover:bg-white/80 transition">
+                    <img src="/image/DayLine-icon.png" alt="DayLine アイコン" className="rounded shrink-0" style={{ width: '40px', height: '40px' }} onError={(e) => { (e.target as HTMLImageElement).src = '/image/掲載募集中a.png'; }} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] font-medium text-gray-700 leading-tight">DayLine</p>
+                      <p className="text-[9px] text-gray-600 leading-tight">今日が一目でわかる<br />iPhone-PC連動アプリ</p>
+                    </div>
+                  </a>
+                  <a href="https://rules-yaneyuka.web.app" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 bg-white/60 rounded p-2 hover:bg-white/80 transition">
+                    <img src="/image/Rules-icon.png" alt="Rules アイコン" className="rounded shrink-0" style={{ width: '40px', height: '40px' }} onError={(e) => { (e.target as HTMLImageElement).src = '/image/掲載募集中a.png'; }} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] font-medium text-gray-700 leading-tight">Rules</p>
+                      <p className="text-[9px] text-gray-600 leading-tight">社内ルール・マニュアルを一元管理<br />iPhone-PC連動アプリ</p>
+                    </div>
+                  </a>
+                  <a href="https://pdfgap-yaneyuka.web.app/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 bg-white/60 rounded p-2 hover:bg-white/80 transition">
+                    <img src="/image/PDFGap-icon.svg" alt="PDFGap アイコン" className="rounded shrink-0" style={{ width: '40px', height: '40px' }} onError={(e) => { (e.target as HTMLImageElement).src = '/image/掲載募集中a.png'; }} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] font-medium text-gray-700 leading-tight">PDFGap</p>
+                      <p className="text-[9px] text-gray-600 leading-tight">図面変更箇所を検出</p>
+                    </div>
+                  </a>
+                  <a href="https://apps.apple.com/us/app/%E5%BB%BA%E7%AF%89%E5%9F%BA%E6%BA%96%E6%B3%95-yaneyuka/id6757323409?itscg=30200&itsct=apps_box_link&mttnsubad=6757323409" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 bg-white/60 rounded p-2 hover:bg-white/80 transition">
+                    <img src="/image/kenchikukijyunhou-icon.png" alt="建築基準法yaneyuka アイコン" className="rounded shrink-0" style={{ width: '40px', height: '40px' }} onError={(e) => { (e.target as HTMLImageElement).src = '/image/掲載募集中a.png'; }} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] font-medium text-gray-700 leading-tight">建築基準法yaneyuka</p>
+                      <p className="text-[9px] text-gray-600 leading-tight">法令集をポケットに<br />iPhoneアプリ</p>
+                    </div>
+                  </a>
+                </div>
+              </div>
             </aside>
-          )}
+            );
+          })()}
+            </div>{/* コンテンツエリア（中央+右カラム）の閉じ */}
+          </div>{/* 右側div（ナビ+コンテンツ）の閉じ */}
         </div>
+        {/* Footerは現在不要（リンクはナビバーとフッターバーに移動済み）。コード自体はFooter.tsxに残す */}
+        <UserpageBottomBar
+          activeContent={activeContent}
+          onMenuClick={handleMenuClick}
+          isLoggedIn={isLoggedIn}
+          username={currentUser?.username}
+        />
+        {/* 下部固定バーの余白はコンテンツ側のpaddingで対応 */}
         <CookieConsent />
       </div>
     </AuthProvider>

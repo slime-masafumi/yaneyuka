@@ -1,0 +1,77 @@
+/* コンポーネント用のカスタムスタイル */
+
+/* ボタンコンポーネント */
+.btn-primary {
+  @apply bg-blue-600 text-white hover:bg-blue-700 px-4 py-2 rounded transition-colors;
+}
+
+.btn-secondary {
+  @apply bg-gray-300 text-gray-800 hover:bg-gray-400 px-4 py-2 rounded transition-colors;
+}
+
+/* カードコンポーネント */
+.card {
+  @apply bg-white shadow-md rounded-lg hover:shadow-lg transition-all duration-500;
+  /* 初期状態でopacityを1に設定 - コンポーネント側で制御 */
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.card.active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* 新商品カード用のスタイル */
+.product-card {
+  @apply bg-white shadow-md rounded-lg hover:shadow-lg transition-all duration-500;
+  /* 初期状態でopacityを1に設定して、コンポーネント側で制御 */
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* 動的アニメーション用のカード（showCards状態で制御されるもの） */
+.dynamic-card {
+  @apply bg-white shadow-md rounded-lg hover:shadow-lg transition-all duration-500;
+  /* 初期状態でopacityを0に設定 - コンポーネント側で制御 */
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.dynamic-card.active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* カードアニメーション用のコンテナ */
+.card-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+/* アコーディオンスタイル */
+.accordion-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease-out;
+}
+
+.accordion-content.open {
+  max-height: 500px; /* 適切な最大高さを設定 */
+  transition: max-height 0.3s ease-in;
+}
+
+/* フォームコンポーネント */
+.form-input {
+  @apply border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500;
+}
+
+.form-label {
+  @apply block text-sm font-medium text-gray-700 mb-1;
+}
+
+/* ヘッダーコンポーネント */
+.header {
+  @apply bg-white shadow-md sticky top-0 z-50;
+} 

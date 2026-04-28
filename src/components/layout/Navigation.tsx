@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 
 interface NavigationProps {
   onMenuClick?: (menuItem: string) => void;
@@ -12,20 +12,23 @@ const BASE_WIDTH = 1280; // デザイン想定幅
 const HORIZONTAL_SCROLL_BREAKPOINT = 1366; // iPad Pro (12.9インチ) まで横スクロール
 
 const Navigation: React.FC<NavigationProps> = ({ onMenuClick, activeItem }) => {
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  // ★ボタンの位置を特定するためのRefを追加
-  const userPageBtnRef = useRef<HTMLButtonElement>(null);
-  // ★メニューの表示位置を管理するStateを追加
-  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
 
   const router = useRouter();
+  const pathname = usePathname();
   const wrapRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
   const [useHorizontalScroll, setUseHorizontalScroll] = useState(false);
   const [loadingMenuItem, setLoadingMenuItem] = useState<string | null>(null);
+  const expectedRouteRef = useRef<string | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleMenuClick = (menuItem: string) => {
+    // 既存のタイムアウトをクリア
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    
     setLoadingMenuItem(menuItem);
     
     const routeMap: Record<string, string> = {
@@ -49,10 +52,14 @@ const Navigation: React.FC<NavigationProps> = ({ onMenuClick, activeItem }) => {
     
     const route = routeMap[menuItem];
     if (route) {
+      expectedRouteRef.current = route;
       router.push(route);
-      setTimeout(() => {
+      // タイムアウトはフォールバックとして残す（最大5秒）
+      timeoutRef.current = setTimeout(() => {
         setLoadingMenuItem(null);
-      }, 2000);
+        expectedRouteRef.current = null;
+        timeoutRef.current = null;
+      }, 5000);
       return;
     }
     
@@ -62,68 +69,61 @@ const Navigation: React.FC<NavigationProps> = ({ onMenuClick, activeItem }) => {
     }
   };
 
-  const toggleDropdown = () => {
-    // ★開く瞬間にボタンの位置を計算してセット
-    if (!isDropdownOpen && userPageBtnRef.current) {
-      const rect = userPageBtnRef.current.getBoundingClientRect();
-      setMenuPos({
-        top: rect.bottom,
-        left: rect.left
-      });
-    }
-    setIsDropdownOpen(!isDropdownOpen);
-  };
-
-  const handleDropdownItemClick = (menuItem: string) => {
-    setIsDropdownOpen(false);
-    if (onMenuClick) {
-      onMenuClick(menuItem);
-    }
-  };
-
-  // クリック外またはスクロールで閉じる
+  // pathnameが変更されたらローディングを解除
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      // ドロップダウンまたはボタン以外をクリックしたら閉じる
-      if (
-        dropdownRef.current && 
-        !dropdownRef.current.contains(event.target as Node) &&
-        userPageBtnRef.current && 
-        !userPageBtnRef.current.contains(event.target as Node)
-      ) {
-        setIsDropdownOpen(false);
+    if (loadingMenuItem && expectedRouteRef.current) {
+      const normalizedPathname = pathname.endsWith('/') && pathname !== '/' ? pathname.slice(0, -1) : pathname;
+      const normalizedExpected = expectedRouteRef.current.endsWith('/') && expectedRouteRef.current !== '/' 
+        ? expectedRouteRef.current.slice(0, -1) 
+        : expectedRouteRef.current;
+      
+      if (normalizedPathname === normalizedExpected || normalizedPathname === expectedRouteRef.current) {
+        // タイムアウトをクリア
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
+        
+        // ページ読み込み完了を待つ（DOMContentLoaded + 少し余裕を持たせる）
+        const checkPageLoaded = () => {
+          if (document.readyState === 'complete') {
+            // さらに少し待ってからローディングを解除（コンテンツのレンダリング完了を待つ）
+            setTimeout(() => {
+              setLoadingMenuItem(null);
+              expectedRouteRef.current = null;
+            }, 100);
+          } else {
+            const handleLoad = () => {
+              setTimeout(() => {
+                setLoadingMenuItem(null);
+                expectedRouteRef.current = null;
+              }, 100);
+            };
+            window.addEventListener('load', handleLoad, { once: true });
+            return () => window.removeEventListener('load', handleLoad);
+          }
+        };
+        
+        checkPageLoaded();
       }
-    };
-
-    // ★スクロールしたらメニューを閉じる（Fixed配置のズレ防止）
-    const handleScroll = () => {
-      if (isDropdownOpen) setIsDropdownOpen(false);
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      window.removeEventListener('scroll', handleScroll);
-    };
-  }, [isDropdownOpen]);
+    }
+  }, [pathname, loadingMenuItem]);
 
   useEffect(() => {
     const onResize = () => {
       const w = window.innerWidth || BASE_WIDTH;
-      const s = Math.min(1, w / BASE_WIDTH);
-      setScale(s);
-      
-      if (w <= HORIZONTAL_SCROLL_BREAKPOINT) {
+      // モバイル・タブレット（1024px未満）ではスケーリングせず横スクロール
+      if (w < 1024) {
+        setScale(1);
         setUseHorizontalScroll(true);
-        if (wrapRef.current) wrapRef.current.style.height = '40px';
+      } else if (w <= HORIZONTAL_SCROLL_BREAKPOINT) {
+        setScale(1);
+        setUseHorizontalScroll(true);
       } else {
+        const s = Math.min(1, w / BASE_WIDTH);
+        setScale(s);
         setUseHorizontalScroll(false);
-        if (wrapRef.current) wrapRef.current.style.height = `${40 * s}px`;
       }
-      // リサイズ時は閉じる
-      setIsDropdownOpen(false);
     };
     onResize();
     window.addEventListener('resize', onResize);
@@ -144,7 +144,7 @@ const Navigation: React.FC<NavigationProps> = ({ onMenuClick, activeItem }) => {
 
   return (
     <>
-      <nav style={{ backgroundColor: '#1dad95', height: wrapRef.current?.style.height || '40px', minHeight: wrapRef.current?.style.height || '40px', position: 'relative', zIndex: 2147483647, overflow: 'visible' }}>
+      <nav style={{ backgroundColor: '#52AA96', position: 'relative', zIndex: 2147483647, overflow: 'visible', borderBottom: '5px solid #52AA96' }}>
         <div 
           className={`w-full px-4 h-full ${useHorizontalScroll ? 'overflow-x-auto' : ''}`} 
           ref={wrapRef}
@@ -161,7 +161,7 @@ const Navigation: React.FC<NavigationProps> = ({ onMenuClick, activeItem }) => {
             {[
               { id: 'event', label: 'イベント情報' },
               { id: 'news', label: 'NEWS' },
-              { id: 'new-products', label: '新商品' },
+              { id: 'new-products', label: '新製品' },
               { id: 'books-software', label: '書籍・ソフト' },
               { id: 'pickup', label: 'Pickup' },
               { id: 'regulations', label: '法規' },
@@ -186,59 +186,30 @@ const Navigation: React.FC<NavigationProps> = ({ onMenuClick, activeItem }) => {
                 {loadingMenuItem === item.id && <LoadingSpinner />}
               </button>
             ))}
-            
-            {/* Userpage ドロップダウンボタン */}
-            <div className="hidden lg:block relative h-full" style={{ overflow: 'visible' }}>
+            {/* 右端：お問い合わせ・掲載希望 */}
+            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
               <button
-                ref={userPageBtnRef} // ★Refを設定
-                onClick={toggleDropdown}
-                className="nav-item h-full flex items-center justify-center gap-1"
+                type="button"
+                onClick={() => handleMenuClick('feedback')}
+                style={{ fontSize: '11px', color: '#6b7280', padding: '0 6px', background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = '#1f2937'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = '#6b7280'; }}
               >
-                Userpage
-                <svg
-                  className={`w-4 h-4 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
+                お問い合わせ
+              </button>
+              <button
+                type="button"
+                onClick={() => handleMenuClick('registration')}
+                style={{ fontSize: '11px', color: '#6b7280', padding: '0 6px', background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = '#1f2937'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = '#6b7280'; }}
+              >
+                掲載希望
               </button>
             </div>
           </div>
         </div>
       </nav>
-
-      {/* ★ドロップダウンメニューをnavの外に出し、fixedで配置 */}
-      {isDropdownOpen && (
-        <div 
-          ref={dropdownRef}
-          className="fixed bg-white rounded-md shadow-lg border animate-in fade-in zoom-in-95 duration-100"
-          style={{ 
-            zIndex: 2147483650,
-            top: `${menuPos.top + 4}px`, // ボタンの下に表示
-            left: `${menuPos.left}px`,   // ボタンの左端に合わせる
-            width: '12rem',              // w-48相当
-            maxHeight: 'calc(100vh - 200px)',
-            overflowY: 'auto'
-          }}
-        >
-          <div className="py-1">
-            <button className="block w-full text-left px-4 py-2 text-[13px] text-gray-700 hover:bg-gray-100 transition-colors" onClick={() => handleDropdownItemClick('yymail')}>yymail</button>
-            <button className="block w-full text-left px-4 py-2 text-[13px] text-gray-700 hover:bg-gray-100 transition-colors" onClick={() => handleDropdownItemClick('yychat')}>yychat</button>
-            <button className="block w-full text-left px-4 py-2 text-[13px] text-gray-700 hover:bg-gray-100 transition-colors" onClick={() => handleDropdownItemClick('my-calendar')}>Myカレンダー</button>
-            <button className="block w-full text-left px-4 py-2 text-[13px] text-gray-700 hover:bg-gray-100 transition-colors" onClick={() => handleDropdownItemClick('my-regulations')}>My法規</button>
-            <button className="block w-full text-left px-4 py-2 text-[13px] text-gray-700 hover:bg-gray-100 transition-colors" onClick={() => handleDropdownItemClick('my-tasks')}>Myタスク</button>
-            <button className="block w-full text-left px-4 py-2 text-[13px] text-gray-700 hover:bg-gray-100 transition-colors" onClick={() => handleDropdownItemClick('team-tasks')}>Teamタスク</button>
-            <button className="block w-full text-left px-4 py-2 text-[13px] text-gray-700 hover:bg-gray-100 transition-colors" onClick={() => handleDropdownItemClick('general-tools')}>一般ツール</button>
-            <button className="block w-full text-left px-4 py-2 text-[13px] text-gray-700 hover:bg-gray-100 transition-colors" onClick={() => handleDropdownItemClick('design-tools')}>設計ツール</button>
-            <button className="block w-full text-left px-4 py-2 text-[13px] text-gray-700 hover:bg-gray-100 transition-colors" onClick={() => handleDropdownItemClick('design-info')}>設計情報</button>
-            <button className="block w-full text-left px-4 py-2 text-[13px] text-gray-700 hover:bg-gray-100 transition-colors" onClick={() => handleDropdownItemClick('material-info')}>材料情報</button>
-            <button className="block w-full text-left px-4 py-2 text-[13px] text-gray-700 hover:bg-gray-100 transition-colors" onClick={() => handleDropdownItemClick('contacts')}>担当連絡先</button>
-            <button className="block w-full text-left px-4 py-2 text-[13px] text-gray-700 hover:bg-gray-100 transition-colors" onClick={() => handleDropdownItemClick('settings')}>ユーザー設定</button>
-          </div>
-        </div>
-      )}
     </>
   );
 };

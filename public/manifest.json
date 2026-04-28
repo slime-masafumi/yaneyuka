@@ -1,0 +1,41 @@
+{
+  "name": "yaneyuka - 建築・建設業界の業務支援ポータルサイト",
+  "short_name": "yaneyuka",
+  "description": "建築設計・施工・設備・メーカー・職人まで建設業界全体を支援する業務効率化ポータルサイト",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3b3b3b",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/image/ファビコンb.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/image/ファビコンb.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity", "utilities"],
+  "lang": "ja",
+  "dir": "ltr"
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+

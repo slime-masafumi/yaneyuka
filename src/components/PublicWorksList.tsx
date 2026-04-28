@@ -49,6 +49,18 @@ const WORK_CATEGORIES = [
 
 const ITEMS_PER_PAGE = 20
 
+// NEWマークを表示する日数基準（3日以内）
+const NEW_ARRIVAL_DAYS = 3
+
+// カテゴリごとの色分け（少し彩度を落として目に優しく）
+const CATEGORY_STYLES: Record<string, string> = {
+  '設備（電気・空調）': 'bg-orange-50 text-orange-700 border-orange-100',
+  '建築・解体': 'bg-blue-50 text-blue-700 border-blue-100',
+  '水路・河川': 'bg-cyan-50 text-cyan-700 border-cyan-100',
+  '土木・道路': 'bg-emerald-50 text-emerald-700 border-emerald-100',
+  '業務・その他': 'bg-slate-50 text-slate-700 border-slate-100',
+}
+
 export default function PublicWorksList() {
   const [works, setWorks] = useState<PublicWork[]>([])
   const [selectedAreas, setSelectedAreas] = useState<Set<string>>(new Set(['東京'])) // 初期状態は東京のみ表示
@@ -66,21 +78,11 @@ export default function PublicWorksList() {
   const [loadingCount, setLoadingCount] = useState(false)
   const [isAreaModalOpen, setIsAreaModalOpen] = useState(false)
 
-  // iOS Safari対応: 日付を安全に変換するヘルパー関数
-  const safeParseDate = (dateStr: string): Date => {
-    if (!dateStr) return new Date();
-    // iOS Safari対応: ハイフンをスラッシュに置換
-    const safeDateStr = dateStr.replace(/-/g, '/');
-    const date = new Date(safeDateStr);
-    // Invalid Dateの場合は現在の日付を返す
-    return isNaN(date.getTime()) ? new Date() : date;
-  };
-
   // 45日以内のデータかどうかを判定
   const isWithin45Days = (dateStr: string): boolean => {
     if (!dateStr) return false
     try {
-      const workDate = safeParseDate(dateStr)
+      const workDate = new Date(dateStr)
       const now = new Date()
       const diffTime = now.getTime() - workDate.getTime()
       const diffDays = diffTime / (1000 * 60 * 60 * 24)
@@ -93,6 +95,20 @@ export default function PublicWorksList() {
   // 工事内容を取得（categoryフィールドを使用、なければデフォルト）
   const getWorkCategory = (work: PublicWork): string => {
     return work.category || '土木・道路'
+  }
+
+  // 新着判定ロジック
+  const isNewArrival = (dateStr: string): boolean => {
+    if (!dateStr) return false
+    try {
+      const workDate = new Date(dateStr)
+      const now = new Date()
+      const diffTime = now.getTime() - workDate.getTime()
+      const diffDays = diffTime / (1000 * 60 * 60 * 24)
+      return diffDays <= NEW_ARRIVAL_DAYS
+    } catch {
+      return false
+    }
   }
 
   // 総件数を取得する関数
@@ -315,14 +331,14 @@ export default function PublicWorksList() {
         console.log(`🔄 クライアントサイドでソート適用: sortOrder=${sortOrder}`)
         if (sortOrder === 'newest') {
           filteredWorks.sort((a, b) => {
-            const dateA = safeParseDate(a.date).getTime()
-            const dateB = safeParseDate(b.date).getTime()
+            const dateA = new Date(a.date).getTime()
+            const dateB = new Date(b.date).getTime()
             return dateB - dateA // 降順（新しい順）
           })
         } else {
           filteredWorks.sort((a, b) => {
-            const dateA = safeParseDate(a.date).getTime()
-            const dateB = safeParseDate(b.date).getTime()
+            const dateA = new Date(a.date).getTime()
+            const dateB = new Date(b.date).getTime()
             return dateA - dateB // 昇順（古い順）
           })
         }
@@ -441,7 +457,7 @@ export default function PublicWorksList() {
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '日付不明'
     try {
-      const date = safeParseDate(dateStr)
+      const date = new Date(dateStr)
       return date.toLocaleDateString('ja-JP', {
         year: 'numeric',
         month: 'long',
@@ -476,19 +492,19 @@ export default function PublicWorksList() {
       )}
       
       {/* フィルターコントロールバー */}
-      <div className="mb-4 bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+      <div className="mb-6 bg-white p-5 rounded-xl shadow-sm border border-gray-200">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           {/* 上段（または左側）: エリア選択と件数表示 */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 flex-1">
             {/* エリアフィルター（モーダル形式） */}
             <div className="flex items-center gap-2 flex-wrap">
-              <label className="text-xs font-medium text-gray-700">エリア:</label>
-              <span className="text-xs text-gray-700">{getSelectedAreasText()}</span>
+              <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs font-bold">エリア</span>
+              <span className="text-sm text-slate-800 font-medium">{getSelectedAreasText()}</span>
               <button
                 onClick={() => setIsAreaModalOpen(true)}
-                className="text-xs text-blue-600 hover:text-blue-800 underline"
+                className="text-xs bg-white border border-slate-300 hover:bg-slate-50 text-slate-600 px-3 py-1 rounded-full transition-colors"
               >
-                エリアを変更
+                エリア変更
               </button>
               {selectedAreas.size > 10 && (
                 <span className="text-xs text-orange-600">
@@ -498,52 +514,36 @@ export default function PublicWorksList() {
             </div>
             
             {/* 総件数表示 */}
-            <div className="flex items-center">
-              {loadingCount ? (
-                <span className="text-xs text-gray-400">読み込み中...</span>
-              ) : totalCount !== null ? (
-                <span className="text-xs text-gray-600 font-medium">
-                  全 {totalCount.toLocaleString()} 件中 {works.length.toLocaleString()} 件を表示
-                </span>
-              ) : (
-                <span className="text-xs text-gray-600 font-medium">
-                  {works.length.toLocaleString()}件
-                </span>
-              )}
+            <div className="text-xs text-slate-500">
+              {loadingCount ? '集計中...' : totalCount !== null ? `${totalCount.toLocaleString()}件中 ${works.length.toLocaleString()}件` : `${works.length.toLocaleString()}件`}
             </div>
           </div>
           
           {/* 下段（または右側）: 工事内容と並び順 */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+          <div className="flex items-center gap-3">
             {/* 工事内容フィルター */}
-            <div className="flex items-center gap-2">
-              <label className="text-xs font-medium text-gray-700 whitespace-nowrap">工事内容:</label>
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="bg-gray-50 border border-gray-300 rounded-md px-3 py-1.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-              >
-                <option value="all">すべて</option>
-                {WORK_CATEGORIES.map(category => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm cursor-pointer"
+            >
+              <option value="all">全カテゴリ</option>
+              {WORK_CATEGORIES.map(category => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
             
             {/* 並び順 */}
-            <div className="flex items-center gap-2">
-              <label className="text-xs font-medium text-gray-700 whitespace-nowrap">並び順:</label>
-              <select
-                value={sortOrder}
-                onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')}
-                className="bg-gray-50 border border-gray-300 rounded-md px-3 py-1.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-              >
-                <option value="newest">新しい順</option>
-                <option value="oldest">古い順</option>
-              </select>
-            </div>
+            <select
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')}
+              className="bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm cursor-pointer"
+            >
+              <option value="newest">新しい順</option>
+              <option value="oldest">古い順</option>
+            </select>
           </div>
         </div>
       </div>
@@ -614,59 +614,71 @@ export default function PublicWorksList() {
 
       {/* カード式グリッドレイアウト */}
       {works.length === 0 ? (
-        <p className="text-gray-700 text-xs">データがありません</p>
+        <p className="text-gray-500 text-xs">データがありません</p>
       ) : (
         <>
+          {/* グリッド設定を元のコード（最大5列）に戻しました */}
           <div className="grid gap-3 grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
             {works.map((work, index) => {
-              // 20件ごとにグループ化して色を変える
-              const groupIndex = Math.floor(index / 20);
-              const isAlternateGroup = groupIndex % 2 === 1;
-              const bgColor = isAlternateGroup ? 'bg-blue-50' : 'bg-white';
-              
+              const isNew = isNewArrival(work.date)
+              const category = getWorkCategory(work)
+              // デフォルトスタイル
+              const categoryStyle = CATEGORY_STYLES[category] || 'bg-gray-50 text-gray-600 border-gray-100'
+
               return (
               <a
                 key={work.id}
                 href={work.link}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`border border-gray-200 rounded-lg p-4 ${bgColor} text-sm w-full min-h-[200px] shadow-sm transition-all duration-300 flex flex-col hover:shadow-xl hover:-translate-y-1 hover:border-blue-400 cursor-pointer ${
-                  activeList[index] ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
-                }`}
+                className={`
+                  group relative bg-white rounded border border-gray-200 
+                  p-3 flex flex-col justify-between
+                  shadow-sm transition-all duration-300
+                  hover:shadow-xl hover:-translate-y-1 hover:border-blue-400
+                  ${activeList[index] ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'}
+                `}
+                style={{ minHeight: '160px' }} 
               >
-                {/* バッジ */}
-                <div className="mb-3 flex flex-wrap gap-1.5">
-                  <span className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md bg-blue-50 text-blue-700 font-medium border border-blue-200">
-                    <MapPin size={12} />
-                    {work.area}
-                  </span>
-                  <span className="inline-block px-2 py-1 text-xs rounded-md bg-green-50 text-green-700 font-medium border border-green-200">
-                    {getWorkCategory(work)}
-                  </span>
+                <div>
+                  {/* ヘッダー: カテゴリとエリア */}
+                  <div className="flex justify-between items-start mb-2">
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded border ${categoryStyle}`}>
+                      {category}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      {isNew && (
+                        <span className="text-[10px] font-bold text-red-500 border border-red-200 px-1 rounded bg-red-50">
+                          NEW
+                        </span>
+                      )}
+                      <span className="text-[10px] text-gray-500 flex items-center gap-0.5">
+                        <MapPin size={10} />
+                        {work.area}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* タイトル: 13px, text-gray-600 */}
+                  <h3 className="font-semibold text-[13px] leading-relaxed text-gray-600 group-hover:text-blue-600 transition-colors mb-2 line-clamp-3">
+                    {work.title}
+                  </h3>
                 </div>
 
-                {/* タイトル */}
-                <h3 className="font-bold text-sm mb-3 line-clamp-2 flex-1 text-gray-900">
-                  {work.title}
-                </h3>
-
-                {/* 詳細情報 */}
-                <div className="space-y-2 text-xs text-gray-600 mb-4 flex-shrink-0">
-                  <div className="flex items-start gap-2">
-                    <Building2 size={14} className="text-gray-400 mt-0.5 flex-shrink-0" />
-                    <span className="line-clamp-2 text-gray-700">{work.organization || '未記載'}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Calendar size={14} className="text-gray-400 flex-shrink-0" />
-                    <span className="text-gray-700">{formatDate(work.date)}</span>
-                  </div>
-                </div>
-
-                {/* リンクボタン */}
-                <div className="mt-auto pt-3 border-t border-gray-100">
-                  <div className="flex items-center justify-end gap-1 text-xs text-blue-600">
-                    <span>詳細</span>
-                    <ExternalLink size={14} />
+                {/* フッター情報 */}
+                <div className="pt-2 mt-2 border-t border-gray-50">
+                  <div className="space-y-1">
+                    <div className="flex items-start gap-1.5 text-[10px] text-gray-500">
+                      <Building2 size={12} className="text-gray-400 mt-0.5 flex-shrink-0" />
+                      <span className="line-clamp-1">{work.organization || '---'}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] text-gray-400">
+                      <div className="flex items-center gap-1.5">
+                        <Calendar size={12} />
+                        <span>{formatDate(work.date)}</span>
+                      </div>
+                      <ExternalLink size={12} className="opacity-0 group-hover:opacity-100 text-blue-400 transition-opacity" />
+                    </div>
                   </div>
                 </div>
               </a>
@@ -680,7 +692,7 @@ export default function PublicWorksList() {
               <button
                 onClick={loadMore}
                 disabled={loadingMore}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                className="px-4 py-1.5 bg-white border border-gray-300 text-gray-600 text-xs rounded hover:bg-gray-50 hover:text-gray-800 disabled:opacity-50"
               >
                 {loadingMore ? '読み込み中...' : 'もっと見る'}
               </button>
