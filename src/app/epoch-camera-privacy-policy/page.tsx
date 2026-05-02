@@ -18,7 +18,7 @@ function EnglishContent() {
   return (
     <div className="bg-white p-4 rounded border border-gray-300 text-[13px] leading-6 text-gray-800 space-y-3">
       <p className="text-[12px] text-gray-500">
-        <strong>Last Updated:</strong> April 28, 2026 &nbsp;|&nbsp;
+        <strong>Last Updated:</strong> May 3, 2026 &nbsp;|&nbsp;
         <strong>Effective Date:</strong> April 23, 2026
       </p>
       <p>
@@ -149,7 +149,7 @@ function EnglishContent() {
                 <td className="border border-gray-300 px-2 py-1">fal - Features &amp; Labels Inc. (USA)</td>
                 <td className="border border-gray-300 px-2 py-1">fal.ai API (FLUX.1 Kontext / LaMa models)</td>
                 <td className="border border-gray-300 px-2 py-1">Captured images, mask images, prompts</td>
-                <td className="border border-gray-300 px-2 py-1"><strong>Auto-deleted within 24 hours</strong></td>
+                <td className="border border-gray-300 px-2 py-1">Sent with the <code>X-Fal-Store-IO: 0</code> header so input data is <strong>not retained in fal.ai&rsquo;s request history</strong>. Generated images are <strong>auto-deleted from fal.ai&rsquo;s CDN within 1 hour at most</strong>.</td>
               </tr>
               <tr>
                 <td className="border border-gray-300 px-2 py-1">RevenueCat, Inc. (USA)</td>
@@ -178,8 +178,8 @@ function EnglishContent() {
       <div>
         <h3 className="font-semibold mb-1">7. Data Retention</h3>
         <ul className="list-disc pl-5 space-y-1">
-          <li><strong>Photos sent to AI processing:</strong> <strong>Automatically deleted within 24 hours</strong> by the respective third-party services</li>
-          <li><strong>AI-generated output files:</strong> fal - Features &amp; Labels Inc. retains generated files for at least 7 days, after which they may be deleted (per their FAQ).</li>
+          <li><strong>Input images, mask images, and prompts sent for AI processing:</strong> We send these requests to fal.ai with the <code>X-Fal-Store-IO: 0</code> header, which instructs fal.ai <strong>not to retain the JSON request payload</strong> in their request-history dashboard.</li>
+          <li><strong>AI-generated output image files:</strong> We send the <code>X-Fal-Object-Lifecycle-Preference</code> header to cap the lifetime of generated images on fal.ai&rsquo;s CDN at <strong>1 hour maximum</strong> (auto-deleted thereafter). Our Cloud Functions backend downloads the result image immediately on success and returns it to the user&rsquo;s device; we do not persist it on our side either.</li>
           <li><strong>Anonymous UID and usage counts:</strong> Retained in our Firestore database for subscription management as long as you use the App</li>
           <li><strong>Subscription data:</strong> Retained by RevenueCat as purchase history</li>
         </ul>
@@ -267,7 +267,7 @@ function JapaneseContent() {
   return (
     <div className="bg-white p-4 rounded border border-gray-300 text-[13px] leading-6 text-gray-800 space-y-3">
       <p className="text-[12px] text-gray-500">
-        <strong>最終更新日:</strong> 2026年4月28日 &nbsp;|&nbsp;
+        <strong>最終更新日:</strong> 2026年5月3日 &nbsp;|&nbsp;
         <strong>初版制定日:</strong> 2026年4月23日
       </p>
       <p>
@@ -398,7 +398,7 @@ function JapaneseContent() {
                 <td className="border border-gray-300 px-2 py-1">fal - Features &amp; Labels Inc.（米国）</td>
                 <td className="border border-gray-300 px-2 py-1">fal.ai API（FLUX.1 Kontext / LaMa モデル）</td>
                 <td className="border border-gray-300 px-2 py-1">撮影画像、マスク画像、プロンプト</td>
-                <td className="border border-gray-300 px-2 py-1"><strong>24時間以内に自動削除</strong></td>
+                <td className="border border-gray-300 px-2 py-1">入力データは <code>X-Fal-Store-IO: 0</code> ヘッダ付きで送信し<strong>リクエスト履歴には保存されません</strong>。生成画像は <strong>fal.ai の CDN 上で最大1時間以内に自動削除</strong>。</td>
               </tr>
               <tr>
                 <td className="border border-gray-300 px-2 py-1">RevenueCat, Inc.（米国）</td>
@@ -427,8 +427,8 @@ function JapaneseContent() {
       <div>
         <h3 className="font-semibold mb-1">7. 保存期間</h3>
         <ul className="list-disc pl-5 space-y-1">
-          <li><strong>AI処理用の画像データ:</strong> 第三者サービスのサーバー上で<strong>24時間以内に自動削除</strong></li>
-          <li><strong>AI処理結果（生成済みファイル）:</strong> fal - Features &amp; Labels Inc. は処理結果ファイルを最低7日間保持し、その後削除される場合があります（同社FAQに基づく）。</li>
+          <li><strong>AI処理用の入力画像・マスク画像・プロンプト:</strong> 当方は fal.ai への送信時に <code>X-Fal-Store-IO: 0</code> ヘッダを付与しており、fal.ai 側のリクエスト履歴（JSON ペイロード）には<strong>保存されません</strong>。</li>
+          <li><strong>AI処理結果（生成済み画像ファイル）:</strong> 当方は <code>X-Fal-Object-Lifecycle-Preference</code> ヘッダにより fal.ai の CDN 上での保存期間を<strong>最大1時間に制限</strong>しています（期限到来後は自動削除）。なお当方の Cloud Functions サーバーは生成画像を即座にダウンロードして利用者の端末へ返却し、それ以降は当方側でも保持しません。</li>
           <li><strong>匿名UID および 利用回数データ:</strong> 当方が管理する Firestore 内に、サブスクリプション管理のため継続的に保存</li>
           <li><strong>サブスクリプション情報:</strong> RevenueCat 側で購入履歴として保管</li>
         </ul>
