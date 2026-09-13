@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-09-06",
+  "generatedAt": "2026-09-13",
   "checked": 2061,
   "summary": {
-    "ok": 1578,
+    "ok": 1570,
     "broken": 331,
-    "unreachable": 146,
+    "unreachable": 154,
     "error": 6
   },
   "broken": [
@@ -1674,6 +1674,10 @@
       "reason": "ENOTFOUND"
     },
     {
+      "url": "https://webcatalog.koizumi-lt.co.jp/iportal/CatalogViewInterfaceStartUpAction.do?method=startUp&mode=PAGE&volumeID=DIGICATA&catalogId=8642230000&pageGroupId=1&catalogCategoryId=",
+      "reason": "EAI_AGAIN"
+    },
+    {
       "url": "https://www.3mcompany.jp/3M/ja_JP/architectural-design-jp/",
       "reason": "AbortError"
     },
@@ -1888,6 +1892,34 @@
     {
       "url": "https://www.kenchiku-shizai.co.jp/pigeon/",
       "reason": "ENOTFOUND"
+    },
+    {
+      "url": "https://www.koizumi-lt.co.jp/catalog/",
+      "reason": "EAI_AGAIN"
+    },
+    {
+      "url": "https://www.koizumi-lt.co.jp/company/",
+      "reason": "EAI_AGAIN"
+    },
+    {
+      "url": "https://www.koizumi-lt.co.jp/company/office.html",
+      "reason": "EAI_AGAIN"
+    },
+    {
+      "url": "https://www.koizumi-lt.co.jp/contact/",
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
+    },
+    {
+      "url": "https://www.koizumi-lt.co.jp/l-design/",
+      "reason": "EAI_AGAIN"
+    },
+    {
+      "url": "https://www.koizumi-lt.co.jp/product/",
+      "reason": "EAI_AGAIN"
+    },
+    {
+      "url": "https://www.koizumi-lt.co.jp/support/",
+      "reason": "EAI_AGAIN"
     },
     {
       "url": "https://www.kyowa-kb.co.jp/branch/",
