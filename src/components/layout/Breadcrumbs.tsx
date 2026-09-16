@@ -53,6 +53,15 @@ const Breadcrumbs: React.FC = () => {
       'mechanical-systems': '機械設備',
       'exterior-infrastructure': '外構',
       'exterior': 'エクステリア',
+      // 建築の調べもの（/lookup, /calc, /karte）
+      'lookup': '建築の調べもの',
+      'design': '意匠・法規',
+      'structure': '構造',
+      'mep': '設備',
+      'electrical': '電気・通信',
+      'calc': '計算ツール',
+      'glass-thickness': '必要ガラス厚の計算',
+      'karte': '物件カルテ',
     };
 
     let currentPath = '';

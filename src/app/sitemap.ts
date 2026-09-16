@@ -1,5 +1,6 @@
 import { MetadataRoute } from 'next'
 import { allLegalPaths } from '@/lib/legalPages'
+import { LOOKUP_ORDER } from '@/lib/lookup'
 
 type ChangeFreq = 'always' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'never';
 
@@ -69,6 +70,16 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: '/exterior', changeFrequency: 'monthly', priority: 0.5 },
   ];
 
+  // 建築の調べもの（逆引き索引・計算ツール・物件カルテ）。
+  // 索引ページは検索流入の受け皿なので優先度を高めに置く。カルテは端末内アプリなので低め。
+  const lookup: SitemapEntry[] = [
+    { path: '/lookup', changeFrequency: 'monthly', priority: 0.8 },
+    ...LOOKUP_ORDER.map((slug) => ({ path: `/lookup/${slug}`, changeFrequency: 'monthly' as ChangeFreq, priority: 0.7 })),
+    { path: '/calc', changeFrequency: 'monthly', priority: 0.6 },
+    { path: '/calc/glass-thickness', changeFrequency: 'monthly', priority: 0.7 },
+    { path: '/karte', changeFrequency: 'monthly', priority: 0.4 },
+  ];
+
   // iOS アプリの法的文書 + 全アプリ共通サポート。
   // App Store のメタデータから参照されるので、インデックスされている必要がある。
   // 一覧は src/lib/legalPages.ts が唯一の定義。新規アプリ追加時はそちらに 1 行足せば、
@@ -82,7 +93,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   // /userpage は robots.txt で Disallow しているため sitemap にも載せない。
 
   const frequentPaths = new Set<string>([...frequent.map((e) => e.path), '/']);
-  const allEntries = [...top, ...frequent, ...moderate, ...materials, ...legal];
+  const allEntries = [...top, ...frequent, ...moderate, ...materials, ...lookup, ...legal];
 
   return allEntries.map((entry) => ({
     url: `${base}${withSlash(entry.path)}`,

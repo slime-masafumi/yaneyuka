@@ -1,0 +1,373 @@
+/*
+ * 建築の調べもの（/lookup/ ・ /calc/ ・ /karte/）共通スタイル。
+ * 元: 共有/カルテ機能/karte.html, glass-thickness.html
+ *
+ * サイト既存の CSS（public/css/style.css, Tailwind preflight）と衝突しないよう
+ * 全クラスに yk- 接頭辞を付け、要素セレクタは .yk 配下に限定している。
+ *
+ * デザイントークン: 地=冷たい淡灰、文字=図面インクの青黒、
+ * 適合色=板ガラス小口の緑、不適合色=検査印の朱、要確認=黄土。
+ */
+.yk {
+  --paper: #f2f5f5;
+  --field: #ffffff;
+  --ink: #14232b;
+  --ink-soft: #55686f;
+  --rule: #c4d0d4;
+  --rule-soft: #dde5e7;
+  --glass: #1f6f5c;
+  --glass-weak: #dceae4;
+  --fail: #ae3226;
+  --fail-weak: #f6e3e0;
+  --flag: #8a5a00;
+  --flag-weak: #faf0d8;
+
+  background: var(--paper);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic", YuGothic, Meiryo, sans-serif;
+  font-feature-settings: "palt" 1;
+  line-height: 1.75;
+  font-size: 16px;
+  border-radius: 4px;
+  overflow: hidden;
+  -webkit-text-size-adjust: 100%;
+}
+.yk *, .yk *::before, .yk *::after { box-sizing: border-box; }
+.yk-num { font-variant-numeric: tabular-nums lining-nums; }
+.yk-wrap { max-width: 820px; margin: 0 auto; padding: 0 18px; }
+.yk h1 { font-size: 1.5rem; margin: 22px 0 8px; line-height: 1.35; font-weight: 700; letter-spacing: -0.01em; }
+.yk h2 { font-size: 1.05rem; margin: 32px 0 12px; padding-bottom: 7px; border-bottom: 1px solid var(--rule); font-weight: 700; }
+.yk h3 { font-size: 0.98rem; margin: 22px 0 8px; font-weight: 700; }
+.yk p { margin: 0 0 12px; }
+.yk a { color: var(--glass); }
+.yk a:hover { text-decoration: underline; }
+.yk-tool h1 { font-size: 1.75rem; margin-top: 28px; }
+.yk-tool h2 { font-size: 1.12rem; margin-top: 44px; }
+
+/* ── ページ導入文 ── */
+.yk-intro {
+  margin: 0 0 24px; color: var(--ink-soft); font-size: 0.88rem; line-height: 1.6;
+  padding-left: 12px; border-left: 3px solid var(--rule);
+}
+.yk-crumb { font-size: 0.78rem; color: var(--ink-soft); margin: 14px 0 0; }
+.yk-crumb a { color: var(--ink-soft); }
+
+/* ── 物件バー：常時見えている ── */
+.yk-projbar { position: sticky; top: 0; z-index: 20; background: var(--glass); color: #fff; }
+.yk-projbar .yk-wrap { display: flex; align-items: center; gap: 10px; padding: 9px 18px; flex-wrap: wrap; }
+.yk-projbar select {
+  font: inherit; font-weight: 700; background: rgba(255, 255, 255, 0.14); color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.45); border-radius: 3px; padding: 5px 8px; max-width: 46vw; width: auto;
+}
+.yk-projbar select option { color: var(--ink); }
+.yk-projbar button {
+  font: inherit; font-size: 0.8rem; background: transparent; color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.55); border-radius: 3px; padding: 5px 10px; cursor: pointer;
+}
+.yk-projbar button:hover { background: rgba(255, 255, 255, 0.14); }
+.yk-sp { flex: 1; }
+.yk-chips { display: flex; gap: 6px; flex-wrap: wrap; padding: 0 18px 9px; max-width: 820px; margin: 0 auto; }
+.yk-chip { font-size: 0.74rem; background: rgba(255, 255, 255, 0.16); border-radius: 2px; padding: 2px 7px; font-variant-numeric: tabular-nums; }
+
+/* ── タブ ── */
+.yk-tabs { display: flex; border-bottom: 1px solid var(--rule); background: var(--field); overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.yk-tabs .yk-wrap { display: flex; gap: 2px; padding: 0 18px; }
+.yk-tabs button {
+  font: inherit; font-size: 0.9rem; background: none; border: 0; border-bottom: 3px solid transparent;
+  padding: 11px 13px; cursor: pointer; color: var(--ink-soft); white-space: nowrap;
+}
+.yk-tabs button[aria-pressed="true"] { color: var(--ink); font-weight: 700; border-bottom-color: var(--glass); }
+.yk-badge {
+  display: inline-block; min-width: 1.4em; margin-left: 5px; padding: 0 4px; border-radius: 9px;
+  background: var(--fail); color: #fff; font-size: 0.68rem; font-weight: 700; text-align: center; line-height: 1.5;
+}
+
+/* ── 入力 ── */
+.yk-panel { background: var(--field); border: 1px solid var(--rule); border-radius: 4px; padding: 16px; margin-bottom: 16px; }
+.yk-grid { display: grid; gap: 12px 14px; grid-template-columns: repeat(2, 1fr); }
+.yk-f { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.yk-wide { grid-column: 1 / -1; }
+.yk label { font-size: 0.8rem; color: var(--ink-soft); font-weight: 700; }
+.yk select, .yk input, .yk textarea {
+  font: inherit; font-variant-numeric: tabular-nums; padding: 8px 9px;
+  border: 1px solid var(--rule); border-radius: 3px; background: var(--field); color: var(--ink); width: 100%;
+  line-height: 1.4; margin: 0;
+}
+.yk input[type="checkbox"] { width: auto; padding: 0; accent-color: var(--glass); }
+.yk textarea { resize: vertical; min-height: 58px; line-height: 1.6; }
+.yk :focus-visible { outline: 2px solid var(--glass); outline-offset: 1px; }
+.yk-pair { display: flex; align-items: center; gap: 7px; }
+.yk-pair span { color: var(--ink-soft); font-size: 0.82rem; flex: none; }
+.yk-hint { font-size: 0.75rem; color: var(--ink-soft); line-height: 1.5; margin: 0; }
+.yk-from {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  background: var(--glass-weak); border-left: 3px solid var(--glass);
+  padding: 8px 12px; border-radius: 0 3px 3px 0; margin-bottom: 14px; font-size: 0.8rem;
+}
+.yk-from b { font-size: 0.78rem; }
+.yk-from .yk-v { font-variant-numeric: tabular-nums; }
+.yk-wind { margin-top: 14px; border-top: 1px solid var(--rule-soft); padding-top: 12px; }
+.yk-wind summary { cursor: pointer; font-size: 0.85rem; font-weight: 700; color: var(--glass); }
+.yk-wind .yk-grid { margin-top: 12px; }
+
+/* ── 判定 ── */
+.yk-verdict {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px;
+  margin-top: 14px; padding: 13px 15px; border-radius: 4px;
+  background: var(--glass-weak); border: 1px solid var(--glass);
+}
+.yk-verdict.yk-ng { background: var(--fail-weak); border-color: var(--fail); }
+.yk-verdict b { font-size: 1.2rem; letter-spacing: 0.02em; }
+.yk-verdict.yk-ok b { color: var(--glass); }
+.yk-verdict.yk-ng b { color: var(--fail); }
+.yk-verdict .yk-detail { font-size: 0.85rem; color: var(--ink); }
+
+/* ── ラダー ── */
+.yk-ladder { margin: 18px 0 0; }
+.yk-ladder-head { display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--ink-soft); margin-bottom: 5px; }
+.yk-track { position: relative; border-top: 1px solid var(--rule-soft); }
+.yk-rung, .yk-lines {
+  display: grid; grid-template-columns: 62px 1fr 100px; align-items: center; gap: 9px;
+}
+.yk-rung { padding: 5px 0; border-bottom: 1px solid var(--rule-soft); }
+.yk-rung .yk-t { font-size: 0.83rem; font-weight: 700; text-align: right; }
+.yk-rung .yk-bar { height: 14px; background: var(--rule-soft); border-radius: 2px; overflow: hidden; }
+.yk-rung .yk-bar i { display: block; height: 100%; background: #b9c6ca; transition: width 0.18s ease; }
+.yk-rung.yk-pass .yk-bar i { background: var(--glass); }
+.yk-rung .yk-p { font-size: 0.8rem; text-align: right; color: var(--ink-soft); }
+.yk-rung.yk-pass .yk-p { color: var(--ink); }
+.yk-rung.yk-pick { background: #fff; box-shadow: inset 3px 0 0 var(--glass); }
+.yk-rung.yk-pick .yk-t::after {
+  content: attr(data-pick); display: block; font-size: 0.6rem; font-weight: 400; color: var(--glass); line-height: 1.2;
+}
+.yk-lines { position: absolute; inset: 0; pointer-events: none; }
+.yk-lines > div { position: relative; height: 100%; }
+.yk-wline { position: absolute; top: 0; bottom: 0; width: 0; border-left: 2px solid var(--fail); }
+.yk-wline::after {
+  content: attr(data-label); position: absolute; top: -18px; left: 4px; white-space: nowrap;
+  font-size: 0.66rem; color: var(--fail); font-weight: 700;
+}
+.yk-ladder-note { font-size: 0.76rem; color: var(--ink-soft); margin-top: 8px; }
+
+/* ── ボタン ── */
+.yk-save { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--rule-soft); }
+.yk-btn {
+  font: inherit; font-weight: 700; background: var(--glass); color: #fff; border: 0; border-radius: 3px;
+  padding: 10px 18px; cursor: pointer; text-decoration: none; display: inline-block; line-height: 1.4;
+}
+.yk-btn:hover { background: #18594a; text-decoration: none; }
+.yk-btn.yk-ghost { background: transparent; color: var(--glass); border: 1px solid var(--glass); }
+.yk-btn.yk-ghost:hover { background: var(--glass-weak); }
+.yk-btn.yk-small { padding: 5px 11px; font-size: 0.78rem; font-weight: 400; }
+.yk-btn.yk-danger { color: var(--fail); border-color: var(--rule); }
+.yk-saved { display: inline-block; margin-left: 12px; font-size: 0.82rem; color: var(--glass); font-weight: 700; }
+.yk-backbar { margin: 16px 0 0; }
+.yk-back { font: inherit; font-size: 0.82rem; background: none; border: 0; color: var(--glass); cursor: pointer; padding: 4px 0; }
+.yk-back:hover { text-decoration: underline; }
+
+/* ── カルテ（検討の記録） ── */
+.yk-study { background: var(--field); border: 1px solid var(--rule); border-radius: 4px; padding: 14px 16px; margin-bottom: 12px; }
+.yk-study.yk-stale { border-color: var(--flag); background: #fffdf7; }
+.yk-study header { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.yk-study h3 { margin: 0; font-size: 1rem; }
+.yk-study time { font-size: 0.76rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.yk-res { font-weight: 700; color: var(--glass); }
+.yk-res.yk-ng { color: var(--fail); }
+.yk-kv { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; font-size: 0.82rem; margin: 8px 0; }
+.yk-kv dt { color: var(--ink-soft); }
+.yk-kv dd { margin: 0; font-variant-numeric: tabular-nums; }
+.yk-memo { font-size: 0.85rem; background: var(--paper); border-radius: 3px; padding: 9px 11px; margin: 9px 0 0; white-space: pre-wrap; }
+.yk-memo.yk-empty { color: var(--ink-soft); }
+.yk-flag { background: var(--flag-weak); border-left: 3px solid var(--flag); padding: 9px 12px; border-radius: 0 3px 3px 0; font-size: 0.82rem; margin: 0 0 10px; }
+.yk-flag b { color: var(--flag); }
+.yk-flag .yk-d { font-variant-numeric: tabular-nums; }
+.yk-acts { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+.yk-empty-state { text-align: center; color: var(--ink-soft); padding: 40px 20px; font-size: 0.9rem; }
+.yk-note { font-size: 0.8rem; color: var(--ink-soft); background: var(--field); border: 1px dashed var(--rule); border-radius: 4px; padding: 12px 14px; margin: 24px 0; }
+.yk-foot { margin-top: 36px; border-top: 1px solid var(--rule); background: var(--field); }
+.yk-foot .yk-wrap { padding: 16px 18px 24px; font-size: 0.78rem; color: var(--ink-soft); }
+.yk-foot a { color: var(--ink-soft); }
+
+/* ── 検討項目ツリー ── */
+.yk-item {
+  display: flex; align-items: center; gap: 10px; background: var(--field);
+  border: 1px solid var(--rule-soft); border-radius: 3px; padding: 9px 12px; margin-bottom: 5px;
+}
+.yk-item .yk-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--fail); }
+.yk-item.yk-done .yk-dot { background: var(--glass); }
+.yk-item.yk-warn .yk-dot { background: var(--flag); }
+.yk-item .yk-lb { flex: 1 1 auto; min-width: 0; font-size: 0.88rem; }
+.yk-item .yk-lb small { display: block; color: var(--ink-soft); font-size: 0.74rem; }
+.yk-item .yk-go {
+  font: inherit; font-size: 0.78rem; background: var(--glass-weak); color: var(--glass);
+  border: 1px solid var(--glass); border-radius: 3px; padding: 4px 11px; cursor: pointer; flex: none; font-weight: 700;
+}
+.yk-item .yk-go:hover { background: var(--glass); color: #fff; }
+.yk-item .yk-mk { flex: none; display: flex; }
+.yk-item.yk-done .yk-lb { color: var(--ink-soft); }
+.yk-item .yk-st { font-size: 0.72rem; flex: none; color: var(--ink-soft); }
+.yk-item.yk-warn .yk-st { color: var(--flag); font-weight: 700; }
+.yk-item.yk-na { opacity: 0.45; background: var(--paper); }
+.yk-item.yk-na .yk-dot { background: var(--rule); }
+.yk-item.yk-na .yk-st { color: var(--ink-soft); font-weight: 400; }
+
+/* ── 室・機器の行 ── */
+.yk-cnt { font-weight: 400; font-size: 0.8rem; color: var(--ink-soft); margin-left: 8px; }
+.yk-addrow { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 8px 0 4px; }
+.yk-addrow select { width: auto; min-width: 9em; flex: 0 1 auto; }
+.yk-row { background: var(--field); border: 1px solid var(--rule-soft); border-radius: 3px; padding: 9px 11px; margin-bottom: 6px; }
+.yk-row .yk-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.yk-row .yk-nm { font-weight: 700; font-size: 0.9rem; flex: 1 1 9em; min-width: 0; }
+.yk-row .yk-nm input { border: 0; border-bottom: 1px dashed var(--rule); border-radius: 0; padding: 2px 0; font-weight: 700; }
+.yk-row .yk-x { background: none; border: 0; color: var(--ink-soft); cursor: pointer; font-size: 1.1rem; line-height: 1; padding: 2px 6px; flex: none; }
+.yk-row .yk-x:hover { color: var(--fail); }
+.yk-row .yk-fields { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 7px; }
+.yk-row .yk-fl { display: flex; align-items: center; gap: 4px; font-size: 0.78rem; color: var(--ink-soft); }
+.yk-row .yk-fl input, .yk-row .yk-fl select { width: 5.4em; padding: 4px 6px; font-size: 0.82rem; }
+.yk-row .yk-fl select { width: auto; }
+.yk-row .yk-basis { font-size: 0.74rem; color: var(--glass); margin: 6px 0 0; font-variant-numeric: tabular-nums; }
+.yk-row .yk-util { font-size: 0.72rem; color: var(--ink-soft); margin: 5px 0 0; }
+.yk-row .yk-util span { display: inline-block; background: var(--paper); border-radius: 2px; padding: 1px 6px; margin-right: 4px; }
+.yk-row.yk-est { border-left: 3px solid var(--flag); }
+.yk-row.yk-fixed { border-left: 3px solid var(--glass); }
+.yk-mode { font-size: 0.7rem; font-weight: 700; padding: 1px 6px; border-radius: 2px; flex: none; }
+.yk-mode.yk-est { background: var(--flag-weak); color: var(--flag); }
+.yk-mode.yk-fixed { background: var(--glass-weak); color: var(--glass); }
+.yk-empty-row { color: var(--ink-soft); font-size: 0.85rem; padding: 14px; text-align: center; border: 1px dashed var(--rule); border-radius: 3px; margin-bottom: 6px; }
+
+/* ── ステップ ── */
+.yk-steps { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; padding: 0; margin: 0 0 18px; }
+.yk-steps li {
+  display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--ink-soft);
+  background: var(--field); border: 1px solid var(--rule-soft); border-radius: 3px; padding: 5px 10px;
+}
+.yk-steps li .yk-no {
+  display: inline-flex; align-items: center; justify-content: center; width: 17px; height: 17px;
+  border-radius: 50%; background: var(--rule-soft); color: var(--ink-soft); font-size: 0.68rem; font-weight: 700; flex: none;
+}
+.yk-steps li.yk-done { border-color: var(--glass); color: var(--ink); }
+.yk-steps li.yk-done .yk-no { background: var(--glass); color: #fff; }
+.yk-steps li.yk-warn { border-color: var(--flag); background: #fffdf7; color: var(--flag); }
+.yk-steps li.yk-warn .yk-no { background: var(--flag); color: #fff; }
+
+.yk h3.yk-grp {
+  font-size: 0.82rem; font-weight: 700; color: var(--ink-soft); letter-spacing: 0.06em;
+  margin: 20px 0 8px; padding-bottom: 5px; border-bottom: 2px solid var(--rule);
+  display: flex; align-items: baseline; justify-content: space-between;
+}
+.yk h3.yk-grp:first-child { margin-top: 0; }
+.yk h3.yk-grp .yk-cnt { margin-left: auto; font-weight: 400; letter-spacing: 0; }
+
+/* ── 供給カード ── */
+.yk-sup { background: var(--field); border: 1px solid var(--rule); border-left: 4px solid var(--rule); border-radius: 0 4px 4px 0; padding: 12px 15px; margin-bottom: 10px; }
+.yk-sup.yk-ok { border-left-color: var(--glass); }
+.yk-sup.yk-talk { border-left-color: var(--flag); background: #fffdf7; }
+.yk-sup.yk-ng { border-left-color: var(--fail); background: #fffaf9; }
+.yk-sup header { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.yk-sup h3 { margin: 0; font-size: 0.95rem; }
+.yk-sup .yk-need { font-weight: 700; font-variant-numeric: tabular-nums; font-size: 1.05rem; }
+.yk-sup .yk-tag { font-size: 0.72rem; font-weight: 700; padding: 1px 7px; border-radius: 2px; margin-left: auto; }
+.yk-sup.yk-ok .yk-tag { background: var(--glass-weak); color: var(--glass); }
+.yk-sup.yk-talk .yk-tag { background: var(--flag-weak); color: var(--flag); }
+.yk-sup.yk-ng .yk-tag { background: var(--fail-weak); color: var(--fail); }
+.yk-sup .yk-brk { font-size: 0.78rem; color: var(--ink-soft); margin: 5px 0 0; font-variant-numeric: tabular-nums; }
+.yk-sup .yk-vs { font-size: 0.82rem; margin: 6px 0 0; }
+
+/* ── チェックリスト ── */
+.yk-chk { background: var(--field); border: 1px solid var(--rule-soft); border-radius: 3px; padding: 9px 12px; margin-bottom: 6px; display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+.yk-chk input { width: auto; flex: none; margin-top: 5px; accent-color: var(--glass); }
+.yk-chk .yk-body { min-width: 0; }
+.yk-chk b { font-size: 0.88rem; font-weight: 700; display: block; }
+.yk-chk small { font-size: 0.76rem; color: var(--ink-soft); line-height: 1.5; }
+.yk-chk.yk-done { background: var(--paper); opacity: 0.62; }
+.yk-chk.yk-done b { text-decoration: line-through; }
+
+/* ── 表・条文・式（単体ツールページ） ── */
+.yk-table { border-collapse: collapse; width: 100%; font-size: 0.87rem; background: var(--field); }
+.yk-table caption { text-align: left; font-size: 0.8rem; color: var(--ink-soft); padding: 6px 0; caption-side: top; }
+.yk-table th, .yk-table td { border: 1px solid var(--rule-soft); padding: 7px 9px; text-align: left; vertical-align: top; }
+.yk-table th { background: #eaf0f0; font-weight: 700; white-space: nowrap; }
+.yk-table td.yk-n { text-align: right; font-variant-numeric: tabular-nums; }
+.yk-scroll { overflow-x: auto; }
+.yk-quote {
+  margin: 0 0 14px; padding: 12px 14px; background: var(--field);
+  border: 1px solid var(--rule-soft); border-left: 3px solid var(--ink-soft); font-size: 0.88rem; color: var(--ink);
+}
+.yk-quote cite { display: block; margin-top: 8px; font-style: normal; font-size: 0.78rem; color: var(--ink-soft); }
+.yk-formula {
+  background: var(--field); border: 1px solid var(--rule-soft); border-radius: 3px;
+  padding: 14px; text-align: center; font-size: 1.05rem; font-variant-numeric: tabular-nums; margin: 0 0 12px;
+}
+.yk-sym { margin: 0; font-size: 0.86rem; }
+.yk-sym div { display: flex; gap: 10px; padding: 4px 0; border-bottom: 1px solid var(--rule-soft); }
+.yk-sym dt { flex: none; width: 4.5em; font-weight: 700; }
+.yk-sym dd { margin: 0; }
+.yk-rel { list-style: none; padding: 0; margin: 0; }
+.yk-rel li { border-bottom: 1px solid var(--rule-soft); }
+.yk-rel a { display: block; padding: 11px 2px; text-decoration: none; color: var(--ink); }
+.yk-rel a:hover, .yk-rel a:focus-visible { color: var(--glass); text-decoration: none; }
+.yk-rel small { display: block; color: var(--ink-soft); font-size: 0.78rem; }
+.yk-disclaimer { margin: 40px 0 0; padding: 14px 16px; background: #eaf0f0; border-radius: 4px; font-size: 0.8rem; color: var(--ink-soft); }
+.yk-main { padding-bottom: 8px; }
+
+/* ── 逆引き索引 ── */
+.yk-cards { display: grid; gap: 12px; grid-template-columns: repeat(2, 1fr); margin: 16px 0; }
+.yk-card { background: var(--field); border: 1px solid var(--rule); border-radius: 4px; padding: 14px 16px; }
+.yk-card h2 { margin: 0 0 6px; padding: 0; border: 0; font-size: 1.05rem; }
+.yk-card h2 a { color: var(--ink); text-decoration: none; }
+.yk-card h2 a:hover { color: var(--glass); }
+.yk-card .yk-cnt { margin-left: 6px; }
+.yk-card ol { margin: 6px 0 0; padding-left: 1.4em; font-size: 0.8rem; color: var(--ink-soft); columns: 2; column-gap: 14px; }
+.yk-card ol li { break-inside: avoid; }
+.yk-card ol a { color: var(--ink-soft); text-decoration: none; }
+.yk-card ol a:hover { color: var(--glass); text-decoration: underline; }
+.yk-toc { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; padding: 0; list-style: none; }
+.yk-toc li a {
+  display: inline-block; font-size: 0.76rem; background: var(--field); border: 1px solid var(--rule-soft);
+  border-radius: 3px; padding: 3px 9px; color: var(--ink); text-decoration: none;
+}
+.yk-toc li a:hover { border-color: var(--glass); color: var(--glass); text-decoration: none; }
+.yk-sec { scroll-margin-top: 12px; }
+.yk-sec h2 { display: flex; align-items: baseline; gap: 8px; }
+.yk-sec h2 .yk-secid { font-size: 0.78rem; color: var(--ink-soft); font-weight: 400; font-variant-numeric: tabular-nums; }
+.yk-list { list-style: none; margin: 0; padding: 0; }
+.yk-list li {
+  display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: baseline;
+  background: var(--field); border: 1px solid var(--rule-soft); border-radius: 3px; padding: 7px 11px; margin-bottom: 4px;
+  scroll-margin-top: 12px; font-size: 0.88rem;
+}
+.yk-list li:target { border-color: var(--glass); box-shadow: inset 3px 0 0 var(--glass); }
+.yk-list .yk-lt { min-width: 0; }
+.yk-list .yk-lb2 { display: block; color: var(--ink-soft); font-size: 0.74rem; }
+.yk-list .yk-meta { display: flex; gap: 6px; align-items: center; white-space: nowrap; font-size: 0.72rem; color: var(--ink-soft); }
+.yk-star { color: var(--flag); letter-spacing: 0.05em; font-variant-numeric: tabular-nums; }
+.yk-fmt { display: inline-block; background: var(--paper); border-radius: 2px; padding: 0 6px; }
+.yk-fmt.yk-fmt-計算 { background: var(--glass-weak); color: var(--glass); }
+.yk-fmt.yk-fmt-判定 { background: var(--flag-weak); color: var(--flag); }
+.yk-toollink {
+  display: inline-block; font-size: 0.72rem; font-weight: 700; background: var(--glass); color: #fff;
+  border-radius: 2px; padding: 0 7px; text-decoration: none;
+}
+.yk-toollink:hover { background: #18594a; text-decoration: none; color: #fff; }
+.yk-legend { font-size: 0.78rem; color: var(--ink-soft); display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0 0 10px; }
+
+/* ── レスポンシブ ── */
+@media (max-width: 560px) {
+  .yk-tool h1 { font-size: 1.45rem; }
+  .yk-grid, .yk-cards { grid-template-columns: 1fr; }
+  .yk-card ol { columns: 1; }
+  .yk-rung, .yk-lines { grid-template-columns: 54px 1fr 84px; gap: 7px; }
+  .yk-rung .yk-p { font-size: 0.74rem; }
+  .yk-projbar select { max-width: 100%; flex: 1 1 100%; }
+  .yk-list li { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .yk * { transition: none !important; }
+}
+/* 印刷: カルテのページだけ、カルテの中身のみを印刷する */
+@media print {
+  body:has(.yk-app) * { visibility: hidden; }
+  body:has(.yk-app) .yk-app, body:has(.yk-app) .yk-app * { visibility: visible; }
+  body:has(.yk-app) .yk-app { position: absolute; left: 0; top: 0; width: 100%; }
+  .yk-projbar, .yk-tabs, .yk-acts, .yk-back, .yk-backbar { display: none !important; }
+}
