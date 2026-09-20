@@ -24,7 +24,9 @@
     "makers:verify": "node scripts/verify-makers.mjs",
     "makers:find-cad": "node scripts/find-cad-links.mjs",
     "makers:apply-cad": "node scripts/apply-cad-links.mjs",
-    "events:update": "node scripts/update-events.mjs"
+    "events:update": "node scripts/update-events.mjs",
+    "check:regulations": "node scripts/check-regulation-sources.mjs",
+    "test:regulations": "node scripts/test-regulation-rules.mjs"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",

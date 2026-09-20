@@ -1,0 +1,90 @@
+name: Check Regulation Sources
+
+# 対象法令チェックが参照している原典（自治体の条例・要綱・チェックリストと、
+# e-Gov の法令）の更新を検知する。
+#
+# ルールは原典を人が読んで書き起こしているので、原典が改訂されると
+# こちらのデータは黙って古くなる。週1回確認して、変化があれば
+# src/data/regulations/sourceStatus.json に記録し、画面に「原典更新あり」を出す。
+#
+# 検知するだけで内容は直らない。原典を読み直してルールを更新したら、
+# ローカルで次を実行して基準を取り込み直すこと。
+#   npm run check:regulations -- --acknowledge
+
+on:
+  schedule:
+    # 日本時間 月曜 午前5時 (UTC 日曜 20:00)
+    # メーカーリンクの巡回(UTC 日曜 19:00)と1時間ずらしている。
+    - cron: '0 20 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Check regulation sources
+        run: node scripts/check-regulation-sources.mjs
+
+      - name: Commit the report if it changed
+        run: |
+          if git diff --quiet -- src/data/regulations/sourceStatus.json; then
+            echo "原典に変化なし。コミットしません。"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/data/regulations/sourceStatus.json
+          git commit -m "Update regulation source status"
+          git push
+
+      - name: Write the job summary
+        run: |
+          node -e "
+            const r = require('./src/data/regulations/sourceStatus.json');
+            const changed = Object.entries(r.documents).filter(([, d]) => d.status === 'changed');
+            const errored = Object.entries(r.documents).filter(([, d]) => d.status === 'error');
+            const lines = [
+              \`## 原典の更新確認 (\${r.generatedAt.slice(0, 10)})\`, '',
+              '| 項目 | 件数 |', '| --- | ---: |',
+              \`| 監視中の原典 | \${r.summary.documents} |\`,
+              \`| 更新あり | \${r.summary.changed} |\`,
+              \`| 取得失敗 | \${r.summary.error} |\`,
+              \`| 参照中の法令 | \${r.summary.watchedLaws} |\`,
+              \`| 法令の改正 | \${r.summary.lawUpdates} |\`,
+              \`| 影響するルール | \${r.summary.affectedRules} |\`,
+            ];
+            if (changed.length) lines.push('', '### 更新された原典', ...changed.map(([u, d]) => \`- \${d.label} (\${u})\`));
+            if (errored.length) lines.push('', '### 取得できなかった原典', ...errored.map(([u, d]) => \`- \${d.label} — \${d.error} (\${u})\`));
+            if (r.egov.updates.length) lines.push('', '### 改正された法令', ...r.egov.updates.map(u => \`- \${u.date} \${u.lawName}\`));
+            if (changed.length || r.egov.updates.length) {
+              lines.push('', '原典を読み直してルールを更新したら、ローカルで次を実行して基準を取り込み直してください。', '', '    npm run check:regulations -- --acknowledge');
+            }
+            console.log(lines.join('\n'));
+          " >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep workflow alive
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // 60日間コミットが無いとスケジュールが自動停止するため、毎回有効化し直す
+            await github.rest.actions.enableWorkflow({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'check-regulation-sources.yml'
+            })

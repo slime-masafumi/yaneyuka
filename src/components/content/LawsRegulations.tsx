@@ -1,8 +1,39 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import RegulationCheck from './regulations/RegulationCheck';
+
+type RegulationTab = 'links' | 'check';
+
+const TabBar: React.FC<{ tab: RegulationTab; setTab: (t: RegulationTab) => void }> = ({ tab, setTab }) => (
+  <div className="flex gap-1 mb-3 border-b border-gray-300">
+    {([
+      { id: 'links' as const, label: '法令リンク' },
+      { id: 'check' as const, label: '対象法令チェック' },
+    ]).map((t) => (
+      <button
+        key={t.id}
+        type="button"
+        onClick={() => setTab(t.id)}
+        className={`text-[12px] px-4 py-2 rounded-t border border-b-0 -mb-px transition-colors ${
+          tab === t.id
+            ? 'bg-white border-gray-300 text-blue-700 font-bold'
+            : 'bg-gray-50 border-transparent text-gray-600 hover:bg-gray-100'
+        }`}
+      >
+        {t.label}
+        {t.id === 'check' && (
+          <span className="ml-1.5 text-[9px] bg-amber-100 text-amber-800 border border-amber-300 rounded px-1 py-0.5">
+            試作
+          </span>
+        )}
+      </button>
+    ))}
+  </div>
+);
 
 const LawsRegulations: React.FC = () => {
+  const [tab, setTab] = useState<RegulationTab>('links');
   const [showBeppyo1Modal, setShowBeppyo1Modal] = useState(false);
   const [showBeppyo2Modal, setShowBeppyo2Modal] = useState(false);
   const [showBeppyo3Modal, setShowBeppyo3Modal] = useState(false);
@@ -75,11 +106,23 @@ const LawsRegulations: React.FC = () => {
     setShowBeppyo4Modal(true);
   };
 
+  // タブが「対象法令チェック」のときは、リンク集の本体と別表モーダルを描画しない。
+  // フックはすべてこの行より前で呼び終えているので、早期リターンしても呼び出し順は変わらない。
+  if (tab === 'check') {
+    return (
+      <div>
+        <TabBar tab={tab} setTab={setTab} />
+        <RegulationCheck />
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="flex items-baseline mb-2">
         <h2 className="text-xl font-semibold">法規</h2>
       </div>
+      <TabBar tab={tab} setTab={setTab} />
       <p className="text-[12px] text-gray-600 mb-3">
         建築設計で頻繁に参照する法令・告示リンクをまとめています（e-Gov法令検索・国交省データベースへ遷移します）。
       </p>
