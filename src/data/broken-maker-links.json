@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-09-13",
+  "generatedAt": "2026-09-20",
   "checked": 2061,
   "summary": {
-    "ok": 1570,
-    "broken": 331,
-    "unreachable": 154,
+    "ok": 1567,
+    "broken": 329,
+    "unreachable": 159,
     "error": 6
   },
   "broken": [
@@ -812,16 +812,6 @@
       "url": "https://www.kondotec.co.jp/company/",
       "status": 404,
       "fallback": "https://www.kondotec.co.jp"
-    },
-    {
-      "url": "https://www.kvk.co.jp/catalog/",
-      "status": 404,
-      "fallback": "https://www.kvk.co.jp"
-    },
-    {
-      "url": "https://www.kvk.co.jp/corporate/office/",
-      "status": 404,
-      "fallback": "https://www.kvk.co.jp"
     },
     {
       "url": "https://www.kyocera.co.jp/company/office/",
@@ -1666,6 +1656,18 @@
   ],
   "unreachable": [
     {
+      "url": "http://kimura-kawara.co.jp/about",
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
+    },
+    {
+      "url": "http://kimura-kawara.co.jp/inquiry",
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
+    },
+    {
+      "url": "http://kimura-kawara.co.jp/products",
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
+    },
+    {
       "url": "https://st.sankyo-tateyama.co.jp/inquiry/business/",
       "reason": "ENOTFOUND"
     },
@@ -1675,7 +1677,7 @@
     },
     {
       "url": "https://webcatalog.koizumi-lt.co.jp/iportal/CatalogViewInterfaceStartUpAction.do?method=startUp&mode=PAGE&volumeID=DIGICATA&catalogId=8642230000&pageGroupId=1&catalogCategoryId=",
-      "reason": "EAI_AGAIN"
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
     },
     {
       "url": "https://www.3mcompany.jp/3M/ja_JP/architectural-design-jp/",
@@ -1895,15 +1897,15 @@
     },
     {
       "url": "https://www.koizumi-lt.co.jp/catalog/",
-      "reason": "EAI_AGAIN"
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
     },
     {
       "url": "https://www.koizumi-lt.co.jp/company/",
-      "reason": "EAI_AGAIN"
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
     },
     {
       "url": "https://www.koizumi-lt.co.jp/company/office.html",
-      "reason": "EAI_AGAIN"
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
     },
     {
       "url": "https://www.koizumi-lt.co.jp/contact/",
@@ -1911,14 +1913,30 @@
     },
     {
       "url": "https://www.koizumi-lt.co.jp/l-design/",
-      "reason": "EAI_AGAIN"
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
     },
     {
       "url": "https://www.koizumi-lt.co.jp/product/",
-      "reason": "EAI_AGAIN"
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
     },
     {
       "url": "https://www.koizumi-lt.co.jp/support/",
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
+    },
+    {
+      "url": "https://www.kvk.co.jp/catalog/",
+      "reason": "EAI_AGAIN"
+    },
+    {
+      "url": "https://www.kvk.co.jp/corporate/office/",
+      "reason": "EAI_AGAIN"
+    },
+    {
+      "url": "https://www.kvk.co.jp/products/",
+      "reason": "EAI_AGAIN"
+    },
+    {
+      "url": "https://www.kvk.co.jp/support/contact/",
       "reason": "EAI_AGAIN"
     },
     {
@@ -1952,6 +1970,22 @@
     {
       "url": "https://www.laminam.jp/product/",
       "reason": "UNABLE_TO_VERIFY_LEAF_SIGNATURE"
+    },
+    {
+      "url": "https://www.marazzi.jp/",
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
+    },
+    {
+      "url": "https://www.marazzi.jp/contacts/",
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
+    },
+    {
+      "url": "https://www.marazzi.jp/download/",
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
+    },
+    {
+      "url": "https://www.marazzi.jp/showroom/",
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
     },
     {
       "url": "https://www.maruichi-kokan.co.jp/amadoi/",
@@ -2124,30 +2158,6 @@
     {
       "url": "https://www.shin-nikkei.co.jp/support/catalog/",
       "reason": "ENOTFOUND"
-    },
-    {
-      "url": "https://www.sunrail.co.jp/caddata",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
-    },
-    {
-      "url": "https://www.sunrail.co.jp/catalogs",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
-    },
-    {
-      "url": "https://www.sunrail.co.jp/contact",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
-    },
-    {
-      "url": "https://www.sunrail.co.jp/office",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
-    },
-    {
-      "url": "https://www.sunrail.co.jp/product_category/alumikasagi/kasagi",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
-    },
-    {
-      "url": "https://www.sunrail.co.jp/product_category/handrail/",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
     },
     {
       "url": "https://www.sunsyo.co.jp/contact/",
