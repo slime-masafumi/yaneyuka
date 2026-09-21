@@ -1062,6 +1062,24 @@ class FormulaEngine {
       const sun = argNum(args, 1); if (isErr(sun)) return sun;
       return K.slopeLength(h, sun);
     },
+
+    // ---- 数量拾い
+    // =必要数(数量, 1単位あたり, ロス率%) 端数は切り上げ
+    // 例) =必要数(A1, 1.6562, 5) 面積A1㎡を910×1820の板で、ロス5%
+    '必要数': (args) => {
+      const q = argNum(args, 0); if (isErr(q)) return q;
+      const per = argNum(args, 1); if (isErr(per)) return per;
+      const loss = args.length > 2 ? argNum(args, 2) : 0; if (isErr(loss)) return loss;
+      const n = K.requiredCount(q, per, loss as number);
+      return n === null ? new CellError(ERR.NUM) : n;
+    },
+    // =定尺面積(幅mm, 高さmm) 910×1820 → 1.6562
+    '定尺面積': (args) => {
+      const w = argNum(args, 0); if (isErr(w)) return w;
+      const h = argNum(args, 1); if (isErr(h)) return h;
+      const a = K.boardArea(w, h);
+      return a === null ? new CellError(ERR.NUM) : a;
+    },
   };
 
   // ------------------------------------------------ アドレス変換

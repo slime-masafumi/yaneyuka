@@ -150,3 +150,27 @@ export const sunToDegree = (sun: number) => (Math.atan(sun / 10) * 180) / Math.P
 /** 勾配なりの長さ（斜辺）。水平距離 × √(1+(寸/10)²） */
 export const slopeLength = (horizontal: number, sun: number) =>
   horizontal * Math.sqrt(1 + Math.pow(sun / 10, 2));
+
+// ------------------------------------------------------------ 数量拾い
+
+/**
+ * 定尺で割って必要数を出す。
+ *
+ * 面積なら「1枚あたり何㎡」、長さなら「1本あたり何m」、体積なら
+ * 「1袋あたり何㎥」を渡す。端数は必ず切り上げる（足りないと現場が止まる）。
+ * ロス率は百分率で渡す。5 と書けば 5%。
+ *
+ * 単位変換ツールの数量換算と同じ考え方。定尺そのものは品目ごとに違うので、
+ * こちらで表を持たず、使う側が数値で渡す。
+ */
+export function requiredCount(quantity: number, perUnit: number, lossPercent = 0): number | null {
+  if (!(perUnit > 0)) return null;
+  if (!isFinite(quantity) || !isFinite(lossPercent)) return null;
+  return Math.ceil((quantity * (1 + lossPercent / 100)) / perUnit);
+}
+
+/** 板の定尺寸法（mm）から 1 枚あたりの面積[㎡]を出す。910×1820 → 1.6562 */
+export function boardArea(widthMm: number, heightMm: number): number | null {
+  if (!(widthMm > 0) || !(heightMm > 0)) return null;
+  return (widthMm / 1000) * (heightMm / 1000);
+}
