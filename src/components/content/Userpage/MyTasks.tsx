@@ -19,6 +19,41 @@ interface TaskCategory {
   color: string;
 }
 
+/**
+ * 期日の状態。
+ *
+ * 期日を持たせても、過ぎていることが分からなければ「ただのリスト」のまま。
+ * 超過と当日だけは地の色に関係なく目立たせる。
+ * 日付は YYYY-MM-DD の文字列なので、そのまま比較すれば時刻もタイムゾーンも絡まない。
+ */
+type DueState = 'overdue' | 'today' | 'soon' | 'later' | 'none';
+
+const ymd = (d: Date) => {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+};
+
+const dueState = (dueDate: string | null | undefined, completed: boolean): DueState => {
+  if (!dueDate || completed) return 'none';
+  const today = ymd(new Date());
+  if (dueDate < today) return 'overdue';
+  if (dueDate === today) return 'today';
+
+  // 3日先までは「近い」。週末を挟むと実質ほぼ猶予がないので短めに取る。
+  const limit = new Date();
+  limit.setDate(limit.getDate() + 3);
+  return dueDate <= ymd(limit) ? 'soon' : 'later';
+};
+
+/** 期日の早い順。期日なしは末尾、完了したものはさらに後ろ。 */
+const byDueDate = (a: Task, b: Task) => {
+  if (a.completed !== b.completed) return a.completed ? 1 : -1;
+  if (!a.dueDate && !b.dueDate) return 0;
+  if (!a.dueDate) return 1;
+  if (!b.dueDate) return -1;
+  return a.dueDate < b.dueDate ? -1 : a.dueDate > b.dueDate ? 1 : 0;
+};
+
 const COLORS = [
   'bg-red-200',
   'bg-rose-200',
@@ -53,6 +88,8 @@ export default function MyTasks() {
   const [newTaskContents, setNewTaskContents] = useState<{[key: string]: { content: string; dueDate?: string | null }}>({});
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [tempTaskContent, setTempTaskContent] = useState<string>('');
+  // 期日順に並べ替えるか。既定は登録順のまま（並びを覚えている人がいるので）。
+  const [sortByDue, setSortByDue] = useState(false);
   const [tempTitle, setTempTitle] = useState<string>('');
   const [editingColor, setEditingColor] = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string>('');
@@ -219,6 +256,32 @@ export default function MyTasks() {
               <option key={c.id} value={c.id}>{c.title || c.id}</option>
             ))}
           </select>
+
+          {/* 期日まわり。超過が何件あるかは、シートを開いた瞬間に分かるべきもの。 */}
+          <button
+            type="button"
+            onClick={() => setSortByDue(v => !v)}
+            className={`text-xs px-2 py-1 border transition-colors ${
+              sortByDue
+                ? 'bg-[#3b3b3b] text-white border-[#3b3b3b] font-bold'
+                : 'bg-white text-gray-700 border-[#3b3b3b] hover:bg-gray-100'
+            }`}
+            title="期日の早い順に並べ替える（完了は末尾）"
+          >
+            期日順
+          </button>
+          {(() => {
+            const overdue = categories.reduce(
+              (n, c) => n + c.tasks.filter(t => dueState(t.dueDate, t.completed) === 'overdue').length,
+              0,
+            );
+            if (overdue === 0) return null;
+            return (
+              <span className="text-xs bg-red-600 text-white font-bold px-2 py-1">
+                期限超過 {overdue}件
+              </span>
+            );
+          })()}
         </div>
       </div>
       <div className="my-task-grid border border-[#3b3b3b] p-3">
@@ -373,7 +436,7 @@ export default function MyTasks() {
             <div className="max-h-[360px] overflow-y-auto divide-y divide-black/5"
               style={category.color.startsWith('#') ? { backgroundColor: category.color } : {}}
             >
-              {category.tasks.map(task => (
+              {(sortByDue ? [...category.tasks].sort(byDueDate) : category.tasks).map(task => (
                 <div
                   key={task.id}
                   className="px-3 py-2 flex items-start gap-2"
@@ -401,18 +464,27 @@ export default function MyTasks() {
                       </span>
                       <div className="flex items-center gap-0.5 flex-shrink-0 ml-1">
                         {/* 期日表示 */}
-                        {task.dueDate && (
-                          <span className={`text-xs whitespace-nowrap ${isDarkColor(category.color) ? 'text-white/70' : 'text-gray-800/70'}`}>
-                            {(() => {
-                              const d = new Date(task.dueDate);
-                              if (!isNaN(d.getTime())) {
-                                return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
-                              } else {
-                                return task.dueDate;
-                              }
-                            })()}
-                          </span>
-                        )}
+                        {task.dueDate && (() => {
+                          const state = dueState(task.dueDate, task.completed);
+                          // 超過・当日は地の色に関係なく目立たせる。それ以外は控えめに。
+                          const tone =
+                            state === 'overdue' ? 'bg-red-600 text-white font-bold px-1'
+                            : state === 'today' ? 'bg-amber-400 text-gray-900 font-bold px-1'
+                            : state === 'soon' ? (isDarkColor(category.color) ? 'text-amber-200 font-bold' : 'text-amber-700 font-bold')
+                            : isDarkColor(category.color) ? 'text-white/70' : 'text-gray-800/70';
+                          const d = new Date(task.dueDate);
+                          const label = isNaN(d.getTime())
+                            ? task.dueDate
+                            : `${d.getMonth() + 1}/${d.getDate()}`;
+                          return (
+                            <span
+                              className={`text-xs whitespace-nowrap ${tone}`}
+                              title={state === 'overdue' ? '期限超過' : state === 'today' ? '本日が期日' : undefined}
+                            >
+                              {state === 'overdue' ? '超過 ' : ''}{label}
+                            </span>
+                          );
+                        })()}
                         <button
                           onClick={() => startEditingTask(task.id, task.content)}
                           className={`flex-shrink-0 ${isDarkColor(category.color) ? 'text-white/70 hover:text-white' : 'text-black/40 hover:text-black/60'}`}
