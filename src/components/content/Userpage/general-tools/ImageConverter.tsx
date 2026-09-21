@@ -156,6 +156,25 @@ function resizeToLongSide(width: number, height: number, longSide: number | null
   };
 }
 
+/**
+ * 位置情報を持っているかだけを見る。
+ *
+ * このツールは canvas を通して書き出すので、出力からは Exif が丸ごと落ちる。
+ * つまり位置情報は既に消えているのだが、画面にその説明がどこにも無かった。
+ * 現場写真をそのまま相手に渡すと座標が付いて回るので、「元は持っていた」
+ * 「出力からは消える」の両方を出す。
+ */
+async function hasGpsData(file: File): Promise<boolean> {
+  try {
+    const exifr = await import('exifr');
+    const gps = await exifr.gps(file);
+    return !!gps && typeof gps.latitude === 'number' && typeof gps.longitude === 'number';
+  } catch {
+    // 読めない形式は判定しない。出力から Exif が落ちること自体は変わらない。
+    return false;
+  }
+}
+
 async function readOrientation(file: File): Promise<number> {
   try {
     const exifr = await import('exifr');
@@ -521,10 +540,12 @@ function estimateFileSize(
 const ImageConverter: React.FC = () => {
   const { isLoggedIn } = useAuth();
   const [tasks, setTasks] = useState<ConversionTask[]>([]);
+  // 位置情報つきで取り込まれた枚数。0 でなければ画面で明示する。
+  const [gpsCount, setGpsCount] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [targetFormat, setTargetFormat] = useState<SupportedFormat>('jpeg');
   const [quality, setQuality] = useState(80);
-  const RESIZE_OPTIONS = ['original', '1280', '1024', '800', '640', '400', '320', '160'] as const;
+  const RESIZE_OPTIONS = ['original', '2048', '1920', '1280', '1024', '800', '640', '400', '320', '160'] as const;
   type ResizeOption = typeof RESIZE_OPTIONS[number];
   const [resizeMode, setResizeMode] = useState<ResizeOption>('original');
   const [backgroundColor, setBackgroundColor] = useState('#ffffff');
@@ -725,6 +746,7 @@ const ImageConverter: React.FC = () => {
 
         // 後追いで画像の寸法を取得してStateを更新 (UIブロック防止のため非同期で)
         newTasks.forEach(async (task) => {
+           if (await hasGpsData(task.file)) setGpsCount(c => c + 1);
            const dims = await getImageDimensions(task.file);
            if (dims) {
              setTasks(prev => prev.map(t => 
@@ -815,6 +837,7 @@ const ImageConverter: React.FC = () => {
 
   const clearAll = () => {
     setTasks([]);
+    setGpsCount(0);
     setProcessingError(null);
     processingRef.current = 0;
   };
@@ -861,7 +884,7 @@ const ImageConverter: React.FC = () => {
   };
 
   return (
-    <div className="w-full bg-white rounded-b-lg shadow-sm border-b border-gray-100">
+    <div className="w-full bg-white flex flex-col h-full lg:h-[calc(100vh-var(--nav-height))] overflow-hidden">
       <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
         <div>
           <h3 className="text-[13px] font-medium">画像変換・画像圧縮</h3>
@@ -869,10 +892,11 @@ const ImageConverter: React.FC = () => {
         </div>
       </div>
 
-      <div className="p-3">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-          {/* --- 左カラム：入力・設定 --- */}
-          <div className="space-y-3">
+      <div className="p-3 flex-1 min-h-0 overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 h-full">
+          {/* --- 左カラム：入力・設定 ---
+              設定項目が増えても画面を押し広げないよう、この列だけスクロールさせる。 */}
+          <div className="space-y-3 min-h-0 overflow-y-auto pr-1">
             {/* 1. ファイル選択エリア */}
             <div>
               <div
@@ -998,6 +1022,8 @@ const ImageConverter: React.FC = () => {
                     className="w-full p-1.5 border rounded text-[11px] border-gray-300 bg-white"
                   >
                     <option value="original">原寸維持</option>
+                    <option value="2048">2048px</option>
+                    <option value="1920">1920px（工事写真の納品でよく使う）</option>
                     <option value="1280">1280px</option>
                     <option value="1024">1024px</option>
                     <option value="800">800px</option>
@@ -1009,6 +1035,21 @@ const ImageConverter: React.FC = () => {
                   {resizeMode !== 'original' && (
                     <p className="mt-1 text-[10px] text-gray-500">
                       長辺を{resizeMode}pxに設定し、短辺は元画像の比率を保ったまま縮小します。
+                    </p>
+                  )}
+                </div>
+
+                {/* Exif の扱い。現場写真をそのまま渡すと座標が付いて回るので、
+                    黙って落とすのではなく落とすことを書く。 */}
+                <div className="border border-[#3b3b3b] bg-white p-2">
+                  <p className="text-[10px] text-gray-700 leading-relaxed">
+                    変換後のファイルからは <strong>Exif（位置情報・撮影日時・機種）が削除されます</strong>。
+                    画像の向きだけは元の情報どおりに補正して書き出します。
+                  </p>
+                  {gpsCount > 0 && (
+                    <p className="mt-1 text-[10px] font-bold text-red-600">
+                      取り込んだファイルのうち {gpsCount} 枚に位置情報が含まれています。変換後は消えますが、
+                      元ファイルをそのまま渡すと撮影場所が相手に伝わります。
                     </p>
                   )}
                 </div>
