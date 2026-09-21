@@ -179,7 +179,7 @@ const HardwareContent: React.FC<HardwareContentProps> = ({ subcategory, onNaviga
         {renderRecrutmentCard()}
       </div>
 
-      <div className="mt-4 text-[13px] flex items-start gap-2">
+      <div className="mt-4 text-[13px]">
         <MakerRows category="金物" page="ハンドル" />
       </div>
     </div>
@@ -292,7 +292,7 @@ const HardwareContent: React.FC<HardwareContentProps> = ({ subcategory, onNaviga
         {renderRecrutmentCard()}
       </div>
 
-      <div className="mt-4 text-[13px] flex items-start gap-2">
+      <div className="mt-4 text-[13px]">
         <MakerRows category="金物" page="引棒" />
       </div>
     </div>
@@ -420,7 +420,7 @@ const HardwareContent: React.FC<HardwareContentProps> = ({ subcategory, onNaviga
         {renderRecrutmentCard()}
       </div>
 
-      <div className="mt-4 text-[13px] flex items-start gap-2">
+      <div className="mt-4 text-[13px]">
         <MakerRows category="金物" page="建具金物" />
       </div>
     </div>
@@ -544,7 +544,7 @@ const HardwareContent: React.FC<HardwareContentProps> = ({ subcategory, onNaviga
         {renderRecrutmentCard()}
       </div>
 
-      <div className="mt-4 text-[13px] flex items-start gap-2">
+      <div className="mt-4 text-[13px]">
         <MakerRows category="金物" page="棚フック" />
       </div>
     </div>
@@ -675,7 +675,7 @@ const HardwareContent: React.FC<HardwareContentProps> = ({ subcategory, onNaviga
         {renderRecrutmentCard()}
       </div>
 
-      <div className="mt-4 text-[13px] flex items-start gap-2">
+      <div className="mt-4 text-[13px]">
         <MakerRows category="金物" page="サニタリー" />
       </div>
     </div>
@@ -836,7 +836,7 @@ const HardwareContent: React.FC<HardwareContentProps> = ({ subcategory, onNaviga
         {renderRecrutmentCard()}
       </div>
 
-      <div className="mt-4 text-[13px] flex items-start gap-2">
+      <div className="mt-4 text-[13px]">
         <MakerRows category="金物" page="家具金物" />
       </div>
     </div>
@@ -1046,7 +1046,7 @@ const HardwareContent: React.FC<HardwareContentProps> = ({ subcategory, onNaviga
         {renderRecrutmentCard()}
       </div>
 
-      <div className="mt-4 text-[13px] flex items-start gap-2">
+      <div className="mt-4 text-[13px]">
         <MakerRows category="金物" page="鍵関係" />
       </div>
     </div>
@@ -1177,7 +1177,7 @@ const HardwareContent: React.FC<HardwareContentProps> = ({ subcategory, onNaviga
         <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">免震用</span>
         <div className="flex-1 h-px bg-gray-300 ml-2"></div>
       </div>
-      <div className="text-[13px] flex items-start gap-2">
+      <div className="text-[13px]">
         <MakerRows category="金物" page="EXP,J" group="免震用" />
       </div>
 
@@ -1185,7 +1185,7 @@ const HardwareContent: React.FC<HardwareContentProps> = ({ subcategory, onNaviga
         <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">耐震用</span>
         <div className="flex-1 h-px bg-gray-300 ml-2"></div>
       </div>
-      <div className="text-[13px] flex items-start gap-2">
+      <div className="text-[13px]">
         <MakerRows category="金物" page="EXP,J" group="耐震用" />
       </div>
 
@@ -1193,7 +1193,7 @@ const HardwareContent: React.FC<HardwareContentProps> = ({ subcategory, onNaviga
         <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">非免震用</span>
         <div className="flex-1 h-px bg-gray-300 ml-2"></div>
       </div>
-      <div className="text-[13px] flex items-start gap-2">
+      <div className="text-[13px]">
         <MakerRows category="金物" page="EXP,J" group="非免震用" />
       </div>
     </div>
@@ -1329,7 +1329,7 @@ const HardwareContent: React.FC<HardwareContentProps> = ({ subcategory, onNaviga
         {renderRecrutmentCard()}
       </div>
 
-      <div className="mt-4 text-[13px] flex items-start gap-2">
+      <div className="mt-4 text-[13px]">
         <MakerRows category="金物" page="金物その他" />
       </div>
     </div>

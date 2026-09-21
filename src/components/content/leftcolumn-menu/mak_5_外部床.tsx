@@ -152,7 +152,7 @@ const ExternalFloorContent: React.FC<ExternalFloorContentProps> = ({ subcategory
               </div>
             </div>
 
-            <div className="mt-4 text-[13px] flex items-start gap-2">
+            <div className="mt-4 text-[13px]">
               <MakerRows category="外部床" page="external-tile" nameWidth="200px" />
             </div>
           </div>
@@ -274,7 +274,7 @@ const ExternalFloorContent: React.FC<ExternalFloorContentProps> = ({ subcategory
               </div>
             </div>
 
-            <div className="mt-4 text-[13px] flex items-start gap-2">
+            <div className="mt-4 text-[13px]">
               <MakerRows category="外部床" page="external-stone-brick" nameWidth="200px" />
             </div>
           </div>
@@ -373,7 +373,7 @@ const ExternalFloorContent: React.FC<ExternalFloorContentProps> = ({ subcategory
               </div>
             </div>
 
-            <div className="mt-4 text-[13px] flex items-start gap-2">
+            <div className="mt-4 text-[13px]">
               <MakerRows category="外部床" page="pvc-sheet" nameWidth="200px" />
             </div>
           </div>
@@ -493,7 +493,7 @@ const ExternalFloorContent: React.FC<ExternalFloorContentProps> = ({ subcategory
               </div>
             </div>
 
-            <div className="mt-4 text-[13px] flex items-start gap-2">
+            <div className="mt-4 text-[13px]">
               <MakerRows category="外部床" page="external-finish" nameWidth="200px" />
             </div>
           </div>

@@ -151,7 +151,7 @@ const OpeningContent: React.FC<OpeningContentProps> = ({ subcategory }) => {
             </div>
 
             {/* 通常企業（テキストリンク形式） */}
-            <div className="mt-4 text-[13px] flex items-start gap-2">
+            <div className="mt-4 text-[13px]">
               <MakerRows category="開口部" page="aluminum-sash" />
             </div>
           </div>
@@ -259,7 +259,7 @@ const OpeningContent: React.FC<OpeningContentProps> = ({ subcategory }) => {
             </div>
 
             {/* 通常企業（テキストリンク形式） */}
-            <div className="mt-4 text-[13px] flex items-start gap-2">
+            <div className="mt-4 text-[13px]">
               <MakerRows category="開口部" page="resin-sash" />
             </div>
           </div>
@@ -371,7 +371,7 @@ const OpeningContent: React.FC<OpeningContentProps> = ({ subcategory }) => {
             </div>
 
             {/* 通常企業（テキストリンク形式） */}
-            <div className="mt-4 text-[13px] flex items-start gap-2">
+            <div className="mt-4 text-[13px]">
               <MakerRows category="開口部" page="wood-sash" />
             </div>
           </div>
@@ -473,7 +473,7 @@ const OpeningContent: React.FC<OpeningContentProps> = ({ subcategory }) => {
             </div>
 
             {/* 通常企業（テキストリンク形式） */}
-            <div className="mt-4 text-[13px] flex items-start gap-2">
+            <div className="mt-4 text-[13px]">
               <MakerRows category="開口部" page="light-shutter" />
             </div>
           </div>
@@ -591,7 +591,7 @@ const OpeningContent: React.FC<OpeningContentProps> = ({ subcategory }) => {
               <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">重量シャッター</span>
               <div className="flex-1 h-px bg-gray-300 ml-2"></div>
             </div>
-            <div className="text-[13px] flex items-start gap-2">
+            <div className="text-[13px]">
               <MakerRows category="開口部" page="heavy-shutter" group="重量シャッター" />
             </div>
 
@@ -600,7 +600,7 @@ const OpeningContent: React.FC<OpeningContentProps> = ({ subcategory }) => {
               <div className="flex-1 h-px bg-gray-300 ml-2"></div>
             </div>
             
-            <div className="text-[13px] flex items-start gap-2">
+            <div className="text-[13px]">
               <MakerRows category="開口部" page="heavy-shutter" group="その他シャッター" />
             </div>
           </div>

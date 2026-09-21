@@ -153,7 +153,7 @@ const InternalFloorContent: React.FC<InternalFloorContentProps> = ({ subcategory
               </div>
             </div>
 
-            <div className="mt-4 text-[13px] flex items-start gap-2">
+            <div className="mt-4 text-[13px]">
               <MakerRows category="内部床" page="フローリング" />
             </div>
           </div>
@@ -268,7 +268,7 @@ const InternalFloorContent: React.FC<InternalFloorContentProps> = ({ subcategory
               </div>
             </div>
 
-            <div className="mt-4 text-[13px] flex items-start gap-2">
+            <div className="mt-4 text-[13px]">
               <MakerRows category="内部床" page="ビニールタイル" />
             </div>
           </div>
@@ -370,7 +370,7 @@ const InternalFloorContent: React.FC<InternalFloorContentProps> = ({ subcategory
               </div>
             </div>
 
-            <div className="mt-4 text-[13px] flex items-start gap-2">
+            <div className="mt-4 text-[13px]">
               <MakerRows category="内部床" page="ビニールシート" />
             </div>
           </div>
@@ -515,7 +515,7 @@ const InternalFloorContent: React.FC<InternalFloorContentProps> = ({ subcategory
               <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">タイルカーペット</span>
               <div className="flex-1 h-px bg-gray-300 ml-2"></div>
             </div>
-            <div className="text-[13px] flex items-start gap-2">
+            <div className="text-[13px]">
               <MakerRows category="内部床" page="カーペット" group="タイルカーペット" />
             </div>
 
@@ -523,7 +523,7 @@ const InternalFloorContent: React.FC<InternalFloorContentProps> = ({ subcategory
               <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">ロールカーペット</span>
               <div className="flex-1 h-px bg-gray-300 ml-2"></div>
             </div>
-            <div className="text-[13px] flex items-start gap-2">
+            <div className="text-[13px]">
               <MakerRows category="内部床" page="カーペット" group="ロールカーペット" />
             </div>
           </div>
@@ -639,7 +639,7 @@ const InternalFloorContent: React.FC<InternalFloorContentProps> = ({ subcategory
               </div>
             </div>
 
-            <div className="mt-4 text-[13px] flex items-start gap-2">
+            <div className="mt-4 text-[13px]">
               <MakerRows category="内部床" page="内装タイル" />
             </div>
           </div>
@@ -769,7 +769,7 @@ const InternalFloorContent: React.FC<InternalFloorContentProps> = ({ subcategory
               </div>
             </div>
 
-            <div className="mt-4 text-[13px] flex items-start gap-2">
+            <div className="mt-4 text-[13px]">
               <MakerRows category="内部床" page="内装床石レンガ" />
             </div>
           </div>
@@ -900,7 +900,7 @@ const InternalFloorContent: React.FC<InternalFloorContentProps> = ({ subcategory
               </div>
             </div>
 
-            <div className="mt-4 text-[13px] flex items-start gap-2">
+            <div className="mt-4 text-[13px]">
               <MakerRows category="内部床" page="畳" />
             </div>
           </div>
@@ -1007,7 +1007,7 @@ const InternalFloorContent: React.FC<InternalFloorContentProps> = ({ subcategory
               <div className="flex-1 h-px bg-gray-300 ml-2"></div>
             </div>
 
-            <div className="text-[13px] flex items-start gap-2">
+            <div className="text-[13px]">
               <MakerRows category="内部床" page="巾木床見切" group="巾木" />
             </div>
 
@@ -1015,7 +1015,7 @@ const InternalFloorContent: React.FC<InternalFloorContentProps> = ({ subcategory
               <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">床見切</span>
               <div className="flex-1 h-px bg-gray-300 ml-2"></div>
             </div>
-            <div className="text-[13px] flex items-start gap-2">
+            <div className="text-[13px]">
               <MakerRows category="内部床" page="巾木床見切" group="床見切" nameWidth="200px" />
             </div>
           </div>
@@ -1148,7 +1148,7 @@ const InternalFloorContent: React.FC<InternalFloorContentProps> = ({ subcategory
               <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">制振・遮音材</span>
               <div className="flex-1 h-px bg-gray-300 ml-2"></div>
             </div>
-            <div className="text-[13px] flex items-start gap-2">
+            <div className="text-[13px]">
               <MakerRows category="内部床" page="内装床機能性" group="制振・遮音材" nameWidth="200px" />
             </div>
 
@@ -1156,7 +1156,7 @@ const InternalFloorContent: React.FC<InternalFloorContentProps> = ({ subcategory
               <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">床暖房</span>
               <div className="flex-1 h-px bg-gray-300 ml-2"></div>
             </div>
-            <div className="text-[13px] flex items-start gap-2">
+            <div className="text-[13px]">
               <MakerRows category="内部床" page="内装床機能性" group="床暖房" nameWidth="200px" />
             </div>
           </div>
@@ -1312,7 +1312,7 @@ const InternalFloorContent: React.FC<InternalFloorContentProps> = ({ subcategory
               <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">床下地材</span>
               <div className="flex-1 h-px bg-gray-300 ml-2"></div>
             </div>
-            <div className="text-[13px] flex items-start gap-2">
+            <div className="text-[13px]">
               <MakerRows category="内部床" page="内装床その他" group="床下地材" nameWidth="200px" />
             </div>
 
@@ -1320,7 +1320,7 @@ const InternalFloorContent: React.FC<InternalFloorContentProps> = ({ subcategory
               <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">接着剤</span>
               <div className="flex-1 h-px bg-gray-300 ml-2"></div>
             </div>
-            <div className="text-[13px] flex items-start gap-2">
+            <div className="text-[13px]">
               <MakerRows category="内部床" page="内装床その他" group="接着剤" />
             </div>
 
@@ -1328,7 +1328,7 @@ const InternalFloorContent: React.FC<InternalFloorContentProps> = ({ subcategory
               <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">フロアコーティング</span>
               <div className="flex-1 h-px bg-gray-300 ml-2"></div>
             </div>
-            <div className="text-[13px] flex items-start gap-2">
+            <div className="text-[13px]">
               <MakerRows category="内部床" page="内装床その他" group="フロアコーティング" />
             </div>
           </div>

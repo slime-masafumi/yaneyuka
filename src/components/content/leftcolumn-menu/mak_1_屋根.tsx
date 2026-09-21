@@ -136,7 +136,7 @@ const RoofContent: React.FC<RoofContentProps> = ({ subcategory }) => {
             </div>
 
             {/* 通常企業（テキストリンク形式） */}
-            <div className="mt-4 text-[13px] flex items-start gap-2">
+            <div className="mt-4 text-[13px]">
               <MakerRows category="屋根" page="折板" />
             </div>
           </div>
@@ -272,7 +272,7 @@ const RoofContent: React.FC<RoofContentProps> = ({ subcategory }) => {
               <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">立平葺</span>
               <div className="flex-1 h-px bg-gray-300 ml-2"></div>
             </div>
-            <div className="text-[13px] flex items-start gap-2">
+            <div className="text-[13px]">
               <MakerRows category="屋根" page="金属屋根" group="立平葺" />
             </div>
 
@@ -280,7 +280,7 @@ const RoofContent: React.FC<RoofContentProps> = ({ subcategory }) => {
               <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">横葺</span>
               <div className="flex-1 h-px bg-gray-300 ml-2"></div>
             </div>
-            <div className="text-[13px] flex items-start gap-2">
+            <div className="text-[13px]">
               <MakerRows category="屋根" page="金属屋根" group="横葺" />
             </div>
           </div>
@@ -417,7 +417,7 @@ const RoofContent: React.FC<RoofContentProps> = ({ subcategory }) => {
             </div>
 
             {/* 通常企業（テキストリンク形式） */}
-            <div className="mt-4 text-[13px] flex items-start gap-2">
+            <div className="mt-4 text-[13px]">
               <MakerRows category="屋根" page="スレート" />
             </div>
           </div>
@@ -555,7 +555,7 @@ const RoofContent: React.FC<RoofContentProps> = ({ subcategory }) => {
               <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">瓦</span>
               <div className="flex-1 h-px bg-gray-300 ml-2"></div>
             </div>
-            <div className="text-[13px] flex items-start gap-2">
+            <div className="text-[13px]">
               <MakerRows category="屋根" page="瓦" group="瓦" />
             </div>
 
@@ -563,7 +563,7 @@ const RoofContent: React.FC<RoofContentProps> = ({ subcategory }) => {
               <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">金属瓦</span>
               <div className="flex-1 h-px bg-gray-300 ml-2"></div>
             </div>
-            <div className="text-[13px] flex items-start gap-2">
+            <div className="text-[13px]">
               <MakerRows category="屋根" page="瓦" group="金属瓦" />
             </div>
           </div>
@@ -718,7 +718,7 @@ const RoofContent: React.FC<RoofContentProps> = ({ subcategory }) => {
               <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">アスファルトシングル</span>
               <div className="flex-1 h-px bg-gray-300 ml-2"></div>
             </div>
-            <div className="text-[13px] flex items-start gap-2">
+            <div className="text-[13px]">
               <MakerRows category="屋根" page="屋根その他" group="アスファルトシングル" />
             </div>
 
@@ -726,7 +726,7 @@ const RoofContent: React.FC<RoofContentProps> = ({ subcategory }) => {
               <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">ガルバリウム鋼板</span>
               <div className="flex-1 h-px bg-gray-300 ml-2"></div>
             </div>
-            <div className="text-[13px] flex items-start gap-2">
+            <div className="text-[13px]">
               <MakerRows category="屋根" page="屋根その他" group="ガルバリウム鋼板" />
             </div>
           </div>

@@ -150,7 +150,7 @@ const ExteriorWallContent: React.FC<ExteriorWallContentProps> = ({ subcategory }
             </div>
 
             {/* 通常企業（テキストリンク形式） */}
-            <div className="mt-4 text-[13px] flex items-start gap-2">
+            <div className="mt-4 text-[13px]">
               <MakerRows category="外壁" page="alc" />
             </div>
           </div>
@@ -265,7 +265,7 @@ const ExteriorWallContent: React.FC<ExteriorWallContentProps> = ({ subcategory }
             </div>
 
             {/* 通常企業（テキストリンク形式） */}
-            <div className="mt-4 text-[13px] flex items-start gap-2">
+            <div className="mt-4 text-[13px]">
               <MakerRows category="外壁" page="ecp" />
             </div>
           </div>
@@ -401,7 +401,7 @@ const ExteriorWallContent: React.FC<ExteriorWallContentProps> = ({ subcategory }
                 <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">ガルバリウム鋼板</span>
                 <div className="flex-1 h-px bg-gray-300 ml-2"></div>
               </div>
-              <div className="text-[13px] flex items-start gap-2">
+              <div className="text-[13px]">
                 <MakerRows category="外壁" page="metal-panel" group="ガルバリウム鋼板" />
               </div>
             </div>
@@ -411,7 +411,7 @@ const ExteriorWallContent: React.FC<ExteriorWallContentProps> = ({ subcategory }
                 <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">アルミ</span>
                 <div className="flex-1 h-px bg-gray-300 ml-2"></div>
               </div>
-              <div className="text-[13px] flex items-start gap-2">
+              <div className="text-[13px]">
                 <MakerRows category="外壁" page="metal-panel" group="アルミ" />
               </div>
             </div>
@@ -523,7 +523,7 @@ const ExteriorWallContent: React.FC<ExteriorWallContentProps> = ({ subcategory }
               </div>
             </div>
 
-            <div className="mt-4 text-[13px] flex items-start gap-2">
+            <div className="mt-4 text-[13px]">
               <MakerRows category="外壁" page="wood-board" nameWidth="200px" />
             </div>
           </div>
@@ -647,7 +647,7 @@ const ExteriorWallContent: React.FC<ExteriorWallContentProps> = ({ subcategory }
               </div>
             </div>
 
-            <div className="mt-4 text-[13px] flex items-start gap-2">
+            <div className="mt-4 text-[13px]">
               <MakerRows category="外壁" page="decorative" />
             </div>
           </div>
@@ -791,7 +791,7 @@ const ExteriorWallContent: React.FC<ExteriorWallContentProps> = ({ subcategory }
               </div>
             </div>
 
-            <div className="mt-4 text-[13px] flex items-start gap-2">
+            <div className="mt-4 text-[13px]">
               <MakerRows category="外壁" page="other-finish" />
             </div>
           </div>
@@ -909,7 +909,7 @@ const ExteriorWallContent: React.FC<ExteriorWallContentProps> = ({ subcategory }
               </div>
             </div>
 
-            <div className="mt-4 text-[13px] flex items-start gap-2">
+            <div className="mt-4 text-[13px]">
               <MakerRows category="外壁" page="paint" />
             </div>
           </div>
@@ -1004,7 +1004,7 @@ const ExteriorWallContent: React.FC<ExteriorWallContentProps> = ({ subcategory }
                 <img src="/image/ChatGPT Image 2025年5月1日 16_25_41.webp" alt="Manufacturer Commercial" className="mt-3 w-full rounded w-[clamp(180px,22vw,320px)]" onError={handleCommercialImageError} />
               </div>
             </div>
-            <div className="mt-4 text-[13px] flex items-start gap-2">
+            <div className="mt-4 text-[13px]">
               <MakerRows category="外壁" page="金属サイディング" />
             </div>
           </div>
@@ -1097,7 +1097,7 @@ const ExteriorWallContent: React.FC<ExteriorWallContentProps> = ({ subcategory }
                 <img src="/image/ChatGPT Image 2025年5月1日 16_25_41.webp" alt="Manufacturer Commercial" className="mt-3 w-full rounded w-[clamp(180px,22vw,320px)]" onError={handleCommercialImageError} />
               </div>
             </div>
-            <div className="mt-4 text-[13px] flex items-start gap-2">
+            <div className="mt-4 text-[13px]">
               <MakerRows category="外壁" page="窯業サイディング" />
             </div>
           </div>
@@ -1116,7 +1116,7 @@ const ExteriorWallContent: React.FC<ExteriorWallContentProps> = ({ subcategory }
                 <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">金属サイディング</span>
                 <div className="flex-1 h-px bg-gray-300 ml-2"></div>
               </div>
-              <div className="text-[13px] flex items-start gap-2">
+              <div className="text-[13px]">
                 <MakerRows category="外壁" page="siding" group="金属サイディング" />
               </div>
             </div>
@@ -1127,7 +1127,7 @@ const ExteriorWallContent: React.FC<ExteriorWallContentProps> = ({ subcategory }
                 <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">窯業系サイディング</span>
                 <div className="flex-1 h-px bg-gray-300 ml-2"></div>
               </div>
-              <div className="text-[13px] flex items-start gap-2">
+              <div className="text-[13px]">
                 <MakerRows category="外壁" page="siding" group="窯業系サイディング" />
               </div>
             </div>
@@ -1138,7 +1138,7 @@ const ExteriorWallContent: React.FC<ExteriorWallContentProps> = ({ subcategory }
                 <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">その他サイディング</span>
                 <div className="flex-1 h-px bg-gray-300 ml-2"></div>
               </div>
-              <div className="text-[13px] flex items-start gap-2">
+              <div className="text-[13px]">
                 <MakerRows category="外壁" page="siding" group="その他サイディング" />
               </div>
             </div>
@@ -1243,7 +1243,7 @@ const ExteriorWallContent: React.FC<ExteriorWallContentProps> = ({ subcategory }
                 <img src="/image/ChatGPT Image 2025年5月1日 16_25_41.webp" alt="Manufacturer Commercial" className="mt-3 w-full rounded w-[clamp(180px,22vw,320px)]" onError={handleCommercialImageError} />
               </div>
             </div>
-            <div className="mt-4 text-[13px] flex items-start gap-2">
+            <div className="mt-4 text-[13px]">
               <MakerRows category="外壁" page="金属パネル" />
             </div>
           </div>
@@ -1380,7 +1380,7 @@ const ExteriorWallContent: React.FC<ExteriorWallContentProps> = ({ subcategory }
                 <img src="/image/ChatGPT Image 2025年5月1日 16_25_41.webp" alt="Manufacturer Commercial" className="mt-3 w-full rounded w-[clamp(180px,22vw,320px)]" onError={handleCommercialImageError} />
               </div>
             </div>
-            <div className="mt-4 text-[13px] flex items-start gap-2">
+            <div className="mt-4 text-[13px]">
               <MakerRows category="外壁" page="exterior-wall-other" />
             </div>
           </div>
@@ -1482,7 +1482,7 @@ const ExteriorWallContent: React.FC<ExteriorWallContentProps> = ({ subcategory }
               </div>
             </div>
 
-            <div className="mt-4 text-[13px] flex items-start gap-2">
+            <div className="mt-4 text-[13px]">
               <MakerRows category="外壁" page="plaster" />
             </div>
           </div>
@@ -1584,7 +1584,7 @@ const ExteriorWallContent: React.FC<ExteriorWallContentProps> = ({ subcategory }
               </div>
             </div>
 
-            <div className="mt-4 text-[13px] flex items-start gap-2">
+            <div className="mt-4 text-[13px]">
               <MakerRows category="外壁" page="tile" />
             </div>
           </div>
@@ -1700,7 +1700,7 @@ const ExteriorWallContent: React.FC<ExteriorWallContentProps> = ({ subcategory }
               </div>
             </div>
 
-            <div className="mt-4 text-[13px] flex items-start gap-2">
+            <div className="mt-4 text-[13px]">
               <MakerRows category="外壁" page="stone-brick" />
             </div>
           </div>

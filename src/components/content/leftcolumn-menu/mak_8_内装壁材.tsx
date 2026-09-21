@@ -139,7 +139,7 @@ const InternalWallContent: React.FC<InternalWallContentProps> = ({ subcategory }
               </div>
             </div>
 
-            <div className="mt-4 text-[13px] flex items-start gap-2">
+            <div className="mt-4 text-[13px]">
               <MakerRows category="内装壁材" page="内装壁壁紙" />
             </div>
           </div>
@@ -282,7 +282,7 @@ const InternalWallContent: React.FC<InternalWallContentProps> = ({ subcategory }
               </div>
             </div>
 
-            <div className="mt-4 text-[13px] flex items-start gap-2">
+            <div className="mt-4 text-[13px]">
               <MakerRows category="内装壁材" page="内装壁化粧板" />
             </div>
           </div>
@@ -388,7 +388,7 @@ const InternalWallContent: React.FC<InternalWallContentProps> = ({ subcategory }
               </div>
             </div>
 
-            <div className="mt-4 text-[13px] flex items-start gap-2">
+            <div className="mt-4 text-[13px]">
               <MakerRows category="内装壁材" page="内装壁化粧シート" />
             </div>
           </div>
@@ -512,7 +512,7 @@ const InternalWallContent: React.FC<InternalWallContentProps> = ({ subcategory }
               <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">金属パネル</span>
               <div className="flex-1 h-px bg-gray-300 ml-2"></div>
             </div>
-            <div className="text-[13px] flex items-start gap-2">
+            <div className="text-[13px]">
               <MakerRows category="内装壁材" page="内装壁化粧パネル" group="金属パネル" />
             </div>
 
@@ -520,7 +520,7 @@ const InternalWallContent: React.FC<InternalWallContentProps> = ({ subcategory }
               <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">木質パネル</span>
               <div className="flex-1 h-px bg-gray-300 ml-2"></div>
             </div>
-            <div className="text-[13px] flex items-start gap-2">
+            <div className="text-[13px]">
               <MakerRows category="内装壁材" page="内装壁化粧パネル" group="木質パネル" />
             </div>
           </div>
@@ -648,7 +648,7 @@ const InternalWallContent: React.FC<InternalWallContentProps> = ({ subcategory }
               </div>
             </div>
 
-            <div className="mt-4 text-[13px] flex items-start gap-2">
+            <div className="mt-4 text-[13px]">
               <MakerRows category="内装壁材" page="内装壁塗り壁" />
             </div>
           </div>
@@ -762,7 +762,7 @@ const InternalWallContent: React.FC<InternalWallContentProps> = ({ subcategory }
               </div>
             </div>
 
-            <div className="mt-4 text-[13px] flex items-start gap-2">
+            <div className="mt-4 text-[13px]">
               <MakerRows category="内装壁材" page="内装壁タイル" />
             </div>
           </div>
@@ -898,7 +898,7 @@ const InternalWallContent: React.FC<InternalWallContentProps> = ({ subcategory }
               <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">石</span>
               <div className="flex-1 h-px bg-gray-300 ml-2"></div>
             </div>
-            <div className="text-[13px] flex items-start gap-2">
+            <div className="text-[13px]">
               <MakerRows category="内装壁材" page="内装壁石レンガ" group="石" />
             </div>
 
@@ -906,7 +906,7 @@ const InternalWallContent: React.FC<InternalWallContentProps> = ({ subcategory }
               <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">レンガ</span>
               <div className="flex-1 h-px bg-gray-300 ml-2"></div>
             </div>
-            <div className="text-[13px] flex items-start gap-2">
+            <div className="text-[13px]">
               <MakerRows category="内装壁材" page="内装壁石レンガ" group="レンガ" />
             </div>
 
@@ -914,7 +914,7 @@ const InternalWallContent: React.FC<InternalWallContentProps> = ({ subcategory }
               <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">人工大理石</span>
               <div className="flex-1 h-px bg-gray-300 ml-2"></div>
             </div>
-            <div className="text-[13px] flex items-start gap-2">
+            <div className="text-[13px]">
               <MakerRows category="内装壁材" page="内装壁石レンガ" group="人工大理石" />
             </div>
 
@@ -922,7 +922,7 @@ const InternalWallContent: React.FC<InternalWallContentProps> = ({ subcategory }
               <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">ブロック</span>
               <div className="flex-1 h-px bg-gray-300 ml-2"></div>
             </div>
-            <div className="text-[13px] flex items-start gap-2">
+            <div className="text-[13px]">
               <MakerRows category="内装壁材" page="内装壁石レンガ" group="ブロック" />
             </div>
           </div>
@@ -1055,7 +1055,7 @@ const InternalWallContent: React.FC<InternalWallContentProps> = ({ subcategory }
               <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">ルーバー</span>
               <div className="flex-1 h-px bg-gray-300 ml-2"></div>
             </div>
-            <div className="text-[13px] flex items-start gap-2">
+            <div className="text-[13px]">
               <MakerRows category="内装壁材" page="内装壁装飾材" group="ルーバー" />
             </div>
           </div>
@@ -1199,7 +1199,7 @@ const InternalWallContent: React.FC<InternalWallContentProps> = ({ subcategory }
               <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">GW吸音板</span>
               <div className="flex-1 h-px bg-gray-300 ml-2"></div>
             </div>
-            <div className="text-[13px] flex items-start gap-2">
+            <div className="text-[13px]">
               <MakerRows category="内装壁材" page="内装壁機能性" group="GW吸音板" />
             </div>
           </div>
@@ -1315,7 +1315,7 @@ const InternalWallContent: React.FC<InternalWallContentProps> = ({ subcategory }
               <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">出入隅</span>
               <div className="flex-1 h-px bg-gray-300 ml-2"></div>
             </div>
-            <div className="text-[13px] flex items-start gap-2">
+            <div className="text-[13px]">
               <MakerRows category="内装壁材" page="内装壁壁見切" group="出入隅" nameWidth="200px" />
             </div>
 
@@ -1323,7 +1323,7 @@ const InternalWallContent: React.FC<InternalWallContentProps> = ({ subcategory }
               <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">笠木</span>
               <div className="flex-1 h-px bg-gray-300 ml-2"></div>
             </div>
-            <div className="text-[13px] flex items-start gap-2">
+            <div className="text-[13px]">
               <MakerRows category="内装壁材" page="内装壁壁見切" group="笠木" nameWidth="200px" />
             </div>
           </div>
@@ -1549,7 +1549,7 @@ const InternalWallContent: React.FC<InternalWallContentProps> = ({ subcategory }
               </div>
             </div>
 
-            <div className="mt-4 text-[13px] flex items-start gap-2">
+            <div className="mt-4 text-[13px]">
               <MakerRows category="内装壁材" page="内装壁その他" nameWidth="200px" />
             </div>
           </div>

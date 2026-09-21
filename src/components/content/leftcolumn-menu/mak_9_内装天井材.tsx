@@ -185,7 +185,7 @@ const InternalCeilingContent: React.FC<InternalCeilingContentProps> = ({ subcate
         <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">化粧石膏ボード</span>
         <div className="flex-1 h-px bg-gray-300 ml-2"></div>
       </div>
-      <div className="text-[13px] flex items-start gap-2">
+      <div className="text-[13px]">
         <MakerRows category="内装天井材" page="ボード" group="化粧石膏ボード" />
       </div>
 
@@ -194,7 +194,7 @@ const InternalCeilingContent: React.FC<InternalCeilingContentProps> = ({ subcate
         <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">吸音石膏ボード</span>
         <div className="flex-1 h-px bg-gray-300 ml-2"></div>
       </div>
-      <div className="text-[13px] flex items-start gap-2">
+      <div className="text-[13px]">
         <MakerRows category="内装天井材" page="ボード" group="吸音石膏ボード" />
       </div>
       
@@ -203,7 +203,7 @@ const InternalCeilingContent: React.FC<InternalCeilingContentProps> = ({ subcate
         <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">ロックウール吸音板</span>
         <div className="flex-1 h-px bg-gray-300 ml-2"></div>
       </div>
-      <div className="text-[13px] flex items-start gap-2">
+      <div className="text-[13px]">
         <MakerRows category="内装天井材" page="ボード" group="ロックウール吸音板" />
       </div>
     </div>
@@ -350,7 +350,7 @@ const InternalCeilingContent: React.FC<InternalCeilingContentProps> = ({ subcate
         <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">スパンドレル</span>
         <div className="flex-1 h-px bg-gray-300 ml-2"></div>
       </div>
-      <div className="text-[13px] flex items-start gap-2">
+      <div className="text-[13px]">
         <MakerRows category="内装天井材" page="化粧材" group="スパンドレル" />
       </div>
 
@@ -359,7 +359,7 @@ const InternalCeilingContent: React.FC<InternalCeilingContentProps> = ({ subcate
         <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">木質パネル</span>
         <div className="flex-1 h-px bg-gray-300 ml-2"></div>
       </div>
-      <div className="text-[13px] flex items-start gap-2">
+      <div className="text-[13px]">
         <MakerRows category="内装天井材" page="化粧材" group="木質パネル" />
       </div>
     </div>
@@ -476,7 +476,7 @@ const InternalCeilingContent: React.FC<InternalCeilingContentProps> = ({ subcate
         <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">ルーバー</span>
         <div className="flex-1 h-px bg-gray-300 ml-2"></div>
       </div>
-      <div className="text-[13px] flex items-start gap-2">
+      <div className="text-[13px]">
         <MakerRows category="内装天井材" page="装飾材" group="ルーバー" />
       </div>
 
@@ -485,7 +485,7 @@ const InternalCeilingContent: React.FC<InternalCeilingContentProps> = ({ subcate
         <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">格子</span>
         <div className="flex-1 h-px bg-gray-300 ml-2"></div>
       </div>
-      <div className="text-[13px] flex items-start gap-2">
+      <div className="text-[13px]">
         <MakerRows category="内装天井材" page="装飾材" group="格子" />
       </div>
     </div>
@@ -593,7 +593,7 @@ const InternalCeilingContent: React.FC<InternalCeilingContentProps> = ({ subcate
         <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">システム天井</span>
         <div className="flex-1 h-px bg-gray-300 ml-2"></div>
       </div>
-      <div className="text-[13px] flex items-start gap-2">
+      <div className="text-[13px]">
         <MakerRows category="内装天井材" page="機能性" group="システム天井" />
       </div>
     </div>
@@ -716,7 +716,7 @@ const InternalCeilingContent: React.FC<InternalCeilingContentProps> = ({ subcate
       </div>
 
       {/* その他企業 */}
-      <div className="mt-4 text-[13px] flex items-start gap-2">
+      <div className="mt-4 text-[13px]">
         <MakerRows category="内装天井材" page="その他" />
       </div>
     </div>

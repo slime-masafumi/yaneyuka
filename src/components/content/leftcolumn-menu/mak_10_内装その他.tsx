@@ -193,7 +193,7 @@ const InternalOtherContent: React.FC<InternalOtherContentProps> = ({ subcategory
         {renderRecrutmentCard()}
       </div>
 
-      <div className="mt-4 text-[13px] flex items-start gap-2">
+      <div className="mt-4 text-[13px]">
         <MakerRows category="内装その他" page="トイレブース" />
       </div>
     </div>
@@ -301,7 +301,7 @@ const InternalOtherContent: React.FC<InternalOtherContentProps> = ({ subcategory
         {renderRecrutmentCard()}
       </div>
 
-      <div className="mt-4 text-[13px] flex items-start gap-2">
+      <div className="mt-4 text-[13px]">
         <MakerRows category="内装その他" page="内装サッシ" />
       </div>
     </div>
@@ -381,7 +381,7 @@ const InternalOtherContent: React.FC<InternalOtherContentProps> = ({ subcategory
         {renderRecrutmentCard()}
       </div>
 
-      <div className="mt-4 text-[13px] flex items-start gap-2">
+      <div className="mt-4 text-[13px]">
         <MakerRows category="内装その他" page="ノンスリップ" />
       </div>
     </div>
@@ -487,7 +487,7 @@ const InternalOtherContent: React.FC<InternalOtherContentProps> = ({ subcategory
         {renderRecrutmentCard()}
       </div>
 
-      <div className="mt-4 text-[13px] flex items-start gap-2">
+      <div className="mt-4 text-[13px]">
         <MakerRows category="内装その他" page="内装シャッター" />
       </div>
     </div>
@@ -604,7 +604,7 @@ const InternalOtherContent: React.FC<InternalOtherContentProps> = ({ subcategory
         {renderRecrutmentCard()}
       </div>
 
-      <div className="mt-4 text-[13px] flex items-start gap-2">
+      <div className="mt-4 text-[13px]">
         <MakerRows category="内装その他" page="内装手摺" />
       </div>
     </div>
@@ -722,7 +722,7 @@ const InternalOtherContent: React.FC<InternalOtherContentProps> = ({ subcategory
         {renderRecrutmentCard()}
       </div>
 
-      <div className="mt-4 text-[13px] flex items-start gap-2">
+      <div className="mt-4 text-[13px]">
         <MakerRows category="内装その他" page="グレーチング" />
       </div>
     </div>
@@ -827,7 +827,7 @@ const InternalOtherContent: React.FC<InternalOtherContentProps> = ({ subcategory
         {renderRecrutmentCard()}
       </div>
 
-      <div className="mt-4 text-[13px] flex items-start gap-2">
+      <div className="mt-4 text-[13px]">
         <MakerRows category="内装その他" page="点検口" />
       </div>
     </div>
@@ -936,7 +936,7 @@ const InternalOtherContent: React.FC<InternalOtherContentProps> = ({ subcategory
         {renderRecrutmentCard()}
       </div>
 
-      <div className="mt-4 text-[13px] flex items-start gap-2">
+      <div className="mt-4 text-[13px]">
         <MakerRows category="内装その他" page="点字" />
       </div>
     </div>
@@ -1060,7 +1060,7 @@ const InternalOtherContent: React.FC<InternalOtherContentProps> = ({ subcategory
         {renderRecrutmentCard()}
       </div>
 
-      <div className="mt-4 text-[13px] flex items-start gap-2">
+      <div className="mt-4 text-[13px]">
         <MakerRows category="内装その他" page="ディスプレイ" />
       </div>
     </div>
@@ -1177,7 +1177,7 @@ const InternalOtherContent: React.FC<InternalOtherContentProps> = ({ subcategory
         {renderRecrutmentCard()}
       </div>
 
-      <div className="mt-4 text-[13px] flex items-start gap-2">
+      <div className="mt-4 text-[13px]">
         <MakerRows category="内装その他" page="内装その他製品" />
       </div>
     </div>
@@ -1277,7 +1277,7 @@ const InternalOtherContent: React.FC<InternalOtherContentProps> = ({ subcategory
         {renderRecrutmentCard()}
       </div>
 
-      <div className="mt-4 text-[13px] flex items-start gap-2">
+      <div className="mt-4 text-[13px]">
         <MakerRows category="内装その他" page="内装緑化" />
       </div>
     </div>
@@ -1358,7 +1358,7 @@ const InternalOtherContent: React.FC<InternalOtherContentProps> = ({ subcategory
         {renderRecrutmentCard()}
       </div>
 
-      <div className="mt-4 text-[13px] flex items-start gap-2">
+      <div className="mt-4 text-[13px]">
         <MakerRows category="内装その他" page="隔壁" />
       </div>
     </div>
@@ -1477,7 +1477,7 @@ const InternalOtherContent: React.FC<InternalOtherContentProps> = ({ subcategory
         {renderRecrutmentCard()}
       </div>
 
-      <div className="mt-4 text-[13px] flex items-start gap-2">
+      <div className="mt-4 text-[13px]">
         <MakerRows category="内装その他" page="保護材" />
       </div>
     </div>

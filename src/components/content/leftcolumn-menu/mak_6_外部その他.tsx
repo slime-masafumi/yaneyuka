@@ -148,7 +148,7 @@ const ExteriorOtherContent: React.FC<ExteriorOtherContentProps> = ({ subcategory
               </div>
             </div>
 
-            <div className="mt-4 text-[13px] flex items-start gap-2">
+            <div className="mt-4 text-[13px]">
               <MakerRows category="外部その他" page="笠木水切" />
             </div>
           </div>
@@ -279,7 +279,7 @@ const ExteriorOtherContent: React.FC<ExteriorOtherContentProps> = ({ subcategory
               <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">庇（アルミ）</span>
               <div className="flex-1 h-px bg-gray-300 ml-2"></div>
             </div>
-            <div className="text-[13px] flex items-start gap-2">
+            <div className="text-[13px]">
               <MakerRows category="外部その他" page="庇オーニング" group="庇（アルミ）" />
             </div>
 
@@ -287,7 +287,7 @@ const ExteriorOtherContent: React.FC<ExteriorOtherContentProps> = ({ subcategory
               <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">庇（ガラス）</span>
               <div className="flex-1 h-px bg-gray-300 ml-2"></div>
             </div>
-            <div className="text-[13px] flex items-start gap-2">
+            <div className="text-[13px]">
               <MakerRows category="外部その他" page="庇オーニング" group="庇（ガラス）" />
             </div>
 
@@ -295,7 +295,7 @@ const ExteriorOtherContent: React.FC<ExteriorOtherContentProps> = ({ subcategory
               <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">オーニング</span>
               <div className="flex-1 h-px bg-gray-300 ml-2"></div>
             </div>
-            <div className="text-[13px] flex items-start gap-2">
+            <div className="text-[13px]">
               <MakerRows category="外部その他" page="庇オーニング" group="オーニング" />
             </div>
           </div>
@@ -397,7 +397,7 @@ const ExteriorOtherContent: React.FC<ExteriorOtherContentProps> = ({ subcategory
               </div>
             </div>
 
-            <div className="text-[13px] flex items-start gap-2">
+            <div className="text-[13px]">
               <MakerRows category="外部その他" page="雨どい" />
             </div>
           </div>
@@ -492,7 +492,7 @@ const ExteriorOtherContent: React.FC<ExteriorOtherContentProps> = ({ subcategory
               </div>
             </div>
 
-            <div className="text-[13px] flex items-start gap-2">
+            <div className="text-[13px]">
               <MakerRows category="外部その他" page="ハト小屋" />
             </div>
           </div>
@@ -605,7 +605,7 @@ const ExteriorOtherContent: React.FC<ExteriorOtherContentProps> = ({ subcategory
               </div>
             </div>
 
-            <div className="text-[13px] flex items-start gap-2">
+            <div className="text-[13px]">
               <MakerRows category="外部その他" page="太陽光パネル" />
             </div>
           </div>
@@ -707,7 +707,7 @@ const ExteriorOtherContent: React.FC<ExteriorOtherContentProps> = ({ subcategory
               </div>
             </div>
 
-            <div className="text-[13px] flex items-start gap-2">
+            <div className="text-[13px]">
               <MakerRows category="外部その他" page="手摺" />
             </div>
           </div>

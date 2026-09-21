@@ -181,7 +181,7 @@ const WaterproofContent: React.FC<WaterproofContentProps> = ({ subcategory, onNa
         {renderRecrutmentCard()}
       </div>
 
-      <div className="mt-4 text-[13px] flex items-start gap-2">
+      <div className="mt-4 text-[13px]">
         <MakerRows category="防水" page="ウレタン防水" />
       </div>
     </div>
@@ -312,7 +312,7 @@ const WaterproofContent: React.FC<WaterproofContentProps> = ({ subcategory, onNa
         {renderRecrutmentCard()}
       </div>
 
-      <div className="mt-4 text-[13px] flex items-start gap-2">
+      <div className="mt-4 text-[13px]">
         <MakerRows category="防水" page="アスファルト防水" />
       </div>
     </div>
@@ -443,7 +443,7 @@ const WaterproofContent: React.FC<WaterproofContentProps> = ({ subcategory, onNa
         {renderRecrutmentCard()}
       </div>
 
-      <div className="mt-4 text-[13px] flex items-start gap-2">
+      <div className="mt-4 text-[13px]">
         <MakerRows category="防水" page="シート防水" />
       </div>
     </div>
@@ -540,7 +540,7 @@ const WaterproofContent: React.FC<WaterproofContentProps> = ({ subcategory, onNa
         {renderRecrutmentCard()}
       </div>
 
-      <div className="mt-4 text-[13px] flex items-start gap-2">
+      <div className="mt-4 text-[13px]">
         <MakerRows category="防水" page="FRP防水" />
       </div>
     </div>
@@ -667,7 +667,7 @@ const WaterproofContent: React.FC<WaterproofContentProps> = ({ subcategory, onNa
         {renderRecrutmentCard()}
       </div>
 
-      <div className="text-[13px] flex items-start gap-2">
+      <div className="text-[13px]">
         <MakerRows category="防水" page="防水その他" />
       </div>
     </div>
