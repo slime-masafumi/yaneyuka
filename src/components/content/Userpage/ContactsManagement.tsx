@@ -191,7 +191,8 @@ const ContactsManagement: React.FC = () => {
   const filteredContacts = getFilteredContacts();
 
   return (
-    <div className="pl-0 pr-0 -mr-4 bg-white">
+    // 帯だけ左右いっぱいに出し、その下の本文は他のツールと同じ左右余白を取る。
+    <div className="bg-white pb-4 [&>*:not(:first-child)]:px-4">
       <ToolHeader
         title="担当者連絡先"
         description="メーカー・施工会社・パートナー担当者の連絡先を一覧管理。会社名・部署・役職・電話・メール・案件名・メモを登録し、検索とソートで素早く引けます"

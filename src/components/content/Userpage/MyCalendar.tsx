@@ -745,7 +745,7 @@ const MyCalendar: React.FC = () => {
   // --- Render ---
   return (
     <div className="pt-0 pb-4">
-      <div className="w-full h-[calc(100vh-var(--nav-height)-1rem)] flex flex-col">
+      <div className="w-full h-[calc(100vh-var(--nav-height)-1rem)] flex flex-col [&>*:not(:first-child)]:mx-4">
         
         {/* Header */}
         <ToolHeader

@@ -702,14 +702,14 @@ const MemoTool: React.FC = () => {
   const isDragEnabled = !searchTerm && !categoryFilter && !tagFilter;
 
   return (
-    <div className="bg-white rounded-b-lg shadow-sm border-b border-gray-100 h-full flex flex-col">
+    <div className="bg-white h-full lg:h-[calc(100vh-var(--nav-height))] flex flex-col">
       <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
           <div>
             <h3 className="text-[13px] font-medium">メモ</h3>
           <p className="text-[11px] mt-0.5">テキストメモの作成・管理ができます。フォントや色の変更、カテゴリー・タグ分類に対応</p>
         </div>
       </div>
-      <div className="p-4 flex-1 min-h-0 overflow-hidden">
+      <div className="p-4 flex-1 min-h-0 overflow-hidden [&>*]:border [&>*]:border-[#3b3b3b] [&>*]:p-3">
         <div className="flex gap-6 h-full">
           {/* 左サイド：メモ一覧 */}
           <div className="w-1/5 flex flex-col min-w-[200px]">

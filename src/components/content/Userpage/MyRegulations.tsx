@@ -1681,7 +1681,7 @@ const MyRegulations: React.FC = () => {
 
   return (
     <div className="pt-0 pb-4">
-      <div className="w-full h-[calc(100vh-100px)] flex flex-col">
+      <div className="w-full h-[calc(100vh-100px)] flex flex-col [&>*:not(:first-child)]:mx-4">
         
         <ToolHeader
           title="My法規"

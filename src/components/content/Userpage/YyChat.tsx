@@ -576,7 +576,7 @@ const YyChat: React.FC = () => {
         title="yychat"
         description="社内のリアルタイムチャット。メッセージの送受信、画像の添付、既読表示に対応。チャットルームの作成・管理もできます"
       />
-      <div className="flex h-[600px] bg-white border rounded-xl overflow-hidden shadow-xl font-sans">
+      <div className="flex h-[600px] bg-white border border-[#3b3b3b] overflow-hidden font-sans mx-4 mt-3">
       <div className={`${selectedRoom ? 'hidden md:flex' : 'flex'} w-full md:w-72 flex-col border-r bg-gray-50`}>
         <div className="px-4 py-3 bg-white border-b flex items-center justify-between shadow-sm z-10">
           <div 

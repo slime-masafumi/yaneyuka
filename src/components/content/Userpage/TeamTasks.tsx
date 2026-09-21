@@ -339,7 +339,7 @@ const TeamTasks: React.FC = () => {
 
   return (
     // 帯は左右いっぱい、その下の本文だけ他ツールと同じ左右余白を付ける。
-    <div className="pt-0 pb-4 [&>*:not(:first-child)]:px-4 [&>*:nth-child(2)]:mt-3">
+    <div className="pt-0 pb-4 [&>*:not(:first-child)]:mx-4 [&>*:nth-child(2)]:mt-3">
       <ToolHeader
         title="Teamタスク"
         description="チームで共有するプロジェクトをボード形式で管理。タスクの追加・担当者設定・進捗更新をリアルタイムに連携。ボードは最大4枚まで"
@@ -406,7 +406,7 @@ const TeamTasks: React.FC = () => {
       {projects.length === 0 && (
         <div className="text-gray-500 mb-4">プロジェクトがありません。新規作成してください。</div>
       )}
-      <div className="team-task-grid">
+      <div className="team-task-grid border border-[#3b3b3b] p-3">
         {projects.map((project, idx) => {
           const flexBasis = `calc((100% - ${(columnMode - 1)} * 0.75rem) / ${columnMode})`;
           const cardStyle: React.CSSProperties = {

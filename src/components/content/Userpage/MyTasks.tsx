@@ -162,7 +162,7 @@ export default function MyTasks() {
 
   return (
     // 帯は左右いっぱい、その下の本文だけ他ツールと同じ左右余白を付ける。
-    <div className="pt-0 pb-4 [&>*:not(:first-child)]:px-4 [&>*:nth-child(2)]:mt-3">
+    <div className="pt-0 pb-4 [&>*:not(:first-child)]:mx-4 [&>*:nth-child(2)]:mt-3">
       <ToolHeader
         title="Myタスク"
         description="個人タスクをカテゴリごとに整理し、期日・担当メモを付けて進捗管理。登録したタスクはMyカレンダーにも同期されます"
@@ -221,7 +221,7 @@ export default function MyTasks() {
           </select>
         </div>
       </div>
-      <div className="my-task-grid">
+      <div className="my-task-grid border border-[#3b3b3b] p-3">
         {categories.map(category => {
           const flexBasis = `calc((100% - ${(columnMode - 1)} * 0.75rem) / ${columnMode})`;
           const cardStyle: React.CSSProperties = {

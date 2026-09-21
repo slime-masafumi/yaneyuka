@@ -133,7 +133,7 @@ const GeneralTools: React.FC = () => {
           <p className="text-[11px] mt-0.5">Zoom、Teams、Google Meetなど主要なオンラインミーティングツールへのクイックアクセス</p>
         </div>
       </div>
-      <div className="p-3">
+      <div className="p-3 [&>*]:border [&>*]:border-[#3b3b3b] [&>*]:p-3">
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {ONLINE_MEETING_TOOLS.map((tool) => (
         <a

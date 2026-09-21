@@ -561,7 +561,7 @@ const UnitConverter: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden m-4 border border-[#3b3b3b]">
         
         {/* --- 左カラム：入力・設定 --- */}
         <div className="w-full lg:w-[340px] bg-white border-r border-gray-100 p-5 overflow-y-auto flex flex-col gap-6 z-10 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">

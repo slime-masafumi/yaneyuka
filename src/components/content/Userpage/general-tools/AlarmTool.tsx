@@ -497,7 +497,7 @@ const AlarmTool: React.FC = () => {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 p-4 overflow-y-auto text-[12px] text-gray-700">
+      <div className="flex-1 p-4 overflow-y-auto text-[12px] text-gray-700 [&>*]:border [&>*]:border-[#3b3b3b] [&>*]:p-3">
         
         {/* === TIMER & ALARM MODE === */}
         {(mode === 'timer' || mode === 'alarm') && (

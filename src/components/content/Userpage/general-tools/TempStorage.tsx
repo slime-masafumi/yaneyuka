@@ -442,7 +442,7 @@ const TempStorage: React.FC = () => {
       </div>
 
       <div className="p-4">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 border border-[#3b3b3b] p-3">
           {/* --- 左カラム：入力・設定 --- */}
           <div className="space-y-6">
             {/* 1. ファイル選択エリア */}
