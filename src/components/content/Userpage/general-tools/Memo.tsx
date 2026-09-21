@@ -30,6 +30,99 @@ const PRESET_COLORS = [
   '#FFFFFF', '#F3F4F6', '#FEE2E2', '#FEF3C7', '#D1FAE5', '#DBEAFE', '#E0E7FF', '#EDE9FE', '#FCE7F3'
 ];
 
+/**
+ * メモのひな形。
+ *
+ * 白紙から書き始めると、あとで見返したときに「誰が・いつまでに」が抜けている。
+ * 打合せや巡回でその場で埋める項目を先に置いておくと、記録として使えるものが残る。
+ * 見出しだけ置いて中身は空にしてあるので、要らない行は消して使う。
+ */
+type MemoTemplate = {
+  id: string;
+  label: string;
+  category: string;
+  title: string;
+  /** 本文。contentEditable にそのまま入る HTML。 */
+  content: string;
+};
+
+const section = (heading: string, lines: number = 1) =>
+  `<p><strong>${heading}</strong></p>${'<p><br></p>'.repeat(lines)}`;
+
+const MEMO_TEMPLATES: MemoTemplate[] = [
+  {
+    id: 'minutes',
+    label: '議事録',
+    category: '議事録',
+    title: '議事録',
+    content:
+      section('日時・場所') +
+      section('出席者') +
+      section('決定事項', 2) +
+      section('宿題（担当 / 期限）', 2) +
+      section('次回'),
+  },
+  {
+    id: 'patrol',
+    label: '現場巡回記録',
+    category: '現場',
+    title: '現場巡回記録',
+    content:
+      section('物件名') +
+      section('日時・天候') +
+      section('立会者') +
+      section('確認事項', 2) +
+      section('指摘・是正', 2) +
+      section('写真メモ'),
+  },
+  {
+    id: 'correction',
+    label: '是正指示',
+    category: '現場',
+    title: '是正指示',
+    content:
+      section('宛先') +
+      section('物件名') +
+      section('指摘箇所') +
+      section('指摘内容', 2) +
+      section('是正期限') +
+      section('確認結果'),
+  },
+  {
+    id: 'phone',
+    label: '電話メモ',
+    category: '連絡',
+    title: '電話メモ',
+    content:
+      section('日時') +
+      section('相手（会社 / 氏名）') +
+      section('用件', 2) +
+      section('折返しの要否'),
+  },
+  {
+    id: 'request',
+    label: '施主要望',
+    category: '施主',
+    title: '施主要望',
+    content:
+      section('日時') +
+      section('要望内容', 2) +
+      section('反映可否') +
+      section('コスト・工期への影響') +
+      section('回答内容'),
+  },
+];
+
+/** 本文は HTML なので、検索にはタグを外した文字列を使う。 */
+const stripHtml = (html: string) =>
+  html
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\s+/g, ' ');
+
 const MemoTool: React.FC = () => {
   const [memos, setMemos] = useState<Memo[]>([]);
   const [currentMemo, setCurrentMemo] = useState<Memo | null>(null);
@@ -279,22 +372,27 @@ const MemoTool: React.FC = () => {
     }
   };
 
-  const createNewMemo = async () => {
+  const createNewMemo = async (template?: MemoTemplate) => {
     if (!currentUser) { alert('入力するには会員登録（無料）が必要です。'); return; }
     const now = new Date()
     const minOrder = memos.length > 0 ? Math.min(...memos.map(m => m.order ?? 0)) : 0;
     const newOrder = minOrder - 1;
 
-    const optimistic: Memo = { id: `tmp-${Date.now()}`, title: '新しいメモ', content: '', category: '', tags: [], createdAt: now, updatedAt: now, isFavorite: false, isLocked: false, order: newOrder }
+    // ひな形から作る場合は、日付入りの表題と見出しを先に入れておく
+    const title = template ? `${template.title} ${now.toLocaleDateString('ja-JP')}` : '新しいメモ';
+    const content = template ? template.content : '';
+    const category = template ? template.category : '';
+
+    const optimistic: Memo = { id: `tmp-${Date.now()}`, title, content, category, tags: [], createdAt: now, updatedAt: now, isFavorite: false, isLocked: false, order: newOrder }
     setMemos(prev => [optimistic, ...prev])
     setCurrentMemo(optimistic)
-    setMemoTitle(optimistic.title)
-    setMemoCategory('')
+    setMemoTitle(title)
+    setMemoCategory(category)
     setMemoTags('')
-    if (editorRef.current) editorRef.current.innerHTML = ''
+    if (editorRef.current) editorRef.current.innerHTML = content
     updateCharCount()
     const colRef = collection(db, 'users', currentUser.uid, 'memos')
-    const ref = await addDoc(colRef, { title: optimistic.title, content: '', category: '', tags: [], createdAt: now.getTime(), updatedAt: now.getTime(), isFavorite: false, isLocked: false, order: newOrder } as any)
+    const ref = await addDoc(colRef, { title, content, category, tags: [], createdAt: now.getTime(), updatedAt: now.getTime(), isFavorite: false, isLocked: false, order: newOrder } as any)
     setMemos(prev => prev.map(m => m.id === optimistic.id ? { ...m, id: ref.id } : m))
     setCurrentMemo(prev => prev && prev.id === optimistic.id ? { ...prev, id: ref.id } : prev)
   };
@@ -573,8 +671,12 @@ const MemoTool: React.FC = () => {
   };
 
   const filteredMemos = memos.filter(memo => {
-    const matchesSearch = memo.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         memo.content.toLowerCase().includes(searchTerm.toLowerCase());
+    // 本文の HTML をそのまま突き合わせると、色やフォントの指定に当たって
+    // 関係ないメモが引っかかる。タグを外した文字列で探す。
+    const needle = searchTerm.toLowerCase();
+    const matchesSearch = !needle ||
+                         memo.title.toLowerCase().includes(needle) ||
+                         stripHtml(memo.content).toLowerCase().includes(needle);
     const matchesCategory = !categoryFilter || memo.category === categoryFilter;
     const matchesTag = !tagFilter || memo.tags.includes(tagFilter);
     return matchesSearch && matchesCategory && matchesTag;
@@ -612,13 +714,27 @@ const MemoTool: React.FC = () => {
           {/* 左サイド：メモ一覧 */}
           <div className="w-1/5 flex flex-col min-w-[200px]">
             <div className="mb-3 shrink-0">
-              <button 
-                onClick={createNewMemo}
-                className="w-full flex items-center justify-center gap-1 text-[11px] bg-[#1dad95] text-white px-3 py-1.5 rounded hover:bg-[#1a9a85] transition mb-2"
+              <button
+                onClick={() => createNewMemo()}
+                className="w-full flex items-center justify-center gap-1 text-[11px] bg-[#1dad95] text-white px-3 py-1.5 rounded hover:bg-[#1a9a85] transition mb-1.5"
               >
                 <FiPlus className="w-3 h-3" />
                 新規メモ
               </button>
+
+              {/* ひな形から作る。白紙だと「誰が・いつまでに」が毎回抜けるので。 */}
+              <div className="flex flex-wrap gap-1 mb-2">
+                {MEMO_TEMPLATES.map(t => (
+                  <button
+                    key={t.id}
+                    onClick={() => createNewMemo(t)}
+                    title={`${t.label}のひな形で新規作成`}
+                    className="text-[10px] px-1.5 py-1 rounded border border-gray-200 bg-gray-50 text-gray-600 hover:border-[#1dad95] hover:text-[#1dad95] transition-colors"
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
               <div className="relative">
                 <input 
                   type="text" 
