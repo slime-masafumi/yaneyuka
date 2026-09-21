@@ -905,7 +905,7 @@ const UnitConverter: React.FC = () => {
                         )}
                     </div>
                 ) : Object.keys(conversionResults).length === 0 ? (
-                    <div className="flex-1 flex flex-col items-center justify-center text-gray-300 border-2 border-dashed border-gray-200 rounded-xl min-h-[300px]">
+                    <div className="flex-1 flex flex-col items-center justify-center text-gray-300 border-2 border-dashed border-gray-300 min-h-[300px]">
                         <span className="text-4xl mb-3 opacity-30">⌨️</span>
                         <p className="text-xs font-medium">数値を入力して変換を開始してください</p>
                     </div>

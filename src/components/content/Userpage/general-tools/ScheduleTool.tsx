@@ -612,7 +612,7 @@ const ScheduleTool: React.FC = () => {
   // 右サイドバー：依頼中のスケジュールリスト
   // 【修正】数字を「回答数」から「参加人数」に変更
   const renderScheduleList = () => (
-    <div className="bg-white rounded-lg border border-gray-200 h-full flex flex-col shadow-sm overflow-hidden">
+    <div className="bg-white border border-[#3b3b3b] h-full flex flex-col overflow-hidden">
       <div className="px-3 py-2.5 border-b border-gray-100 bg-gray-50 flex justify-between items-center shrink-0">
         <h3 className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
           <FiList className="w-3.5 h-3.5" /> 履歴一覧
@@ -700,7 +700,7 @@ const ScheduleTool: React.FC = () => {
         
         <div className="flex-1 flex overflow-hidden p-3 gap-3">
           {/* 左カラム：メインコンテンツ */}
-          <div className="flex-1 flex flex-col min-h-0 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+          <div className="flex-1 flex flex-col min-h-0 bg-white border border-[#3b3b3b] overflow-hidden">
             {currentSchedule ? (
               <div className="flex-1 overflow-y-auto">
                 <div className="p-5">
@@ -1037,7 +1037,7 @@ const ScheduleTool: React.FC = () => {
         
         <div className="flex-1 flex overflow-hidden p-3 gap-3">
           {/* メインフォーム */}
-          <div className="flex-1 min-h-0 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden flex flex-col">
+          <div className="flex-1 min-h-0 bg-white border border-[#3b3b3b] overflow-hidden flex flex-col">
             <div className="flex-1 overflow-y-auto p-6 max-w-3xl mx-auto w-full">
                 {/* 戻るボタンをフォームタイトル横に移動（黒帯には置かない） */}
                 <div className="mb-6 border-b border-gray-100 pb-2 flex justify-between items-end">

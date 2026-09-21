@@ -744,9 +744,7 @@ const MyCalendar: React.FC = () => {
 
   // --- Render ---
   return (
-    // 白い板を白い地に置くと輪郭が読めないので、土台をうすいグレーにする。
-    // 画像変換の処理結果と同じ扱い。
-    <div className="pt-0 pb-4 bg-gray-50 min-h-full">
+    <div className="pt-0 pb-4">
       <div className="w-full h-[calc(100vh-var(--nav-height)-1rem)] flex flex-col">
         
         {/* Header */}
@@ -755,7 +753,7 @@ const MyCalendar: React.FC = () => {
           description="会議・作業・締切などの予定をカレンダー形式で管理。MyタスクとTeamタスクの期日も自動表示され、繰り返し予定やカテゴリ別の色分けにも対応"
         />
         {/* Main Card */}
-        <div className="bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden flex flex-col md:flex-row flex-1">
+        <div className="bg-white border border-[#3b3b3b] overflow-hidden flex flex-col md:flex-row flex-1">
           
           {/* Left Sidebar */}
           <div 

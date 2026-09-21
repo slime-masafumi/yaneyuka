@@ -161,7 +161,7 @@ const Grid: React.FC<GridProps> = ({
     <div 
       ref={gridRef} 
       tabIndex={0} 
-      className="overflow-auto border rounded"
+      className="overflow-auto"
       onMouseMove={handleMouseMove}
     >
       <table className="min-w-max text-[12px] border-collapse">

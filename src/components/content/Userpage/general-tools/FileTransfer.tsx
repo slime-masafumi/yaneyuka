@@ -735,7 +735,7 @@ const FileTransferTool: React.FC = () => {
   const renderUsage = () => {
     if (!limits) return null;
     return (
-      <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+      <div className="bg-gray-50 p-4 border border-[#3b3b3b]">
         <label className="block text-[12px] font-bold mb-3 text-gray-700 border-b border-gray-200 pb-1">使用量</label>
         <div className="space-y-4">
           <div>
@@ -935,7 +935,7 @@ const FileTransferTool: React.FC = () => {
 
             {/* 2. 設定エリア */}
             {retentionOptions.length > 0 && (
-              <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+              <div className="bg-gray-50 p-4 border border-[#3b3b3b]">
                 <label className="block text-[12px] font-bold mb-3 text-gray-700 border-b border-gray-200 pb-1">保存期間設定</label>
                 <div className="flex flex-wrap gap-3 text-xs text-gray-600">
                   {retentionOptions.map(option => (
@@ -980,7 +980,7 @@ const FileTransferTool: React.FC = () => {
           </div>
 
           {/* --- 右カラム：結果・出力 --- */}
-          <div className="bg-gray-50 rounded-lg border border-gray-200 p-4 flex flex-col h-full min-h-[300px]">
+          <div className="bg-gray-50 border border-[#3b3b3b] p-4 flex flex-col h-full min-h-[300px]">
             <label className="block text-[12px] font-bold mb-3 text-gray-700 border-b border-gray-200 pb-1">アップロード済みファイル</label>
 
             {filesError && (
@@ -1006,7 +1006,7 @@ const FileTransferTool: React.FC = () => {
                     const isExpired = file.expiresAt ? file.expiresAt.toDate().getTime() < Date.now() : false;
                     const shortLink = buildShortLink(file.shortCode);
                     return (
-                      <div key={file.id} className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
+                      <div key={file.id} className="bg-white p-3 border border-gray-200">
                         <div className="flex justify-between items-start mb-2">
                           <div className="flex-1 min-w-0">
                             <p className="text-[12px] font-bold text-gray-800 truncate">{file.fileName}</p>

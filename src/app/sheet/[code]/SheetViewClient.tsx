@@ -117,7 +117,7 @@ export default function SheetViewClient({ code }: { code: string }) {
           <a href="https://yaneyuka.com" className="text-xs text-blue-600 hover:text-blue-800 underline">yaneyuka.com</a>
         </div>
 
-        <div className="overflow-auto border rounded bg-white">
+        <div className="overflow-auto border border-[#3b3b3b] bg-white">
           <table className="min-w-max text-[12px] border-collapse">
             <thead className="bg-gray-100 sticky top-0 z-20">
               <tr>

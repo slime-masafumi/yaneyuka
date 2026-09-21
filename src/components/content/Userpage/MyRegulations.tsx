@@ -1680,7 +1680,7 @@ const MyRegulations: React.FC = () => {
   const currentHouki = houkis.find(h => h.id === selectedHoukiId);
 
   return (
-    <div className="pt-0 pb-4 bg-gray-50 min-h-full">
+    <div className="pt-0 pb-4">
       <div className="w-full h-[calc(100vh-100px)] flex flex-col">
         
         <ToolHeader
@@ -1695,7 +1695,7 @@ const MyRegulations: React.FC = () => {
         </div>
 
         {/* Main Card */}
-        <div className="bg-white shadow-xl border border-gray-200 overflow-hidden flex flex-col md:flex-row flex-1">
+        <div className="bg-white border border-[#3b3b3b] overflow-hidden flex flex-col md:flex-row flex-1">
         {/* 左サイドバー */}
         <div className={`${isSidebarOpen ? 'w-64' : 'w-0'} bg-white border-r transition-all duration-300 flex flex-col shrink-0 overflow-hidden`}>
           {/* 左上エリア：高さ統一 (h-[60px]) */}

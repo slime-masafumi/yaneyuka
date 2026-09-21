@@ -134,7 +134,7 @@ export default function YyMail() {
         title="yymail"
         description="受信トレイ・送信済み・下書きを管理します。現在はブラウザのローカル保存のみで、実メールの送受信は行いません"
       />
-      <div className="mb-4 border rounded bg-white p-3">
+      <div className="mb-4 border border-[#3b3b3b] bg-white p-3">
         <div className="flex items-baseline justify-between mb-2">
           <div className="flex gap-2">
             <button className={`px-3 py-1 text-xs rounded ${folder === 'inbox' ? 'bg-gray-700 text-white' : 'bg-gray-200 hover:bg-gray-700 hover:text-white'}`} onClick={() => setFolder('inbox')}>受信トレイ</button>
@@ -164,7 +164,7 @@ export default function YyMail() {
         </div>
       )}
 
-      <div className="divide-y border rounded">
+      <div className="divide-y border border-[#3b3b3b]">
         {list.length === 0 && (
           <div className="text-xs text-gray-500 p-2">表示するメールがありません。</div>
         )}

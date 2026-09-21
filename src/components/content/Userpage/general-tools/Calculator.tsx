@@ -793,12 +793,10 @@ const Calculator: React.FC = () => {
         <p className="text-[11px] mt-0.5">三角関数・対数・累乗などの関数計算に対応した高機能電卓。計算履歴の保存・管理が可能</p>
         </div>
       </div>
-      {/* 画像変換の処理結果と同じ扱い。白い板を白い地に置くと境界が読めないので、
-          土台をうすいグレーにして、その上に白いパネルを載せる。 */}
-      <div className="p-3 bg-gray-50 min-h-full">
+      <div className="p-3">
     <div className="flex gap-4">
       {/* 関数電卓本体 */}
-      <div className="w-72 bg-gray-800 rounded-lg shadow-sm self-start border border-gray-700 flex-shrink-0 h-fit">
+      <div className="w-72 bg-gray-800 self-start border border-[#3b3b3b] flex-shrink-0 h-fit">
         <div className="p-2 border-b border-gray-700">
           <h3 className="text-[13px] font-medium text-gray-200">関数電卓</h3>
         </div>
@@ -891,7 +889,7 @@ const Calculator: React.FC = () => {
       </div>
 
       {/* 計算履歴 */}
-      <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 min-h-0 h-[600px]">
+      <div className="flex-1 bg-white border border-[#3b3b3b] min-h-0 h-[600px]">
         <div className="p-3 border-b border-gray-100 flex justify-between items-center gap-2">
           <h3 className="text-[13px] font-medium text-gray-800 shrink-0">計算履歴</h3>
           <div className="flex items-center gap-1.5">

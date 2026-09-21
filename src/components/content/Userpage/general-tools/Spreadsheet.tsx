@@ -2319,7 +2319,7 @@ const Spreadsheet: React.FC = () => {
         <div 
           ref={gridRef} 
           tabIndex={0} 
-          className="overflow-auto border rounded" 
+          className="overflow-auto border border-[#3b3b3b]" 
           // ★ バグ修正: コンテナ自体のクリックでの解除ロジックを強化
           onMouseDown={(e) => {
             // クリックされたターゲットがまさにこの「背景コンテナ」である場合のみ解除する

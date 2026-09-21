@@ -509,7 +509,7 @@ const PDFCompressor: React.FC = () => {
 
             {/* 2. 設定エリア */}
 
-            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+            <div className="bg-gray-50 p-4 border border-[#3b3b3b]">
 
               <label className="block text-[12px] font-bold mb-3 text-gray-700 border-b border-gray-200 pb-1">圧縮設定</label>
 
@@ -709,7 +709,7 @@ const PDFCompressor: React.FC = () => {
 
           {/* --- 右カラム：結果・出力 --- */}
 
-          <div className="bg-gray-50 rounded-lg border border-gray-200 p-4 flex flex-col h-full min-h-[300px]">
+          <div className="bg-gray-50 border border-[#3b3b3b] p-4 flex flex-col h-full min-h-[300px]">
 
             <label className="block text-[12px] font-bold mb-3 text-gray-700 border-b border-gray-200 pb-1">処理結果</label>
 
@@ -757,7 +757,7 @@ const PDFCompressor: React.FC = () => {
 
               <div className="flex-1 flex flex-col animate-fadeIn">
 
-                <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm mb-4">
+                <div className="bg-white p-4 border border-gray-200 mb-4">
 
                   <div className="flex justify-between items-center mb-4">
 

@@ -953,7 +953,7 @@ const ImageConverter: React.FC = () => {
             )}
 
             {/* 2. 設定エリア */}
-            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+            <div className="bg-gray-50 p-4 border border-[#3b3b3b]">
               <label className="block text-[12px] font-bold mb-3 text-gray-700 border-b border-gray-200 pb-1">変換設定</label>
               
               <div className="space-y-3">
@@ -1084,7 +1084,7 @@ const ImageConverter: React.FC = () => {
           </div>
 
           {/* --- 右カラム：結果・出力 --- */}
-          <div className="bg-gray-50 rounded-lg border border-gray-200 p-4 flex flex-col h-full min-h-[300px]">
+          <div className="bg-gray-50 border border-[#3b3b3b] p-4 flex flex-col h-full min-h-[300px]">
             <label className="block text-[12px] font-bold mb-3 text-gray-700 border-b border-gray-200 pb-1">処理結果</label>
 
             {/* 初期状態 */}
@@ -1111,7 +1111,7 @@ const ImageConverter: React.FC = () => {
                       : 0;
                     
                     return (
-                      <div key={task.id} className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
+                      <div key={task.id} className="bg-white p-3 border border-gray-200">
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex-1 min-w-0">
                             <p className="text-[11px] font-bold text-gray-800 truncate" title={task.file.name}>{task.file.name}</p>

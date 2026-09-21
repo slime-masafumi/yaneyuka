@@ -12,7 +12,7 @@ const LeafletMap = dynamic(
   { 
     ssr: false,
     loading: () => (
-      <div className="h-[min(600px,calc(100vh-var(--nav-height)-230px))] rounded overflow-hidden border border-gray-200 flex items-center justify-center">
+      <div className="h-[min(600px,calc(100vh-var(--nav-height)-230px))] overflow-hidden border border-[#3b3b3b] flex items-center justify-center">
         <p>地図を読み込み中...</p>
       </div>
     )
@@ -106,7 +106,7 @@ const MapView: React.FC<MapViewProps> = ({ searchQuery, onSearchQueryChange }) =
 
   if (!isMounted) {
     return (
-      <div className="h-[min(600px,calc(100vh-var(--nav-height)-230px))] rounded overflow-hidden border border-gray-200 flex items-center justify-center">
+      <div className="h-[min(600px,calc(100vh-var(--nav-height)-230px))] overflow-hidden border border-[#3b3b3b] flex items-center justify-center">
         <p>地図を読み込み中...</p>
       </div>
     );
@@ -134,7 +134,7 @@ const MapView: React.FC<MapViewProps> = ({ searchQuery, onSearchQueryChange }) =
       </div>
 
       <div className="relative map-container" ref={mapContainerRef}>
-        <div className="h-[min(600px,calc(100vh-var(--nav-height)-230px))] rounded overflow-hidden border border-gray-200" style={{ position: 'relative', zIndex: 1 }}>
+        <div className="h-[min(600px,calc(100vh-var(--nav-height)-230px))] overflow-hidden border border-[#3b3b3b]" style={{ position: 'relative', zIndex: 1 }}>
           <LeafletMap center={center} />
         </div>
         <div className="map-controls absolute top-4 right-4 flex gap-2">
