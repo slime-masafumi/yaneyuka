@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/AuthContext';
-import { FiSettings, FiDollarSign, FiCopy, FiCheck, FiCpu, FiRefreshCw } from 'react-icons/fi';
+import { FiSettings, FiDollarSign, FiCopy, FiCheck, FiCpu, FiRefreshCw, FiCrop, FiArrowRight } from 'react-icons/fi';
 
 // 単位変換の定義データ
 interface UnitCategoryData {
@@ -116,6 +116,26 @@ const UNIT_CONVERSIONS: { [key: string]: UnitCategoryData } = {
 
 type UnitCategory = keyof typeof UNIT_CONVERSIONS;
 
+/**
+ * よく使う換算のプリセット。
+ * これまでは毎回「カテゴリー」と「現在の単位」を選ぶ必要があったので、
+ * 実務で頻度の高い組み合わせをワンタップで出せるようにする。
+ */
+const PRESETS: Array<{ label: string; category: UnitCategory; from: string }> = [
+  { label: '坪 → ㎡', category: 'area', from: 'tsubo' },
+  { label: '㎡ → 坪', category: 'area', from: 'm²' },
+  { label: '尺 → mm', category: 'length', from: 'shaku' },
+  { label: '間 → mm', category: 'length', from: 'ken' },
+  { label: 'N/mm² → kgf/cm²', category: 'pressure', from: 'N/mm²' },
+  { label: '立米 → L', category: 'volume', from: 'm³' },
+];
+
+/**
+ * 縮尺読み。図面上で測った長さと実寸法を相互に変換する。
+ * 紙図面や PDF をスケールで当たる作業がそのまま乗る。
+ */
+const SCALES = [10, 20, 30, 50, 100, 200, 500, 1000];
+
 const UnitConverter: React.FC = () => {
   const { isLoggedIn } = useAuth();
   
@@ -132,14 +152,39 @@ const UnitConverter: React.FC = () => {
   const [conversionResults, setConversionResults] = useState<{[key: string]: { value: string, price: string }}>({});
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
+  // 縮尺読み用 State
+  const [isScaleMode, setIsScaleMode] = useState(false);
+  const [scale, setScale] = useState(100);
+  const [drawingMm, setDrawingMm] = useState('');
+  const [actualMm, setActualMm] = useState('');
+
+  /**
+   * プリセットが選んだ単位。カテゴリ変更の useEffect が単位を先頭に戻してしまうので、
+   * ここに退避しておいて初期化のときに優先させる。
+   */
+  const pendingUnitRef = useRef<string | null>(null);
+
   // カテゴリ変更時の初期化
   useEffect(() => {
     if (selectedCategory) {
-      setFromUnit(UNIT_CONVERSIONS[selectedCategory].units[0].unit);
+      const units = UNIT_CONVERSIONS[selectedCategory].units;
+      const pending = pendingUnitRef.current;
+      pendingUnitRef.current = null;
+      setFromUnit(pending && units.some(u => u.unit === pending) ? pending : units[0].unit);
       setConversionResults({});
       setInputPrice('');
     }
   }, [selectedCategory]);
+
+  const applyPreset = (preset: { category: UnitCategory; from: string }) => {
+    if (preset.category === selectedCategory) {
+      // カテゴリが同じなら初期化の useEffect は走らないので直接入れる
+      setFromUnit(preset.from);
+    } else {
+      pendingUnitRef.current = preset.from;
+      setSelectedCategory(preset.category);
+    }
+  };
 
   const evaluateInput = (input: string): number | null => {
     if (!input) return null;
@@ -228,6 +273,35 @@ const UnitConverter: React.FC = () => {
     setConversionResults(results);
   }, [selectedCategory, fromUnit, calculatedValue, inputPrice, isPriceMode]);
 
+  /** 図面上で測った mm → 実寸法 mm。逆方向は handleActualChange。 */
+  const handleDrawingChange = (val: string) => {
+    setDrawingMm(val);
+    const n = parseFloat(val);
+    setActualMm(isFinite(n) ? String(Math.round(n * scale * 100) / 100) : '');
+  };
+
+  const handleActualChange = (val: string) => {
+    setActualMm(val);
+    const n = parseFloat(val);
+    setDrawingMm(isFinite(n) ? String(Math.round((n / scale) * 100) / 100) : '');
+  };
+
+  /** 縮尺を変えたら、図面上の実測値を基準に実寸法を引き直す。 */
+  const handleScaleChange = (next: number) => {
+    setScale(next);
+    const n = parseFloat(drawingMm);
+    if (isFinite(n)) setActualMm(String(Math.round(n * next * 100) / 100));
+  };
+
+  /** 縮尺読みで出した実寸法を、そのまま上の単位変換に流し込む。 */
+  const sendActualToConverter = () => {
+    const n = parseFloat(actualMm);
+    if (!isFinite(n)) return;
+    applyPreset({ category: 'length', from: 'mm' });
+    setInputValue(String(n));
+    setCalculatedValue(n);
+  };
+
   const handleCopy = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
     setCopiedKey(key);
@@ -235,7 +309,9 @@ const UnitConverter: React.FC = () => {
   };
 
   return (
-    <div className="w-full bg-white rounded-b-lg shadow-sm border-b border-gray-100 flex flex-col h-full overflow-hidden">
+    // 親（GeneralTools のラッパー）が高さを持たないので h-full が効かない。
+    // 結果が並ぶと画面外へはみ出すため、PC では実寸で高さを止めて中だけスクロールさせる。
+    <div className="w-full bg-white rounded-b-lg shadow-sm border-b border-gray-100 flex flex-col h-full lg:h-[calc(100vh-var(--nav-height))] overflow-hidden">
       {/* ヘッダー (変更なし) */}
       <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
         <div>
@@ -257,6 +333,26 @@ const UnitConverter: React.FC = () => {
                 </div>
 
                 <div className="space-y-4">
+                    <div>
+                        <label className="block text-[11px] font-bold text-gray-500 mb-1.5">よく使う換算</label>
+                        <div className="flex flex-wrap gap-1">
+                            {PRESETS.map((p) => (
+                                <button
+                                    key={p.label}
+                                    type="button"
+                                    onClick={() => applyPreset(p)}
+                                    className={`text-[10px] px-2 py-1 rounded border transition-colors ${
+                                        selectedCategory === p.category && fromUnit === p.from
+                                            ? 'bg-blue-50 border-blue-300 text-blue-700 font-bold'
+                                            : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-blue-300'
+                                    }`}
+                                >
+                                    {p.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
                     <div>
                         <label className="block text-[11px] font-bold text-gray-500 mb-1.5">カテゴリー</label>
                         <select
@@ -343,6 +439,86 @@ const UnitConverter: React.FC = () => {
                 )}
             </div>
             
+            {/* 3. 縮尺読み */}
+            <div className="pt-3 border-t border-gray-100">
+                <div className="flex justify-between items-center mb-2">
+                    <label className="block text-[11px] font-bold text-teal-700 flex items-center gap-1.5">
+                       <FiCrop className="w-3 h-3" /> 縮尺読み
+                    </label>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={isScaleMode}
+                            onChange={(e) => setIsScaleMode(e.target.checked)}
+                            className="sr-only peer"
+                        />
+                        <div className="w-7 h-4 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-teal-400"></div>
+                    </label>
+                </div>
+
+                {isScaleMode && (
+                    <div className="bg-teal-50/50 p-3 rounded-lg border border-teal-100 animate-fadeIn space-y-2.5">
+                        <div className="flex flex-wrap gap-1">
+                            {SCALES.map((s) => (
+                                <button
+                                    key={s}
+                                    type="button"
+                                    onClick={() => handleScaleChange(s)}
+                                    className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                                        scale === s
+                                            ? 'bg-teal-500 border-teal-500 text-white font-bold'
+                                            : 'bg-white border-teal-200 text-teal-700 hover:border-teal-400'
+                                    }`}
+                                >
+                                    1/{s}
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <div className="flex-1">
+                                <label className="block text-[10px] font-bold text-teal-800 mb-0.5">図面上 (mm)</label>
+                                <input
+                                    type="number"
+                                    value={drawingMm}
+                                    onChange={(e) => handleDrawingChange(e.target.value)}
+                                    disabled={!isLoggedIn}
+                                    placeholder="0"
+                                    className="w-full text-right font-bold text-sm p-1.5 border border-teal-200 rounded bg-white focus:ring-1 focus:ring-teal-400 outline-none text-gray-800 placeholder-teal-200 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                                />
+                            </div>
+                            <FiArrowRight className="w-3 h-3 text-teal-400 shrink-0 mt-4" />
+                            <div className="flex-1">
+                                <label className="block text-[10px] font-bold text-teal-800 mb-0.5">実寸法 (mm)</label>
+                                <input
+                                    type="number"
+                                    value={actualMm}
+                                    onChange={(e) => handleActualChange(e.target.value)}
+                                    disabled={!isLoggedIn}
+                                    placeholder="0"
+                                    className="w-full text-right font-bold text-sm p-1.5 border border-teal-200 rounded bg-white focus:ring-1 focus:ring-teal-400 outline-none text-gray-800 placeholder-teal-200 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                                />
+                            </div>
+                        </div>
+
+                        {parseFloat(actualMm) > 0 && (
+                            <div className="flex items-center justify-between gap-2">
+                                <span className="text-[11px] font-bold text-teal-700">
+                                    = {formatNumber(parseFloat(actualMm) / 1000, 3)} m
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={sendActualToConverter}
+                                    className="text-[10px] px-2 py-1 rounded bg-white border border-teal-300 text-teal-700 font-bold hover:bg-teal-100 transition-colors"
+                                >
+                                    上の変換へ送る
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+
             {/* 情報エリア */}
             <div className="mt-auto bg-blue-50/50 p-3 rounded-lg border border-blue-100">
                 <div className="flex items-start gap-2">
