@@ -7,6 +7,15 @@ import UserpageBottomBar from './UserpageBottomBar';
 import RelatedPrivacyLinks from '../RelatedPrivacyLinks';
 import { isPrivacyPolicyPath } from '@/lib/legalPages';
 import { CATEGORY_ROUTES, EXTERIOR_FINISH_SUBCATEGORIES, findCategoryBySubcategory } from '@/lib/materialCategories';
+import {
+  USERPAGE_MENUS,
+  isUserpageMenu as isUserpageMenuId,
+  buildUserpageQuery,
+  parseUserpageQuery,
+  type UserpageTarget,
+} from '@/lib/userpageUrl';
+import { requestGeneralTool, type GeneralToolId } from '@/lib/generalToolsMenu';
+import { requestDesignToolsTarget } from '@/lib/designToolsNav';
 import ReferenceResources from '../content/ReferenceResources';
 import Settings from '../content/Userpage/Settings';
 import Sidebar from './Sidebar';
@@ -119,6 +128,30 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
 
   const [activeContent, setActiveContent] = useState<string>(getInitialContent());
 
+  /**
+   * URL が指している画面を開く。ツールの指定は、画面が組み立てられる前に
+   * 置いておく必要があるので、setActiveContent より先に渡す。
+   */
+  const applyUserpageTarget = useCallback((target: UserpageTarget) => {
+    if (target.menu === 'general-tools' && target.tool) {
+      requestGeneralTool({ toolId: target.tool as GeneralToolId });
+    }
+    if (target.menu === 'design-tools' && target.category) {
+      requestDesignToolsTarget({ categoryId: target.category, subTabId: target.sub });
+    }
+    setActiveContent(target.menu);
+    activeContentRef.current = target.menu;
+  }, []);
+
+  // 開いた直後の復元。?m= が付いた URL で入ってきたらその画面を出す。
+  // useSearchParams は使わない（呼ぶとページ全体がクライアント描画に落ちて
+  // 配信 HTML から本文が消えるため）。window から直接読む。
+  useEffect(() => {
+    const target = parseUserpageQuery(window.location.search);
+    if (target) applyUserpageTarget(target);
+    // 初回だけ。以降は handleMenuClick と popstate が面倒を見る。
+  }, [applyUserpageTarget]);
+
   // lg 以上では中央カラムだけがスクロールするので、表示を切り替えたときに
   // 前の画面のスクロール位置が残る。ページ全体がスクロールしていた頃は
   // ブラウザが勝手に詰めていた分を、ここで明示的に戻す。
@@ -149,7 +182,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
 
     // userpageMenusのメニューが表示されている場合は、pathnameが変更されてもactiveContentを保持
     // activeContentRefを使用して、最新の値を参照する（依存配列に含めないことで無限ループを防ぐ）
-    const userpageMenus = ['my-calendar', 'my-regulations', 'my-tasks', 'team-tasks', 'pdf-diff', 'general-tools', 'design-tools', 'design-info', 'material-info', 'contacts', 'settings', 'yychat', 'yymail', 'userpage-top'];
+    const userpageMenus = USERPAGE_MENUS as readonly string[];
     if (userpageMenus.includes(activeContentRef.current)) {
       return;
     }
@@ -192,8 +225,17 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
   // ブラウザの戻るボタンやマウスの戻るボタンが押された場合の処理
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
-      const userpageMenus = ['my-calendar', 'my-regulations', 'my-tasks', 'team-tasks', 'pdf-diff', 'general-tools', 'design-tools', 'design-info', 'material-info', 'contacts', 'settings', 'yychat', 'yymail'];
-      
+      const userpageMenus = USERPAGE_MENUS as readonly string[];
+
+      // 戻った先の URL が画面を指しているなら、それをそのまま開く。
+      // state だけを見ていた頃は、履歴を2つ戻ると URL と画面がずれていた。
+      const fromUrl = parseUserpageQuery(window.location.search);
+      if (fromUrl) {
+        isPopStateHandlingRef.current = true;
+        applyUserpageTarget(fromUrl);
+        return;
+      }
+
       // 現在のactiveContentをrefから取得（最新の状態を確実に取得）
       const currentContent = activeContentRef.current;
       
@@ -240,7 +282,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
     return () => {
       window.removeEventListener('popstate', handlePopState);
     };
-  }, []);
+  }, [applyUserpageTarget]);
   const { isLoggedIn, currentUser } = useAuth();
   const [totalUnreadCount, setTotalUnreadCount] = useState<number>(0);
   
@@ -483,7 +525,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
     setSearchQuery(query);
   };
 
-  const handleMenuClick = (menuItem: string) => {
+  const handleMenuClick = (menuItem: string, target?: UserpageTarget) => {
     console.log('Menu clicked:', menuItem);
     
     // URLベースのルーティングを使用するメニューは、Navigation.tsxで処理される
@@ -564,22 +606,27 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
     }
     
     // Userpageのツールに遷移する場合、履歴を追加
-    const userpageMenus = ['my-calendar', 'my-regulations', 'my-tasks', 'team-tasks', 'pdf-diff', 'general-tools', 'design-tools', 'design-info', 'material-info', 'contacts', 'settings', 'yychat', 'yymail'];
-    const isUserpageMenu = userpageMenus.includes(menuItem);
-    
+    const isUserpage = isUserpageMenuId(menuItem);
+
     // activeContentを先に更新（白フラッシュを防ぐため）
     const currentContent = activeContent;
     setActiveContent(menuItem);
     activeContentRef.current = menuItem; // refも即座に更新（pathname変更useEffectとの競合を防ぐ）
-    
-    if (isUserpageMenu) {
+
+    if (isUserpage) {
       // 現在のactiveContentを保存
       previousContentRef.current = currentContent;
       // Userpage_topから来たかどうかを記録
       const fromUserpageTop = currentContent === 'userpage-top';
-      // 履歴に追加（URLは変更せずactiveContentのみ切り替え）
+      // 履歴に追加。どの画面を開いたかを URL に載せるので、
+      // 再読み込み・共有・戻るのどれでも同じ画面に戻れる。
       try {
-        window.history.pushState({ content: menuItem, previousContent: currentContent, fromUserpageTop }, '', '/');
+        const query = buildUserpageQuery(target ?? { menu: menuItem });
+        window.history.pushState(
+          { content: menuItem, previousContent: currentContent, fromUserpageTop },
+          '',
+          `/${query}`
+        );
       } catch (e) {
         console.warn('Failed to push state:', e);
       }
@@ -721,6 +768,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
     }
 
     const onPopState = (e: PopStateEvent) => {
+      // 戻った先が左カラムの画面を指しているなら、上の popstate が復元するので
+      // ここは何もしない。無条件に topix へ戻していたため、左カラムの中で
+      // 戻ろうとしても必ずトップページに落ちていた。
+      if (parseUserpageQuery(window.location.search)) {
+        return;
+      }
+
       try {
         if (e.preventDefault) {
           e.preventDefault();
@@ -1350,7 +1404,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
 
   // Userpageのメニューかどうかを判定する関数
   const isUserpageMenu = () => {
-    const userpageMenus = ['my-calendar', 'my-regulations', 'my-tasks', 'team-tasks', 'pdf-diff', 'general-tools', 'design-tools', 'design-info', 'material-info', 'contacts', 'settings', 'yychat', 'yymail', 'userpage-top'];
+    const userpageMenus = USERPAGE_MENUS as readonly string[];
     return userpageMenus.includes(activeContent);
   };
 

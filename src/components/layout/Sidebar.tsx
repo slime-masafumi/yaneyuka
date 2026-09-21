@@ -2,9 +2,10 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { requestDesignToolsTarget } from '@/lib/designToolsNav';
+import { requestDesignToolsTarget, onDesignToolsTarget } from '@/lib/designToolsNav';
+import { parseUserpageQuery, type UserpageTarget } from '@/lib/userpageUrl';
 import { DESIGN_TOOL_MENU } from '@/lib/designToolsMenu';
-import { requestGeneralTool, type GeneralToolId } from '@/lib/generalToolsMenu';
+import { requestGeneralTool, onGeneralTool, type GeneralToolId } from '@/lib/generalToolsMenu';
 import { useAuth } from '@/lib/AuthContext';
 
 interface SidebarProps {
@@ -12,7 +13,7 @@ interface SidebarProps {
   onPageChange?: (page: string) => void;
   onLogoClick?: () => void;
   /** 左カラム下部の Ⅰ〜Ⅴ から Userpage 系メニューを開く。MainLayout の handleMenuClick。 */
-  onMenuClick?: (menuItem: string) => void;
+  onMenuClick?: (menuItem: string, target?: UserpageTarget) => void;
   /** いま中央に出ている画面。選択中の項目を緑にするために使う。 */
   activeContent?: string;
 }
@@ -168,6 +169,30 @@ const Sidebar: React.FC<SidebarProps> = ({ onItemClick, onPageChange, onLogoClic
   const [activeTool, setActiveTool] = useState<string | null>(null);
   const [activeDesignTool, setActiveDesignTool] = useState<string | null>(null);
 
+  // URL で直接ツールを開かれたときは、左カラムもその段（Ⅰ〜Ⅴ）に合わせる。
+  // 押して切り替えた場合はこの効果より前に mode が変わっているので、結果は同じ。
+  useEffect(() => {
+    if (!activeContent) return;
+    // 設計ツールは items ではなく tree で持っているので、そちらも見る。
+    const found = RAIL_MODES.findIndex(
+      (m) => m.items.some((i) => i.menu === activeContent) || (m.tree && activeContent === 'design-tools')
+    );
+    if (found >= 0) setMode(found);
+  }, [activeContent]);
+
+  // 開いているツールの印。切り替えは MainLayout が投げるイベントで拾う。
+  useEffect(() => onGeneralTool(({ toolId }) => setActiveTool(toolId)), []);
+  useEffect(() => onDesignToolsTarget(({ subTabId }) => setActiveDesignTool(subTabId ?? null)), []);
+
+  // 初回だけはイベントに間に合わない。MainLayout の復元は親の effect なので、
+  // ここが購読し終わる前に投げ終わっている。URL から直接読んで印を合わせる。
+  useEffect(() => {
+    const target = parseUserpageQuery(window.location.search);
+    if (!target) return;
+    if (target.tool) setActiveTool(target.tool);
+    if (target.sub) setActiveDesignTool(target.sub);
+  }, []);
+
   /** 選択中の項目に付ける文字色。ナビバーと同じ緑。 */
   const ACTIVE = 'text-[#52AA96]';
   const isItemActive = (item: RailItem) =>
@@ -313,7 +338,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onItemClick, onPageChange, onLogoClic
                 onClick={() => {
                   if (item.tool) requestGeneralTool({ toolId: item.tool });
                   setActiveTool(item.tool ?? null);
-                  onMenuClick?.(item.menu);
+                  onMenuClick?.(item.menu, { menu: item.menu, tool: item.tool });
                   onItemClick?.();
                 }}
               >
@@ -345,7 +370,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onItemClick, onPageChange, onLogoClic
                       onClick={() => {
                         requestDesignToolsTarget({ categoryId: category.id, subTabId: sub.id });
                         setActiveDesignTool(sub.id);
-                        onMenuClick?.('design-tools');
+                        onMenuClick?.('design-tools', { menu: 'design-tools', category: category.id, sub: sub.id });
                         onItemClick?.();
                       }}
                     >
