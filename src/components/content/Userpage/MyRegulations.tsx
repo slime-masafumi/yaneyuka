@@ -1697,7 +1697,7 @@ const MyRegulations: React.FC = () => {
         {/* Main Card */}
         <div className="bg-white border border-[#3b3b3b] overflow-hidden flex flex-col md:flex-row flex-1">
         {/* 左サイドバー */}
-        <div className={`${isSidebarOpen ? 'w-64' : 'w-0'} bg-white border-r transition-all duration-300 flex flex-col shrink-0 overflow-hidden`}>
+        <div className={`${isSidebarOpen ? 'w-64' : 'w-0'} bg-white border-r border-[#3b3b3b] transition-all duration-300 flex flex-col shrink-0 overflow-hidden`}>
           {/* 左上エリア：高さ統一 (h-[60px]) */}
           <div className="h-[60px] px-3 flex items-center border-b bg-gray-50 shrink-0">
             {!showAddHoukiInput ? (

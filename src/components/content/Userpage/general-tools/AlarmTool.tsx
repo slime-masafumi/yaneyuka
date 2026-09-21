@@ -452,47 +452,35 @@ const AlarmTool: React.FC = () => {
   return (
     <div className="w-full bg-white rounded-b-lg shadow-sm border-b border-gray-100 flex flex-col h-full overflow-hidden">
       
-      {/* Header & Tabs */}
-      <div className="border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
-        <div className="p-4 pb-0">
-          <div>
-            <h3 className="text-[13px] font-medium">アラーム・業務管理</h3>
-            <p className="text-[11px] mt-0.5 opacity-80">タイマー・アラーム・業務時間記録の統合ツール。作業時間の記録と業務日報の作成に対応</p>
+      {/* 帯は他のツールと同じ高さ・同じ書式にする（タブは帯の外へ出した） */}
+      <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
+        <div>
+          <h3 className="text-[13px] font-medium">アラーム・業務管理</h3>
+          <p className="text-[11px] mt-0.5">タイマー・アラーム・業務時間記録の統合ツール。作業時間の記録と業務日報の作成に対応</p>
+        </div>
       </div>
-          <div className="mt-3">
-            <div className="flex gap-1">
+
+      {/* 帯に食い込むタブではなく、本文側のボタンとして並べる。
+          並びは使う頻度の順（業務管理 → タイマー → アラーム）。 */}
+      <div className="px-4 pt-3 shrink-0">
+        <div className="flex gap-2">
+          {([
+            { id: 'tracker', label: '業務管理', icon: <FiClipboard /> },
+            { id: 'timer', label: 'タイマー', icon: <FiActivity /> },
+            { id: 'alarm', label: 'アラーム', icon: <FiClock /> },
+          ] as const).map((t) => (
             <button
-              onClick={() => { setMode('timer'); stopTimer(); }}
-                className={`px-4 py-2 text-xs rounded-t-lg transition-colors flex items-center gap-1.5 ${
-                  mode === 'timer' 
-                    ? 'bg-white text-gray-800 font-bold' 
-                    : 'bg-gray-600 text-gray-200 hover:bg-gray-500'
+              key={t.id}
+              onClick={() => { setMode(t.id); stopTimer(); }}
+              className={`px-4 py-1.5 text-xs border transition-colors flex items-center gap-1.5 ${
+                mode === t.id
+                  ? 'bg-[#3b3b3b] text-white border-[#3b3b3b] font-bold'
+                  : 'bg-white text-gray-700 border-[#3b3b3b] hover:bg-gray-100'
               }`}
             >
-              <FiActivity /> タイマー
+              {t.icon} {t.label}
             </button>
-            <button
-              onClick={() => { setMode('alarm'); stopTimer(); }}
-                className={`px-4 py-2 text-xs rounded-t-lg transition-colors flex items-center gap-1.5 ${
-                  mode === 'alarm' 
-                    ? 'bg-white text-gray-800 font-bold' 
-                    : 'bg-gray-600 text-gray-200 hover:bg-gray-500'
-              }`}
-            >
-              <FiClock /> アラーム
-            </button>
-              <button
-                onClick={() => { setMode('tracker'); stopTimer(); }}
-                className={`px-4 py-2 text-xs rounded-t-lg transition-colors flex items-center gap-1.5 ${
-                  mode === 'tracker' 
-                    ? 'bg-white text-gray-800 font-bold' 
-                    : 'bg-gray-600 text-gray-200 hover:bg-gray-500'
-                }`}
-              >
-                <FiClipboard /> 業務記録
-              </button>
-            </div>
-          </div>
+          ))}
         </div>
       </div>
 

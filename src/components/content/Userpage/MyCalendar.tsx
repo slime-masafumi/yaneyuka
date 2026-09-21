@@ -753,7 +753,7 @@ const MyCalendar: React.FC = () => {
           description="会議・作業・締切などの予定をカレンダー形式で管理。MyタスクとTeamタスクの期日も自動表示され、繰り返し予定やカテゴリ別の色分けにも対応"
         />
         {/* Main Card */}
-        <div className="bg-white border border-[#3b3b3b] overflow-hidden flex flex-col md:flex-row flex-1">
+        <div className="bg-white border border-[#3b3b3b] overflow-hidden flex flex-col md:flex-row flex-1 mt-3">
           
           {/* Left Sidebar */}
           <div 

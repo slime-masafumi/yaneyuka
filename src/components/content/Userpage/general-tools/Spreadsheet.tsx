@@ -1666,7 +1666,7 @@ const Spreadsheet: React.FC = () => {
         </div>
       </div>
       {/* 帯は左右いっぱい、その下の本文だけ他ツールと同じ左右余白を付ける。 */}
-      <div className="flex-1 min-h-0 overflow-hidden px-4" onMouseUp={handleMouseUp} onClick={() => setContextMenu(null)}>
+      <div className="flex-1 min-h-0 overflow-hidden px-4 pt-3" onMouseUp={handleMouseUp} onClick={() => setContextMenu(null)}>
       {/* フォーミュラバー */}
       <FormulaBar
         cellAddress={activeCellKey ? (() => {

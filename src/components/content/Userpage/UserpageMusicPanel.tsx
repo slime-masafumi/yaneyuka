@@ -14,7 +14,7 @@ const UserpageMusicPanel: React.FC = () => {
       style={{ width: open ? panelWidthOpen : 0, transition: 'width 200ms ease' }}
       aria-expanded={open}
     >
-      <div className="sticky top-2">
+      <div className="sticky top-[16px] mt-[7px]">
         {/* BGM toggle button — always visible, flush to right edge */}
         <div className="flex flex-col items-end">
           <button

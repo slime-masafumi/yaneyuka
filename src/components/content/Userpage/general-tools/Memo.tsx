@@ -712,7 +712,7 @@ const MemoTool: React.FC = () => {
       <div className="p-4 flex-1 min-h-0 overflow-hidden [&>*]:border [&>*]:border-[#3b3b3b] [&>*]:p-3">
         <div className="flex gap-6 h-full">
           {/* 左サイド：メモ一覧 */}
-          <div className="w-1/5 flex flex-col min-w-[200px]">
+          <div className="w-1/5 flex flex-col min-w-[200px] border-r border-[#3b3b3b] pr-4">
             <div className="mb-3 shrink-0">
               <button
                 onClick={() => createNewMemo()}
