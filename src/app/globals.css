@@ -391,6 +391,32 @@ nav .absolute .py-1 a {
     height: 100%;
   }
 
+  /* 全面表示（一般ツール）：ナビ直下から左右いっぱいまで余白ゼロ。
+     main 側の角丸と下マージンも外さないと、上端と左右に隙間が残る。 */
+  /* Tailwind の lg:p-4 と同じ特異度だと後勝ちされるので、ID でスコープして上回る。 */
+  #main-layout-container .yy-shell__cols--flush {
+    padding: 0;
+    gap: 0;
+  }
+
+  #main-layout-container .yy-shell__cols--flush > main {
+    margin-bottom: 0;
+    border-radius: 0;
+  }
+
+  /* main の中（本体 ＋ 作業music パネル）の隙間も詰める。
+     あわせて高さを通す。ここが auto だと、ツール側の h-full が解決できず
+     本文が内容ぶん伸びて画面からはみ出す（表計算がそうなっていた）。 */
+  #main-layout-container .yy-shell__cols--flush > main > div {
+    gap: 0;
+    height: 100%;
+    align-items: stretch;
+  }
+
+  #main-layout-container .yy-shell__cols--flush > main > div > .flex-1 {
+    min-height: 0;
+  }
+
   /* ここだけがスクロールする。スクロールバーは出さない。 */
   .yy-shell__main {
     height: 100%;

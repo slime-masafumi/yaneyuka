@@ -237,7 +237,7 @@ const UnitConverter: React.FC = () => {
   return (
     <div className="w-full bg-white rounded-b-lg shadow-sm border-b border-gray-100 flex flex-col h-full overflow-hidden">
       {/* ヘッダー (変更なし) */}
-      <div className="p-4 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
+      <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
         <div>
           <h3 className="text-[13px] font-medium">単位・単価コンバーター</h3>
           <p className="text-[11px] mt-0.5">長さ・面積・体積・重さ・圧力・温度など様々な単位を変換。建築実務でよく使う単位にも対応</p>

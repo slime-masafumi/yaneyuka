@@ -862,21 +862,21 @@ const ImageConverter: React.FC = () => {
 
   return (
     <div className="w-full bg-white rounded-b-lg shadow-sm border-b border-gray-100">
-      <div className="p-4 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
+      <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
         <div>
           <h3 className="text-[13px] font-medium">画像変換・画像圧縮</h3>
           <p className="text-[11px] mt-0.5">JPEG/PNG/WebP/GIF/SVG/HEIC/RAWなど様々な形式に対応。一括変換・圧縮・リサイズが可能</p>
         </div>
       </div>
 
-      <div className="p-4">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="p-3">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {/* --- 左カラム：入力・設定 --- */}
-          <div className="space-y-6">
+          <div className="space-y-3">
             {/* 1. ファイル選択エリア */}
             <div>
               <div
-                className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                className={`border-2 border-dashed rounded-lg p-3 text-center transition-colors ${
                   isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
                 }`}
                 onDragOver={e => {
@@ -886,11 +886,11 @@ const ImageConverter: React.FC = () => {
                 onDragLeave={() => setIsDragging(false)}
                 onDrop={handleDrop}
               >
-                <div className="flex flex-col items-center justify-center gap-2">
+                <div className="flex flex-col items-center justify-center gap-1.5">
                   {/* incompleteTasks（未完了タスク）がない場合は初期表示に戻す */}
                   {incompleteTasks.length === 0 ? (
                     <>
-                      <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                      <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                       <p className="text-[12px] text-gray-600">画像ファイルをドラッグ＆ドロップ</p>
                       <label
                         htmlFor="image-converter-input"
@@ -956,7 +956,7 @@ const ImageConverter: React.FC = () => {
             <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
               <label className="block text-[12px] font-bold mb-3 text-gray-700 border-b border-gray-200 pb-1">変換設定</label>
               
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div>
                   <label className="block text-[11px] font-medium mb-1 text-gray-600">出力形式</label>
                   <select

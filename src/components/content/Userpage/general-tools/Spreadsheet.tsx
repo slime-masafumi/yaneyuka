@@ -1657,15 +1657,16 @@ const Spreadsheet: React.FC = () => {
   };
 
   return (
-    <div className="bg-white rounded-b-lg shadow-sm border-b border-gray-100 flex flex-col h-full">
+    <div className="bg-white rounded-b-lg shadow-sm border-b border-gray-100 flex flex-col h-full lg:h-[calc(100vh-var(--nav-height))]">
       {/* ヘッダーエリア */}
-      <div className="p-4 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
+      <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
         <div>
           <h3 className="text-[13px] font-medium">表計算</h3>
           <p className="text-[11px] mt-0.5">Excelライクな表計算ツール。数式・関数計算、セル書式設定、Excel形式でのエクスポートに対応</p>
         </div>
       </div>
-      <div className="flex-1 min-h-0 overflow-hidden" onMouseUp={handleMouseUp} onClick={() => setContextMenu(null)}>
+      {/* 帯は左右いっぱい、その下の本文だけ他ツールと同じ左右余白を付ける。 */}
+      <div className="flex-1 min-h-0 overflow-hidden px-4" onMouseUp={handleMouseUp} onClick={() => setContextMenu(null)}>
       {/* フォーミュラバー */}
       <FormulaBar
         cellAddress={activeCellKey ? (() => {

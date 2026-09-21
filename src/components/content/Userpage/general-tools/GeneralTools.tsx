@@ -25,6 +25,7 @@ import {
 } from 'react-icons/si';
 import { BsMicrosoftTeams } from 'react-icons/bs';
 import { useAuth } from '@/lib/AuthContext';
+import ToolHeader from '../ToolHeader';
 import {
   GENERAL_TOOL_MENU,
   consumeGeneralTool,
@@ -167,13 +168,13 @@ const MapSection: React.FC = () => {
 
   return (
     <div className="w-full bg-white rounded-b-lg shadow-sm border-b border-gray-100">
-      <div className="p-4 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
+      <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
         <div>
         <h3 className="text-[13px] font-medium">地図</h3>
           <p className="text-[11px] mt-0.5">住所や施設名を検索して地図上で確認。OpenStreetMapを使用した無料の地図表示ツール</p>
         </div>
       </div>
-      <div className="p-4">
+      <div className="p-3">
         <MapView
           searchQuery={searchQuery}
           onSearchQueryChange={setSearchQuery}
@@ -667,22 +668,22 @@ const GeneralTools: React.FC = () => {
   // 計算機本体の表示部分を更新
   const renderCalculator = () => (
     <div className="w-full bg-white rounded-b-lg shadow-sm border-b border-gray-100">
-      <div className="p-4 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
+      <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
         <div>
         <h3 className="text-[13px] font-medium">関数電卓</h3>
         <p className="text-[11px] mt-0.5">三角関数・対数・累乗などの関数計算に対応した高機能電卓。計算履歴の保存・管理が可能</p>
         </div>
       </div>
-      <div className="p-4">
+      <div className="p-3">
     <div className="flex gap-4">
       {/* 関数電卓本体 */}
-      <div className="w-72 bg-gray-800 rounded-lg shadow-sm border border-gray-700 flex-shrink-0 h-fit">
-        <div className="p-3 border-b border-gray-700">
+      <div className="w-72 bg-gray-800 rounded-lg shadow-sm self-start border border-gray-700 flex-shrink-0 h-fit">
+        <div className="p-2 border-b border-gray-700">
           <h3 className="text-[13px] font-medium text-gray-200">関数電卓</h3>
         </div>
-        <div className="p-3 pb-4">
+        <div className="p-2 pb-3">
           <div className="space-y-3">
-            <div className="bg-gray-900 p-3 rounded h-20 flex flex-col justify-between">
+            <div className="bg-gray-900 p-2 rounded h-16 flex flex-col justify-between">
               <input 
                 type="text" 
                 value={formatExpressionForDisplay(calculatorExpression)}
@@ -698,25 +699,25 @@ const GeneralTools: React.FC = () => {
             </div>
             <div className="grid grid-cols-5 gap-1">
               {/* Row 1 */}
-              <button onClick={() => calculatorInput('SHIFT')} className={`text-[10px] ${shiftMode ? 'bg-blue-600' : 'bg-gray-700'} hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-2 px-1 text-center rounded`}>SHIFT</button>
-              <button onClick={() => calculatorInput('π')} className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-2 px-1 text-center rounded">π</button>
-              <button onClick={() => calculatorInput('x⁻¹')} className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-2 px-1 text-center rounded">x⁻¹</button>
-              <button onClick={() => calculatorInput('DEL')} className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-2 px-1 text-center rounded">DEL</button>
-              <button onClick={() => calculatorInput('AC')} className="text-[10px] bg-gray-600 hover:bg-gray-500 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-2 px-1 text-center rounded">AC</button>
+              <button onClick={() => calculatorInput('SHIFT')} className={`text-[10px] ${shiftMode ? 'bg-blue-600' : 'bg-gray-700'} hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center rounded`}>SHIFT</button>
+              <button onClick={() => calculatorInput('π')} className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center rounded">π</button>
+              <button onClick={() => calculatorInput('x⁻¹')} className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center rounded">x⁻¹</button>
+              <button onClick={() => calculatorInput('DEL')} className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center rounded">DEL</button>
+              <button onClick={() => calculatorInput('AC')} className="text-[10px] bg-gray-600 hover:bg-gray-500 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center rounded">AC</button>
 
               {/* Row 2 */}
-              <button onClick={() => calculatorInput('x²')} className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-2 px-1 text-center rounded">{keyLabel('x²')}</button>
-              <button onClick={() => calculatorInput('x^')} className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-2 px-1 text-center rounded">x^</button>
-              <button onClick={() => calculatorInput('√')} className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-2 px-1 text-center rounded">{keyLabel('√')}</button>
-              <button onClick={() => calculatorInput('log')} className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-2 px-1 text-center rounded">{keyLabel('log')}</button>
-              <button onClick={() => calculatorInput('ln')} className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-2 px-1 text-center rounded">{keyLabel('ln')}</button>
+              <button onClick={() => calculatorInput('x²')} className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center rounded">{keyLabel('x²')}</button>
+              <button onClick={() => calculatorInput('x^')} className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center rounded">x^</button>
+              <button onClick={() => calculatorInput('√')} className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center rounded">{keyLabel('√')}</button>
+              <button onClick={() => calculatorInput('log')} className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center rounded">{keyLabel('log')}</button>
+              <button onClick={() => calculatorInput('ln')} className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center rounded">{keyLabel('ln')}</button>
 
               {/* Row 3 */}
-              <button onClick={() => calculatorInput('sin')} className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-2 px-1 text-center rounded">{keyLabel('sin')}</button>
-              <button onClick={() => calculatorInput('cos')} className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-2 px-1 text-center rounded">{keyLabel('cos')}</button>
-              <button onClick={() => calculatorInput('tan')} className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-2 px-1 text-center rounded">{keyLabel('tan')}</button>
-              <button onClick={() => calculatorInput('nCr')} className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-2 px-1 text-center rounded">nCr</button>
-              <button onClick={() => calculatorInput('EXP')} className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-2 px-1 text-center rounded">EXP</button>
+              <button onClick={() => calculatorInput('sin')} className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center rounded">{keyLabel('sin')}</button>
+              <button onClick={() => calculatorInput('cos')} className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center rounded">{keyLabel('cos')}</button>
+              <button onClick={() => calculatorInput('tan')} className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center rounded">{keyLabel('tan')}</button>
+              <button onClick={() => calculatorInput('nCr')} className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center rounded">nCr</button>
+              <button onClick={() => calculatorInput('EXP')} className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center rounded">EXP</button>
 
               {/* Row 4 */}
               <button onClick={() => calculatorInput('7')} className="py-2 px-1 text-center rounded text-sm font-mono bg-gray-900 hover:bg-gray-800 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all">7</button>
@@ -761,7 +762,7 @@ const GeneralTools: React.FC = () => {
             ALL CLEAR
           </button>
         </div>
-        <div className="p-3 h-[calc(600px-80px)] overflow-y-auto">
+        <div className="p-3 h-[calc(min(600px,100vh-var(--nav-height)-130px)-80px)] overflow-y-auto">
           {renderCalculatorHistory()}
                   </div>
           </div>
@@ -774,13 +775,13 @@ const GeneralTools: React.FC = () => {
 
   const renderOLMT = () => (
     <div className="w-full bg-white rounded-b-lg shadow-sm border-b border-gray-100">
-      <div className="p-4 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
+      <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
         <div>
         <h3 className="text-[13px] font-medium">OLMT</h3>
           <p className="text-[11px] mt-0.5">Zoom、Teams、Google Meetなど主要なオンラインミーティングツールへのクイックアクセス</p>
         </div>
       </div>
-      <div className="p-4">
+      <div className="p-3">
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {ONLINE_MEETING_TOOLS.map((tool) => (
         <a
@@ -899,19 +900,7 @@ const GeneralTools: React.FC = () => {
 
 
   return (
-    <div className="p-0 bg-white rounded-lg">
-      <div className="flex items-baseline mb-2">
-        <h2 className="text-xl font-semibold">一般ツール</h2>
-        <span className="text-red-600 font-bold text-sm ml-4">※この機能は現在β版です。ご意見をぜひお聞かせください。</span>
-      </div>
-      {/* lg 以上はタブ行を畳むので、いまどれを開いているかをパンくずで出す。 */}
-      <p className="hidden lg:block text-[11px] text-gray-500 mb-3">
-        一般ツール ＞ {GENERAL_TOOL_MENU.find((t) => t.id === activeTab)?.label}
-      </p>
-      <p className="lg:hidden text-[12px] text-gray-600 mb-4">
-        メモ、表計算、関数電卓、画像変換・PDF圧縮、単位変換、ファイル転送・一時保存、ブックマーク、地図表示、オンラインミーティングツール、スケジュール調整、タイマー・アラーム・業務記録など、日常業務で頻繁に使用するユーティリティツールをまとめています。用途に応じてタブを切り替え、素早く作業を進めてください。
-      </p>
-      
+    <div className="p-0 bg-white">
       {/* ツール選択タブ
           lg 以上では左カラムの Ⅲ が同じ並びを出すので畳む。
           左カラムは hidden lg:block なので、狭い画面ではここが唯一のナビになる。

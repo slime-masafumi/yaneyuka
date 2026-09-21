@@ -271,7 +271,7 @@ const GlassThickness: React.FC<GlassThicknessProps> = ({ hideHeader }) => {
     <div className="w-full bg-white rounded-b-lg shadow-sm border-b border-gray-100">
       {/* 統一された黒帯 */}
       {!hideHeader && (
-      <div className="p-4 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
+      <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
         <div>
           <h3 className="text-[13px] font-medium">ガラス厚計算ツール</h3>
           <p className="text-[11px] mt-0.5">風圧力に基づくガラス厚さの計算と風圧力計算</p>

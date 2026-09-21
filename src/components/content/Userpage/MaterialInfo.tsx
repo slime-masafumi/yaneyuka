@@ -97,7 +97,7 @@ const MaterialInfo: React.FC = () => {
       </p>
       
       <div className="bg-white rounded-lg shadow-sm border border-gray-100">
-        <div className="p-4 border-b border-gray-100 bg-[#3b3b3b] text-white">
+        <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white">
           <div className="flex justify-between items-center">
             <div>
               <h3 className="text-[13px] font-medium">情報一覧</h3>

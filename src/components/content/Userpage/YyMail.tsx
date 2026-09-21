@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useMemo, useState } from 'react'
+import ToolHeader from './ToolHeader';
 
 type FolderKey = 'inbox' | 'sent' | 'drafts'
 
@@ -129,15 +130,10 @@ export default function YyMail() {
 
   return (
     <div className="pt-0 pb-4">
-      <div className="flex flex-col md:flex-row md:items-baseline justify-between mb-2 flex-shrink-0">
-        <div className="flex items-baseline gap-4">
-          <h2 className="text-xl font-semibold">yymail</h2>
-          <span className="text-red-600 font-bold text-xs sm:text-sm ml-4">※この機能は現在β版です。ご意見をぜひお聞かせください。</span>
-        </div>
-      </div>
-      <p className="text-[12px] text-gray-600 mb-3">
-        メールの送受信機能を提供します。受信トレイ、送信済み、下書きの管理が可能です。メールはブラウザのローカルストレージに保存され、実メール送受信は行いません。
-      </p>
+      <ToolHeader
+        title="yymail"
+        description="受信トレイ・送信済み・下書きを管理します。現在はブラウザのローカル保存のみで、実メールの送受信は行いません"
+      />
       <div className="mb-4 border rounded bg-white p-3">
         <div className="flex items-baseline justify-between mb-2">
           <div className="flex gap-2">

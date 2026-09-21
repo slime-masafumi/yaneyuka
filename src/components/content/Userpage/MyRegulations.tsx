@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import ToolHeader from './ToolHeader';
 import { useAuth } from '@/lib/AuthContext';
 import { db } from '@/lib/firebaseClient';
 import { sanitizeHtml } from '@/lib/sanitize';
@@ -1682,22 +1683,16 @@ const MyRegulations: React.FC = () => {
     <div className="pt-0 pb-4">
       <div className="w-full h-[calc(100vh-100px)] flex flex-col">
         
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-baseline justify-between mb-2 flex-shrink-0">
-          <div className="flex items-baseline gap-2">
-            <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="lg:hidden p-2 bg-gray-100 rounded">
-              <FiMenu />
-            </button>
-            <h2 className="text-xl font-semibold">My法規</h2>
-            <span className="text-red-600 font-bold text-xs sm:text-sm ml-4">※この機能は現在β版です。ご意見をぜひお聞かせください。</span>
-          </div>
-          <div className="text-xs text-gray-500">
-            保存された法規: {houkis.length}件
-          </div>
+        <ToolHeader
+          title="My法規"
+          description="よく参照する建築基準法や告示の条文を保存・整理。ハイライトやフォント設定、並び替え、検索に対応"
+          aside={`保存された法規: ${houkis.length}件`}
+        />
+        <div className="flex items-baseline gap-2 mt-2 mb-2 flex-shrink-0">
+          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="lg:hidden p-2 bg-gray-100 rounded">
+            <FiMenu />
+          </button>
         </div>
-        <p className="text-[12px] text-gray-600 mb-3">
-          頻繁に参照する建築基準法や告示の条文を保存・管理できます。条文ごとに見出しと本文を整理し、ハイライトやフォント設定で読みやすくカスタマイズできます。ドラッグ&ドロップで法規の順番を並び替え、検索機能で素早く目的の条文を見つけられます。
-        </p>
 
         {/* Main Card */}
         <div className="bg-white shadow-xl border border-gray-100 overflow-hidden flex flex-col md:flex-row flex-1">

@@ -1602,7 +1602,7 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
 
       <div className="w-full bg-white rounded-b-lg shadow-sm border-b border-gray-100">
         {!hideHeader && (
-        <div className="p-4 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
+        <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
           <div>
             <h3 className="text-[13px] font-medium">結露検討</h3>
             <p className="text-[11px] mt-0.5">多層構造の結露・断熱シミュレーション</p>

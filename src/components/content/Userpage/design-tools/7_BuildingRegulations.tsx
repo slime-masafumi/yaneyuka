@@ -214,7 +214,7 @@ const BuildingRegulations: React.FC<BuildingRegulationsProps> = ({ hideHeader })
   return (
     <div className="w-full bg-white rounded-b-lg shadow-sm border-b border-gray-100 font-sans">
       {!hideHeader && (
-      <div className="p-4 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
+      <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
         <div>
         <h3 className="text-[13px] font-medium">建蔽容積率計算</h3>
           <p className="text-[11px] mt-0.5">用途地域に基づく建蔽率・容積率の計算</p>

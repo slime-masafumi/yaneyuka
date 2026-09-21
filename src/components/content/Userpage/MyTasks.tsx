@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import ToolHeader from './ToolHeader';
 import { FiEdit2, FiTrash2, FiCheck, FiCalendar } from 'react-icons/fi';
 import { useTaskContext } from '../../providers/TaskProvider';
 
@@ -160,14 +161,12 @@ export default function MyTasks() {
   }
 
   return (
-    <div className="pt-0 pb-4">
-      <div className="flex items-baseline mb-2">
-        <h2 className="text-xl font-semibold">Myタスク</h2>
-        <span className="text-red-600 font-bold text-xs sm:text-sm ml-4">※この機能は現在β版です。ご意見をぜひお聞かせください。</span>
-      </div>
-      <p className="text-[12px] text-gray-600 mb-3">
-        個人タスクをカテゴリごとに整理し、期日・担当メモを付けながら進捗管理できます。登録したタスクはMyカレンダーにも同期されるため、スケジュールとの一体管理にご活用ください。
-      </p>
+    // 帯は左右いっぱい、その下の本文だけ他ツールと同じ左右余白を付ける。
+    <div className="pt-0 pb-4 [&>*:not(:first-child)]:px-4 [&>*:nth-child(2)]:mt-3">
+      <ToolHeader
+        title="Myタスク"
+        description="個人タスクをカテゴリごとに整理し、期日・担当メモを付けて進捗管理。登録したタスクはMyカレンダーにも同期されます"
+      />
       <div className="flex items-center gap-2 mb-3 flex-wrap">
         <span className="text-[11px] text-gray-600">表示列数</span>
         {[3, 4, 5].map(cols => (

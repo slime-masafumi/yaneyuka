@@ -312,7 +312,7 @@ const BookmarkTool: React.FC = () => {
   return (
     <div className="bg-white rounded-b-lg shadow-sm border-b border-gray-100 flex flex-col h-full min-h-[500px]">
       {/* ヘッダーエリア：モード切替 */}
-      <div className="p-4 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
+      <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
         <div className="flex justify-between items-start">
         <div>
             <h3 className="text-[13px] font-medium">ブックマーク</h3>

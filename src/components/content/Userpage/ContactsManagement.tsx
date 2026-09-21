@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import ToolHeader from './ToolHeader';
 import { useAuth } from '@/lib/AuthContext';
 import { db } from '@/lib/firebaseClient';
 import { collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
@@ -191,9 +192,11 @@ const ContactsManagement: React.FC = () => {
 
   return (
     <div className="pl-0 pr-0 -mr-4 bg-white rounded-lg">
-      <div className="flex items-baseline mb-2">
-        <h2 className="text-xl font-semibold">担当者連絡先</h2>
-        <span className="text-red-600 font-bold text-xs sm:text-sm ml-4">※この機能は現在β版です。ご意見をぜひお聞かせください。</span>
+      <ToolHeader
+        title="担当者連絡先"
+        description="メーカー・施工会社・パートナー担当者の連絡先を一覧管理。会社名・部署・役職・電話・メール・案件名・メモを登録し、検索とソートで素早く引けます"
+      />
+      <div className="flex items-baseline mb-2 mt-2">
         {selectedCompany && (
           <span className="ml-4 text-sm text-gray-600">
             {selectedCompany}の担当者一覧
@@ -206,14 +209,11 @@ const ContactsManagement: React.FC = () => {
           </span>
         )}
       </div>
-      <p className="text-[12px] text-gray-600 mb-3">
-        プロジェクトで頻繁に連絡を取るメーカー・施工会社・パートナー担当者の情報を一覧化して管理できます。会社名、部署、役職、連絡先（電話・メール）、案件名、メモなどを登録し、検索やソート機能で素早く目的の担当者を見つけられます。ロック機能で誤編集を防止することも可能です。
-      </p>
       
       <div className="flex gap-2">
         <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-100">
         <div className="p-4 border-b border-gray-100">
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-2 mb-2">
             <button
               onClick={addContact}
               className="px-3 py-1.5 text-xs bg-gray-800 text-white rounded hover:bg-gray-700 transition-colors"
@@ -256,13 +256,13 @@ const ContactsManagement: React.FC = () => {
         </div>
         
         <div className="p-4">
-            <div className="max-h-[calc(100vh-220px)] min-h-[560px] overflow-y-auto pr-4">
-              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4">
+            <div className="max-h-[calc(100vh-var(--nav-height)-200px)] min-h-[240px] overflow-y-auto pr-4">
+              <div className="grid gap-2 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4">
             {filteredContacts.map((contact, index) => {
               const originalIndex = contacts.indexOf(contact);
               return (
                 <div key={originalIndex} className="overflow-hidden w-full text-xs border border-gray-200">
-                  <div className="bg-gray-800 text-white px-3 py-2 flex justify-between items-center">
+                  <div className="bg-gray-800 text-white px-3 py-1.5 flex justify-between items-center">
                     <input
                       type="text"
                       value={contact.company}
@@ -302,7 +302,7 @@ const ContactsManagement: React.FC = () => {
                     </div>
                   </div>
                   
-                  <div className="bg-white p-3 space-y-1.5">
+                  <div className="bg-white p-2 space-y-1">
                     <input
                       type="text"
                       value={contact.dept}

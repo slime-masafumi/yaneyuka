@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { requestDesignToolsTarget } from '@/lib/designToolsNav';
 import { DESIGN_TOOL_MENU } from '@/lib/designToolsMenu';
-import { GENERAL_TOOL_MENU, requestGeneralTool } from '@/lib/generalToolsMenu';
+import { requestGeneralTool, type GeneralToolId } from '@/lib/generalToolsMenu';
 import { useAuth } from '@/lib/AuthContext';
 
 interface SidebarProps {
@@ -13,6 +13,8 @@ interface SidebarProps {
   onLogoClick?: () => void;
   /** 左カラム下部の Ⅰ〜Ⅴ から Userpage 系メニューを開く。MainLayout の handleMenuClick。 */
   onMenuClick?: (menuItem: string) => void;
+  /** いま中央に出ている画面。選択中の項目を緑にするために使う。 */
+  activeContent?: string;
 }
 
 // data-page → 親カテゴリURL のマッピング（SEO用: クローラがリンクを辿れるようにする）
@@ -61,9 +63,12 @@ function buildHref(dataPage: string): string {
 
 type RailItem = {
   label: string;
+  /** handleMenuClick に渡す ID。http で始まる場合は外部リンク。 */
   menu: string;
   /** アイコン画像のパス。Ⅴ 外部ツールだけが持つ。 */
   icon?: string;
+  /** 一般ツールの中の特定タブを直接開く場合に指定する。 */
+  tool?: GeneralToolId;
 };
 type RailMode = {
   label: string;
@@ -72,8 +77,6 @@ type RailMode = {
   items: RailItem[];
   /** 2階層で出すもの（設計ツール）。建材検索と同じアコーディオンで描く。 */
   tree?: typeof DESIGN_TOOL_MENU;
-  /** items と同じ並びでフラットに出すツール群（一般ツールの汎用ツール13本）。 */
-  tools?: typeof GENERAL_TOOL_MENU;
 };
 
 const ROMAN = ['Ⅰ', 'Ⅱ', 'Ⅲ', 'Ⅳ', 'Ⅴ'];
@@ -94,17 +97,36 @@ const RAIL_MODES: RailMode[] = [
   },
   {
     label: '一般ツール', bg: '#241c33', ac: '#9b87d4',
+    // 20本を「連絡 → 予定・タスク → 記録と作成 → 調べる → ファイル」の順に並べる。
+    // 見出しは付けない（畳まずに収まるので、並び順だけで関連が伝わればよい）。
+    // tool を持つ項目は一般ツールの中のタブを直接開く。
     items: [
+      // 連絡
       { label: 'yymail', menu: 'yymail' },
       { label: 'yychat', menu: 'yychat' },
+      { label: 'OLMT', menu: 'general-tools', tool: 'olmt' },
+      { label: '担当連絡先', menu: 'contacts' },
+      // 予定・タスク
       { label: 'Myカレンダー', menu: 'my-calendar' },
       { label: 'Myタスク', menu: 'my-tasks' },
       { label: 'Teamタスク', menu: 'team-tasks' },
+      { label: 'スケ調', menu: 'general-tools', tool: 'schedule' },
+      // 記録・作成
+      { label: 'メモ', menu: 'general-tools', tool: 'memo' },
+      { label: '表計算', menu: 'general-tools', tool: 'sheet' },
+      { label: 'アラーム', menu: 'general-tools', tool: 'alarm' },
+      // 調べる
       { label: 'My法規', menu: 'my-regulations' },
-      { label: '担当連絡先', menu: 'contacts' },
+      { label: '単位変換', menu: 'general-tools', tool: 'unit-converter' },
+      { label: '関数電卓', menu: 'general-tools', tool: 'calc' },
+      { label: '地図', menu: 'general-tools', tool: 'map' },
+      { label: 'ブックマーク', menu: 'general-tools', tool: 'bookmark' },
+      // ファイル
+      { label: '画像変換', menu: 'general-tools', tool: 'image-converter' },
+      { label: 'PDF圧縮', menu: 'general-tools', tool: 'pdf-compressor' },
+      { label: '一時ファイル', menu: 'general-tools', tool: 'temp-storage' },
+      { label: 'ファイル転送', menu: 'general-tools', tool: 'file-transfer' },
     ],
-    // 汎用ツール13本。中央のタブ行は lg 以上では畳んであるので、ここが本体。
-    tools: GENERAL_TOOL_MENU,
   },
   {
     label: '設計ツール', bg: '#2b2113', ac: '#c79a5a',
@@ -139,8 +161,19 @@ const RailIcon: React.FC<{ src?: string }> = ({ src }) =>
     />
   ) : null;
 
-const Sidebar: React.FC<SidebarProps> = ({ onItemClick, onPageChange, onLogoClick, onMenuClick }) => {
+const Sidebar: React.FC<SidebarProps> = ({ onItemClick, onPageChange, onLogoClick, onMenuClick, activeContent }) => {
   const [mode, setMode] = useState(0);
+  // 一般ツール・設計ツールは activeContent だけでは中のどれを開いたか分からないので、
+  // 左カラムから開いたものを覚えておく（lg 以上では中央のタブを畳んであるので、これで一致する）。
+  const [activeTool, setActiveTool] = useState<string | null>(null);
+  const [activeDesignTool, setActiveDesignTool] = useState<string | null>(null);
+
+  /** 選択中の項目に付ける文字色。ナビバーと同じ緑。 */
+  const ACTIVE = 'text-[#52AA96]';
+  const isItemActive = (item: RailItem) =>
+    item.tool
+      ? activeContent === 'general-tools' && activeTool === item.tool
+      : activeContent === item.menu;
   const railMode = RAIL_MODES[mode];
   const { isLoggedIn, currentUser, logout } = useAuth();
   useEffect(() => {
@@ -263,7 +296,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onItemClick, onPageChange, onLogoClic
                 href={item.menu}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="subcategory flex items-center gap-2 w-full text-left px-4 py-1 text-[12px] 2xl:text-[13px] text-gray-300 hover:text-white"
+                className={`subcategory flex items-center gap-2 w-full text-left px-4 py-1 text-[12px] 2xl:text-[13px] hover:text-white ${
+                  isItemActive(item) ? ACTIVE : 'text-gray-300'
+                }`}
               >
                 <RailIcon src={item.icon} />
                 {item.label}
@@ -272,8 +307,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onItemClick, onPageChange, onLogoClic
               <button
                 key={item.label}
                 type="button"
-                className="subcategory flex items-center gap-2 w-full text-left px-4 py-1 text-[12px] 2xl:text-[13px] text-gray-300 hover:text-white"
+                className={`subcategory flex items-center gap-2 w-full text-left px-4 py-1 text-[12px] 2xl:text-[13px] hover:text-white ${
+                  isItemActive(item) ? ACTIVE : 'text-gray-300'
+                }`}
                 onClick={() => {
+                  if (item.tool) requestGeneralTool({ toolId: item.tool });
+                  setActiveTool(item.tool ?? null);
                   onMenuClick?.(item.menu);
                   onItemClick?.();
                 }}
@@ -283,23 +322,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onItemClick, onPageChange, onLogoClic
               </button>
             )
           )}
-
-          {/* Ⅲ 一般ツール：汎用ツール13本。
-              20項目なら畳まずに収まるので、アコーディオンにせず上の項目と同じ並びで出す。 */}
-          {railMode.tools?.map((tool) => (
-            <button
-              key={tool.id}
-              type="button"
-              className="subcategory w-full text-left px-4 py-1 text-[12px] 2xl:text-[13px] text-gray-300 hover:text-white"
-              onClick={() => {
-                requestGeneralTool({ toolId: tool.id });
-                onMenuClick?.('general-tools');
-                onItemClick?.();
-              }}
-            >
-              {tool.label}
-            </button>
-          ))}
 
           {/* Ⅳ 設計ツール：分野7 ＞ ツール37。建材検索とまったく同じアコーディオン。 */}
           {railMode.tree?.map((category) => (
@@ -315,9 +337,14 @@ const Sidebar: React.FC<SidebarProps> = ({ onItemClick, onPageChange, onLogoClic
                   <li key={sub.id}>
                     <button
                       type="button"
-                      className="rail-tool text-white"
+                      className={`rail-tool ${
+                        activeContent === 'design-tools' && activeDesignTool === sub.id
+                          ? ACTIVE
+                          : 'text-white'
+                      }`}
                       onClick={() => {
                         requestDesignToolsTarget({ categoryId: category.id, subTabId: sub.id });
+                        setActiveDesignTool(sub.id);
                         onMenuClick?.('design-tools');
                         onItemClick?.();
                       }}

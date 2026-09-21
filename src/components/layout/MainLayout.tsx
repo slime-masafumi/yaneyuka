@@ -104,6 +104,19 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
     return normalizedPathname === '/' ? initialContent : 'topix';
   };
   
+  // 中央カラムを全面に使う画面。余白と角丸を外して、ナビ直下・左右いっぱいに広げる。
+  // 左カラム Ⅲ（一般ツール）から開くものはすべてこの扱いに揃える。
+  const FLUSH_CONTENTS = [
+    'general-tools',
+    'yymail',
+    'yychat',
+    'my-calendar',
+    'my-tasks',
+    'team-tasks',
+    'my-regulations',
+    'contacts',
+  ];
+
   const [activeContent, setActiveContent] = useState<string>(getInitialContent());
 
   // lg 以上では中央カラムだけがスクロールするので、表示を切り替えたときに
@@ -2168,6 +2181,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
             <Sidebar
               onPageChange={handleSubcategoryClick}
               onMenuClick={handleMenuClick}
+              activeContent={activeContent}
               onLogoClick={() => {
                 // ロゴクリック時はトップページにリセット（URL=/, activeContent=initialContent）
                 // SPA系コンテンツ(privacy-policy等)で開いている場合、URLが/のままだとLinkだけでは中央/右が更新されないため
@@ -2184,7 +2198,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
           {/* 右側：ナビバー + コンテンツエリア */}
           <div className="yy-shell__right flex-1 min-w-0 pb-[34px] lg:pb-0">
             <Navigation onMenuClick={handleMenuClick} activeItem={activeContent} />
-            <div className="yy-shell__cols flex lg:flex-row flex-col lg:items-start gap-2 p-2 md:p-3 lg:p-4">
+            {/* 一般ツールは中央を全面に使う。ナビ直下から左右いっぱいまで余白ゼロ。 */}
+            <div
+              className={
+                'yy-shell__cols flex lg:flex-row flex-col lg:items-start gap-2 p-2 md:p-3 lg:p-4' +
+                (FLUSH_CONTENTS.includes(activeContent) ? ' yy-shell__cols--flush' : '')
+              }
+            >
           <main id="yy-main-scroll" className="yy-shell__main flex-1 min-w-0">
             {/* 中央カラム右エリアに参考資料（NEWSのブックマーク幅相当: 300px） */}
             <div className="lg:flex lg:gap-4 items-start">

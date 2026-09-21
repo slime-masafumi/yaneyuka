@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import ToolHeader from './ToolHeader';
 import { FiEdit2, FiTrash2, FiCheck, FiCalendar } from 'react-icons/fi';
 import { useAuth } from '@/lib/AuthContext';
 import { addBoardTask, createBoard, deleteBoard, deleteBoardTask, findUserByEmail, getUsersByUids, listBoardTasks, listBoardsForUser, setBoardMembers, updateBoard, updateBoardTask } from '@/lib/firebaseUserData';
@@ -337,14 +338,12 @@ const TeamTasks: React.FC = () => {
   }
 
   return (
-    <div className="pt-0 pb-4">
-      <div className="flex items-center gap-4 mb-3">
-        <h2 className="text-xl font-semibold">Teamタスク</h2>
-        <span className="text-red-600 font-bold text-xs sm:text-sm">※この機能は現在β版です。ご意見をぜひお聞かせください。</span>
-      </div>
-      <p className="text-[12px] text-gray-600 mb-2">
-        チームで共有するプロジェクトをボード形式で管理し、タスクの追加・担当者設定・進捗更新をリアルタイムに連携できます。ボードは最大4枚まで作成できます。
-      </p>
+    // 帯は左右いっぱい、その下の本文だけ他ツールと同じ左右余白を付ける。
+    <div className="pt-0 pb-4 [&>*:not(:first-child)]:px-4 [&>*:nth-child(2)]:mt-3">
+      <ToolHeader
+        title="Teamタスク"
+        description="チームで共有するプロジェクトをボード形式で管理。タスクの追加・担当者設定・進捗更新をリアルタイムに連携。ボードは最大4枚まで"
+      />
       <div className="flex items-center gap-2 mb-3 flex-wrap">
         <span className="text-[11px] text-gray-600">表示列数</span>
         {[2, 3, 4].map(cols => (

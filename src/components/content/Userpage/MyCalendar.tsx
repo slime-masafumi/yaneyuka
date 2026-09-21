@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import ToolHeader from './ToolHeader';
 import { useAuth } from '@/lib/AuthContext';
 import { useTaskContext } from '../../providers/TaskProvider';
 import { db } from '@/lib/firebaseClient';
@@ -744,23 +745,13 @@ const MyCalendar: React.FC = () => {
   // --- Render ---
   return (
     <div className="pt-0 pb-4">
-      <div className="w-full h-[calc(100vh-100px)] flex flex-col">
+      <div className="w-full h-[calc(100vh-var(--nav-height)-1rem)] flex flex-col">
         
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-baseline justify-between mb-2 flex-shrink-0">
-          <div className="flex items-baseline gap-4">
-            <h2 className="text-xl font-semibold">Myカレンダー</h2>
-            <span className="text-red-600 font-bold text-xs sm:text-sm ml-4">※この機能は現在β版です。ご意見をぜひお聞かせください。</span>
-                    </div>
-          <button onClick={() => setShowSettingsModal(true)} className="text-gray-500 hover:text-gray-700 text-xs flex items-center gap-1">
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-            設定・連携
-                    </button>
-                  </div>
-        <p className="text-[12px] text-gray-600 mb-3">
-          個人のスケジュールを管理し、会議や作業、締切などの予定をカレンダー形式で確認できます。MyタスクTeamタスクと連携して、タスクの期日も自動的に表示されます。繰り返し予定の設定や、カテゴリ別の色分け表示にも対応しています。
-        </p>
-
+        <ToolHeader
+          title="Myカレンダー"
+          description="会議・作業・締切などの予定をカレンダー形式で管理。MyタスクとTeamタスクの期日も自動表示され、繰り返し予定やカテゴリ別の色分けにも対応"
+        />
         {/* Main Card */}
         <div className="bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden flex flex-col md:flex-row flex-1">
           
@@ -807,10 +798,30 @@ const MyCalendar: React.FC = () => {
                   
             {/* Categories */}
             <div className="p-4 flex-1 flex flex-col overflow-hidden">
-              <div className="flex items-center justify-between mb-2 cursor-pointer" onClick={() => setShowCategoryManager(!showCategoryManager)}>
-                <h3 className={`text-xs font-bold tracking-wider ${isDarkColor(leftAreaBgColor) ? 'text-white/90' : 'text-gray-500'}`}>Category</h3>
-                <span className={`text-[9px] ${isDarkColor(leftAreaBgColor) ? 'text-white/50' : 'text-gray-400'}`}>{showCategoryManager ? 'Hide' : 'Edit'}</span>
-                    </div>
+              {/* 「設定・連携」は独立した行を1本使っていたので、ここへ入れた（縦を約30px節約）。 */}
+              <div className="flex items-center justify-between mb-2">
+                <h3
+                  className={`text-xs font-bold tracking-wider cursor-pointer ${isDarkColor(leftAreaBgColor) ? 'text-white/90' : 'text-gray-500'}`}
+                  onClick={() => setShowCategoryManager(!showCategoryManager)}
+                >
+                  Category
+                </h3>
+                <div className="flex items-center gap-3">
+                  <span
+                    className={`text-[9px] cursor-pointer ${isDarkColor(leftAreaBgColor) ? 'text-white/50' : 'text-gray-400'}`}
+                    onClick={() => setShowCategoryManager(!showCategoryManager)}
+                  >
+                    {showCategoryManager ? 'Hide' : 'Edit'}
+                  </span>
+                  <button
+                    onClick={() => setShowSettingsModal(true)}
+                    className={`text-[9px] flex items-center gap-1 ${isDarkColor(leftAreaBgColor) ? 'text-white/50 hover:text-white' : 'text-gray-400 hover:text-gray-700'}`}
+                  >
+                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                    設定・連携
+                  </button>
+                </div>
+              </div>
                     
                     {showCategoryManager && (
                 <div className="mb-3 animate-in slide-in-from-top-2">

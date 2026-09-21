@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
+import ToolHeader from './ToolHeader';
 import { createPortal } from 'react-dom';
 import { useAuth } from '@/lib/AuthContext';
 import { ChatMessage, ChatRoom } from '@/types/chat';
@@ -556,19 +557,25 @@ const YyChat: React.FC = () => {
     return userAvatars[uid];
   };
 
-  if (!isLoggedIn || !currentUser) return <div className="p-4">ログインしてください</div>;
+  // 未ログインでも帯は出す。帯が無いとツール名が画面から消えてしまう。
+  if (!isLoggedIn || !currentUser) {
+    return (
+      <div>
+        <ToolHeader
+          title="yychat"
+          description="社内のリアルタイムチャット。メッセージの送受信、画像の添付、既読表示に対応。チャットルームの作成・管理もできます"
+        />
+        <div className="p-4">ログインしてください</div>
+      </div>
+    );
+  }
 
   return (
     <div className="pt-0 pb-4">
-      <div className="flex flex-col md:flex-row md:items-baseline justify-between mb-2 flex-shrink-0">
-        <div className="flex items-baseline gap-4">
-          <h2 className="text-xl font-semibold">yychat</h2>
-          <span className="text-red-600 font-bold text-xs sm:text-sm ml-4">※この機能は現在β版です。ご意見をぜひお聞かせください。</span>
-        </div>
-      </div>
-      <p className="text-[12px] text-gray-600 mb-3">
-        リアルタイムチャット機能を提供します。ユーザー間でのメッセージの送受信、画像の添付、既読機能などに対応しています。チャットルームの作成や管理も可能です。
-      </p>
+      <ToolHeader
+        title="yychat"
+        description="社内のリアルタイムチャット。メッセージの送受信、画像の添付、既読表示に対応。チャットルームの作成・管理もできます"
+      />
       <div className="flex h-[600px] bg-white border rounded-xl overflow-hidden shadow-xl font-sans">
       <div className={`${selectedRoom ? 'hidden md:flex' : 'flex'} w-full md:w-72 flex-col border-r bg-gray-50`}>
         <div className="px-4 py-3 bg-white border-b flex items-center justify-between shadow-sm z-10">

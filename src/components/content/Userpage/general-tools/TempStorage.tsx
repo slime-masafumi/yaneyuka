@@ -420,7 +420,7 @@ const TempStorage: React.FC = () => {
   if (!isLoggedIn) {
     return (
       <div className="w-full bg-white rounded-b-lg shadow-sm border-b border-gray-100">
-        <div className="p-4 border-b border-gray-100 bg-[#3b3b3b] text-white">
+        <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white">
           <h3 className="text-[13px] font-medium">24時間限定ファイル置き場</h3>
         </div>
         <div className="p-4">
@@ -436,7 +436,7 @@ const TempStorage: React.FC = () => {
 
   return (
     <div className="w-full bg-white rounded-b-lg shadow-sm border-b border-gray-100">
-      <div className="p-4 border-b border-gray-100 bg-[#3b3b3b] text-white">
+      <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white">
         <h3 className="text-[13px] font-medium">24時間限定ファイル置き場</h3>
         <p className="text-[11px] mt-0.5">ファイルを一時的に保存できます。24時間後に自動削除される安全な一時ファイル置き場</p>
       </div>

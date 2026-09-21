@@ -784,7 +784,7 @@ const FileTransferTool: React.FC = () => {
 
   return (
     <div className="w-full bg-white rounded-b-lg shadow-sm border-b border-gray-100">
-      <div className="p-4 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
+      <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
         <div>
         <h3 className="text-[13px] font-medium">ファイル転送（共有）</h3>
         <p className="text-[11px] mt-0.5">ファイルをアップロードすると共有リンクが自動発行。ダウンロード回数制限や有効期限の設定が可能</p>

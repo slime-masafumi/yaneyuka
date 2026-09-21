@@ -412,7 +412,7 @@ const PDFCompressor: React.FC = () => {
 
     <div className="w-full bg-white rounded-b-lg shadow-sm border-b border-gray-100">
 
-      <div className="p-4 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
+      <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
         <div>
         <h3 className="text-[13px] font-medium">PDF圧縮</h3>
         <p className="text-[11px] mt-0.5">PDFファイルのサイズを圧縮。用途に応じて高品質・標準・低サイズの3モードから選択可能</p>

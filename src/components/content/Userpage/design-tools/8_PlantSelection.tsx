@@ -620,7 +620,7 @@ const PlantSelection: React.FC<PlantSelectionProps> = ({ hideHeader }) => {
   return (
     <div className="w-full bg-white rounded-b-lg shadow-sm border-b border-gray-100 font-sans">
       {!hideHeader && (
-      <div className="p-4 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
+      <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
         <div>
           <h3 className="text-[13px] font-medium">植栽データベース選定ツール</h3>
           <p className="text-[11px] mt-0.5">条件に合う庭木・草花を検索できます（収録数: {MASTER_PLANT_DATA.length}種）</p>

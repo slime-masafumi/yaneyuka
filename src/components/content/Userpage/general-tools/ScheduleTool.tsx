@@ -691,7 +691,7 @@ const ScheduleTool: React.FC = () => {
     return (
       <div className="flex flex-col h-full bg-gray-50/50">
         {/* 黒帯ヘッダー（維持） */}
-        <div className="p-4 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
+        <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
           <div>
             <h3 className="text-[13px] font-medium">スケジュール調整</h3>
             <p className="text-[11px] mt-0.5">会議やイベントの日程調整が簡単に。参加者の希望日程を集約し、簡易アンケートも作成可能</p>
@@ -1028,7 +1028,7 @@ const ScheduleTool: React.FC = () => {
     return (
       <div className="flex flex-col h-full bg-gray-50/50">
         {/* 黒帯ヘッダー（維持） */}
-        <div className="p-4 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
+        <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
           <div>
             <h3 className="text-[13px] font-medium">スケジュール調整</h3>
             <p className="text-[11px] mt-0.5">会議やイベントの日程調整が簡単に。参加者の希望日程を集約し、簡易アンケートも作成可能</p>

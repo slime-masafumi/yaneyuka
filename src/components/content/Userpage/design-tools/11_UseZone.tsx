@@ -180,7 +180,7 @@ const UseZone: React.FC<UseZoneProps> = ({ hideHeader }) => {
   return (
     <div className="w-full bg-white rounded-b-lg shadow-sm border-b border-gray-100">
       {!hideHeader && (
-      <div className="p-4 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
+      <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
         <div>
         <h3 className="text-[13px] font-medium">用途地域 建築物制限</h3>
         <p className="text-[11px] mt-0.5">用途地域を選択して建築物の制限を確認</p>
