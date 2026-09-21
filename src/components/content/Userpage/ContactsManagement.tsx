@@ -191,7 +191,9 @@ const ContactsManagement: React.FC = () => {
   const filteredContacts = getFilteredContacts();
 
   return (
-    <div className="pl-0 pr-0 -mr-4 bg-white rounded-lg">
+    // 白いパネルを白い地に置くと境界が読めないので、土台をうすいグレーにする。
+    // 画像変換の処理結果と同じ扱い。
+    <div className="pl-0 pr-0 -mr-4 bg-gray-50 rounded-lg min-h-full">
       <ToolHeader
         title="担当者連絡先"
         description="メーカー・施工会社・パートナー担当者の連絡先を一覧管理。会社名・部署・役職・電話・メール・案件名・メモを登録し、検索とソートで素早く引けます"
@@ -211,7 +213,7 @@ const ContactsManagement: React.FC = () => {
       </div>
       
       <div className="flex gap-2">
-        <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-100">
+        <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="p-4 border-b border-gray-100">
           <div className="flex items-center gap-2 mb-2">
             <button
@@ -374,7 +376,7 @@ const ContactsManagement: React.FC = () => {
         </div>
         
         {/* 企業名リストウィンドウ */}
-        <div className="w-56 bg-white rounded-lg shadow-sm border border-gray-100 h-fit">
+        <div className="w-56 bg-white rounded-lg shadow-sm border border-gray-200 h-fit">
           <div className="px-3 py-3 border-b border-gray-100">
             <h3 className="text-sm font-semibold text-gray-700">登録企業一覧</h3>
           </div>
