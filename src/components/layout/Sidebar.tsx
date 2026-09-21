@@ -1,12 +1,18 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { requestDesignToolsTarget } from '@/lib/designToolsNav';
+import { DESIGN_TOOL_MENU } from '@/lib/designToolsMenu';
+import { GENERAL_TOOL_MENU, requestGeneralTool } from '@/lib/generalToolsMenu';
+import { useAuth } from '@/lib/AuthContext';
 
 interface SidebarProps {
   onItemClick?: () => void;
   onPageChange?: (page: string) => void;
   onLogoClick?: () => void;
+  /** 左カラム下部の Ⅰ〜Ⅴ から Userpage 系メニューを開く。MainLayout の handleMenuClick。 */
+  onMenuClick?: (menuItem: string) => void;
 }
 
 // data-page → 親カテゴリURL のマッピング（SEO用: クローラがリンクを辿れるようにする）
@@ -53,7 +59,90 @@ function buildHref(dataPage: string): string {
   return `${base}?subcategory=${encodeURIComponent(dataPage)}`;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ onItemClick, onPageChange, onLogoClick }) => {
+type RailItem = {
+  label: string;
+  menu: string;
+  /** アイコン画像のパス。Ⅴ 外部ツールだけが持つ。 */
+  icon?: string;
+};
+type RailMode = {
+  label: string;
+  bg: string;
+  ac: string;
+  items: RailItem[];
+  /** 2階層で出すもの（設計ツール）。建材検索と同じアコーディオンで描く。 */
+  tree?: typeof DESIGN_TOOL_MENU;
+  /** items と同じ並びでフラットに出すツール群（一般ツールの汎用ツール13本）。 */
+  tools?: typeof GENERAL_TOOL_MENU;
+};
+
+const ROMAN = ['Ⅰ', 'Ⅱ', 'Ⅲ', 'Ⅳ', 'Ⅴ'];
+
+/**
+ * 左カラムの5モード。Ⅰ は従来どおり建材検索ツリー（下の JSX をそのまま使う）。
+ * Ⅱ〜Ⅴ は削除した UserpageBottomBar の項目をそのまま引き取ったもの。
+ * bg = 左カラムの地色 / ac = 見出し下線と開いたアコーディオンの色。
+ */
+const RAIL_MODES: RailMode[] = [
+  { label: '建材検索', bg: '#000000', ac: '#52AA96', items: [] },
+  {
+    label: '設計情報', bg: '#0e2635', ac: '#5a9fd4',
+    items: [
+      { label: '設計情報', menu: 'design-info' },
+      { label: '材料情報', menu: 'material-info' },
+    ],
+  },
+  {
+    label: '一般ツール', bg: '#241c33', ac: '#9b87d4',
+    items: [
+      { label: 'yymail', menu: 'yymail' },
+      { label: 'yychat', menu: 'yychat' },
+      { label: 'Myカレンダー', menu: 'my-calendar' },
+      { label: 'Myタスク', menu: 'my-tasks' },
+      { label: 'Teamタスク', menu: 'team-tasks' },
+      { label: 'My法規', menu: 'my-regulations' },
+      { label: '担当連絡先', menu: 'contacts' },
+    ],
+    // 汎用ツール13本。中央のタブ行は lg 以上では畳んであるので、ここが本体。
+    tools: GENERAL_TOOL_MENU,
+  },
+  {
+    label: '設計ツール', bg: '#2b2113', ac: '#c79a5a',
+    items: [],
+    // 分野7 ＞ ツール37。中央のタブ行は lg 以上では畳んであるので、ここが本体。
+    tree: DESIGN_TOOL_MENU,
+  },
+  {
+    label: '外部ツール', bg: '#33141c', ac: '#d47b8c',
+    // 右カラムの「yaneyuka関連アプリ」を畳んでここへ集約したので、アイコンも併せて出す。
+    items: [
+      { label: 'PDF差分', menu: 'pdf-diff', icon: '/image/pdfdiff-icon.svg' },
+      { label: 'DayLine', menu: 'https://dayline-yaneyuka.web.app', icon: '/image/DayLine-icon.png' },
+      { label: 'Rules', menu: 'https://rules-yaneyuka.web.app', icon: '/image/Rules-icon.png' },
+      { label: 'PDFGap', menu: 'https://pdfgap-yaneyuka.web.app/', icon: '/image/PDFGap-icon.svg' },
+      { label: '建築基準法 yaneyuka', menu: 'https://apps.apple.com/us/app/id6757323409', icon: '/image/kenchikukijyunhou-icon.png' },
+    ],
+  },
+];
+
+/** Ⅴ 外部ツールのアプリアイコン。icon が無い項目では何も描かない。 */
+const RailIcon: React.FC<{ src?: string }> = ({ src }) =>
+  src ? (
+    <img
+      src={src}
+      alt=""
+      aria-hidden="true"
+      width={18}
+      height={18}
+      className="w-[18px] h-[18px] rounded-[4px] shrink-0"
+      loading="lazy"
+    />
+  ) : null;
+
+const Sidebar: React.FC<SidebarProps> = ({ onItemClick, onPageChange, onLogoClick, onMenuClick }) => {
+  const [mode, setMode] = useState(0);
+  const railMode = RAIL_MODES[mode];
+  const { isLoggedIn, currentUser, logout } = useAuth();
   useEffect(() => {
     // アコーディオン機能の実装（最大2つまで開く、3つ目で最初を閉じる）
     const handleAccordionClick = (event: Event) => {
@@ -131,15 +220,21 @@ const Sidebar: React.FC<SidebarProps> = ({ onItemClick, onPageChange, onLogoClic
         subcategory.removeEventListener('click', handleSubcategoryClick);
       });
     };
-  }, [onItemClick, onPageChange]);
+  }, [onItemClick, onPageChange, mode]);
 
   return (
-    <aside className="w-full md:w-[200px] lg:w-[180px] shrink-0 text-[14px] left-column">
+    <aside
+      className="w-full md:w-[200px] lg:w-[180px] shrink-0 text-[14px] left-column"
+      style={{ ['--rail-bg' as string]: railMode.bg, ['--rail-ac' as string]: railMode.ac } as React.CSSProperties}
+    >
+      <div className="left-column__scroll">
       {/* ロゴ */}
       <div className="px-3 hidden lg:block" style={{ paddingTop: '28px' }}>
         <Link href="/" className="block" onClick={() => onLogoClick?.()}>
           <img
-            src="/image/yaneyukaロゴ4.png"
+            // 透過版。元の yaneyukaロゴ4.png は黒地が焼き込まれた RGB PNG で、
+            // Ⅱ〜Ⅴ の色付き背景だと黒い箱になる。1枚で全モードに対応させる。
+            src="/image/yaneyuka-logo-white.png"
             alt="yaneyuka"
             className="w-full max-w-[156px] h-auto"
             onError={(e) => {
@@ -153,9 +248,92 @@ const Sidebar: React.FC<SidebarProps> = ({ onItemClick, onPageChange, onLogoClic
         </Link>
       </div>
       <div style={{ height: '40px' }} className="hidden lg:block" />
-      <h3 className="font-semibold mb-0 text-white hidden lg:block text-[12px] 2xl:text-[13px]">建材検索</h3>
+      <h3 className="font-semibold mb-0 text-white hidden lg:block text-[12px] 2xl:text-[13px]">
+        {ROMAN[mode]}　{railMode.label}
+      </h3>
       <div className="category-scroll-container"></div>
-      <div className="space-y-0">
+
+      {/* Ⅱ〜Ⅴ：旧フッターバーから引き取ったメニュー */}
+      {mode !== 0 && (
+        <div className="space-y-0 pb-2">
+          {railMode.items.map((item) =>
+            item.menu.startsWith('http') ? (
+              <a
+                key={item.label}
+                href={item.menu}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="subcategory flex items-center gap-2 w-full text-left px-4 py-1 text-[12px] 2xl:text-[13px] text-gray-300 hover:text-white"
+              >
+                <RailIcon src={item.icon} />
+                {item.label}
+              </a>
+            ) : (
+              <button
+                key={item.label}
+                type="button"
+                className="subcategory flex items-center gap-2 w-full text-left px-4 py-1 text-[12px] 2xl:text-[13px] text-gray-300 hover:text-white"
+                onClick={() => {
+                  onMenuClick?.(item.menu);
+                  onItemClick?.();
+                }}
+              >
+                <RailIcon src={item.icon} />
+                {item.label}
+              </button>
+            )
+          )}
+
+          {/* Ⅲ 一般ツール：汎用ツール13本。
+              20項目なら畳まずに収まるので、アコーディオンにせず上の項目と同じ並びで出す。 */}
+          {railMode.tools?.map((tool) => (
+            <button
+              key={tool.id}
+              type="button"
+              className="subcategory w-full text-left px-4 py-1 text-[12px] 2xl:text-[13px] text-gray-300 hover:text-white"
+              onClick={() => {
+                requestGeneralTool({ toolId: tool.id });
+                onMenuClick?.('general-tools');
+                onItemClick?.();
+              }}
+            >
+              {tool.label}
+            </button>
+          ))}
+
+          {/* Ⅳ 設計ツール：分野7 ＞ ツール37。建材検索とまったく同じアコーディオン。 */}
+          {railMode.tree?.map((category) => (
+            <div key={category.id}>
+              <button
+                type="button"
+                className="w-full text-left px-4 py-2 cursor-pointer accordion-toggle text-[12px] 2xl:text-[13px] text-gray-300"
+              >
+                {category.label}
+              </button>
+              <ul className="accordion-content ml-4 text-[12px] space-y-1">
+                {category.subTabs.map((sub) => (
+                  <li key={sub.id}>
+                    <button
+                      type="button"
+                      className="rail-tool text-white"
+                      onClick={() => {
+                        requestDesignToolsTarget({ categoryId: category.id, subTabId: sub.id });
+                        onMenuClick?.('design-tools');
+                        onItemClick?.();
+                      }}
+                    >
+                      {sub.label}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Ⅰ：建材検索ツリー。DOM には常に残す（リンクを消さないため） */}
+      <div className="space-y-0" style={mode === 0 ? undefined : { display: 'none' }}>
         {/* Maker conect */}
         <div>
           <button className="subcategory w-full text-left px-4 py-1 text-[12px] 2xl:text-[13px] text-gray-300" data-page="makerconect">Maker conect</button>
@@ -407,6 +585,57 @@ const Sidebar: React.FC<SidebarProps> = ({ onItemClick, onPageChange, onLogoClic
         </div>
 
       </div>
+      </div>{/* left-column__scroll */}
+
+      {/* フッター：Ⅰ〜Ⅴ ＋ アカウント行。lg 以上では viewport に固定される */}
+      <div className="left-column__foot">
+      {/* 切替ボタン：〇の中は常に白、Ⅰ〜Ⅴ は常に黒。バーの地色は左カラムに追従 */}
+      <div className="left-column__switch">
+        {RAIL_MODES.map((m, index) => (
+          <button
+            key={m.label}
+            type="button"
+            title={m.label}
+            aria-label={`${ROMAN[index]} ${m.label}`}
+            aria-current={index === mode}
+            onClick={() => setMode(index)}
+          >
+            {ROMAN[index]}
+          </button>
+        ))}
+      </div>
+
+      {/* アカウント行：旧フッターバー左端にあった項目 */}
+      <div className="left-column__account">
+        {isLoggedIn ? (
+          <>
+            <span className="left-column__user">ようこそ、{currentUser?.username}さん</span>
+            <div className="left-column__authrow">
+              <button type="button" onClick={() => { onMenuClick?.('settings'); onItemClick?.(); }}>
+                ユーザー設定
+              </button>
+              <button type="button" onClick={() => { void logout(); }}>ログアウト</button>
+            </div>
+          </>
+        ) : (
+          <div className="left-column__authrow">
+            <button type="button" onClick={() => { onMenuClick?.('register'); onItemClick?.(); }}>
+              無料会員登録
+            </button>
+            <button type="button" onClick={() => { onMenuClick?.('login'); onItemClick?.(); }}>
+              ログイン
+            </button>
+          </div>
+        )}
+        <button
+          type="button"
+          className="left-column__legal"
+          onClick={() => { onMenuClick?.('privacy-policy'); onItemClick?.(); }}
+        >
+          プライバシーポリシー
+        </button>
+      </div>
+      </div>{/* left-column__foot */}
     </aside>
   );
 };

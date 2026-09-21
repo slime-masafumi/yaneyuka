@@ -15,6 +15,9 @@ const nextConfig = {
     removeConsole: { exclude: ['error', 'warn'] },
   },
   reactStrictMode: false, // Leafletマップの初期化エラーを防ぐため
+  // 開発時のインジケータ（丸い N ボタン）。既定の左下だと左カラム最下部の
+  // Ⅰ〜Ⅴ とアカウント行に重なって邪魔なので右下へ。開発時のみの表示で本番には出ない。
+  devIndicators: { position: 'bottom-right' },
   turbopack: {}, // 空の設定でエラーを回避（実際には--webpackフラグでwebpackを使用）
   // 画像最適化: 環境変数で制御可能（デフォルトは無効化）
   // NEXT_PUBLIC_ENABLE_IMAGE_OPTIMIZATION=true で有効化

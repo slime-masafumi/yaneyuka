@@ -25,6 +25,12 @@ import {
 } from 'react-icons/si';
 import { BsMicrosoftTeams } from 'react-icons/bs';
 import { useAuth } from '@/lib/AuthContext';
+import {
+  GENERAL_TOOL_MENU,
+  consumeGeneralTool,
+  onGeneralTool,
+  type GeneralToolId,
+} from '@/lib/generalToolsMenu';
 import { db } from '@/lib/firebaseClient';
 import { collection, addDoc, doc, updateDoc, onSnapshot, getDocs, query, orderBy, serverTimestamp, writeBatch } from 'firebase/firestore';
 
@@ -235,20 +241,9 @@ const SHIFT_ALIASES: Record<string, { label: string; input: string }> = {
   'x²': { label: 'x³', input: '^3' },
 };
 
-type TabType =
-  | 'memo'
-  | 'sheet'
-  | 'calc'
-  | 'olmt'
-  | 'schedule'
-  | 'map'
-  | 'image-converter'
-  | 'pdf-compressor'
-  | 'temp-storage'
-  | 'file-transfer'
-  | 'unit-converter'
-  | 'bookmark'
-  | 'alarm';
+// タブの並び・ラベル・id は src/lib/generalToolsMenu.ts が唯一の定義。
+// 左カラムの Ⅲ が同じ並びを出すので、ここで直書きしない。
+type TabType = GeneralToolId;
 
 const GeneralTools: React.FC = () => {
   // ★修正: ルーター関連の処理を削除
@@ -257,7 +252,16 @@ const GeneralTools: React.FC = () => {
   // const pathname = usePathname();
   
   // ★修正: シンプルなState管理に変更（初期値は'memo'）
-  const [activeTab, setActiveTab] = useState<TabType>('memo');
+  // 左カラムの Ⅲ からツールを指定して開かれた場合は、それで初期表示する。
+  const [activeTab, setActiveTab] = useState<TabType>(() => {
+    const requested = consumeGeneralTool();
+    return GENERAL_TOOL_MENU.some((t) => t.id === requested?.toolId) ? requested!.toolId : 'memo';
+  });
+
+  // すでに開いている状態で左カラムの別ツールが押されたとき用。
+  useEffect(() => onGeneralTool(({ toolId }) => {
+    if (GENERAL_TOOL_MENU.some((t) => t.id === toolId)) setActiveTab(toolId);
+  }), []);
 
   // 関数電卓の状態
   const [calculatorExpression, setCalculatorExpression] = useState('');
@@ -900,155 +904,33 @@ const GeneralTools: React.FC = () => {
         <h2 className="text-xl font-semibold">一般ツール</h2>
         <span className="text-red-600 font-bold text-sm ml-4">※この機能は現在β版です。ご意見をぜひお聞かせください。</span>
       </div>
-      <p className="text-[12px] text-gray-600 mb-4">
+      {/* lg 以上はタブ行を畳むので、いまどれを開いているかをパンくずで出す。 */}
+      <p className="hidden lg:block text-[11px] text-gray-500 mb-3">
+        一般ツール ＞ {GENERAL_TOOL_MENU.find((t) => t.id === activeTab)?.label}
+      </p>
+      <p className="lg:hidden text-[12px] text-gray-600 mb-4">
         メモ、表計算、関数電卓、画像変換・PDF圧縮、単位変換、ファイル転送・一時保存、ブックマーク、地図表示、オンラインミーティングツール、スケジュール調整、タイマー・アラーム・業務記録など、日常業務で頻繁に使用するユーティリティツールをまとめています。用途に応じてタブを切り替え、素早く作業を進めてください。
       </p>
       
-      {/* ツール選択タブ */}
-      <div className="bg-[#3b3b3b] w-full overflow-x-auto">
+      {/* ツール選択タブ
+          lg 以上では左カラムの Ⅲ が同じ並びを出すので畳む。
+          左カラムは hidden lg:block なので、狭い画面ではここが唯一のナビになる。
+          並びとラベルは src/lib/generalToolsMenu.ts が唯一の定義。 */}
+      <div className="bg-[#3b3b3b] w-full overflow-x-auto lg:hidden">
         <div className="flex">
-          <button
-            onClick={() => setActiveTab('bookmark')}
-            className={`flex-1 px-2 py-2 text-xs font-medium focus:outline-none transition whitespace-nowrap ${
-              activeTab === 'bookmark'
-                ? 'bg-[#1dad95] text-white'
-                : 'bg-[#3b3b3b] text-white hover:bg-[#0f6b5a]'
-            }`}
-          >
-            ブックマーク
-          </button>
-
-          <button
-            onClick={() => setActiveTab('map')}
-            className={`flex-1 px-2 py-2 text-xs font-medium focus:outline-none transition whitespace-nowrap ${
-              activeTab === 'map' 
-                ? 'bg-[#1dad95] text-white' 
-                : 'bg-[#3b3b3b] text-white hover:bg-[#0f6b5a]'
-            }`}
-          >
-            地図
-          </button>
-
-          <button
-            onClick={() => setActiveTab('olmt')}
-            className={`flex-1 px-2 py-2 text-xs font-medium focus:outline-none transition whitespace-nowrap ${
-              activeTab === 'olmt' 
-                ? 'bg-[#1dad95] text-white' 
-                : 'bg-[#3b3b3b] text-white hover:bg-[#0f6b5a]'
-            }`}
-          >
-            OLMT
-          </button>
-
-          <button
-            onClick={() => setActiveTab('schedule')}
-            className={`flex-1 px-2 py-2 text-xs font-medium focus:outline-none transition whitespace-nowrap ${
-              activeTab === 'schedule' 
-                ? 'bg-[#1dad95] text-white' 
-                : 'bg-[#3b3b3b] text-white hover:bg-[#0f6b5a]'
-            }`}
-          >
-            スケ調
-          </button>
-
-          <button
-            onClick={() => setActiveTab('memo')}
-            className={`flex-1 px-2 py-2 text-xs font-medium focus:outline-none transition whitespace-nowrap ${
-              activeTab === 'memo' 
-                ? 'bg-[#1dad95] text-white' 
-                : 'bg-[#3b3b3b] text-white hover:bg-[#0f6b5a]'
-            }`}
-          >
-            メモ
-          </button>
-
-          <button
-            onClick={() => setActiveTab('sheet')}
-            className={`flex-1 px-2 py-2 text-xs font-medium focus:outline-none transition whitespace-nowrap ${
-              activeTab === 'sheet' 
-                ? 'bg-[#1dad95] text-white' 
-                : 'bg-[#3b3b3b] text-white hover:bg-[#0f6b5a]'
-            }`}
-          >
-            表計算
-          </button>
-
-          <button
-            onClick={() => setActiveTab('calc')}
-            className={`flex-1 px-2 py-2 text-xs font-medium focus:outline-none transition whitespace-nowrap ${
-              activeTab === 'calc' 
-                ? 'bg-[#1dad95] text-white' 
-                : 'bg-[#3b3b3b] text-white hover:bg-[#0f6b5a]'
-            }`}
-          >
-            関数電卓
-          </button>
-
-          <button
-            onClick={() => setActiveTab('image-converter')}
-            className={`flex-1 px-2 py-2 text-xs font-medium focus:outline-none transition whitespace-nowrap ${
-              activeTab === 'image-converter' 
-                ? 'bg-[#1dad95] text-white' 
-                : 'bg-[#3b3b3b] text-white hover:bg-[#0f6b5a]'
-            }`}
-          >
-            画像変換
-          </button>
-
-          <button
-            onClick={() => setActiveTab('pdf-compressor')}
-            className={`flex-1 px-2 py-2 text-xs font-medium focus:outline-none transition whitespace-nowrap ${
-              activeTab === 'pdf-compressor' 
-                ? 'bg-[#1dad95] text-white' 
-                : 'bg-[#3b3b3b] text-white hover:bg-[#0f6b5a]'
-            }`}
-          >
-            PDF圧縮
-          </button>
-
-          <button
-            onClick={() => setActiveTab('temp-storage')}
-            className={`flex-1 px-2 py-2 text-xs font-medium focus:outline-none transition whitespace-nowrap ${
-              activeTab === 'temp-storage' 
-                ? 'bg-[#1dad95] text-white' 
-                : 'bg-[#3b3b3b] text-white hover:bg-[#0f6b5a]'
-            }`}
-          >
-            一時ファイル
-          </button>
-
-          <button
-            onClick={() => setActiveTab('file-transfer')}
-            className={`flex-1 px-2 py-2 text-xs font-medium focus:outline-none transition whitespace-nowrap ${
-              activeTab === 'file-transfer' 
-                ? 'bg-[#1dad95] text-white' 
-                : 'bg-[#3b3b3b] text-white hover:bg-[#0f6b5a]'
-            }`}
-          >
-            ファイル転送
-          </button>
-
-          <button
-            onClick={() => setActiveTab('unit-converter')}
-            className={`flex-1 px-2 py-2 text-xs font-medium focus:outline-none transition whitespace-nowrap ${
-              activeTab === 'unit-converter'
-                ? 'bg-[#1dad95] text-white' 
-                : 'bg-[#3b3b3b] text-white hover:bg-[#0f6b5a]'
-            }`}
-          >
-            単位変換
-          </button>
-
-          <button
-            onClick={() => setActiveTab('alarm')}
-            className={`flex-1 px-2 py-2 text-xs font-medium focus:outline-none transition whitespace-nowrap ${
-              activeTab === 'alarm'
-                ? 'bg-[#1dad95] text-white'
-                : 'bg-[#3b3b3b] text-white hover:bg-[#0f6b5a]'
-            }`}
-          >
-            アラーム
-          </button>
+          {GENERAL_TOOL_MENU.map((tool) => (
+            <button
+              key={tool.id}
+              onClick={() => setActiveTab(tool.id)}
+              className={`flex-1 px-2 py-2 text-xs font-medium focus:outline-none transition whitespace-nowrap ${
+                activeTab === tool.id
+                  ? 'bg-[#1dad95] text-white'
+                  : 'bg-[#3b3b3b] text-white hover:bg-[#0f6b5a]'
+              }`}
+            >
+              {tool.label}
+            </button>
+          ))}
         </div>
         
         {/* アクティブタブの説明文 */}

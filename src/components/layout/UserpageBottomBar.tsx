@@ -38,7 +38,9 @@ const UserpageBottomBar: React.FC<UserpageBottomBarProps> = ({ activeContent, on
       borderTop: '1px solid #333',
       position: 'fixed',
       bottom: 0,
-      left: '180px',
+      // lg 未満でしか出さない（lg 以上は左カラムの Ⅰ〜Ⅴ が担当）。
+      // 左カラムはその幅で非表示なので、以前の 180px オフセットは不要。
+      left: 0,
       right: 0,
       zIndex: 9999,
     }}>

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, startTransition, useCallback, useRef, lazy, Suspense } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Navigation from './Navigation';
+import UserpageBottomBar from './UserpageBottomBar';
 import RelatedPrivacyLinks from '../RelatedPrivacyLinks';
 import { isPrivacyPolicyPath } from '@/lib/legalPages';
 import { CATEGORY_ROUTES, EXTERIOR_FINISH_SUBCATEGORIES, findCategoryBySubcategory } from '@/lib/materialCategories';
@@ -74,7 +75,6 @@ import PublicWorksList from '../PublicWorksList';
 import { AuthProvider, useAuth } from '../../lib/AuthContext';
 import CookieConsent from './CookieConsent';
 import Footer from './Footer';
-import UserpageBottomBar from './UserpageBottomBar';
 import { db, logEvent } from '../../lib/firebaseClient';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { usePersistentState } from '../../lib/usePersistentState';
@@ -2160,6 +2160,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
           <div className="hidden lg:block" style={{ zIndex: 10000, position: 'relative' }}>
             <Sidebar
               onPageChange={handleSubcategoryClick}
+              onMenuClick={handleMenuClick}
               onLogoClick={() => {
                 // ロゴクリック時はトップページにリセット（URL=/, activeContent=initialContent）
                 // SPA系コンテンツ(privacy-policy等)で開いている場合、URLが/のままだとLinkだけでは中央/右が更新されないため
@@ -2174,7 +2175,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
             />
           </div>
           {/* 右側：ナビバー + コンテンツエリア */}
-          <div className="flex-1 min-w-0" style={{ paddingBottom: '34px' }}>
+          <div className="flex-1 min-w-0 pb-[34px] lg:pb-0">
             <Navigation onMenuClick={handleMenuClick} activeItem={activeContent} />
             <div className="flex lg:flex-row flex-col lg:items-start gap-2 p-2 md:p-3 lg:p-4">
           <main className="flex-1 min-w-0">
@@ -2363,54 +2364,25 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
               </div>
                 );
               })()}
-              {/* 下段：関連アプリ（縦並び・アイコン左＋アプリ名&説明右） */}
-              <div className="mt-4 rounded-lg p-3" style={{ backgroundColor: '#a3c4b8' }}>
-                <h4 className="text-[11px] font-semibold mb-2 text-gray-700 text-center">yaneyuka関連アプリ</h4>
-                <div className="space-y-2">
-                  <a href="https://dayline-yaneyuka.web.app" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 bg-white/60 rounded p-2 hover:bg-white/80 transition">
-                    <img src="/image/DayLine-icon.png" alt="DayLine アイコン" className="rounded shrink-0" style={{ width: '40px', height: '40px' }} onError={(e) => { (e.target as HTMLImageElement).src = '/image/掲載募集中a.png'; }} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[11px] font-medium text-gray-700 leading-tight">DayLine</p>
-                      <p className="text-[9px] text-gray-600 leading-tight">今日が一目でわかる<br />iPhone-PC連動アプリ</p>
-                    </div>
-                  </a>
-                  <a href="https://rules-yaneyuka.web.app" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 bg-white/60 rounded p-2 hover:bg-white/80 transition">
-                    <img src="/image/Rules-icon.png" alt="Rules アイコン" className="rounded shrink-0" style={{ width: '40px', height: '40px' }} onError={(e) => { (e.target as HTMLImageElement).src = '/image/掲載募集中a.png'; }} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[11px] font-medium text-gray-700 leading-tight">Rules</p>
-                      <p className="text-[9px] text-gray-600 leading-tight">社内ルール・マニュアルを一元管理<br />iPhone-PC連動アプリ</p>
-                    </div>
-                  </a>
-                  <a href="https://pdfgap-yaneyuka.web.app/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 bg-white/60 rounded p-2 hover:bg-white/80 transition">
-                    <img src="/image/PDFGap-icon.svg" alt="PDFGap アイコン" className="rounded shrink-0" style={{ width: '40px', height: '40px' }} onError={(e) => { (e.target as HTMLImageElement).src = '/image/掲載募集中a.png'; }} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[11px] font-medium text-gray-700 leading-tight">PDFGap</p>
-                      <p className="text-[9px] text-gray-600 leading-tight">図面変更箇所を検出</p>
-                    </div>
-                  </a>
-                  <a href="https://apps.apple.com/us/app/%E5%BB%BA%E7%AF%89%E5%9F%BA%E6%BA%96%E6%B3%95-yaneyuka/id6757323409?itscg=30200&itsct=apps_box_link&mttnsubad=6757323409" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 bg-white/60 rounded p-2 hover:bg-white/80 transition">
-                    <img src="/image/kenchikukijyunhou-icon.png" alt="建築基準法yaneyuka アイコン" className="rounded shrink-0" style={{ width: '40px', height: '40px' }} onError={(e) => { (e.target as HTMLImageElement).src = '/image/掲載募集中a.png'; }} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[11px] font-medium text-gray-700 leading-tight">建築基準法yaneyuka</p>
-                      <p className="text-[9px] text-gray-600 leading-tight">法令集をポケットに<br />iPhoneアプリ</p>
-                    </div>
-                  </a>
-                </div>
-              </div>
+              {/* 「yaneyuka関連アプリ」は左カラムの Ⅴ 外部ツールへ集約した（Sidebar.tsx の RAIL_MODES）。
+                  アイコン付きで常時見えるようになったので、ここでの重複掲載はやめる。 */}
             </aside>
             );
           })()}
             </div>{/* コンテンツエリア（中央+右カラム）の閉じ */}
           </div>{/* 右側div（ナビ+コンテンツ）の閉じ */}
         </div>
-        {/* Footerは現在不要（リンクはナビバーとフッターバーに移動済み）。コード自体はFooter.tsxに残す */}
-        <UserpageBottomBar
-          activeContent={activeContent}
-          onMenuClick={handleMenuClick}
-          isLoggedIn={isLoggedIn}
-          username={currentUser?.username}
-        />
-        {/* 下部固定バーの余白はコンテンツ側のpaddingで対応 */}
+        {/* Footer は現在不要。コード自体は Footer.tsx に残してある。
+            フッターバーの13項目は左カラムの Ⅱ〜Ⅴ（Sidebar.tsx の RAIL_MODES）へ移したが、
+            左カラムは hidden lg:block なので、lg 未満ではこのバーが唯一の導線になる。 */}
+        <div className="lg:hidden">
+          <UserpageBottomBar
+            activeContent={activeContent}
+            onMenuClick={handleMenuClick}
+            isLoggedIn={isLoggedIn}
+            username={currentUser?.username}
+          />
+        </div>
         <CookieConsent />
       </div>
     </AuthProvider>
