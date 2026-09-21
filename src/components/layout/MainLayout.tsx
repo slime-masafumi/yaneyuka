@@ -105,6 +105,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
   };
   
   const [activeContent, setActiveContent] = useState<string>(getInitialContent());
+
+  // lg 以上では中央カラムだけがスクロールするので、表示を切り替えたときに
+  // 前の画面のスクロール位置が残る。ページ全体がスクロールしていた頃は
+  // ブラウザが勝手に詰めていた分を、ここで明示的に戻す。
+  useEffect(() => {
+    document.getElementById('yy-main-scroll')?.scrollTo({ top: 0 });
+  }, [activeContent]);
   const previousContentRef = useRef<string>('');
   const isPopStateHandlingRef = useRef<boolean>(false);
   const activeContentRef = useRef<string>(getInitialContent());
@@ -2155,7 +2162,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
             <div id="gcse-results"></div>
           </div>
         </div>
-        <div id="main-layout-container" className={`${searchActive ? 'hidden' : 'flex'} flex-col lg:flex-row lg:items-stretch`} style={{ minHeight: '100vh' }}>
+        <div id="main-layout-container" className={`${searchActive ? 'hidden' : 'flex'} flex-col lg:flex-row lg:items-stretch`}>
           {/* 左カラム：ページ最上部から最下部まで（フッターバーより前面） */}
           <div className="hidden lg:block" style={{ zIndex: 10000, position: 'relative' }}>
             <Sidebar
@@ -2175,10 +2182,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
             />
           </div>
           {/* 右側：ナビバー + コンテンツエリア */}
-          <div className="flex-1 min-w-0 pb-[34px] lg:pb-0">
+          <div className="yy-shell__right flex-1 min-w-0 pb-[34px] lg:pb-0">
             <Navigation onMenuClick={handleMenuClick} activeItem={activeContent} />
-            <div className="flex lg:flex-row flex-col lg:items-start gap-2 p-2 md:p-3 lg:p-4">
-          <main className="flex-1 min-w-0">
+            <div className="yy-shell__cols flex lg:flex-row flex-col lg:items-start gap-2 p-2 md:p-3 lg:p-4">
+          <main id="yy-main-scroll" className="yy-shell__main flex-1 min-w-0">
             {/* 中央カラム右エリアに参考資料（NEWSのブックマーク幅相当: 300px） */}
             <div className="lg:flex lg:gap-4 items-start">
               <div className="flex-1 min-w-0">
@@ -2220,7 +2227,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
               isPrivacyPolicyPath(pathname) ||
               activeContent === 'privacy-policy';
             return (
-            <aside className="w-[200px] 2xl:w-[300px] min-w-[200px] shrink bg-white px-1 pt-0 pb-4 rounded text-sm overflow-y-auto overflow-x-hidden hidden md:block">
+            <aside className="yy-shell__aside w-[200px] 2xl:w-[300px] min-w-[200px] shrink bg-white px-1 pt-0 pb-4 rounded text-sm overflow-y-auto overflow-x-hidden hidden md:block">
               {isPrivacyPolicyPage && (
                 <RelatedPrivacyLinks
                   currentPath={pathname}

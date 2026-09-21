@@ -242,8 +242,9 @@ nav .absolute .py-1 a {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: #888 #333;
+  /* スクロールはするが、バーは出さない（中央カラムと同じ扱い）。 */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 /* 最下部の切替バー。地色は左カラムに追従させる（アクセント色では塗らない） */
@@ -337,20 +338,87 @@ nav .absolute .py-1 a {
   font-size: 10px;
 }
 
-/* 左カラムはページと一緒に伸びるので、フッター（Ⅰ〜Ⅴ ＋ アカウント行）は
-   旧フッターバーと同じく viewport に固定して常に見えるようにする。
-   左カラムを出す lg 以上だけ。 */
+/* lg 以上は下のアプリシェルで左カラム自体が画面高になるので、
+   フッター（Ⅰ〜Ⅴ ＋ アカウント行）は通常フローのまま最下部に付く。 */
 @media (min-width: 1024px) {
-  .left-column__foot {
-    position: fixed;
-    left: 0;
-    bottom: 0;
-    width: 180px;
-    z-index: 10001;
-  }
-
   .left-column__scroll {
     padding-bottom: 8px;
+  }
+}
+
+/* ─────────── アプリシェル（lg 以上） ───────────
+   ページ全体を一緒にスクロールさせず、中央カラムだけが動く。
+   ヘッダー・ナビ・左カラム・右カラムは常に同じ位置に留まる。
+   左カラムが出ない狭い画面では、従来どおりページ全体がスクロールする。 */
+#main-layout-container {
+  min-height: 100vh;
+}
+
+@media (min-width: 1024px) {
+  html,
+  body {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  #main-layout-container {
+    height: 100vh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .yy-shell__right {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+  }
+
+  /* ナビバーは縮まない */
+  .yy-shell__right > nav {
+    flex: 0 0 auto;
+  }
+
+  .yy-shell__cols {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    /* Tailwind の lg:items-start を上書き。中央・右とも画面高まで伸ばす。 */
+    align-items: stretch;
+  }
+
+  .yy-shell__aside {
+    height: 100%;
+  }
+
+  /* ここだけがスクロールする。スクロールバーは出さない。 */
+  .yy-shell__main {
+    height: 100%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .yy-shell__main::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+}
+
+/* 印刷時はシェルを解除する。overflow:hidden のままだと1ページで切れる。 */
+@media print {
+  html,
+  body {
+    height: auto;
+    overflow: visible;
+  }
+
+  #main-layout-container,
+  .yy-shell__cols,
+  .yy-shell__main {
+    height: auto;
+    overflow: visible;
   }
 }
 
@@ -537,21 +605,8 @@ header .flex.flex-col.items-center {
 }
 
 .left-column__scroll::-webkit-scrollbar {
-  width: 6px;
-}
-
-.left-column__scroll::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 3px;
-}
-
-.left-column__scroll::-webkit-scrollbar-thumb {
-  background: #888;
-  border-radius: 3px;
-}
-
-.left-column__scroll::-webkit-scrollbar-thumb:hover {
-  background: #555;
+  width: 0;
+  height: 0;
 }
 
 .gsc-control-cse,
