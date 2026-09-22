@@ -126,6 +126,7 @@ const RAIL_MODES: RailMode[] = [
       { label: '画像変換', menu: 'general-tools', tool: 'image-converter' },
       { label: '工事写真', menu: 'general-tools', tool: 'construction-photos' },
       { label: 'PDF圧縮', menu: 'general-tools', tool: 'pdf-compressor' },
+      { label: '図面PDF', menu: 'general-tools', tool: 'drawing-pdf' },
       { label: '一時ファイル', menu: 'general-tools', tool: 'temp-storage' },
       { label: 'ファイル転送', menu: 'general-tools', tool: 'file-transfer' },
     ],

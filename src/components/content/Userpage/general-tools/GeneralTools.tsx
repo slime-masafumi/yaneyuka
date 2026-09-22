@@ -7,6 +7,7 @@ import MapView from './MapView';
 import PDFCompressor from './PDFCompressor';
 import ImageConverter from './ImageConverter';
 import ConstructionPhotos from './ConstructionPhotos';
+import DrawingPdf from './DrawingPdf';
 import FileTransferTool from './FileTransfer';
 import TempStorage from './TempStorage';
 import Spreadsheet from './Spreadsheet';
@@ -212,6 +213,7 @@ const GeneralTools: React.FC = () => {
         {activeTab === 'construction-photos' && <ConstructionPhotos />}
         {activeTab === 'map' && <MapSection />}
         {activeTab === 'pdf-compressor' && <PDFCompressor />}
+        {activeTab === 'drawing-pdf' && <DrawingPdf />}
         {activeTab === 'temp-storage' && <TempStorage />}
         {activeTab === 'file-transfer' && <FileTransferTool />}
         {activeTab === 'unit-converter' && <UnitConverter />}

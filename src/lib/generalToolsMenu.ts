@@ -1,5 +1,5 @@
 /**
- * 一般ツールのメニュー定義（14ツール）。
+ * 一般ツールのメニュー定義（15ツール）。
  *
  * 左カラム（Sidebar の Ⅲ）と中央の GeneralTools が同じ並びを出す必要があるので、
  * id とラベルだけをここに置いて唯一の定義にする。ツール本体はここに import しない。
@@ -22,7 +22,8 @@ export type GeneralToolId =
   | 'file-transfer'
   | 'unit-converter'
   | 'alarm'
-  | 'construction-photos';
+  | 'construction-photos'
+  | 'drawing-pdf';
 
 export type GeneralToolEntry = { id: GeneralToolId; label: string };
 
@@ -38,6 +39,7 @@ export const GENERAL_TOOL_MENU: GeneralToolEntry[] = [
   { id: 'image-converter', label: '画像変換' },
   { id: 'construction-photos', label: '工事写真' },
   { id: 'pdf-compressor', label: 'PDF圧縮' },
+  { id: 'drawing-pdf', label: '図面PDF' },
   { id: 'temp-storage', label: '一時ファイル' },
   { id: 'file-transfer', label: 'ファイル転送' },
   { id: 'unit-converter', label: '単位変換' },
