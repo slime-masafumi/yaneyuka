@@ -164,6 +164,25 @@ const compareMemos = (a: Memo, b: Memo, order: MemoSortOrder): number => {
   }
 };
 
+/**
+ * フォルダ。
+ *
+ * メモは前からカテゴリ（自由入力・📂アイコン付き）を1つ持っていたので、
+ * それをそのままフォルダの中身として使う。別に folderId を持たせると
+ * 「カテゴリ」と「フォルダ」の2つの仕分けが並んでしまい、どちらに入れたか
+ * 分からなくなる。既存のメモも、付けていたカテゴリがそのままフォルダになる。
+ *
+ * ただしカテゴリはメモ側にしか無いので、それだけでは「空のフォルダ」を
+ * 作れない（メモを入れるまで消えてしまう）。フォルダ名の一覧だけを
+ * users/{uid}/memoMeta/folders に置いて、空でも残るようにする。
+ */
+const FOLDER_DOC = 'folders';
+
+/** 「すべて」＝null、「未分類」＝空文字。どちらもフォルダ名ではないので分けて扱う。 */
+type FolderSelection = string | null;
+const ALL_FOLDERS: FolderSelection = null;
+const UNFILED = '';
+
 /** 本文は HTML なので、検索にはタグを外した文字列を使う。 */
 const stripHtml = (html: string) =>
   html
@@ -181,7 +200,13 @@ const MemoTool: React.FC = () => {
   const [memoCategory, setMemoCategory] = useState('');
   const [memoTags, setMemoTags] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('');
+  // 選択中のフォルダ。null = すべて / '' = 未分類 / それ以外 = フォルダ名
+  const [selectedFolder, setSelectedFolder] = useState<FolderSelection>(ALL_FOLDERS);
+  // 保存されているフォルダ名（空のフォルダを残すため）
+  const [savedFolders, setSavedFolders] = useState<string[]>([]);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [showFolderInput, setShowFolderInput] = useState(false);
+  const [dragOverFolder, setDragOverFolder] = useState<FolderSelection | undefined>(undefined);
   const [tagFilter, setTagFilter] = useState('');
   const [sortOrder, setSortOrder] = useState<MemoSortOrder>('manual');
   const [charCount, setCharCount] = useState(0);
@@ -293,14 +318,130 @@ const MemoTool: React.FC = () => {
     return () => unsub()
   }, [currentUser])
 
-  // --- ドラッグアンドドロップ処理 ---
-  
-  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, memo: Memo) => {
-    // フィルター中は並び替え無効
-    if (searchTerm || categoryFilter || tagFilter) {
-      e.preventDefault();
-      return;
+  // --- フォルダ ---
+
+  // 保存済みのフォルダ名を読む。読めなくてもメモ側のカテゴリから復元できる。
+  useEffect(() => {
+    if (!currentUser) { setSavedFolders([]); return; }
+    const ref = doc(db, 'users', currentUser.uid, 'memoMeta', FOLDER_DOC);
+    const unsub = onSnapshot(ref, (snap) => {
+      const names = (snap.data() as any)?.names;
+      if (Array.isArray(names)) setSavedFolders(names.filter((n) => typeof n === 'string' && n));
+    }, () => { /* 読めないだけなら黙って諦める */ });
+    return () => unsub();
+  }, [currentUser]);
+
+  const persistFolders = async (names: string[]) => {
+    setSavedFolders(names);
+    if (!currentUser) return;
+    try {
+      await setDoc(doc(db, 'users', currentUser.uid, 'memoMeta', FOLDER_DOC), { names }, { merge: true });
+    } catch (error) {
+      console.error('フォルダの保存に失敗しました', error);
     }
+  };
+
+  /**
+   * 画面に出すフォルダ。保存済みの名前と、メモが実際に持っているカテゴリを
+   * 足し合わせる。カテゴリだけ付けていた既存のメモも、そのままフォルダに並ぶ。
+   */
+  const folderNames = Array.from(
+    new Set([...savedFolders, ...memos.map((m) => m.category).filter(Boolean)]),
+  ).sort((a, b) => a.localeCompare(b, 'ja'));
+
+  const countInFolder = (name: FolderSelection) =>
+    name === ALL_FOLDERS
+      ? memos.length
+      : memos.filter((m) => (m.category || UNFILED) === name).length;
+
+  const addFolder = async () => {
+    const name = newFolderName.trim();
+    if (!name) return;
+    if (folderNames.includes(name)) {
+      setSelectedFolder(name);
+    } else {
+      await persistFolders([...savedFolders, name]);
+      setSelectedFolder(name);
+    }
+    setNewFolderName('');
+    setShowFolderInput(false);
+  };
+
+  /** フォルダ名の変更。中のメモのカテゴリも書き換える（実体がそこなので）。 */
+  const renameFolder = async (oldName: string) => {
+    const next = window.prompt('フォルダ名を変更', oldName);
+    if (next === null) return;
+    const name = next.trim();
+    if (!name || name === oldName) return;
+
+    const targets = memos.filter((m) => m.category === oldName);
+    setMemos((prev) => prev.map((m) => (m.category === oldName ? { ...m, category: name } : m)));
+    if (memoCategory === oldName) setMemoCategory(name);
+    if (selectedFolder === oldName) setSelectedFolder(name);
+    await persistFolders(
+      Array.from(new Set(savedFolders.filter((n) => n !== oldName).concat(name))),
+    );
+
+    if (!currentUser || targets.length === 0) return;
+    try {
+      const batch = writeBatch(db);
+      targets.forEach((m) => {
+        if (m.id.startsWith('tmp-')) return;
+        batch.update(doc(db, 'users', currentUser.uid, 'memos', m.id), { category: name });
+      });
+      await batch.commit();
+    } catch (error) {
+      console.error('フォルダ名の変更に失敗しました', error);
+    }
+  };
+
+  /** フォルダを削除。中のメモは消さず未分類に戻す（消えると取り返せないので）。 */
+  const deleteFolder = async (name: string) => {
+    const inside = memos.filter((m) => m.category === name);
+    const message = inside.length
+      ? `フォルダ「${name}」を削除します。\n中のメモ ${inside.length} 件は削除せず「未分類」に戻します。`
+      : `フォルダ「${name}」を削除します。`;
+    if (!window.confirm(message)) return;
+
+    setMemos((prev) => prev.map((m) => (m.category === name ? { ...m, category: UNFILED } : m)));
+    if (memoCategory === name) setMemoCategory(UNFILED);
+    if (selectedFolder === name) setSelectedFolder(ALL_FOLDERS);
+    await persistFolders(savedFolders.filter((n) => n !== name));
+
+    if (!currentUser || inside.length === 0) return;
+    try {
+      const batch = writeBatch(db);
+      inside.forEach((m) => {
+        if (m.id.startsWith('tmp-')) return;
+        batch.update(doc(db, 'users', currentUser.uid, 'memos', m.id), { category: UNFILED });
+      });
+      await batch.commit();
+    } catch (error) {
+      console.error('フォルダの削除に失敗しました', error);
+    }
+  };
+
+  /** メモ1件をフォルダへ移す。 */
+  const moveMemoToFolder = async (memoId: string, folder: string) => {
+    const target = memos.find((m) => m.id === memoId);
+    if (!target || (target.category || UNFILED) === folder) return;
+
+    setMemos((prev) => prev.map((m) => (m.id === memoId ? { ...m, category: folder } : m)));
+    if (currentMemo?.id === memoId) setMemoCategory(folder);
+
+    if (!currentUser || memoId.startsWith('tmp-')) return;
+    try {
+      await updateDoc(doc(db, 'users', currentUser.uid, 'memos', memoId), { category: folder });
+    } catch (error) {
+      console.error('メモの移動に失敗しました', error);
+    }
+  };
+
+  // --- ドラッグアンドドロップ処理 ---
+
+  // 並べ替えは絞り込み中・手動以外の並び順のときはできない。
+  // ただしフォルダへ放り込むほうは常にできる（それが主な移動手段なので）。
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, memo: Memo) => {
     setDraggedMemoId(memo.id);
     setDragOverMemoId(null);
     e.dataTransfer.effectAllowed = 'move';
@@ -308,7 +449,7 @@ const MemoTool: React.FC = () => {
   };
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>, memoId: string) => {
-    if (searchTerm || categoryFilter || tagFilter) return;
+    if (!isDragEnabled) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     if (dragOverMemoId !== memoId) {
@@ -319,12 +460,30 @@ const MemoTool: React.FC = () => {
   const handleDragEnd = () => {
     setDraggedMemoId(null);
     setDragOverMemoId(null);
+    setDragOverFolder(undefined);
+  };
+
+  const handleFolderDragOver = (e: React.DragEvent<HTMLElement>, folder: FolderSelection) => {
+    if (!draggedMemoId || folder === ALL_FOLDERS) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverFolder !== folder) setDragOverFolder(folder);
+  };
+
+  const handleFolderDrop = async (e: React.DragEvent<HTMLElement>, folder: FolderSelection) => {
+    e.preventDefault();
+    setDragOverFolder(undefined);
+    const id = draggedMemoId;
+    setDraggedMemoId(null);
+    if (!id || folder === ALL_FOLDERS) return;
+    await moveMemoToFolder(id, folder);
   };
 
   const handleDrop = async (e: React.DragEvent<HTMLDivElement>, targetMemoId: string) => {
     e.preventDefault();
     setDragOverMemoId(null); // ハイライト解除
     
+    if (!isDragEnabled) return; // 並べ替えができない状態（絞り込み中・並び順指定中）
     if (!draggedMemoId || draggedMemoId === targetMemoId) return;
     if (!currentUser) return;
 
@@ -729,9 +888,10 @@ const MemoTool: React.FC = () => {
     const matchesSearch = !needle ||
                          memo.title.toLowerCase().includes(needle) ||
                          stripHtml(memo.content).toLowerCase().includes(needle);
-    const matchesCategory = !categoryFilter || memo.category === categoryFilter;
+    // フォルダ = メモのカテゴリ。null なら全部、空文字なら未分類だけ。
+    const matchesFolder = selectedFolder === ALL_FOLDERS || (memo.category || UNFILED) === selectedFolder;
     const matchesTag = !tagFilter || memo.tags.includes(tagFilter);
-    return matchesSearch && matchesCategory && matchesTag;
+    return matchesSearch && matchesFolder && matchesTag;
   }).sort((a, b) => {
     // ブックマークはどの並び順でも先頭に置く（付けた意味がなくなるので）
     const aFavorite = a.isFavorite || false;
@@ -740,13 +900,12 @@ const MemoTool: React.FC = () => {
     return compareMemos(a, b, sortOrder);
   });
 
-  const allCategories = Array.from(new Set(memos.map(memo => memo.category).filter(Boolean)));
   const allTagsFlat = memos.map(memo => memo.tags).reduce((acc, curr) => acc.concat(curr), []);
   const allTags = Array.from(new Set(allTagsFlat));
 
   // フィルター有効時はD&D無効化
   // 並び順を指定している間は手で動かせない（動かしても並べ直されるため）
-  const isDragEnabled = !searchTerm && !categoryFilter && !tagFilter && sortOrder === 'manual';
+  const isDragEnabled = !searchTerm && selectedFolder === ALL_FOLDERS && !tagFilter && sortOrder === 'manual';
 
   return (
     <div className="bg-white h-full lg:h-[calc(100vh-var(--nav-height))] flex flex-col">
@@ -795,18 +954,91 @@ const MemoTool: React.FC = () => {
                 </svg>
               </div>
             </div>
+            {/* フォルダ。行にメモをドラッグして放り込める。 */}
+            <div className="mb-3 shrink-0 border border-[#3b3b3b]">
+              <div className="flex items-center justify-between px-2 py-1 bg-gray-50 border-b border-[#3b3b3b]">
+                <span className="text-[10px] font-bold text-gray-600">フォルダ</span>
+                <button
+                  type="button"
+                  onClick={() => setShowFolderInput(v => !v)}
+                  className="text-[10px] px-1.5 text-gray-600 hover:text-gray-900"
+                  title="フォルダを追加"
+                >
+                  ＋
+                </button>
+              </div>
+
+              {showFolderInput && (
+                <div className="flex gap-1 p-1.5 border-b border-gray-200">
+                  <input
+                    type="text"
+                    value={newFolderName}
+                    onChange={(e) => setNewFolderName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') addFolder(); if (e.key === 'Escape') setShowFolderInput(false); }}
+                    placeholder="フォルダ名"
+                    autoFocus
+                    className="flex-1 text-[11px] px-2 py-1 border border-gray-200 focus:outline-none"
+                  />
+                  <button type="button" onClick={addFolder} className="text-[10px] bg-gray-700 text-white px-2">追加</button>
+                </div>
+              )}
+
+              <div className="max-h-[132px] overflow-y-auto">
+                {([ALL_FOLDERS, ...folderNames, UNFILED] as FolderSelection[]).map((folder) => {
+                  const isAll = folder === ALL_FOLDERS;
+                  const isUnfiled = folder === UNFILED;
+                  const label = isAll ? 'すべて' : isUnfiled ? '未分類' : folder;
+                  const selected = selectedFolder === folder;
+                  const isOver = dragOverFolder === folder;
+                  // 未分類はメモが無ければ出さない（常にある空行は邪魔なので）
+                  if (isUnfiled && countInFolder(UNFILED) === 0) return null;
+
+                  return (
+                    <div
+                      key={isAll ? '__all__' : isUnfiled ? '__unfiled__' : folder}
+                      onDragOver={(e) => handleFolderDragOver(e, folder)}
+                      onDragLeave={() => setDragOverFolder(undefined)}
+                      onDrop={(e) => handleFolderDrop(e, folder)}
+                      className={`flex items-center gap-1 px-2 py-1 text-[11px] cursor-pointer group ${
+                        isOver ? 'bg-amber-100' : selected ? 'bg-gray-200 font-bold' : 'hover:bg-gray-50'
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setSelectedFolder(folder)}
+                        className="flex-1 text-left truncate bg-transparent border-0 p-0"
+                      >
+                        {isAll ? '' : '📂 '}{label}
+                        <span className="ml-1 text-gray-400">({countInFolder(folder)})</span>
+                      </button>
+                      {!isAll && !isUnfiled && (
+                        <span className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100">
+                          <button
+                            type="button"
+                            onClick={() => renameFolder(folder as string)}
+                            className="text-gray-400 hover:text-gray-700 bg-transparent border-0 p-0"
+                            title="名前を変更"
+                          >
+                            <FiEdit2 className="w-3 h-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => deleteFolder(folder as string)}
+                            className="text-gray-400 hover:text-red-600 bg-transparent border-0 p-0"
+                            title="フォルダを削除（中のメモは未分類へ）"
+                          >
+                            <FiTrash2 className="w-3 h-3" />
+                          </button>
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="flex gap-2 mb-3 shrink-0">
-              <select 
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-                className="flex-1 text-[11px] border border-gray-200 rounded px-2 py-1.5 focus:outline-none focus:border-gray-400"
-              >
-                <option value="">カテゴリ</option>
-                {allCategories.map(category => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
-              </select>
-              <select 
+              <select
                 value={tagFilter}
                 onChange={(e) => setTagFilter(e.target.value)}
                 className="flex-1 text-[11px] border border-gray-200 rounded px-2 py-1.5 focus:outline-none focus:border-gray-400"
@@ -854,7 +1086,7 @@ const MemoTool: React.FC = () => {
                     {showTopBar && <div className="h-1.5 w-full bg-[#1dad95] rounded-full my-1 animate-pulse" />}
                     
                     <div 
-                      draggable={isDragEnabled}
+                      draggable
                       onDragStart={(e) => handleDragStart(e, memo)}
                       onDragOver={(e) => handleDragOver(e, memo.id)}
                       onDragEnd={handleDragEnd}
@@ -966,7 +1198,7 @@ const MemoTool: React.FC = () => {
                 <div className="relative flex-1">
                   <input 
                     type="text" 
-                    placeholder="カテゴリ..." 
+                    placeholder="フォルダ..." list="yy-memo-folders" 
                     value={memoCategory}
                     disabled={currentMemo?.isLocked || false}
                     onChange={(e) => {
@@ -979,6 +1211,12 @@ const MemoTool: React.FC = () => {
                     }}
                     className={`w-full pl-7 pr-2 py-1.5 text-[11px] border border-gray-200 rounded focus:outline-none focus:border-gray-400 ${currentMemo?.isLocked ? 'bg-gray-100 cursor-not-allowed opacity-60' : ''}`}
                   />
+                  {/* 既にあるフォルダを候補に出す。新しい名前を打てばそのフォルダが増える。 */}
+                  <datalist id="yy-memo-folders">
+                    {folderNames.map((name) => (
+                      <option key={name} value={name} />
+                    ))}
+                  </datalist>
                   <div className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 text-xs">📂</div>
                 </div>
                 <div className="relative flex-1">
