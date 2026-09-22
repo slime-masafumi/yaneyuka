@@ -113,6 +113,57 @@ const MEMO_TEMPLATES: MemoTemplate[] = [
   },
 ];
 
+/**
+ * 一覧の並び順。
+ *
+ * 既定の「手動」は、これまでの並び（ドラッグで決めた order → 更新日）をそのまま
+ * 使う。並びを覚えて使っている人がいるので、開いた見た目は変えない。
+ * 手動以外を選んでいる間はドラッグ＆ドロップを止める（並べ替えても
+ * すぐ上書きされてしまい、動かないように見えるため）。
+ */
+type MemoSortOrder = 'manual' | 'updated' | 'created' | 'title' | 'category';
+
+const MEMO_SORT_OPTIONS: Array<{ value: MemoSortOrder; label: string }> = [
+  { value: 'manual', label: '手動（ドラッグ順）' },
+  { value: 'updated', label: '更新が新しい順' },
+  { value: 'created', label: '作成が新しい順' },
+  { value: 'title', label: 'タイトル順' },
+  { value: 'category', label: 'カテゴリ順' },
+];
+
+const compareMemos = (a: Memo, b: Memo, order: MemoSortOrder): number => {
+  switch (order) {
+    case 'updated':
+      return b.updatedAt.getTime() - a.updatedAt.getTime();
+    case 'created':
+      return b.createdAt.getTime() - a.createdAt.getTime();
+    case 'title':
+      // 日本語を含むので localeCompare。空の表題は末尾へ。
+      if (!a.title && !b.title) return 0;
+      if (!a.title) return 1;
+      if (!b.title) return -1;
+      return a.title.localeCompare(b.title, 'ja');
+    case 'category': {
+      const ca = a.category || '';
+      const cb = b.category || '';
+      if (ca !== cb) {
+        if (!ca) return 1;
+        if (!cb) return -1;
+        return ca.localeCompare(cb, 'ja');
+      }
+      // 同じカテゴリの中は更新が新しい順
+      return b.updatedAt.getTime() - a.updatedAt.getTime();
+    }
+    case 'manual':
+    default: {
+      const orderA = a.order ?? 99999999;
+      const orderB = b.order ?? 99999999;
+      if (orderA !== orderB) return orderA - orderB;
+      return b.updatedAt.getTime() - a.updatedAt.getTime();
+    }
+  }
+};
+
 /** 本文は HTML なので、検索にはタグを外した文字列を使う。 */
 const stripHtml = (html: string) =>
   html
@@ -132,6 +183,7 @@ const MemoTool: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [tagFilter, setTagFilter] = useState('');
+  const [sortOrder, setSortOrder] = useState<MemoSortOrder>('manual');
   const [charCount, setCharCount] = useState(0);
   const [saveStatus, setSaveStatus] = useState('');
   
@@ -681,17 +733,11 @@ const MemoTool: React.FC = () => {
     const matchesTag = !tagFilter || memo.tags.includes(tagFilter);
     return matchesSearch && matchesCategory && matchesTag;
   }).sort((a, b) => {
-    // ブックマークされているメモを上に並べる
+    // ブックマークはどの並び順でも先頭に置く（付けた意味がなくなるので）
     const aFavorite = a.isFavorite || false;
     const bFavorite = b.isFavorite || false;
-    if (aFavorite !== bFavorite) {
-      return aFavorite ? -1 : 1; // ブックマークされている方が上
-    }
-    // ブックマーク状態が同じ場合は、既存のソート順（order順 -> 更新日順）を維持
-    const orderA = a.order ?? 99999999;
-    const orderB = b.order ?? 99999999;
-    if (orderA !== orderB) return orderA - orderB;
-    return b.updatedAt.getTime() - a.updatedAt.getTime();
+    if (aFavorite !== bFavorite) return aFavorite ? -1 : 1;
+    return compareMemos(a, b, sortOrder);
   });
 
   const allCategories = Array.from(new Set(memos.map(memo => memo.category).filter(Boolean)));
@@ -699,7 +745,8 @@ const MemoTool: React.FC = () => {
   const allTags = Array.from(new Set(allTagsFlat));
 
   // フィルター有効時はD&D無効化
-  const isDragEnabled = !searchTerm && !categoryFilter && !tagFilter;
+  // 並び順を指定している間は手で動かせない（動かしても並べ直されるため）
+  const isDragEnabled = !searchTerm && !categoryFilter && !tagFilter && sortOrder === 'manual';
 
   return (
     <div className="bg-white h-full lg:h-[calc(100vh-var(--nav-height))] flex flex-col">
@@ -767,6 +814,20 @@ const MemoTool: React.FC = () => {
                 <option value="">タグ</option>
                 {allTags.map(tag => (
                   <option key={tag} value={tag}>{tag}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* 並び順。ブックマークは順番に関係なく先頭に残る。 */}
+            <div className="flex items-center gap-2 mb-3 shrink-0">
+              <label className="text-[10px] text-gray-500 shrink-0">並び順</label>
+              <select
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value as MemoSortOrder)}
+                className="flex-1 text-[11px] border border-gray-200 px-2 py-1.5 focus:outline-none"
+              >
+                {MEMO_SORT_OPTIONS.map(o => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
               </select>
             </div>

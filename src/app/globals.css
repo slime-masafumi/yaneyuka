@@ -1232,9 +1232,10 @@ nav {
 .yy-tool button[class*='bg-gray-800'],
 .yy-tool button[class*='bg-gray-700'],
 .yy-tool button[class*='bg-gray-900'],
-.yy-tool button[class*='#1dad95'] {
+.yy-tool button[class*='bg-[#1dad95]'] {
   background-color: var(--yy-line);
-  color: #ffffff;
+  /* 既存の .text-gray-*{color:!important} に負けて文字が沈むため、ここは強制する */
+  color: #ffffff !important;
 }
 
 .yy-tool button[class*='bg-blue-']:hover:not(:disabled),
@@ -1245,14 +1246,14 @@ nav {
 .yy-tool button[class*='bg-gray-800']:hover:not(:disabled),
 .yy-tool button[class*='bg-gray-700']:hover:not(:disabled),
 .yy-tool button[class*='bg-gray-900']:hover:not(:disabled),
-.yy-tool button[class*='#1dad95']:hover:not(:disabled) {
+.yy-tool button[class*='bg-[#1dad95]']:hover:not(:disabled) {
   background-color: #1f1f1f;
 }
 
 /* 削除系は赤のまま。取り違えると困るので、ここだけ色で意味を持たせる。 */
 .yy-tool button[class*='bg-red-'] {
   background-color: #dc2626;
-  color: #ffffff;
+  color: #ffffff !important;
 }
 .yy-tool button[class*='bg-red-']:hover:not(:disabled) { background-color: #b91c1c; }
 
