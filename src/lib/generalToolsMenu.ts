@@ -39,7 +39,7 @@ export const GENERAL_TOOL_MENU: GeneralToolEntry[] = [
   { id: 'temp-storage', label: '一時ファイル' },
   { id: 'file-transfer', label: 'ファイル転送' },
   { id: 'unit-converter', label: '単位変換' },
-  { id: 'alarm', label: 'アラーム' },
+  { id: 'alarm', label: '業務管理・アラーム' },
 ];
 
 const nav = createToolNav<{ toolId: GeneralToolId }>('yaneyuka:general-tools-target');

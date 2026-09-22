@@ -115,7 +115,7 @@ const RAIL_MODES: RailMode[] = [
       // 記録・作成
       { label: 'メモ', menu: 'general-tools', tool: 'memo' },
       { label: '表計算', menu: 'general-tools', tool: 'sheet' },
-      { label: 'アラーム', menu: 'general-tools', tool: 'alarm' },
+      { label: '業務管理・アラーム', menu: 'general-tools', tool: 'alarm' },
       // 調べる
       { label: 'My法規', menu: 'my-regulations' },
       { label: '単位変換', menu: 'general-tools', tool: 'unit-converter' },

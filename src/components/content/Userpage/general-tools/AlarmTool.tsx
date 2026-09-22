@@ -55,7 +55,8 @@ const AlarmTool: React.FC = () => {
   // ==========================================
   //  共通・タブ管理 State
   // ==========================================
-  const [mode, setMode] = useState<Mode>('timer');
+  // 最初に開くのは業務管理。タイマーやアラームより、工数を記録する場面が主。
+  const [mode, setMode] = useState<Mode>('tracker');
 
   // ==========================================
   //  Timer / Alarm Logic
@@ -455,8 +456,8 @@ const AlarmTool: React.FC = () => {
       {/* 帯は他のツールと同じ高さ・同じ書式にする（タブは帯の外へ出した） */}
       <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
         <div>
-          <h3 className="text-[13px] font-medium">アラーム・業務管理</h3>
-          <p className="text-[11px] mt-0.5">タイマー・アラーム・業務時間記録の統合ツール。作業時間の記録と業務日報の作成に対応</p>
+          <h3 className="text-[13px] font-medium">業務管理・アラーム</h3>
+          <p className="text-[11px] mt-0.5">案件ごとの作業時間を記録して業務日報にまとめるツール。タイマーとアラームも同じ画面から使えます</p>
         </div>
       </div>
 
