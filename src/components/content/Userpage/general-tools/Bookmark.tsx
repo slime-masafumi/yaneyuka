@@ -67,6 +67,13 @@ const BookmarkTool: React.FC = () => {
   const [bookmarkDescription, setBookmarkDescription] = useState('');
   const [bookmarkCategory, setBookmarkCategory] = useState('');
   const [bookmarkTags, setBookmarkTags] = useState('');
+
+  // URL からタイトル等を取りに行っている最中か
+  const [isFetchingMeta, setIsFetchingMeta] = useState(false);
+  const [metaMessage, setMetaMessage] = useState('');
+  // リンク切れ確認。id → 'alive' | 理由
+  const [linkStatus, setLinkStatus] = useState<Record<string, string>>({});
+  const [isCheckingLinks, setIsCheckingLinks] = useState(false);
   
   // フィルタリング用ステート
   const [searchTerm, setSearchTerm] = useState('');
@@ -166,6 +173,79 @@ const BookmarkTool: React.FC = () => {
   };
 
   // 新規作成
+  /**
+   * URL からタイトル・説明を取ってきて、空欄だけ埋める。
+   *
+   * これまでは URL もタイトルも説明も全部手打ちで、ブラウザの
+   * ブックマーク機能に負けていた。既に書いてある内容は上書きしない
+   * （自分で付けた名前のほうが後から探しやすいので）。
+   */
+  const fetchLinkMeta = async () => {
+    const url = normalizeUrl(bookmarkUrl);
+    if (!url) {
+      setMetaMessage('先に URL を入力してください');
+      return;
+    }
+
+    setIsFetchingMeta(true);
+    setMetaMessage('');
+    try {
+      const res = await fetch(`/api/link-preview/?url=${encodeURIComponent(url)}`);
+      const data = await res.json();
+      if (!data?.alive) {
+        setMetaMessage(data?.error || 'ページを読み込めませんでした');
+        return;
+      }
+
+      const filled: string[] = [];
+      if (!bookmarkTitle.trim() && data.title) { setBookmarkTitle(data.title); filled.push('タイトル'); }
+      if (!bookmarkDescription.trim() && data.description) { setBookmarkDescription(data.description); filled.push('説明'); }
+      setMetaMessage(
+        filled.length ? `${filled.join('と')}を取り込みました` : '取り込める新しい情報はありませんでした',
+      );
+    } catch {
+      setMetaMessage('ページを読み込めませんでした');
+    } finally {
+      setIsFetchingMeta(false);
+    }
+  };
+
+  /**
+   * 登録済みのリンクが生きているか、まとめて確かめる。
+   * カタログや製品ページの URL は数年で変わるので、溜めるほど死ぬ。
+   * 相手のサーバーに一気に投げないよう、少しずつ確かめる。
+   */
+  const checkAllLinks = async () => {
+    if (bookmarks.length === 0) return;
+    setIsCheckingLinks(true);
+    setLinkStatus({});
+
+    const CONCURRENCY = 4;
+    const queue = [...bookmarks];
+    const result: Record<string, string> = {};
+
+    const worker = async () => {
+      while (queue.length) {
+        const item = queue.shift();
+        if (!item) break;
+        const url = normalizeUrl(item.url);
+        if (!url) { result[item.id] = 'URL が空です'; continue; }
+        try {
+          const res = await fetch(`/api/link-preview/?url=${encodeURIComponent(url)}&check=1`);
+          const data = await res.json();
+          result[item.id] = data?.alive ? 'alive' : (data?.error || '応答なし');
+        } catch {
+          result[item.id] = '確認できませんでした';
+        }
+        setLinkStatus({ ...result });
+      }
+    };
+
+    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, bookmarks.length) }, worker));
+    setLinkStatus(result);
+    setIsCheckingLinks(false);
+  };
+
   const createNewBookmark = async () => {
     if (!isLoggedIn) return alert('ブックマークを作成するには会員登録が必要です。');
     // 新規作成時は編集モードに強制切り替え
@@ -338,6 +418,18 @@ const BookmarkTool: React.FC = () => {
               <FiList /> 編集・管理
             </button>
           </div>
+
+          {/* リンク切れ確認。カタログや製品ページの URL は数年で変わるので、
+              溜めるほど死ぬ。結果は一覧の各行に出す。 */}
+          <button
+            onClick={checkAllLinks}
+            disabled={isCheckingLinks || bookmarks.length === 0}
+            className="flex items-center gap-1 text-[11px] bg-gray-700 text-white px-3 py-1.5 mr-2"
+          >
+            {isCheckingLinks
+              ? `確認中… ${Object.keys(linkStatus).length}/${bookmarks.length}`
+              : 'リンク切れ確認'}
+          </button>
 
           <button
             onClick={createNewBookmark}
@@ -527,6 +619,15 @@ const BookmarkTool: React.FC = () => {
                     <div className="flex-1 min-w-0">
                       <div className="text-[11px] font-medium truncate">{bookmark.title}</div>
                       <div className="text-[9px] text-gray-400 mt-0.5">{bookmark.category}</div>
+                      {/* 確認したものだけ結果を出す。生きているものは静かに。 */}
+                      {linkStatus[bookmark.id] && linkStatus[bookmark.id] !== 'alive' && (
+                        <div className="text-[9px] text-red-600 font-bold mt-0.5">
+                          リンク切れ: {linkStatus[bookmark.id]}
+                        </div>
+                      )}
+                      {linkStatus[bookmark.id] === 'alive' && (
+                        <div className="text-[9px] text-green-700 mt-0.5">確認OK</div>
+                      )}
                     </div>
                     <button
                       onClick={(e) => toggleFavorite(bookmark.id, e)}
@@ -589,6 +690,18 @@ const BookmarkTool: React.FC = () => {
                       className="w-full text-[12px] p-2 border rounded bg-gray-50"
                       placeholder="https://..."
                     />
+                    {/* URL からタイトル・説明を取り込む。空欄だけ埋める。 */}
+                    <div className="flex items-center gap-2 mt-1">
+                      <button
+                        type="button"
+                        onClick={fetchLinkMeta}
+                        disabled={isFetchingMeta}
+                        className="text-[10px] bg-gray-700 text-white px-2 py-1"
+                      >
+                        {isFetchingMeta ? '取得中…' : 'URLからタイトルを取得'}
+                      </button>
+                      {metaMessage && <span className="text-[10px] text-gray-500">{metaMessage}</span>}
+                    </div>
                   </div>
                   <div className="flex gap-4">
                     <div className="flex-1">
