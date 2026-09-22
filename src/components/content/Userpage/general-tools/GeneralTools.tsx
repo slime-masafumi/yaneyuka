@@ -6,6 +6,7 @@ import React, { useState, useEffect } from 'react';
 import MapView from './MapView';
 import PDFCompressor from './PDFCompressor';
 import ImageConverter from './ImageConverter';
+import ConstructionPhotos from './ConstructionPhotos';
 import FileTransferTool from './FileTransfer';
 import TempStorage from './TempStorage';
 import Spreadsheet from './Spreadsheet';
@@ -197,13 +198,18 @@ const GeneralTools: React.FC = () => {
       </div>
 
       {/* ツールコンテンツ */}
-      <div className={['bookmark', 'map', 'olmt', 'schedule', 'memo', 'sheet', 'calc', 'image-converter', 'pdf-compressor', 'temp-storage', 'file-transfer', 'unit-converter', 'alarm'].includes(activeTab || '') ? '' : 'mt-4'}>
+      {/* 上の余白は、その上にあるタブ行と離すためのもの。タブ行は lg:hidden なので、
+          PC では余白も要らない。以前はツール名を全部並べた条件式でこれを出し分けて
+          いたため、ツールを足すたびに書き足す必要があり、実際に工事写真で漏れて
+          16px ぶん画面からはみ出した。 */}
+      <div className="mt-4 lg:mt-0">
       {activeTab === 'memo' && <MemoTool />}
         {activeTab === 'olmt' && renderOLMT()}
         {activeTab === 'schedule' && <ScheduleTool />}
         {activeTab === 'calc' && <Calculator />}
         {activeTab === 'sheet' && <Spreadsheet />}
         {activeTab === 'image-converter' && <ImageConverter />}
+        {activeTab === 'construction-photos' && <ConstructionPhotos />}
         {activeTab === 'map' && <MapSection />}
         {activeTab === 'pdf-compressor' && <PDFCompressor />}
         {activeTab === 'temp-storage' && <TempStorage />}
