@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ToolHeader from './ToolHeader';
+import { parseIcs, buildIcs } from '@/lib/ics';
 import { useAuth } from '@/lib/AuthContext';
 import { useTaskContext } from '../../providers/TaskProvider';
 import { db } from '@/lib/firebaseClient';
@@ -165,6 +166,10 @@ const MyCalendar: React.FC = () => {
 
   // External Calendar State
   const [icsFeeds, setIcsFeeds] = useState<IcsFeed[]>([]);
+  // 外部カレンダーから読んだ予定（読み取り専用）と、フィードごとの失敗理由
+  const [icsEvents, setIcsEvents] = useState<CalendarEvent[]>([]);
+  const [icsErrors, setIcsErrors] = useState<Record<string, string>>({});
+  const [icsLoading, setIcsLoading] = useState(false);
   const [newIcsName, setNewIcsName] = useState('');
   const [newIcsUrl, setNewIcsUrl] = useState('');
 
@@ -397,13 +402,15 @@ const MyCalendar: React.FC = () => {
 
   const eventsByDate = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>();
-    events.forEach((event) => {
+    // 外部カレンダーの予定も同じ日付の箱に入れる。読むだけなので
+    // 編集・削除・ドラッグの対象にはしない（id を ics- で始めて見分ける）。
+    [...events, ...icsEvents].forEach((event) => {
       const list = map.get(event.date) || [];
       list.push(event);
       map.set(event.date, list);
     });
     return map;
-  }, [events]);
+  }, [events, icsEvents]);
 
   const getEventsForDate = (date: Date) => eventsByDate.get(formatDateForStorage(date)) || [];
 
@@ -657,6 +664,98 @@ const MyCalendar: React.FC = () => {
   const deleteCategory = async (id: string) => {
     if (!currentUser) return;
     await deleteDoc(doc(db, 'users', currentUser.uid, 'calendarCategories', id));
+  };
+
+  /**
+   * 登録した外部カレンダーを読みに行く。
+   *
+   * これまで URL は保存するだけで取得していなかったので、追加しても
+   * 何も起きなかった。.ics は CORS ヘッダを返さないものが多いので、
+   * /api/ics 経由で取る（あちら側で宛先を絞っている）。
+   * 読み込めなかったフィードは、そのフィードだけ理由を出して他は出す。
+   */
+  useEffect(() => {
+    let cancelled = false;
+
+    if (icsFeeds.length === 0) {
+      setIcsEvents([]);
+      setIcsErrors({});
+      return;
+    }
+
+    (async () => {
+      setIcsLoading(true);
+      const collected: CalendarEvent[] = [];
+      const errors: Record<string, string> = {};
+
+      for (const feed of icsFeeds) {
+        try {
+          const res = await fetch(`/api/ics/?url=${encodeURIComponent(feed.url)}`);
+          if (!res.ok) {
+            const body = await res.json().catch(() => null);
+            errors[feed.id] = body?.error || '読み込めませんでした';
+            continue;
+          }
+          const text = await res.text();
+          parseIcs(text).forEach((e) => {
+            collected.push({
+              id: `ics-${feed.id}-${e.uid}`,
+              title: e.title,
+              date: e.date,
+              allDay: e.allDay,
+              startHour: e.startHour,
+              startMinute: e.startMinute,
+              endHour: e.endHour,
+              endMinute: e.endMinute,
+              category: feed.name,
+              details: e.details,
+              color: feed.color,
+            });
+          });
+        } catch {
+          errors[feed.id] = '読み込めませんでした';
+        }
+      }
+
+      if (cancelled) return;
+      setIcsEvents(collected);
+      setIcsErrors(errors);
+      setIcsLoading(false);
+    })();
+
+    return () => { cancelled = true; };
+  }, [icsFeeds]);
+
+  /** 自分の予定を .ics で書き出す。Google 等にそのまま取り込める。 */
+  const exportCalendarToIcs = () => {
+    if (events.length === 0) {
+      alert('書き出す予定がありません。');
+      return;
+    }
+    const text = buildIcs(
+      events.map((e) => ({
+        id: e.id,
+        title: e.title,
+        date: e.date,
+        allDay: e.allDay,
+        startHour: e.startHour,
+        startMinute: e.startMinute,
+        endHour: e.endHour,
+        endMinute: e.endMinute,
+        details: e.details,
+        category: e.category,
+      })),
+      'yaneyuka Myカレンダー',
+    );
+    const blob = new Blob([text], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `yaneyuka-calendar-${formatDateForStorage(new Date())}.ics`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const addIcsFeed = () => {
@@ -1198,15 +1297,41 @@ const MyCalendar: React.FC = () => {
                 </div>
                   <div className="mt-3 space-y-1">
                     {icsFeeds.map(feed => (
-                        <div key={feed.id} className="flex items-center justify-between bg-gray-50 p-2 rounded text-xs">
+                        <div key={feed.id} className="bg-gray-50 p-2 rounded text-xs">
+                          <div className="flex items-center justify-between">
                             <span className="truncate flex-1">{feed.name}</span>
+                            {/* 読めた件数か、読めなかった理由をフィードごとに出す。
+                                黙って0件だと、URLが悪いのか予定が無いのか分からない。 */}
+                            <span className="ml-2 shrink-0 text-[10px] text-gray-500">
+                              {icsLoading
+                                ? '読み込み中…'
+                                : icsErrors[feed.id]
+                                  ? <span className="text-red-600">{icsErrors[feed.id]}</span>
+                                  : `${icsEvents.filter(e => e.id.startsWith(`ics-${feed.id}-`)).length}件`}
+                            </span>
                             <button onClick={() => removeIcsFeed(feed.id)} className="text-red-500 hover:text-red-700 ml-2">削除</button>
+                          </div>
                         </div>
                     ))}
                 </div>
                 </div>
                 <div className="text-[10px] text-gray-400">
-                    ※Googleカレンダーの「設定と共有」→「iCal形式の非公開URL」などを貼り付けてください。
+                    ※Googleカレンダーの「設定と共有」→「iCal形式の非公開URL」などを貼り付けてください。<br />
+                    読み込んだ予定は表示のみで、編集・削除はできません。繰り返し予定は初回だけ表示します。
+                  </div>
+
+                {/* 書き出し。取り込みだけだと片道になるので、出す側も用意する。 */}
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">書き出し (ICS)</h4>
+                  <button
+                    onClick={exportCalendarToIcs}
+                    className="bg-gray-700 text-white px-3 py-1.5 text-xs"
+                  >
+                    自分の予定を .ics で保存
+                  </button>
+                  <p className="text-[10px] text-gray-400 mt-1">
+                    Googleカレンダー等の「インポート」から取り込めます。外部カレンダーの予定は含みません。
+                  </p>
                   </div>
                   </div>
             </div>
