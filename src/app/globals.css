@@ -1098,3 +1098,177 @@ nav {
   }
 }
 
+
+/* ===========================================================================
+   一般ツール（左カラム Ⅲ）の共通スタイル
+
+   20本のツールがそれぞれ別の角丸・枠線・配色で入力欄とボタンを持っていて、
+   隣り合わせに並ぶと別のサイトのように見えていた。基準は PDF 圧縮ツールの
+   見た目（ピン角・#3b3b3b の枠・うすいグレーの設定パネル）。
+
+   ここは「素の input / select / textarea」にだけ効かせる。チェックボックスや
+   トグルスイッチ、色見本のような特殊な部品は各ツールの作りに任せる。
+   個別に上書きしたいところは Tailwind のクラスが後から当たるので、
+   ここでは !important を使わない。
+   =========================================================================== */
+
+.yy-tool {
+  --yy-line: #3b3b3b;
+  --yy-surface: #f9fafb;
+}
+
+/* 入力欄。角丸をやめて枠線の色を揃える。高さと文字サイズは各ツールのまま。 */
+.yy-tool input[type='text'],
+.yy-tool input[type='number'],
+.yy-tool input[type='search'],
+.yy-tool input[type='email'],
+.yy-tool input[type='url'],
+.yy-tool input[type='tel'],
+.yy-tool input[type='date'],
+.yy-tool input[type='time'],
+.yy-tool input[type='datetime-local'],
+.yy-tool select,
+.yy-tool textarea {
+  border-radius: 0;
+  border: 1px solid var(--yy-line);
+  /* 背景は各ツールのまま。電卓の表示部のように地が暗い入力欄があるので、
+     ここで白を強制すると読めなくなる。揃えるのは枠線と角だけにする。 */
+}
+
+.yy-tool input:focus-visible,
+.yy-tool select:focus-visible,
+.yy-tool textarea:focus-visible {
+  outline: 2px solid var(--yy-line);
+  outline-offset: -2px;
+}
+
+.yy-tool input:disabled,
+.yy-tool select:disabled,
+.yy-tool textarea:disabled {
+  background-color: #f3f4f6;
+  border-color: #9ca3af;
+  color: #6b7280;
+}
+
+/* 見出し。ツールごとに 10〜13px でばらついていたのを 11px の太字に寄せる。 */
+.yy-tool .yy-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #4b5563;
+  display: block;
+  margin-bottom: 6px;
+}
+
+/* パネル。PDF 圧縮の「圧縮設定」と同じ、うすいグレー地にピン角の枠。 */
+.yy-tool .yy-panel {
+  border: 1px solid var(--yy-line);
+  background-color: #ffffff;
+}
+.yy-tool .yy-panel--muted {
+  background-color: var(--yy-surface);
+}
+
+/* パネルの見出し帯。PDF 圧縮の「処理結果」と同じ扱い。 */
+.yy-tool .yy-panel__head {
+  border-bottom: 1px solid var(--yy-line);
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #374151;
+  background-color: var(--yy-surface);
+}
+
+/* ボタン。主アクションは黒、副次はグレー、危険は赤。全部ピン角。 */
+.yy-tool .yy-btn {
+  border-radius: 0;
+  border: 1px solid var(--yy-line);
+  background-color: #ffffff;
+  color: #374151;
+  font-size: 11px;
+  padding: 6px 14px;
+  transition: background-color 120ms ease;
+}
+.yy-tool .yy-btn:hover:not(:disabled) { background-color: #f3f4f6; }
+.yy-tool .yy-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.yy-tool .yy-btn--primary {
+  background-color: var(--yy-line);
+  border-color: var(--yy-line);
+  color: #ffffff;
+  font-weight: 700;
+}
+.yy-tool .yy-btn--primary:hover:not(:disabled) { background-color: #1f1f1f; }
+
+.yy-tool .yy-btn--danger {
+  background-color: #dc2626;
+  border-color: #dc2626;
+  color: #ffffff;
+}
+.yy-tool .yy-btn--danger:hover:not(:disabled) { background-color: #b91c1c; }
+
+/* ---------------------------------------------------------------------------
+   ボタンの見た目を揃える。
+
+   主アクションの色が blue-600 / blue-500 / teal(#1dad95) / green-600 /
+   gray-800 / gray-700 と6種類に散らばっていて、ツールを切り替えるたびに
+   別のアプリに見えていた。個々のボタンを 69 箇所書き換えるより、
+   ここで「一般ツールの中では主アクションは帯と同じ #3b3b3b」と決める。
+
+   対象は button だけ。同じ色クラスを使っている進捗バー（div）には当てない。
+   丸いまま出したいもの（アバター等）は rounded-full を付けてあるので除く。
+   ツール側で意図的に変えたい場合は、インラインスタイルか固有クラスで上書きする。
+   --------------------------------------------------------------------------- */
+
+.yy-tool button:not([class*='rounded-full']) {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.yy-tool button[class*='bg-blue-'],
+.yy-tool button[class*='bg-green-'],
+.yy-tool button[class*='bg-teal-'],
+.yy-tool button[class*='bg-indigo-'],
+.yy-tool button[class*='bg-emerald-'],
+.yy-tool button[class*='bg-gray-800'],
+.yy-tool button[class*='bg-gray-700'],
+.yy-tool button[class*='bg-gray-900'],
+.yy-tool button[class*='#1dad95'] {
+  background-color: var(--yy-line);
+  color: #ffffff;
+}
+
+.yy-tool button[class*='bg-blue-']:hover:not(:disabled),
+.yy-tool button[class*='bg-green-']:hover:not(:disabled),
+.yy-tool button[class*='bg-teal-']:hover:not(:disabled),
+.yy-tool button[class*='bg-indigo-']:hover:not(:disabled),
+.yy-tool button[class*='bg-emerald-']:hover:not(:disabled),
+.yy-tool button[class*='bg-gray-800']:hover:not(:disabled),
+.yy-tool button[class*='bg-gray-700']:hover:not(:disabled),
+.yy-tool button[class*='bg-gray-900']:hover:not(:disabled),
+.yy-tool button[class*='#1dad95']:hover:not(:disabled) {
+  background-color: #1f1f1f;
+}
+
+/* 削除系は赤のまま。取り違えると困るので、ここだけ色で意味を持たせる。 */
+.yy-tool button[class*='bg-red-'] {
+  background-color: #dc2626;
+  color: #ffffff;
+}
+.yy-tool button[class*='bg-red-']:hover:not(:disabled) { background-color: #b91c1c; }
+
+/* 使用不可のときは、どの色から来ても同じ見え方にする。 */
+.yy-tool button:disabled[class*='bg-'] {
+  background-color: #e5e7eb;
+  color: #9ca3af;
+}
+
+/* 関数電卓のキーパッドだけは対象外。暗い面の上で数字キーと機能キーを
+   色の濃さで区別しているので、一色に潰すと押し分けられなくなる。
+   上の規則より後に、より強い指定で元の濃淡を書き戻す。 */
+.yy-tool .yy-keypad button.yy-key-num { background-color: #111827; color: #e5e7eb; }
+.yy-tool .yy-keypad button.yy-key-num:hover:not(:disabled) { background-color: #1f2937; }
+.yy-tool .yy-keypad button.yy-key-fn { background-color: #374151; color: #e5e7eb; }
+.yy-tool .yy-keypad button.yy-key-fn:hover:not(:disabled) { background-color: #4b5563; }
+/* 単位キーは電卓の機能キーと役割が違うので、緑で区別したまま残す。 */
+.yy-tool .yy-keypad button.yy-key-unit { background-color: #115e59; color: #ccfbf1; }
+.yy-tool .yy-keypad button.yy-key-unit:hover:not(:disabled) { background-color: #0f766e; }

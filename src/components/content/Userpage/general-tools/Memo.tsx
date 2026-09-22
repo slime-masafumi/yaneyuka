@@ -878,7 +878,7 @@ const MemoTool: React.FC = () => {
                 <div className="flex gap-2">
                   <button 
                     onClick={exportMemoToPDF}
-                    className="text-[11px] bg-red-600 text-white px-3 py-1.5 rounded hover:bg-red-700 transition flex items-center gap-1"
+                    className="text-[11px] bg-gray-700 text-white px-3 py-1.5 transition flex items-center gap-1"
                   >
                     <FiFileText className="w-3 h-3" />
                     PDF書き出し

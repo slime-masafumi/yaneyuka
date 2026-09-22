@@ -33,6 +33,26 @@ export const USERPAGE_MENUS = [
 
 export type UserpageMenu = (typeof USERPAGE_MENUS)[number];
 
+/**
+ * 左カラム Ⅲ（一般ツール）から開く画面だけ。
+ *
+ * 見た目を揃える共通スタイル（globals.css の .yy-tool）はここに挙げた画面に
+ * だけ当てる。Ⅱ 設計情報・Ⅳ 設計ツール・Ⅴ 外部ツールは作りも用途も違うので
+ * 巻き込まない。
+ */
+export const GENERAL_TOOL_SCREENS: readonly string[] = [
+  'yymail',
+  'yychat',
+  'general-tools',
+  'contacts',
+  'my-calendar',
+  'my-tasks',
+  'team-tasks',
+  'my-regulations',
+];
+
+export const isGeneralToolScreen = (menu: string) => GENERAL_TOOL_SCREENS.includes(menu);
+
 export const isUserpageMenu = (menu: string): menu is UserpageMenu =>
   (USERPAGE_MENUS as readonly string[]).includes(menu);
 

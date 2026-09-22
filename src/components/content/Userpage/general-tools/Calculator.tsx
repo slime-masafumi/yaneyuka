@@ -822,66 +822,66 @@ const Calculator: React.FC = () => {
             </div>
 
             {/* 尺貫法・単位キー。数値のうしろに付けると単位つきの計算になる */}
-            <div className="grid grid-cols-8 gap-1">
+            <div className="grid grid-cols-8 gap-1 yy-keypad">
               {['間', '尺', '寸', '坪', '畳', '㎡', 'm', '%'].map((u) => (
                 <button
                   key={u}
                   onClick={() => calculatorInput(u)}
-                  className="text-[10px] bg-teal-800 hover:bg-teal-700 text-teal-100 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-1 px-1 text-center rounded"
+                  className="yy-key-unit text-[10px] bg-teal-800 text-teal-100 active:translate-y-[0.5px] transition-all py-1 px-1 text-center"
                 >
                   {u}
                 </button>
               ))}
             </div>
 
-            <div className="grid grid-cols-5 gap-1">
+            <div className="grid grid-cols-5 gap-1 yy-keypad">
               {/* Row 1 */}
               <button onClick={() => calculatorInput('SHIFT')} className={`text-[10px] ${shiftMode ? 'bg-blue-600' : 'bg-gray-700'} hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center rounded`}>SHIFT</button>
-              <button onClick={() => calculatorInput('π')} className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center rounded">π</button>
-              <button onClick={() => calculatorInput('x⁻¹')} className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center rounded">x⁻¹</button>
-              <button onClick={() => calculatorInput('DEL')} className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center rounded">DEL</button>
+              <button onClick={() => calculatorInput('π')} className="yy-key-fn text-[10px] bg-gray-700 text-gray-200 active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center">π</button>
+              <button onClick={() => calculatorInput('x⁻¹')} className="yy-key-fn text-[10px] bg-gray-700 text-gray-200 active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center">x⁻¹</button>
+              <button onClick={() => calculatorInput('DEL')} className="yy-key-fn text-[10px] bg-gray-700 text-gray-200 active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center">DEL</button>
               <button onClick={() => calculatorInput('AC')} className="text-[10px] bg-gray-600 hover:bg-gray-500 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center rounded">AC</button>
 
               {/* Row 2 */}
-              <button onClick={() => calculatorInput('x²')} className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center rounded">{keyLabel('x²')}</button>
-              <button onClick={() => calculatorInput('x^')} className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center rounded">x^</button>
-              <button onClick={() => calculatorInput('√')} className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center rounded">{keyLabel('√')}</button>
-              <button onClick={() => calculatorInput('log')} className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center rounded">{keyLabel('log')}</button>
-              <button onClick={() => calculatorInput('ln')} className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center rounded">{keyLabel('ln')}</button>
+              <button onClick={() => calculatorInput('x²')} className="yy-key-fn text-[10px] bg-gray-700 text-gray-200 active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center">{keyLabel('x²')}</button>
+              <button onClick={() => calculatorInput('x^')} className="yy-key-fn text-[10px] bg-gray-700 text-gray-200 active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center">x^</button>
+              <button onClick={() => calculatorInput('√')} className="yy-key-fn text-[10px] bg-gray-700 text-gray-200 active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center">{keyLabel('√')}</button>
+              <button onClick={() => calculatorInput('log')} className="yy-key-fn text-[10px] bg-gray-700 text-gray-200 active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center">{keyLabel('log')}</button>
+              <button onClick={() => calculatorInput('ln')} className="yy-key-fn text-[10px] bg-gray-700 text-gray-200 active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center">{keyLabel('ln')}</button>
 
               {/* Row 3 */}
-              <button onClick={() => calculatorInput('sin')} className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center rounded">{keyLabel('sin')}</button>
-              <button onClick={() => calculatorInput('cos')} className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center rounded">{keyLabel('cos')}</button>
-              <button onClick={() => calculatorInput('tan')} className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center rounded">{keyLabel('tan')}</button>
-              <button onClick={() => calculatorInput('nCr')} className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center rounded">nCr</button>
-              <button onClick={() => calculatorInput('EXP')} className="text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center rounded">EXP</button>
+              <button onClick={() => calculatorInput('sin')} className="yy-key-fn text-[10px] bg-gray-700 text-gray-200 active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center">{keyLabel('sin')}</button>
+              <button onClick={() => calculatorInput('cos')} className="yy-key-fn text-[10px] bg-gray-700 text-gray-200 active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center">{keyLabel('cos')}</button>
+              <button onClick={() => calculatorInput('tan')} className="yy-key-fn text-[10px] bg-gray-700 text-gray-200 active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center">{keyLabel('tan')}</button>
+              <button onClick={() => calculatorInput('nCr')} className="yy-key-fn text-[10px] bg-gray-700 text-gray-200 active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center">nCr</button>
+              <button onClick={() => calculatorInput('EXP')} className="yy-key-fn text-[10px] bg-gray-700 text-gray-200 active:translate-y-[0.5px] transition-all py-1.5 px-1 text-center">EXP</button>
 
               {/* Row 4 */}
-              <button onClick={() => calculatorInput('7')} className="py-2 px-1 text-center rounded text-sm font-mono bg-gray-900 hover:bg-gray-800 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all">7</button>
-              <button onClick={() => calculatorInput('8')} className="py-2 px-1 text-center rounded text-sm font-mono bg-gray-900 hover:bg-gray-800 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all">8</button>
-              <button onClick={() => calculatorInput('9')} className="py-2 px-1 text-center rounded text-sm font-mono bg-gray-900 hover:bg-gray-800 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all">9</button>
-              <button onClick={() => calculatorInput('(')} className="py-2 px-1 text-center rounded text-sm font-mono text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all">(</button>
-              <button onClick={() => calculatorInput(')')} className="py-2 px-1 text-center rounded text-sm font-mono text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all">)</button>
+              <button onClick={() => calculatorInput('7')} className="yy-key-num py-2 px-1 text-center text-sm font-mono bg-gray-900 text-gray-200 active:translate-y-[0.5px] transition-all">7</button>
+              <button onClick={() => calculatorInput('8')} className="yy-key-num py-2 px-1 text-center text-sm font-mono bg-gray-900 text-gray-200 active:translate-y-[0.5px] transition-all">8</button>
+              <button onClick={() => calculatorInput('9')} className="yy-key-num py-2 px-1 text-center text-sm font-mono bg-gray-900 text-gray-200 active:translate-y-[0.5px] transition-all">9</button>
+              <button onClick={() => calculatorInput('(')} className="yy-key-fn py-2 px-1 text-center text-[10px] font-mono bg-gray-700 text-gray-200 active:translate-y-[0.5px] transition-all">(</button>
+              <button onClick={() => calculatorInput(')')} className="yy-key-fn py-2 px-1 text-center text-[10px] font-mono bg-gray-700 text-gray-200 active:translate-y-[0.5px] transition-all">)</button>
 
               {/* Row 5 */}
-              <button onClick={() => calculatorInput('4')} className="py-2 px-1 text-center rounded text-sm font-mono bg-gray-900 hover:bg-gray-800 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all">4</button>
-              <button onClick={() => calculatorInput('5')} className="py-2 px-1 text-center rounded text-sm font-mono bg-gray-900 hover:bg-gray-800 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all">5</button>
-              <button onClick={() => calculatorInput('6')} className="py-2 px-1 text-center rounded text-sm font-mono bg-gray-900 hover:bg-gray-800 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all">6</button>
-              <button onClick={() => calculatorInput('×')} className="py-2 px-1 text-center rounded text-sm font-mono bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all">×</button>
-              <button onClick={() => calculatorInput('÷')} className="py-2 px-1 text-center rounded text-sm font-mono bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all">÷</button>
+              <button onClick={() => calculatorInput('4')} className="yy-key-num py-2 px-1 text-center text-sm font-mono bg-gray-900 text-gray-200 active:translate-y-[0.5px] transition-all">4</button>
+              <button onClick={() => calculatorInput('5')} className="yy-key-num py-2 px-1 text-center text-sm font-mono bg-gray-900 text-gray-200 active:translate-y-[0.5px] transition-all">5</button>
+              <button onClick={() => calculatorInput('6')} className="yy-key-num py-2 px-1 text-center text-sm font-mono bg-gray-900 text-gray-200 active:translate-y-[0.5px] transition-all">6</button>
+              <button onClick={() => calculatorInput('×')} className="yy-key-fn py-2 px-1 text-center text-sm font-mono bg-gray-700 text-gray-200 active:translate-y-[0.5px] transition-all">×</button>
+              <button onClick={() => calculatorInput('÷')} className="yy-key-fn py-2 px-1 text-center text-sm font-mono bg-gray-700 text-gray-200 active:translate-y-[0.5px] transition-all">÷</button>
 
               {/* Row 6 */}
-              <button onClick={() => calculatorInput('1')} className="py-2 px-1 text-center rounded text-sm font-mono bg-gray-900 hover:bg-gray-800 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all">1</button>
-              <button onClick={() => calculatorInput('2')} className="py-2 px-1 text-center rounded text-sm font-mono bg-gray-900 hover:bg-gray-800 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all">2</button>
-              <button onClick={() => calculatorInput('3')} className="py-2 px-1 text-center rounded text-sm font-mono bg-gray-900 hover:bg-gray-800 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all">3</button>
-              <button onClick={() => calculatorInput('+')} className="py-2 px-1 text-center rounded text-sm font-mono bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all">+</button>
-              <button onClick={() => calculatorInput('-')} className="py-2 px-1 text-center rounded text-sm font-mono bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all">-</button>
+              <button onClick={() => calculatorInput('1')} className="yy-key-num py-2 px-1 text-center text-sm font-mono bg-gray-900 text-gray-200 active:translate-y-[0.5px] transition-all">1</button>
+              <button onClick={() => calculatorInput('2')} className="yy-key-num py-2 px-1 text-center text-sm font-mono bg-gray-900 text-gray-200 active:translate-y-[0.5px] transition-all">2</button>
+              <button onClick={() => calculatorInput('3')} className="yy-key-num py-2 px-1 text-center text-sm font-mono bg-gray-900 text-gray-200 active:translate-y-[0.5px] transition-all">3</button>
+              <button onClick={() => calculatorInput('+')} className="yy-key-fn py-2 px-1 text-center text-sm font-mono bg-gray-700 text-gray-200 active:translate-y-[0.5px] transition-all">+</button>
+              <button onClick={() => calculatorInput('-')} className="yy-key-fn py-2 px-1 text-center text-sm font-mono bg-gray-700 text-gray-200 active:translate-y-[0.5px] transition-all">-</button>
 
               {/* Row 7 */}
-              <button onClick={() => calculatorInput('0')} className="py-2 px-1 text-center rounded text-sm font-mono bg-gray-900 hover:bg-gray-800 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all">0</button>
-              <button onClick={() => calculatorInput('.')} className="py-2 px-1 text-center rounded text-sm font-mono bg-gray-900 hover:bg-gray-800 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all">.</button>
-              <button onClick={() => calculatorInput('(-)')} className="py-2 px-1 text-center rounded text-sm font-mono text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all">(-)</button>
-              <button onClick={() => calculatorInput('Ans')} className="py-2 px-1 text-center rounded text-sm font-mono text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-200 shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all">Ans</button>
+              <button onClick={() => calculatorInput('0')} className="yy-key-num py-2 px-1 text-center text-sm font-mono bg-gray-900 text-gray-200 active:translate-y-[0.5px] transition-all">0</button>
+              <button onClick={() => calculatorInput('.')} className="yy-key-num py-2 px-1 text-center text-sm font-mono bg-gray-900 text-gray-200 active:translate-y-[0.5px] transition-all">.</button>
+              <button onClick={() => calculatorInput('(-)')} className="yy-key-fn py-2 px-1 text-center text-[10px] font-mono bg-gray-700 text-gray-200 active:translate-y-[0.5px] transition-all">(-)</button>
+              <button onClick={() => calculatorInput('Ans')} className="yy-key-fn py-2 px-1 text-center text-[10px] font-mono bg-gray-700 text-gray-200 active:translate-y-[0.5px] transition-all">Ans</button>
               <button onClick={() => calculatorInput('=')} className="py-2 px-1 text-center rounded text-sm font-mono bg-orange-500 hover:bg-orange-600 text-white shadow-sm active:shadow-inner active:translate-y-[0.5px] transition-all">=</button>
             </div>
           </div>

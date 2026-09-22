@@ -10,6 +10,7 @@ import { CATEGORY_ROUTES, EXTERIOR_FINISH_SUBCATEGORIES, findCategoryBySubcatego
 import {
   USERPAGE_MENUS,
   isUserpageMenu as isUserpageMenuId,
+  isGeneralToolScreen,
   buildUserpageQuery,
   parseUserpageQuery,
   type UserpageTarget,
@@ -2262,7 +2263,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
           <main id="yy-main-scroll" className="yy-shell__main flex-1 min-w-0">
             {/* 中央カラム右エリアに参考資料（NEWSのブックマーク幅相当: 300px） */}
             <div className="lg:flex lg:gap-4 items-start">
-              <div className="flex-1 min-w-0">
+              {/* 左カラム Ⅲ の画面は yy-tool を付けて、入力欄やボタンの見た目を
+                  globals.css 側でまとめて揃える。20本それぞれが別々の角丸・枠線を
+                  持っていたので、1箇所で決められるようにした。 */}
+              <div className={`flex-1 min-w-0${isGeneralToolScreen(activeContent) ? ' yy-tool' : ''}`}>
                 <Breadcrumbs />
                 {renderContent()}
               </div>
