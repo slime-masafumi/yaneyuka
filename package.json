@@ -16,6 +16,7 @@
     "lint": "eslint .",
     "export": "npm run clean && next build",
     "test:rules": "firebase emulators:exec --only firestore,auth \"node scripts/firestore-rules-test.mjs\"",
+    "test:drawing-room-rules": "firebase emulators:exec --only firestore,auth,storage \"node scripts/drawing-room-rules-test.mjs\"",
     "test:storage-rules": "firebase emulators:exec --only storage,auth \"node scripts/storage-rules-test.mjs\"",
     "deploy": "npm run predeploy && npx firebase-tools deploy",
     "deploy:preview": "npm run export && npx firebase-tools hosting:channel:deploy yane-preview --expires 7d",

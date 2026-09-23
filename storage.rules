@@ -26,6 +26,17 @@ service firebase.storage {
       allow delete: if request.auth != null && request.auth.uid == userId;
     }
     
+    // OLMT 図面ボードの図面 PDF。部屋の ID（24文字の乱数）を知っている参加者が読む。
+    // ファイル名も乱数なので、パスを知らなければ読めない。上げられるのは PDF だけ、50MB まで。
+    match /drawingRooms/{roomId}/{fileName} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && roomId.size() >= 24
+        && request.resource.size <= 50 * 1024 * 1024
+        && request.resource.contentType == 'application/pdf';
+      allow update, delete: if false;
+    }
+
     // その他のパスはデフォルトで拒否（既存のファイルがある場合は必要に応じて追加）
     match /{allPaths=**} {
       allow read, write: if false;

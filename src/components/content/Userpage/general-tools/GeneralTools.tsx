@@ -17,14 +17,7 @@ import UnitConverter from './UnitConverter';
 import AlarmTool from './AlarmTool';
 import MemoTool from './Memo';
 import Calculator from './Calculator';
-import { 
-  SiZoom, 
-  SiGooglemeet, 
-  SiWebex, 
-  SiSlack, 
-  SiDiscord 
-} from 'react-icons/si';
-import { BsMicrosoftTeams } from 'react-icons/bs';
+import Olmt from './olmt/Olmt';
 import ToolHeader from '../ToolHeader';
 import {
   GENERAL_TOOL_MENU,
@@ -34,50 +27,7 @@ import {
 } from '@/lib/generalToolsMenu';
 
 
-const ONLINE_MEETING_TOOLS = [
-  {
-    name: 'Zoom',
-    description: 'ビデオ会議のスタンダード。安定した通信と使いやすさが特徴',
-    url: 'https://zoom.us/join',
-    iconComponent: SiZoom,
-    iconColor: '#2D8CFF', // Zoom Blue
-  },
-  {
-    name: 'Microsoft Teams',
-    description: 'Microsoft 365との連携が強み。ビジネス向けコラボレーション機能が充実',
-    url: 'https://teams.microsoft.com/',
-    iconComponent: BsMicrosoftTeams,
-    iconColor: '#6264A7', // Teams Purple
-  },
-  {
-    name: 'Google Meet',
-    description: 'Googleアカウントがあれば即座に利用可能。Googleカレンダーとの連携が便利',
-    url: 'https://meet.google.com/',
-    iconComponent: SiGooglemeet,
-    iconColor: '#00897B', // Meet Green/Teal
-  },
-  {
-    name: 'Webex',
-    description: 'セキュリティ重視の企業向けWeb会議システム。大規模会議に強み',
-    url: 'https://web.webex.com/join-meeting',
-    iconComponent: SiWebex,
-    iconColor: '#000000', // Webex Black
-  },
-  {
-    name: 'Slack Huddle',
-    description: 'Slackユーザー向けの気軽な音声通話。画面共有もスムーズ',
-    url: 'https://slack.com/',
-    iconComponent: SiSlack,
-    iconColor: '#4A154B', // Slack Aubergine
-  },
-  {
-    name: 'Discord',
-    description: 'カジュアルなコミュニケーションに最適。画面共有や複数チャンネル管理が可能',
-    url: 'https://discord.com/channels/@me',
-    iconComponent: SiDiscord,
-    iconColor: '#5865F2', // Discord Blurple
-  }
-];
+
 
 
 // タブの並び・ラベル・id は src/lib/generalToolsMenu.ts が唯一の定義。
@@ -105,47 +55,7 @@ const GeneralTools: React.FC = () => {
 
 
 
-  const renderOLMT = () => (
-    <div className="w-full bg-white rounded-b-lg shadow-sm border-b border-gray-100">
-      <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
-        <div>
-        <h3 className="text-[13px] font-medium">OLMT</h3>
-          <p className="text-[11px] mt-0.5">Zoom、Teams、Google Meetなど主要なオンラインミーティングツールへのクイックアクセス</p>
-        </div>
-      </div>
-      <div className="p-3 [&>*]:border [&>*]:border-[#3b3b3b] [&>*]:p-3">
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {ONLINE_MEETING_TOOLS.map((tool) => (
-        <a
-          key={tool.name}
-          href={tool.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block p-4 bg-white rounded-lg shadow hover:shadow-md transition-shadow border border-gray-100"
-        >
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 flex-shrink-0 bg-gray-50 rounded-lg flex items-center justify-center">
-              {tool.iconComponent ? (
-                <tool.iconComponent size={24} color={tool.iconColor} />
-              ) : (
-                <span className="text-xl font-medium text-gray-400">{tool.name[0]}</span>
-              )}
-            </div>
-            <div>
-              <h3 className="text-base font-medium text-gray-900">
-                {tool.name}
-              </h3>
-              <p className="text-sm text-gray-500 mt-1 line-clamp-2">
-                {tool.description}
-              </p>
-            </div>
-          </div>
-        </a>
-      ))}
-        </div>
-      </div>
-    </div>
-  );
+
 
 
 
@@ -183,7 +93,7 @@ const GeneralTools: React.FC = () => {
           16px ぶん画面からはみ出した。 */}
       <div className="mt-4 lg:mt-0">
       {activeTab === 'memo' && <MemoTool />}
-        {activeTab === 'olmt' && renderOLMT()}
+        {activeTab === 'olmt' && <Olmt />}
         {activeTab === 'schedule' && <ScheduleTool />}
         {activeTab === 'calc' && <Calculator />}
         {activeTab === 'sheet' && <Spreadsheet />}
