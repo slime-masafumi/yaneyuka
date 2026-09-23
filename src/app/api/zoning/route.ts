@@ -9,7 +9,8 @@ import { NextRequest, NextResponse } from 'next/server';
  * https://www.reinfolib.mlit.go.jp/help/apiManual/
  *
  * API キーが要るので、ブラウザから直接は叩かせずここを通す（キーを配らないため）。
- * キーは環境変数 REINFOLIB_API_KEY。無ければ 503 を返し、画面は「準備中」と出す。
+ * キーは環境変数 REINFOLIB_API_KEY。無ければ空の区域に notConfigured を付けて返し、画面は「準備中」と出す
+ * （エラーの状態コードにすると、キーが無い間ずっとブラウザのコンソールが赤くなる）。
  *
  * 宛先は固定で、受け取るのは層の種類とタイル番号だけ。利用者が URL を指定できる
  * 形ではないので、ics やブックマークのような SSRF の関門は要らない。
@@ -42,7 +43,7 @@ export async function GET(request: NextRequest) {
 
   const key = process.env.REINFOLIB_API_KEY;
   if (!key) {
-    return NextResponse.json({ error: 'not-configured' }, { status: 503 });
+    return NextResponse.json({ type: 'FeatureCollection', features: [], notConfigured: true }, { headers: { 'Cache-Control': 'no-store' } });
   }
 
   const url = `https://www.reinfolib.mlit.go.jp/ex-api/external/${api}?response_format=geojson&z=${z}&x=${x}&y=${y}`;

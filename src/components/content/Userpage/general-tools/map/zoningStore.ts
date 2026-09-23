@@ -22,6 +22,7 @@ const MAX_TILES = 24;
 const tiles = new Map<string, Promise<ZoneFeature[]>>();
 const loaded = new Map<string, ZoneFeature[]>();
 let notConfigured = false;
+let probed = false;
 
 class NotConfigured extends Error {}
 
@@ -31,9 +32,9 @@ async function fetchTile(layer: ZoneLayer, z: number, x: number, y: number): Pro
   if (hit) return hit;
   const p = (async () => {
     const res = await fetch(`/api/zoning?layer=${layer}&z=${z}&x=${x}&y=${y}`);
-    if (res.status === 503) throw new NotConfigured();
     if (!res.ok) throw new Error(`zoning ${res.status}`);
     const json = await res.json();
+    if (json?.notConfigured) throw new NotConfigured();
     const features = (json?.features ?? []).filter(
       (f: ZoneFeature) => f?.geometry && (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon')
     ) as ZoneFeature[];
@@ -60,6 +61,19 @@ export async function loadZoning(
   const z = Math.min(15, Math.floor(zoom));
   const list = tilesCovering(sw, ne, z, MAX_TILES);
   if (!list) return { status: 'zoom-in', tiles: [] };
+
+  // 最初の1枚で提供元が使えるかを確かめてから残りを取りに行く（使えないのに数十本投げない）
+  if (!probed) {
+    try {
+      await fetchTile('youto', z, list[0].x, list[0].y);
+      probed = true;
+    } catch (e) {
+      if (e instanceof NotConfigured) {
+        notConfigured = true;
+        return { status: 'not-configured', tiles: [] };
+      }
+    }
+  }
 
   const jobs = (['youto', 'bouka'] as ZoneLayer[]).flatMap((layer) =>
     list.map(async ({ x, y }) => ({ key: `${layer}/${z}/${x}/${y}`, layer, features: await fetchTile(layer, z, x, y) }))
