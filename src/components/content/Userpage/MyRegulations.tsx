@@ -5,11 +5,15 @@ import ToolHeader from './ToolHeader';
 import { useAuth } from '@/lib/AuthContext';
 import { db } from '@/lib/firebaseClient';
 import { sanitizeHtml } from '@/lib/sanitize';
-import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, writeBatch } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, deleteDoc, deleteField, doc, onSnapshot, writeBatch } from 'firebase/firestore';
 import { 
   FiPlus, FiTrash2, FiEdit2, FiCheck, FiX, 
-  FiFileText, FiFolder, FiLock, FiUnlock, FiMenu, FiSettings 
+  FiFileText, FiFolder, FiLock, FiUnlock, FiMenu, FiSettings, FiSearch, FiDownload, FiRotateCcw 
 } from 'react-icons/fi';
+import { buildElm, fetchLawElement } from '@/lib/egovLaw';
+import { plainToHtml } from '@/lib/lawDiff';
+import { checkHouki, htmlToPlain, summarize, type ArticleCheck, type ArticleSource, type HoukiCheck, type LawLink } from './myRegulations/lawSync';
+import { ArticleLawStatus, LawCheckBar, LawLinkPicker, RevisionModal, type RevisionView } from './myRegulations/LawRevisionUi';
 
 // ------------------------------------------
 // 定数・データ定義
@@ -885,6 +889,10 @@ interface Article {
   ko: string;
   go: string;
   text: string;
+  /** e-Gov と照合した記録。改正追従の基準になる */
+  source?: ArticleSource;
+  /** 「新しい条文に更新」する前の本文。「更新前に戻す」で使う */
+  previousText?: string;
 }
 
 interface Houki {
@@ -893,7 +901,15 @@ interface Houki {
   articles: Article[];
   locked: boolean;
   order: number;
+  /** 紐付けた e-Gov の法令 */
+  law?: LawLink;
 }
+
+/** Firestore は undefined を受け付けないので、書く前に落とす */
+const cleanArticles = (articles: Article[]): Article[] => JSON.parse(JSON.stringify(articles));
+
+/** 1日1回、紐付けた法令をまとめて照合する */
+const AUTO_CHECK_MS = 24 * 60 * 60 * 1000;
 
 interface ViewSettings {
   fontFamily: string;
@@ -903,24 +919,55 @@ interface ViewSettings {
 // ==========================================
 // 記事カードコンポーネント
 // ==========================================
-const ArticleCard = ({ 
-  article, 
-  isLocked, 
+const ArticleCard = ({
+  article,
+  isLocked,
   viewSettings, // 表示設定を受け取る
-  onSave, 
-  onDelete 
-}: { 
-  article: Article; 
+  onSave,
+  onDelete,
+  law,
+  check,
+  onOpenRevision,
+}: {
+  article: Article;
   isLocked: boolean;
   viewSettings: ViewSettings;
-  onSave: (id: string, data: Partial<Article>) => void; 
+  onSave: (id: string, data: Partial<Article>) => void;
   onDelete: (id: string) => void;
+  /** 法規が e-Gov と紐付いていれば、本文を取り込める */
+  law?: LawLink;
+  check?: ArticleCheck;
+  onOpenRevision: (view: RevisionView) => void;
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editJo, setEditJo] = useState(article.jo);
   const [editKo, setEditKo] = useState(article.ko);
   const [editGo, setEditGo] = useState(article.go);
   const editorRef = useRef<HTMLDivElement>(null);
+  // e-Gov から取り込んだ本文の記録。保存したときに source になる
+  const [pendingSource, setPendingSource] = useState<ArticleSource | null>(null);
+  const [fetching, setFetching] = useState(false);
+
+  const fetchFromEgov = async () => {
+    if (!law) return;
+    const elm = buildElm(editJo, editKo, editGo);
+    if (!elm) {
+      alert('条番号から e-Gov の位置を決められません（附則・別表などは取り込めません）');
+      return;
+    }
+    setFetching(true);
+    try {
+      const el = await fetchLawElement(law.lawId, elm);
+      const editor = editorRef.current;
+      if (editor && editor.textContent?.trim() && !confirm('本文を e-Gov の条文で置き換えますか？')) return;
+      if (editor) editor.innerHTML = plainToHtml(el.text);
+      setPendingSource({ elm, revisionId: el.revisionId, enforcementDate: el.enforcementDate, text: el.text, checkedAt: Date.now() });
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '取得に失敗しました');
+    } finally {
+      setFetching(false);
+    }
+  };
 
   // 編集モードに入った時、数字のみ抽出してセット
   useEffect(() => {
@@ -959,17 +1006,23 @@ const ArticleCard = ({
 
   const handleSave = () => {
     const newText = editorRef.current ? editorRef.current.innerHTML : article.text;
-    
+    const jo = formatValue(editJo, 'jo');
+    const ko = formatValue(editKo, 'ko');
+    const go = formatValue(editGo, 'go');
+    // 条番号を変えたのに取り込み直していなければ、前の照合記録は別の条のものなので捨てる
+    const keepSource = article.source && article.source.elm === buildElm(jo, ko, go);
+
     onSave(article.id, {
-      jo: formatValue(editJo, 'jo'),
-      ko: formatValue(editKo, 'ko'),
-      go: formatValue(editGo, 'go'),
-      text: newText
+      jo, ko, go,
+      text: newText,
+      source: pendingSource ?? (keepSource ? article.source : undefined),
     });
+    setPendingSource(null);
     setIsEditing(false);
   };
 
   const handleCancel = () => {
+    setPendingSource(null);
     setEditJo(article.jo);
     setEditKo(article.ko);
     setEditGo(article.go);
@@ -1007,13 +1060,26 @@ const ArticleCard = ({
     const displayText = `${displayJo}${displayKo}${displayGo}`;
 
     return (
-      <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow mb-3 group">
+      <div id={`art-${article.id}`} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow mb-3 group">
         <div className="flex justify-between items-start mb-2">
           <div className="flex gap-2 items-baseline">
             {displayText ? (
               <span className="font-bold text-gray-800">{displayText}</span>
             ) : (
               <span className="text-xs text-gray-400 italic">（条項未設定）</span>
+            )}
+            {article.previousText && !isLocked && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm('「新しい条文に更新」する前の本文に戻しますか？')) {
+                    onSave(article.id, { text: article.previousText, previousText: undefined });
+                  }
+                }}
+                className="text-[11px] text-gray-500 underline inline-flex items-center gap-1"
+              >
+                <FiRotateCcw /> 更新前に戻す
+              </button>
             )}
           </div>
           {!isLocked && (
@@ -1035,7 +1101,8 @@ const ArticleCard = ({
             </div>
           )}
         </div>
-        <div 
+        <ArticleLawStatus check={check} source={article.source} onOpen={onOpenRevision} />
+        <div
           className={`leading-relaxed whitespace-pre-wrap break-words text-gray-700 pl-1 border-l-4 border-gray-100 ${viewSettings.fontSize} ${(() => {
             const fontFamily = FONT_FAMILIES.find(f => f.id === viewSettings.fontFamily);
             return fontFamily?.className || '';
@@ -1116,6 +1183,20 @@ const ArticleCard = ({
         </div>
       </div>
 
+      {law && (
+        <div className="flex items-center gap-2 mb-2 text-xs">
+          <button
+            type="button"
+            onClick={fetchFromEgov}
+            disabled={fetching}
+            className="flex items-center gap-1 px-3 py-1.5 border border-[#3b3b3b] bg-white disabled:opacity-50"
+          >
+            <FiDownload /> {fetching ? '取得中…' : `e-Gov から本文を取得（${law.lawTitle}）`}
+          </button>
+          {pendingSource && <span className="text-green-700">取り込みました。「完了」で保存すると改正を追えるようになります</span>}
+        </div>
+      )}
+
       {/* 本文エディタ */}
       <div
         ref={editorRef}
@@ -1157,7 +1238,17 @@ const MyRegulations: React.FC = () => {
   // ドラッグアンドドロップ用State
   const [draggedHoukiId, setDraggedHoukiId] = useState<string | null>(null);
   const [dragOverHoukiId, setDragOverHoukiId] = useState<string | null>(null);
-  
+
+  // e-Gov との照合結果（この画面を開いている間だけ持つ）
+  const [checks, setChecks] = useState<Record<string, HoukiCheck>>({});
+  const [checking, setChecking] = useState<Record<string, boolean>>({});
+  const [revision, setRevision] = useState<{ houkiId: string; articleId: string; view: RevisionView } | null>(null);
+  const houkisRef = useRef<Houki[]>([]);
+  houkisRef.current = houkis;
+
+  // 全文検索
+  const [searchQuery, setSearchQuery] = useState('');
+
   // 表示設定State (localStorageで永続化)
   const [viewSettings, setViewSettings] = useState<ViewSettings>({
     fontFamily: 'font-sans',
@@ -1515,8 +1606,11 @@ const MyRegulations: React.FC = () => {
             jo: art.jo || art.number?.split('-')[0] || '', // 旧データ互換
             ko: art.ko || art.number?.split('-')[1] || '',
             go: art.go || art.number?.split('-')[2] || '',
-            text: art.text || '' 
-          }))
+            text: art.text || '',
+            ...(art.source ? { source: art.source } : {}),
+            ...(art.previousText ? { previousText: art.previousText } : {}),
+          })),
+          ...(data.law?.lawId ? { law: data.law } : {}),
         };
       });
       list.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
@@ -1652,8 +1746,113 @@ const MyRegulations: React.FC = () => {
 
     const newArticles = target.articles.map(a => a.id === articleId ? { ...a, ...data } : a);
     await updateDoc(doc(db, 'users', currentUser.uid, 'regulations', houkiId), {
-      articles: newArticles
+      articles: cleanArticles(newArticles)
     });
+    // 本文や照合記録が変わったので、この条項の照合結果は古い
+    setChecks((prev) => {
+      const hc = prev[houkiId];
+      if (!hc || !hc.articles[articleId]) return prev;
+      const articles = { ...hc.articles };
+      delete articles[articleId];
+      return { ...prev, [houkiId]: { ...hc, articles } };
+    });
+  };
+
+  // ------------------------------------------
+  // e-Gov との照合
+  // ------------------------------------------
+
+  const runCheck = async (houkiId: string) => {
+    const houki = houkisRef.current.find((h) => h.id === houkiId);
+    if (!houki?.law || !currentUser) return;
+    setChecking((p) => ({ ...p, [houkiId]: true }));
+    try {
+      const result = await checkHouki(houki.law, houki.articles);
+      setChecks((p) => ({ ...p, [houkiId]: result }));
+      try { localStorage.setItem(`myRegulations:lastCheck:${currentUser.uid}:${houkiId}`, String(Date.now())); } catch {}
+
+      // 初めて照合できた条項・版だけ進んだ条項を記録する（次回から取りに行かずに済む）
+      const updates = result.sourceUpdates;
+      if (Object.keys(updates).length) {
+        const latest = houkisRef.current.find((h) => h.id === houkiId);
+        if (latest) {
+          const articles = latest.articles.map((a) => (updates[a.id] ? { ...a, source: updates[a.id] } : a));
+          await updateDoc(doc(db, 'users', currentUser.uid, 'regulations', houkiId), { articles: cleanArticles(articles) });
+        }
+      }
+    } finally {
+      setChecking((p) => ({ ...p, [houkiId]: false }));
+    }
+  };
+
+  const linkLaw = async (houkiId: string, law: LawLink | null) => {
+    if (!currentUser) return;
+    await updateDoc(doc(db, 'users', currentUser.uid, 'regulations', houkiId), { law: law ?? deleteField() });
+    setChecks((p) => {
+      const next = { ...p };
+      delete next[houkiId];
+      return next;
+    });
+    // 紐付けたらすぐ照合する（Firestore の反映を待ってから）
+    if (law) setTimeout(() => void runCheck(houkiId), 800);
+  };
+
+  // 開いた法規は、その場で1回照合する
+  useEffect(() => {
+    if (!selectedHoukiId) return;
+    const h = houkis.find((x) => x.id === selectedHoukiId);
+    if (h?.law && !checks[h.id] && !checking[h.id]) void runCheck(h.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedHoukiId, houkis.find((x) => x.id === selectedHoukiId)?.law?.lawId]);
+
+  // 紐付けた法規は1日1回まとめて照合し、一覧に印を出す
+  const autoChecked = useRef(false);
+  useEffect(() => {
+    if (autoChecked.current || !currentUser || houkis.length === 0) return;
+    autoChecked.current = true;
+    const due = houkis.filter((h) => {
+      if (!h.law || h.id === selectedHoukiId) return false;
+      try {
+        const last = Number(localStorage.getItem(`myRegulations:lastCheck:${currentUser.uid}:${h.id}`) || 0);
+        return Date.now() - last > AUTO_CHECK_MS;
+      } catch {
+        return true;
+      }
+    });
+    (async () => {
+      for (const h of due) await runCheck(h.id);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [houkis.length, currentUser]);
+
+  // 全文検索の結果
+  const searchResults = (() => {
+    const q = searchQuery.trim();
+    if (!q) return null;
+    const terms = q.split(/[\s　]+/).filter(Boolean);
+    const hits: { houki: Houki; article: Article; plain: string; at: number }[] = [];
+    for (const h of houkis) {
+      for (const a of h.articles) {
+        const plain = htmlToPlain(a.text);
+        const hay = `${h.name} ${a.jo}${a.ko}${a.go} ${plain}`;
+        if (terms.every((t) => hay.includes(t))) hits.push({ houki: h, article: a, plain, at: plain.indexOf(terms[0]) });
+      }
+    }
+    // 抜粋の中で検索語を目立たせるための区切り
+    const pattern = new RegExp(`(${terms.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`);
+    return { terms, hits, pattern };
+  })();
+
+  const jumpToArticle = (houkiId: string, articleId: string) => {
+    setSearchQuery('');
+    setSelectedHoukiId(houkiId);
+    setTimeout(() => {
+      const el = document.getElementById(`art-${articleId}`);
+      if (!el) return;
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('ring-2', 'ring-[#3b3b3b]');
+      setTimeout(() => el.classList.remove('ring-2', 'ring-[#3b3b3b]'), 1600);
+    }, 60);
   };
 
   // 記事削除
@@ -1715,6 +1914,18 @@ const MyRegulations: React.FC = () => {
             )}
           </div>
           
+          <div className="px-2 pt-2 shrink-0">
+            <label className="flex items-center gap-1 border px-2 py-1 bg-white">
+              <FiSearch className="text-gray-400 shrink-0" />
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="条文を検索（全法規）"
+                className="w-full text-xs outline-none border-0 p-0"
+              />
+            </label>
+          </div>
           <div className="flex-1 overflow-y-auto p-2 space-y-1">
             {houkis.map((h, index) => {
               const isDragging = draggedHoukiId === h.id;
@@ -1751,6 +1962,12 @@ const MyRegulations: React.FC = () => {
                     <div className="flex items-center gap-2 truncate">
                       <span className="truncate">{h.name}</span>
                       {h.locked && <FiLock className="text-xs text-yellow-500" />}
+                      {(() => {
+                        const mark = summarize(checks[h.id]);
+                        if (mark === 'changed') return <span title="改正で変わった条文があります" className="w-2 h-2 rounded-full bg-red-500 shrink-0" />;
+                        if (mark === 'upcoming') return <span title="施行前の改正で変わる条文があります" className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />;
+                        return null;
+                      })()}
                     </div>
                     {!h.locked && selectedHoukiId === h.id && (
                       <button 
@@ -1772,7 +1989,36 @@ const MyRegulations: React.FC = () => {
 
         {/* メインエリア (記事一覧) */}
         <div className="flex-1 flex flex-col min-w-0">
-          {currentHouki ? (
+          {searchResults ? (
+            <div className="flex-1 flex flex-col min-h-0">
+              <div className="h-[60px] px-6 flex items-center justify-between border-b bg-white shrink-0">
+                <h3 className="font-bold text-gray-800">「{searchQuery.trim()}」の検索結果 {searchResults.hits.length}件</h3>
+                <button type="button" onClick={() => setSearchQuery('')} className="text-xs underline text-gray-500">検索をやめる</button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                {searchResults.hits.length === 0 && <p className="text-sm text-gray-500">見つかりません。</p>}
+                {searchResults.hits.map(({ houki, article, plain, at }) => {
+                  const from = Math.max(0, at - 30);
+                  const snippet = (from > 0 ? '…' : '') + plain.slice(from, from + 140).replace(/\n/g, ' ') + (plain.length > from + 140 ? '…' : '');
+                  const parts = snippet.split(searchResults.pattern);
+                  return (
+                    <button
+                      key={houki.id + article.id}
+                      type="button"
+                      onClick={() => jumpToArticle(houki.id, article.id)}
+                      className="block w-full text-left border p-3 hover:bg-gray-50"
+                    >
+                      <span className="text-xs text-gray-500">{houki.name}</span>
+                      <span className="ml-2 text-sm font-bold text-gray-800">{article.jo}{article.ko}{article.go}</span>
+                      <span className="block text-xs text-gray-700 mt-1 leading-relaxed">
+                        {parts.map((p, i) => (searchResults.terms.includes(p) ? <mark key={i} className="bg-yellow-200">{p}</mark> : <span key={i}>{p}</span>))}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : currentHouki ? (
             <>
               {/* 中央上部エリア：高さ統一 (h-[60px]) + 設定UI */}
               <div className="h-[60px] px-6 flex items-center justify-between border-b bg-white shrink-0">
@@ -1799,12 +2045,28 @@ const MyRegulations: React.FC = () => {
                     </select>
                   </div>
 
+                  <LawLinkPicker
+                    houkiName={currentHouki.name}
+                    link={currentHouki.law}
+                    disabled={currentHouki.locked}
+                    onLink={(law) => void linkLaw(currentHouki.id, law)}
+                  />
+
                   {/* ロックボタン */}
                   <button onClick={() => toggleLock(currentHouki)} className={`flex items-center gap-1 px-3 py-1.5 rounded text-xs whitespace-nowrap ${currentHouki.locked ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                     {currentHouki.locked ? <><FiLock /> ロック中</> : <><FiUnlock /> ロック解除中</>}
                   </button>
                 </div>
               </div>
+
+              {currentHouki.law && (
+                <LawCheckBar
+                  link={currentHouki.law}
+                  check={checks[currentHouki.id]}
+                  checking={!!checking[currentHouki.id]}
+                  onCheck={() => void runCheck(currentHouki.id)}
+                />
+              )}
 
               {/* 記事リスト */}
               <div className="flex-1 overflow-y-auto p-4 sm:p-6">
@@ -1824,6 +2086,9 @@ const MyRegulations: React.FC = () => {
                         viewSettings={viewSettings} // 設定を渡す
                         onSave={(id, data) => updateArticleData(currentHouki.id, id, data)}
                         onDelete={(id) => deleteArticleData(currentHouki.id, id)}
+                        law={currentHouki.law}
+                        check={checks[currentHouki.id]?.articles[article.id]}
+                        onOpenRevision={(view) => setRevision({ houkiId: currentHouki.id, articleId: article.id, view })}
                       />
                     ))
                   )}
@@ -1912,6 +2177,32 @@ const MyRegulations: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {revision && (() => {
+        const h = houkis.find((x) => x.id === revision.houkiId);
+        const a = h?.articles.find((x) => x.id === revision.articleId);
+        const c = checks[revision.houkiId]?.articles[revision.articleId];
+        if (!h?.law || !a || !c) return null;
+        return (
+          <RevisionModal
+            link={h.law}
+            articleTitle={`${a.jo}${a.ko}${a.go}`}
+            articleHtml={a.text}
+            check={c}
+            view={revision.view}
+            locked={h.locked}
+            onClose={() => setRevision(null)}
+            onAdopt={(html, source) => {
+              void updateArticleData(h.id, a.id, { text: html, previousText: a.text, source });
+              setRevision(null);
+            }}
+            onAck={(source) => {
+              void updateArticleData(h.id, a.id, { source });
+              setRevision(null);
+            }}
+          />
+        );
+      })()}
 
       {/* 告示モーダル群 (元のコンポーネントを流用) */}
         {showKokuji1436 && (
