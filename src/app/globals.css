@@ -952,6 +952,32 @@ nav {
   background: transparent;
 }
 
+/* 地図ツール：計測中の区間の長さ */
+.leaflet-tooltip.yy-map-seg {
+  padding: 0 3px;
+  font-size: 10px;
+  line-height: 1.4;
+  border-radius: 0;
+  box-shadow: none;
+  border: 1px solid #1565c0;
+  color: #1565c0;
+}
+.leaflet-tooltip.yy-map-seg::before {
+  display: none;
+}
+
+/* 地図ツール：付近見取図の印刷。画面では縮めて見せ、印刷では等倍に戻す
+   （縮めた親に transform が残ると、#print-target-container の position: fixed が
+   用紙ではなくその親を基準にしてしまう） */
+@media print {
+  .yy-print-scaler {
+    transform: none !important;
+    width: auto !important;
+    height: auto !important;
+    margin: 0 !important;
+  }
+}
+
 .yaneyuka-map-pin-inner {
   width: 14px;
   height: 14px;

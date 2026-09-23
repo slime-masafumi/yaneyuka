@@ -34,28 +34,6 @@ import {
 } from '@/lib/generalToolsMenu';
 
 
-const MapSection: React.FC = () => {
-  const [searchQuery, setSearchQuery] = useState('');
-
-  return (
-    <div className="w-full bg-white rounded-b-lg shadow-sm border-b border-gray-100">
-      <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
-        <div>
-        <h3 className="text-[13px] font-medium">地図</h3>
-          <p className="text-[11px] mt-0.5">住所や施設名を検索して地図上で確認。OpenStreetMapを使用した無料の地図表示ツール</p>
-        </div>
-      </div>
-      <div className="p-3">
-        <MapView
-          searchQuery={searchQuery}
-          onSearchQueryChange={setSearchQuery}
-          onSearch={() => {}}
-        />
-      </div>
-    </div>
-  );
-};
-
 const ONLINE_MEETING_TOOLS = [
   {
     name: 'Zoom',
@@ -211,7 +189,7 @@ const GeneralTools: React.FC = () => {
         {activeTab === 'sheet' && <Spreadsheet />}
         {activeTab === 'image-converter' && <ImageConverter />}
         {activeTab === 'construction-photos' && <ConstructionPhotos />}
-        {activeTab === 'map' && <MapSection />}
+        {activeTab === 'map' && <MapView />}
         {activeTab === 'pdf-compressor' && <PDFCompressor />}
         {activeTab === 'drawing-pdf' && <DrawingPdf />}
         {activeTab === 'temp-storage' && <TempStorage />}
