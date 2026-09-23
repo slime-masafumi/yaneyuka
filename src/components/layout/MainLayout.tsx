@@ -50,7 +50,6 @@ import TeamTasks from '../content/Userpage/TeamTasks';
 // MainLayout は全ページ共通の土台なので、ここで静的 import すると
 // トップページを開いただけで Excel / PDF 系のライブラリまで配信されてしまう
 // （実測 561KB、初期 JS の 53%）。Userpage_top.tsx は元から lazy にしてある。
-const PdfDiffTool = lazy(() => import('../content/Userpage/PdfDiffTool'));
 const GeneralTools = lazy(() => import('../content/Userpage/general-tools/GeneralTools'));
 import ContactsManagement from '../content/Userpage/ContactsManagement';
 import DesignTools from '../content/Userpage/DesignTools';
@@ -1379,8 +1378,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
         return <MyTasks />;
       case 'team-tasks':
         return <TeamTasks />;
-      case 'pdf-diff':
-        return <Suspense fallback={<ToolLoading />}><PdfDiffTool /></Suspense>;
       case 'general-tools':
         return <Suspense fallback={<ToolLoading />}><GeneralTools /></Suspense>;
       case 'design-tools':

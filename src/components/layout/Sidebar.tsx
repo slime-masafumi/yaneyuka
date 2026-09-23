@@ -70,7 +70,11 @@ type RailItem = {
   icon?: string;
   /** 一般ツールの中の特定タブを直接開く場合に指定する。 */
   tool?: GeneralToolId;
+  /** Web 版を開く項目に iOS 版もあるとき、その App Store の URL。行の右端に出す。 */
+  store?: string;
 };
+
+const appStore = (id: number) => `https://apps.apple.com/jp/app/id${id}`;
 type RailMode = {
   label: string;
   bg: string;
@@ -139,13 +143,28 @@ const RAIL_MODES: RailMode[] = [
   },
   {
     label: '外部ツール', bg: '#33141c', ac: '#d47b8c',
-    // 右カラムの「yaneyuka関連アプリ」を畳んでここへ集約したので、アイコンも併せて出す。
+    // 自作アプリの入口。どれも新しいタブで開く。
+    //   Web 版があるもの → Web 版（DayLine / Rules / PDFGap）。iOS 版もあれば右端に App Store を添える
+    //   iOS だけのもの   → App Store
+    // 建築系を先に、その他を後に並べる。
+    // 一覧は App Store の開発者ページ（artistId 1866103675）から起こした。
+    // アイコンは public/image/apps/ に App Store の 72px を置いてある。
     items: [
-      { label: 'PDF差分', menu: 'pdf-diff', icon: '/image/pdfdiff-icon.svg' },
-      { label: 'DayLine', menu: 'https://dayline-yaneyuka.web.app', icon: '/image/DayLine-icon.png' },
-      { label: 'Rules', menu: 'https://rules-yaneyuka.web.app', icon: '/image/Rules-icon.png' },
+      // 建築
+      { label: '建築基準法 yaneyuka', menu: appStore(6757323409), icon: '/image/apps/kenchikukijun.png' },
+      { label: '消防法規 yaneyuka', menu: appStore(6762936797), icon: '/image/apps/shoubouhou.png' },
       { label: 'PDFGap', menu: 'https://pdfgap-yaneyuka.web.app/', icon: '/image/PDFGap-icon.svg' },
-      { label: '建築基準法 yaneyuka', menu: 'https://apps.apple.com/us/app/id6757323409', icon: '/image/kenchikukijyunhou-icon.png' },
+      { label: 'Rules', menu: 'https://rules-yaneyuka.web.app/', icon: '/image/apps/rules.png', store: appStore(6759982040) },
+      { label: 'DayLine', menu: 'https://dayline-yaneyuka.web.app/', icon: '/image/apps/dayline.png', store: appStore(6760655431) },
+      // その他
+      { label: 'Noteleaf', menu: appStore(6775574147), icon: '/image/apps/noteleaf.png' },
+      { label: 'Epoch Camera', menu: appStore(6761734348), icon: '/image/apps/epochcamera.png' },
+      { label: 'Trailmark', menu: appStore(6774257425), icon: '/image/apps/trailmark.png' },
+      { label: 'Weatherchime', menu: appStore(6774901663), icon: '/image/apps/weatherchime.png' },
+      { label: 'NewsFilter', menu: appStore(6760270206), icon: '/image/apps/newsfilter.png' },
+      { label: 'World Folkbook', menu: appStore(6766574221), icon: '/image/apps/worldfolkbook.png' },
+      { label: 'FX Signal', menu: appStore(6767257165), icon: '/image/apps/fxsignal.png' },
+      { label: 'CFD Signal', menu: appStore(6769496079), icon: '/image/apps/cfdsignal.png' },
     ],
   },
 ];
@@ -318,18 +337,29 @@ const Sidebar: React.FC<SidebarProps> = ({ onItemClick, onPageChange, onLogoClic
         <div className="space-y-0 pb-2">
           {railMode.items.map((item) =>
             item.menu.startsWith('http') ? (
-              <a
-                key={item.label}
-                href={item.menu}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`subcategory flex items-center gap-2 w-full text-left px-4 py-1 text-[12px] 2xl:text-[13px] hover:text-white ${
-                  isItemActive(item) ? ACTIVE : 'text-gray-300'
-                }`}
-              >
-                <RailIcon src={item.icon} />
-                {item.label}
-              </a>
+              <div key={item.label} className="flex items-center pr-3">
+                <a
+                  href={item.menu}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={item.label}
+                  className="subcategory flex items-center gap-2 flex-1 min-w-0 text-left px-4 py-1 text-[12px] 2xl:text-[13px] hover:text-white text-gray-300"
+                >
+                  <RailIcon src={item.icon} />
+                  <span className="truncate">{item.label}</span>
+                </a>
+                {item.store && (
+                  <a
+                    href={item.store}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={`${item.label}（iOS 版）を App Store で開く`}
+                    className="shrink-0 text-[10px] leading-none px-1 py-0.5 border border-gray-500 text-gray-400 hover:text-white hover:border-white"
+                  >
+                    iOS
+                  </a>
+                )}
+              </div>
             ) : (
               <button
                 key={item.label}

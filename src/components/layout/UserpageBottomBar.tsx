@@ -16,7 +16,6 @@ const userpageMenuItems = [
   { id: 'my-regulations', label: 'My法規' },
   { id: 'my-tasks', label: 'Myタスク' },
   { id: 'team-tasks', label: 'Teamタスク' },
-  { id: 'pdf-diff', label: 'PDF差分' },
   { id: 'general-tools', label: '一般ツール' },
   { id: 'design-tools', label: '設計ツール' },
   { id: 'design-info', label: '設計情報' },

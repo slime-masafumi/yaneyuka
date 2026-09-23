@@ -19,7 +19,6 @@ export const USERPAGE_MENUS = [
   'my-regulations',
   'my-tasks',
   'team-tasks',
-  'pdf-diff',
   'general-tools',
   'design-tools',
   'design-info',
