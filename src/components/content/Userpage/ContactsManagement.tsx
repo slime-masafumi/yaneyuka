@@ -5,6 +5,9 @@ import ToolHeader from './ToolHeader';
 import { useAuth } from '@/lib/AuthContext';
 import { db } from '@/lib/firebaseClient';
 import { collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import ContactLogPanel from './contacts/ContactLogPanel';
+import { SampleLedger, QuoteLedger } from './contacts/ContactLedgers';
+import { summarize, isChatNicknameOnly, logCsv, todayYmd, type ContactLogEntry, type SampleState } from '@/lib/contactLog';
 
 interface Contact {
   id?: string;
@@ -18,6 +21,8 @@ interface Contact {
   memo: string;
   locked: boolean;
   createdAt: number;
+  /** やり取りの履歴（問合せ・回答・見積・サンプル…） */
+  log?: ContactLogEntry[];
 }
 
 const ContactsManagement: React.FC = () => {
@@ -27,6 +32,9 @@ const ContactsManagement: React.FC = () => {
   const [currentSortOrder, setCurrentSortOrder] = useState<string>('input-desc');
   const [contactSearchTerm, setContactSearchTerm] = useState('');
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
+  const [view, setView] = useState<'cards' | 'samples' | 'quotes'>('cards');
+  const [openLogId, setOpenLogId] = useState<string | null>(null);
+  const today = todayYmd();
 
   // 初期データの読み込み（即時キャッシュ→Firestore購読）
   useEffect(() => {
@@ -43,7 +51,8 @@ const ContactsManagement: React.FC = () => {
           return
         }
       }
-      const list: Contact[] = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any
+      // 同じコレクションに yychat の呼び名（nickname だけ）も入っているので、連絡先として出さない
+      const list: Contact[] = snap.docs.filter(d => !isChatNicknameOnly(d.data())).map(d => ({ id: d.id, ...(d.data() as any) })) as any
       // 新しい順
       list.sort((a,b) => (b.createdAt||0) - (a.createdAt||0))
       setContacts(list)
@@ -125,6 +134,36 @@ const ContactsManagement: React.FC = () => {
     try { await updateDoc(doc(db, 'users', currentUser.uid, 'contacts', updatedLocal.id), { [field]: newValue } as any) } catch {}
   };
 
+  const saveLog = async (contactId: string, next: ContactLogEntry[]) => {
+    setContacts(prev => prev.map(c => c.id === contactId ? { ...c, log: next } : c));
+    if (!currentUser) return;
+    try { await updateDoc(doc(db, 'users', currentUser.uid, 'contacts', contactId), { log: next } as any) } catch (e) { console.error('履歴の保存に失敗', e) }
+  };
+
+  const setSampleStatus = (contactId: string, entryId: string, status: SampleState) => {
+    const c = contacts.find(x => x.id === contactId);
+    if (!c) return;
+    void saveLog(contactId, (c.log ?? []).map(e => e.id === entryId ? { ...e, status } : e));
+  };
+
+  const openCompany = (company: string) => {
+    setView('cards');
+    setSelectedCompany(company || null);
+    setContactSearchTerm('');
+  };
+
+  const downloadLogCsv = () => {
+    const blob = new Blob([logCsv(contacts)], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `yaneyuka_やり取り履歴_${today}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
   const setSortOrder = (sortType: string) => {
     setCurrentSortOrder(sortType);
     console.log('担当連絡先を並び替え:', sortType);
@@ -181,7 +220,9 @@ const ContactsManagement: React.FC = () => {
       (contact.name || '').toLowerCase().includes(keyword) ||
       (contact.dept || '').toLowerCase().includes(keyword) ||
       (contact.role || '').toLowerCase().includes(keyword) ||
-      (contact.project || '').toLowerCase().includes(keyword)
+      (contact.project || '').toLowerCase().includes(keyword) ||
+      (contact.memo || '').toLowerCase().includes(keyword) ||
+      (contact.log || []).some(e => (e.text || '').toLowerCase().includes(keyword))
     );
     }
     
@@ -195,7 +236,7 @@ const ContactsManagement: React.FC = () => {
     <div className="bg-white pb-4 [&>*:not(:first-child)]:px-4">
       <ToolHeader
         title="担当者連絡先"
-        description="メーカー・施工会社・パートナー担当者の連絡先を一覧管理。会社名・部署・役職・電話・メール・案件名・メモを登録し、検索とソートで素早く引けます"
+        description="人とのやり取りの記録。いつ何を問い合わせ、どう返ってきたか、サンプルの依頼・到着・返却、見積の履歴を担当者ごとに残します（URL・カタログはブックマークのメーカー資料箱へ）"
       />
       <div className="flex items-baseline mb-2 mt-2">
         {selectedCompany && (
@@ -214,6 +255,24 @@ const ContactsManagement: React.FC = () => {
       <div className="flex gap-2">
         <div className="flex-1 bg-white border border-[#3b3b3b]">
         <div className="p-4 border-b border-gray-100">
+          <div className="flex items-center gap-0 mb-3 border-b border-gray-200">
+            {([['cards', '連絡先'], ['samples', 'サンプル台帳'], ['quotes', '見積の履歴']] as const).map(([k, label]) => {
+              const n = k === 'samples' ? contacts.reduce((a, c) => a + summarize(c.log, today).openSamples, 0) : 0;
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setView(k)}
+                  className={`px-3 py-1.5 text-xs -mb-px border-b-2 ${view === k ? 'border-gray-800 text-gray-900 font-bold' : 'border-transparent text-gray-500'}`}
+                >
+                  {label}{n > 0 ? ` ${n}` : ''}
+                </button>
+              );
+            })}
+            <div className="flex-1" />
+            <button type="button" onClick={downloadLogCsv} className="text-[11px] text-gray-500 underline mb-1">履歴を CSV で保存</button>
+          </div>
+          {view === 'cards' && (
           <div className="flex items-center gap-2 mb-2">
             <button
               onClick={addContact}
@@ -241,7 +300,7 @@ const ContactsManagement: React.FC = () => {
                   setContactSearchTerm(e.target.value);
                   setSelectedCompany(null);
                 }}
-                placeholder="会社名、氏名、部署、役職で検索"
+                placeholder="会社名・氏名・部署・案件・履歴の内容で検索"
                 className="w-full px-3 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:border-gray-300"
               />
               {contactSearchTerm && (
@@ -254,9 +313,13 @@ const ContactsManagement: React.FC = () => {
               )}
             </div>
           </div>
+          )}
         </div>
         
         <div className="p-4">
+            {view === 'samples' && <SampleLedger contacts={contacts} today={today} onStatus={setSampleStatus} onOpen={openCompany} />}
+            {view === 'quotes' && <QuoteLedger contacts={contacts} today={today} onOpen={openCompany} />}
+            {view === 'cards' && (
             <div className="max-h-[calc(100vh-var(--nav-height)-200px)] min-h-[240px] overflow-y-auto pr-4">
               <div className="grid gap-2 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4">
             {filteredContacts.map((contact, index) => {
@@ -360,6 +423,26 @@ const ContactsManagement: React.FC = () => {
                           className={`p-1 border border-gray-300 rounded w-full h-16 resize-none ${contact.locked ? 'bg-gray-100' : 'bg-white'}`}
                     />
                   </div>
+                  {(() => {
+                    const sum = summarize(contact.log, today);
+                    const open = !!contact.id && openLogId === contact.id;
+                    return (
+                      <>
+                        <button
+                          type="button"
+                          disabled={!contact.id}
+                          onClick={() => setOpenLogId(open ? null : contact.id!)}
+                          className="w-full flex items-center gap-2 px-2 py-1 border-t border-gray-200 text-[11px] text-left hover:bg-gray-50 disabled:text-gray-300"
+                          title={contact.id ? 'やり取りの履歴' : '何か入力すると履歴を付けられます'}
+                        >
+                          <span className="font-bold">{open ? '▾' : '▸'} 履歴 {sum.count}</span>
+                          {sum.last && <span className="text-gray-500">最終 {sum.last.slice(5).replace('-', '/')}</span>}
+                          {sum.openSamples > 0 && <span className={`ml-auto px-1 border ${sum.returnDue ? 'border-red-500 text-red-700' : 'border-gray-400 text-gray-600'}`}>サンプル {sum.openSamples}{sum.returnDue ? `（返却待ち ${sum.returnDue}）` : ''}</span>}
+                        </button>
+                        {open && <ContactLogPanel log={contact.log ?? []} project={contact.project} disabled={contact.locked} onChange={(next) => void saveLog(contact.id!, next)} />}
+                      </>
+                    );
+                  })()}
                 </div>
               );
             })}
@@ -371,6 +454,7 @@ const ContactsManagement: React.FC = () => {
                 </div>
               )}
             </div>
+            )}
           </div>
         </div>
         
@@ -393,7 +477,7 @@ const ContactsManagement: React.FC = () => {
                           ? 'bg-gray-700 text-white' 
                           : 'text-gray-700 hover:bg-gray-100'
                       }`}
-                      onClick={() => handleCompanyClick(company)}
+                      onClick={() => { setView('cards'); handleCompanyClick(company); }}
                     >
                       <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
                         selectedCompany === company ? 'bg-white' : 'bg-gray-400'

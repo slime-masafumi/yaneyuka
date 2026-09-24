@@ -3,6 +3,8 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '@/lib/AuthContext'
 import { MATERIAL_CATEGORIES, MANUFACTURERS, type Purpose } from '@/lib/makerContacts'
+import { entryFromPurpose, todayYmd } from '@/lib/contactLog'
+import { recordContactLog } from '@/lib/contactLogStore'
 
 type ContactProfile = {
   companyName: string
@@ -92,7 +94,17 @@ export default function MakerConect() {
       })
       const json = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(json?.error || '送信に失敗しました')
-      setMessage(json?.dryRun ? '開発モード: 送信シミュレーション完了（コンソール出力）' : '送信しました')
+      // 送った記録を担当者連絡先のやり取り履歴に残す（手入力をやめる）
+      let logged = false
+      if (currentUser) {
+        try {
+          await recordContactLog(currentUser.uid, manufacturer, entryFromPurpose(purpose, (body || purpose).split('\n')[0].slice(0, 80), todayYmd()))
+          logged = true
+        } catch (err) {
+          console.error('連絡先への記録に失敗', err)
+        }
+      }
+      setMessage((json?.dryRun ? '開発モード: 送信シミュレーション完了（コンソール出力）' : '送信しました') + (logged ? '。担当者連絡先の履歴に記録しました' : ''))
     } catch (e: any) {
       setMessage(e.message || '送信に失敗しました')
     } finally {
