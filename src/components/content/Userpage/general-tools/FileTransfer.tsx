@@ -1,20 +1,7 @@
 'use client';
 
 import React, { DragEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  collection,
-  doc,
-  getDoc,
-  onSnapshot,
-  orderBy,
-  query,
-  Timestamp,
-  where,
-  serverTimestamp,
-  setDoc,
-  deleteDoc,
-  increment,
-} from 'firebase/firestore';
+import { collection, doc, getDoc, onSnapshot, orderBy, query, Timestamp, where, serverTimestamp, setDoc, deleteDoc, increment, updateDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, app, auth } from '@/lib/firebaseClient';
 import { useAuth } from '@/lib/AuthContext';
@@ -47,6 +34,13 @@ type UploadRecord = {
   downloadUrl?: string;
   shortCode?: string;
   retentionDays?: number;
+  /** 送付台帳: 送り先と件名（作成後にオーナーが書き足す） */
+  recipient?: string;
+  note?: string;
+  /** 送付台帳: 相手が開いた記録（/api/share/download が書く。同じ送信元は1時間に1回） */
+  downloadCount?: number;
+  firstDownloadedAt?: Timestamp;
+  lastDownloadedAt?: Timestamp;
 };
 
 type UsageDoc = {
@@ -205,6 +199,11 @@ const FileTransferTool: React.FC = () => {
             downloadUrl: data.downloadUrl,
             shortCode: data.shortCode,
             retentionDays: data.retentionDays,
+            recipient: data.recipient,
+            note: data.note,
+            downloadCount: data.downloadCount,
+            firstDownloadedAt: data.firstDownloadedAt,
+            lastDownloadedAt: data.lastDownloadedAt,
           });
         });
         setFiles(list);
@@ -234,6 +233,59 @@ const FileTransferTool: React.FC = () => {
       setRetentionInitApplied(true);
     }
   }, [retentionInitApplied, retentionOptions]);
+
+  // --- 送付台帳 ---
+  const fmtTime = (t?: Timestamp) => (t ? t.toDate().toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '');
+  const saveLedgerField = async (id: string, field: 'recipient' | 'note', value: string) => {
+    try {
+      await updateDoc(doc(db, 'uploads', id), { [field]: value.trim() });
+    } catch (e) {
+      console.error('送付台帳の保存に失敗', e);
+    }
+  };
+  const coverText = (file: UploadRecord, link: string) =>
+    [
+      file.recipient ? `${file.recipient} 様` : '',
+      '',
+      '下記のファイルをお送りします。',
+      '',
+      file.note ? `件名: ${file.note}` : '',
+      `ファイル: ${file.fileName}（${formatBytes(file.size)}）`,
+      `ダウンロード: ${link}`,
+      file.expiresAt ? `有効期限: ${file.expiresAt.toDate().toLocaleDateString('ja-JP')} まで` : '',
+      '',
+      'よろしくお願いいたします。',
+    ]
+      .filter((l, i, arr) => !(l === '' && arr[i - 1] === ''))
+      .join('\n')
+      .trim();
+  const downloadLedgerCsv = () => {
+    const cell = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const rows = [['送付日時', '送付先', '件名', 'ファイル名', 'サイズ', '有効期限', '開封回数', '初回開封', '最終開封', 'リンク']];
+    for (const f of files) {
+      rows.push([
+        f.createdAt ? f.createdAt.toDate().toLocaleString('ja-JP') : '',
+        f.recipient ?? '',
+        f.note ?? '',
+        f.fileName,
+        formatBytes(f.size),
+        f.expiresAt ? f.expiresAt.toDate().toLocaleString('ja-JP') : '',
+        String(f.downloadCount ?? 0),
+        f.firstDownloadedAt ? f.firstDownloadedAt.toDate().toLocaleString('ja-JP') : '',
+        f.lastDownloadedAt ? f.lastDownloadedAt.toDate().toLocaleString('ja-JP') : '',
+        buildShortLink(f.shortCode) ?? '',
+      ]);
+    }
+    const blob = new Blob(['\uFEFF' + rows.map((r) => r.map(cell).join(',')).join('\n') + '\n'], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `yaneyuka_送付台帳_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
 
   const buildShortLink = useCallback(
     (shortCode?: string) => {
@@ -989,6 +1041,15 @@ const FileTransferTool: React.FC = () => {
               </div>
             )}
 
+            {files.length > 0 && (
+              <div className="mb-2 flex justify-between items-center">
+                <span className="text-[10px] text-gray-500">送付先・件名を書いておくと、いつ誰に何を渡し、相手が開いたかの台帳になります</span>
+                <button type="button" onClick={downloadLedgerCsv} className="px-2 py-1 text-[10px] border border-[#3b3b3b] bg-white hover:bg-gray-50">
+                  送付台帳を CSV で保存
+                </button>
+              </div>
+            )}
+
             {files.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
                 <svg className="w-12 h-12 mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1013,6 +1074,25 @@ const FileTransferTool: React.FC = () => {
                             <p className="text-[11px] text-gray-500">{formatBytes(file.size)}</p>
                             <p className="text-[10px] text-gray-400 mt-1">
                               {file.createdAt ? file.createdAt.toDate().toLocaleString() : '-'}
+                            </p>
+                            <div className="grid grid-cols-2 gap-1 mt-1.5">
+                              <input
+                                defaultValue={file.recipient ?? ''}
+                                onBlur={(e) => e.target.value.trim() !== (file.recipient ?? '') && void saveLedgerField(file.id, 'recipient', e.target.value)}
+                                placeholder="送付先（○○建設 田中様）"
+                                className="px-1.5 py-0.5 text-[10px] border border-gray-200"
+                              />
+                              <input
+                                defaultValue={file.note ?? ''}
+                                onBlur={(e) => e.target.value.trim() !== (file.note ?? '') && void saveLedgerField(file.id, 'note', e.target.value)}
+                                placeholder="件名（A邸 実施図 第2版）"
+                                className="px-1.5 py-0.5 text-[10px] border border-gray-200"
+                              />
+                            </div>
+                            <p className={`text-[10px] mt-1 ${file.downloadCount ? 'text-green-700' : 'text-gray-400'}`}>
+                              {file.downloadCount
+                                ? `開封 ${file.downloadCount} 回（初回 ${fmtTime(file.firstDownloadedAt)}・最終 ${fmtTime(file.lastDownloadedAt)}）`
+                                : '未開封'}
                             </p>
                           </div>
                           <button
@@ -1044,6 +1124,14 @@ const FileTransferTool: React.FC = () => {
                                   onClick={() => handleCopy(shortLink)}
                                 >
                                   コピー
+                                </button>
+                                <button
+                                  type="button"
+                                  className="px-2 py-0.5 border rounded text-[10px] hover:bg-gray-100"
+                                  onClick={() => handleCopy(coverText(file, shortLink))}
+                                  title="宛名・件名・リンク・期限を入れたメール本文をコピー"
+                                >
+                                  送付文
                                 </button>
                                 <a
                                   href={shortLink}

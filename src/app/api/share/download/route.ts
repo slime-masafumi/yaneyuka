@@ -156,6 +156,21 @@ export async function POST(req: NextRequest) {
         { code, count: FieldValue.increment(1), expiresAt: guardExpiresAt },
         { merge: true },
       );
+
+      // 送付台帳: 相手が開いたかをオーナーの記録に残す（同じ送信元は1時間に1回だけ数える）。
+      // 受け取り手は未ログインで uploads を書けないので、ここ（サーバー）で書く。
+      if (typeof share.fileId === 'string' && share.fileId) {
+        const uploadRef = db.collection('uploads').doc(share.fileId);
+        const first = (await uploadRef.get()).data()?.firstDownloadedAt;
+        await uploadRef.set(
+          {
+            downloadCount: FieldValue.increment(1),
+            lastDownloadedAt: now,
+            ...(first ? {} : { firstDownloadedAt: now }),
+          },
+          { merge: true },
+        );
+      }
     }
 
     if (downloadedBytes + (shouldCount ? size : 0) > capGB * GB) {
