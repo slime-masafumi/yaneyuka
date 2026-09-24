@@ -2,6 +2,8 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { FiFile, FiDownload, FiTrash2, FiRotateCw, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import type { PDFDocumentProxy } from 'pdfjs-dist';
+import { loadPdfjs } from '@/lib/pdfjs';
 
 /**
  * 図面PDFの整備。
@@ -81,10 +83,96 @@ function textToPng(
   return { dataUrl: canvas.toDataURL('image/png'), width: width / scale, height: height / scale };
 }
 
+/**
+ * ページのサムネイル。pdfjs で小さく描いて画像にする。
+ *
+ * 以前「pdfjs で固まる」としてサムネイルを外したが、原因は検証に使ったブラウザの
+ * 画面が隠れていて requestAnimationFrame が止まっていたことだった（pdfjs は表示用の
+ * 描画を rAF で進める）。実際に使う画面では止まらない。
+ * 何十ページも一度に描くと重いので、1枚ずつ順番に描く（renderQueue）。
+ * 描けなかったときは、これまでどおり縦横比の箱と番号を出す。
+ */
+let renderQueue: Promise<unknown> = Promise.resolve();
+
+function PageThumb({
+  page,
+  getDoc,
+  cache,
+}: {
+  page: PageItem;
+  getDoc: (sourceIndex: number) => Promise<PDFDocumentProxy>;
+  cache: Map<string, string>;
+}) {
+  const key = `${page.sourceIndex}-${page.pageIndex}`;
+  const [src, setSrc] = useState<string | null>(cache.get(key) ?? null);
+
+  useEffect(() => {
+    if (cache.has(key)) return;
+    let alive = true;
+    const job = renderQueue.then(async () => {
+      if (!alive) return;
+      try {
+        const doc = await getDoc(page.sourceIndex);
+        const p = await doc.getPage(page.pageIndex + 1);
+        const base = p.getViewport({ scale: 1 });
+        const vp = p.getViewport({ scale: 200 / Math.max(base.width, base.height) });
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.ceil(vp.width);
+        canvas.height = Math.ceil(vp.height);
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        await p.render({ canvasContext: ctx, viewport: vp } as Parameters<typeof p.render>[0]).promise;
+        const url = canvas.toDataURL('image/jpeg', 0.8);
+        cache.set(key, url);
+        if (alive) setSrc(url);
+      } catch {
+        /* 描けなければ箱のまま */
+      }
+    });
+    renderQueue = job.catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [key, cache, getDoc, page.sourceIndex, page.pageIndex]);
+
+  const landscape = page.width > page.height;
+  const w = landscape ? 88 : 88 * (page.width / page.height);
+  const h = landscape ? 88 * (page.height / page.width) : 88;
+  return src ? (
+    <img
+      src={src}
+      alt={`p.${page.pageIndex + 1}`}
+      className="border border-gray-400 bg-white"
+      style={{ width: w, height: h, transform: `rotate(${page.rotation}deg)`, transition: 'transform 150ms' }}
+    />
+  ) : (
+    <div
+      className="bg-white border border-gray-400 flex items-center justify-center text-[9px] text-gray-500"
+      style={{ width: w, height: h, transform: `rotate(${page.rotation}deg)`, transition: 'transform 150ms' }}
+    >
+      {page.pageIndex + 1}
+    </div>
+  );
+}
+
 const DrawingPdf: React.FC = () => {
   const [pages, setPages] = useState<PageItem[]>([]);
   // 読み込んだ PDF の中身。ページを書き出すときに元を参照する。
   const sourcesRef = useRef<ArrayBuffer[]>([]);
+  // サムネイル用に pdfjs で開いた PDF と、描いた画像
+  const docsRef = useRef(new Map<number, Promise<PDFDocumentProxy>>());
+  const thumbsRef = useRef(new Map<string, string>());
+  const getDoc = useRef((sourceIndex: number) => {
+    let p = docsRef.current.get(sourceIndex);
+    if (!p) {
+      // pdfjs は受け取った ArrayBuffer をワーカーへ渡して手放すので、写しを渡す
+      p = loadPdfjs().then((lib) => lib.getDocument({ data: new Uint8Array(sourcesRef.current[sourceIndex].slice(0)) }).promise);
+      docsRef.current.set(sourceIndex, p);
+    }
+    return p;
+  }).current;
 
   const [paperSize, setPaperSize] = useState('keep');
   const [watermark, setWatermark] = useState('');
@@ -184,6 +272,9 @@ const DrawingPdf: React.FC = () => {
   const clearAll = () => {
     setPages([]);
     sourcesRef.current = [];
+    docsRef.current.forEach((p) => p.then((d) => d.destroy()).catch(() => undefined));
+    docsRef.current.clear();
+    thumbsRef.current.clear();
   };
 
   /** 並べた順どおりに組み立てる。分割が指定されていればページごとに分ける。 */
@@ -432,21 +523,8 @@ const DrawingPdf: React.FC = () => {
                   {pages.map((page, index) => (
                     <div key={page.id}
                       className={`bg-white border p-1.5 ${page.selected ? 'border-[#3b3b3b] ring-1 ring-[#3b3b3b]' : 'border-gray-200'}`}>
-                      {/* 用紙の向きが分かるよう、縦横比そのままの箱で示す。
-                          図面の中身までは出さない（描画に pdfjs が要り、
-                          そこがこの環境で固まったため、まずは形と向きだけ）。 */}
-                      <div onClick={() => toggleSelect(page.id)} className="cursor-pointer flex items-center justify-center bg-gray-100 h-24">
-                        <div
-                          className="bg-white border border-gray-400 flex items-center justify-center text-[9px] text-gray-500"
-                          style={{
-                            width: page.width > page.height ? 72 : 72 * (page.width / page.height),
-                            height: page.width > page.height ? 72 * (page.height / page.width) : 72,
-                            transform: `rotate(${page.rotation}deg)`,
-                            transition: 'transform 150ms',
-                          }}
-                        >
-                          {page.pageIndex + 1}
-                        </div>
+                      <div onClick={() => toggleSelect(page.id)} className="cursor-pointer flex items-center justify-center bg-gray-100 h-28">
+                        <PageThumb page={page} getDoc={getDoc} cache={thumbsRef.current} />
                       </div>
                       <div className="text-[9px] text-gray-500 mt-1 truncate" title={`${page.sourceName} p.${page.pageIndex + 1}`}>
                         {index + 1}. {page.sourceName} p.{page.pageIndex + 1}
