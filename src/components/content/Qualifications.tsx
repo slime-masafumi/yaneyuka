@@ -13,7 +13,8 @@ interface QualificationItem {
 
 interface QualificationSection { title: string; items: QualificationItem[] }
 
-const sections: QualificationSection[] = [
+// Myカレンダーの「資格試験の申込期限を入れる」も同じ一覧を使う（二重に持たない）
+export const sections: QualificationSection[] = [
   {
     title: '建築設計・意匠・構造・設備系',
     items: [
@@ -566,7 +567,7 @@ const sections: QualificationSection[] = [
  * Uses the current year (or next year if the date appears to have passed).
  * Returns null if parsing fails or the string is non-date-like (e.g. "未定", descriptive text).
  */
-function parseApproxDeadlineDate(deadline: string | undefined): Date | null {
+export function parseApproxDeadlineDate(deadline: string | undefined): Date | null {
   if (!deadline) return null;
 
   // Skip clearly non-date strings

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ToolHeader from './ToolHeader';
 import { parseIcs, buildIcs } from '@/lib/ics';
+import DeadlineHelper, { BUILDING_CATEGORIES, type NewDeadline } from './calendar/DeadlineHelper';
 import { useAuth } from '@/lib/AuthContext';
 import { useTaskContext } from '../../providers/TaskProvider';
 import { db } from '@/lib/firebaseClient';
@@ -128,6 +129,7 @@ const MyCalendar: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [showCategoryManager, setShowCategoryManager] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showDeadlines, setShowDeadlines] = useState(false);
   const [showHolidays, setShowHolidays] = useState(true);
   const [holidays, setHolidays] = useState<Record<string, string>>({});
   
@@ -581,6 +583,35 @@ const MyCalendar: React.FC = () => {
           setShowModal(false);
   };
 
+  /** カテゴリが無ければ作る（期限の書き込み・建築の種別の追加で使う） */
+  const ensureCategories = async (wanted: { name: string; color: string }[]) => {
+    if (!currentUser) return;
+    const missing = wanted.filter((w) => !categories.some((c) => c.name === w.name));
+    await Promise.all(missing.map((m) => addDoc(collection(db, 'users', currentUser.uid, 'calendarCategories'), m)));
+  };
+
+  /** 期限を終日の予定としてまとめて入れる */
+  const addDeadlines = async (items: NewDeadline[]) => {
+    if (!currentUser) {
+      alert('入力するには会員登録（無料）が必要です。');
+      return;
+    }
+    await ensureCategories(items.map((i) => ({ name: i.category, color: i.color })).filter((c, i, arr) => arr.findIndex((x) => x.name === c.name) === i));
+    const batch = writeBatch(db);
+    const added: CalendarEvent[] = [];
+    for (const it of items) {
+      const ref = doc(collection(db, 'users', currentUser.uid, 'calendarEvents'));
+      const payload = {
+        title: it.title, date: it.date, allDay: true, startHour: '00', startMinute: '00', endHour: '00', endMinute: '00',
+        category: it.category, details: it.details, color: it.color, recurrenceType: 'none' as const, spanPart: 'single' as const,
+      };
+      batch.set(ref, payload);
+      added.push({ id: ref.id, ...payload });
+    }
+    await batch.commit();
+    setEvents((prev) => [...prev, ...added]);
+  };
+
   const deleteEvent = async () => {
     if (!editingEventId || !currentUser) return;
     const target = events.find(e => e.id === editingEventId);
@@ -928,6 +959,14 @@ const MyCalendar: React.FC = () => {
                     <input className="flex-1 bg-white/10 border border-white/20 rounded px-2 py-1 text-[10px] text-white placeholder-white/40 focus:outline-none focus:border-blue-400" placeholder="New..." value={categoryName} onChange={e => setCategoryName(e.target.value)} />
                     <button onClick={addCategory} className="bg-blue-500 hover:bg-blue-600 text-white px-2 rounded text-[10px]">+</button>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => void ensureCategories(BUILDING_CATEGORIES)}
+                    className="w-full mb-2 text-[10px] border border-white/30 text-white/80 hover:bg-white/10 py-1"
+                    title="現場定例・施主打合せ・申請・検査・中間検査・完了検査・資格試験"
+                  >
+                    建築の種別をまとめて追加
+                  </button>
                   <div className="flex flex-wrap gap-1 mb-2">
                     {COLOR_PALETTE.map(c => (
                       <button key={c} onClick={() => setSelectedColor(c)} className={`w-3 h-3 rounded-full ${selectedColor === c ? 'ring-1 ring-white scale-125' : ''}`} style={{ backgroundColor: c }} />
@@ -1024,6 +1063,14 @@ const MyCalendar: React.FC = () => {
                 </div>
               
               <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowDeadlines(true)}
+                  className={`text-[10px] px-2 py-1 border ${isDarkColor(rightAreaBgColor) ? 'text-white border-white/40 hover:bg-white/10' : 'text-gray-700 border-gray-300 hover:bg-gray-100'}`}
+                  title="建築確認・検査の期限や、資格試験の申込締切をまとめて入れる"
+                >
+                  期限を入れる
+                </button>
                 <div className="flex items-center gap-2 text-[10px] font-medium mr-2">
                   <label className={`flex items-center gap-1 cursor-pointer px-2 py-1 rounded transition ${isDarkColor(rightAreaBgColor) ? 'text-white hover:bg-white/10' : 'text-gray-600 hover:bg-gray-100'}`}>
                     <input type="checkbox" checked={showMyTasksOnCalendar} onChange={e => setShowMyTasksOnCalendar(e.target.checked)} className="accent-blue-600 rounded-sm w-3 h-3" />
@@ -1278,6 +1325,8 @@ const MyCalendar: React.FC = () => {
         )}
 
         {/* Modal: Settings / ICS */}
+        {showDeadlines && <DeadlineHelper onAdd={addDeadlines} onClose={() => setShowDeadlines(false)} />}
+
         {showSettingsModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
