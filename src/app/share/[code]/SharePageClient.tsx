@@ -23,6 +23,9 @@ export default function SharePageClient({ code }: { code: string }) {
   const [isReady, setIsReady] = useState(false);
   const [fileName, setFileName] = useState<string | undefined>(undefined);
   const [isDownloading, setIsDownloading] = useState(false);
+  // 合言葉つきのリンク。最初のダウンロードで「要る」と返ってきたら入力欄を出す
+  const [needsPassword, setNeedsPassword] = useState(false);
+  const [password, setPassword] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -73,13 +76,21 @@ export default function SharePageClient({ code }: { code: string }) {
       const resp = await fetch('/api/share/download', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code }),
+        body: JSON.stringify(needsPassword ? { code, password } : { code }),
       });
       const result = await resp.json().catch(() => null);
 
       if (!resp.ok || !result?.ok || typeof result.downloadUrl !== 'string') {
         setIsDownloading(false);
-        if (result?.reason === 'expired') {
+        if (result?.reason === 'password_required') {
+          setNeedsPassword(true);
+          setMessage('このファイルには合言葉がかかっています。送り主から聞いた合言葉を入れてください。');
+        } else if (result?.reason === 'wrong_password') {
+          setNeedsPassword(true);
+          setMessage('合言葉が違います。');
+        } else if (result?.reason === 'too_many_attempts') {
+          setMessage('合言葉の入れ間違いが続いたため、しばらく受け付けません。1時間ほどおいてお試しください。');
+        } else if (result?.reason === 'expired') {
           setMessage('この共有リンクは期限切れです。');
           setIsReady(false);
         } else if (result?.reason === 'site_bandwidth_exceeded') {
@@ -119,10 +130,21 @@ export default function SharePageClient({ code }: { code: string }) {
         {isReady && (
           <div className="space-y-3">
             {fileName && <p className="text-xs text-gray-500 break-all">ファイル名: {fileName}</p>}
+            {needsPassword && (
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && password) void handleDownload(); }}
+                placeholder="合言葉"
+                autoComplete="off"
+                className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+              />
+            )}
             <button
               type="button"
               onClick={handleDownload}
-              disabled={isDownloading}
+              disabled={isDownloading || (needsPassword && !password)}
               className="px-6 py-3 rounded text-white text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-wait"
               style={{ backgroundColor: '#1DAD95' }}
             >

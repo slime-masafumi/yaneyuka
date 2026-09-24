@@ -1,10 +1,11 @@
 'use client';
 
 import React, { DragEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { collection, doc, getDoc, onSnapshot, orderBy, query, Timestamp, where, serverTimestamp, setDoc, deleteDoc, increment, updateDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, onSnapshot, orderBy, query, Timestamp, where, serverTimestamp, setDoc, deleteDoc, increment, updateDoc, deleteField } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, app, auth } from '@/lib/firebaseClient';
 import { useAuth } from '@/lib/AuthContext';
+import { hashSharePassword } from '@/lib/sharePassword';
 // JSZipは動的インポートで使用（SSR対応）
 
 const storage = typeof window !== 'undefined' ? getStorage(app) : undefined;
@@ -41,6 +42,10 @@ type UploadRecord = {
   downloadCount?: number;
   firstDownloadedAt?: Timestamp;
   lastDownloadedAt?: Timestamp;
+  /** 合言葉がかかっているか（ハッシュそのものは画面に持たない） */
+  hasPassword?: boolean;
+  /** 初めて開かれたらメールで知らせる */
+  notifyOnOpen?: boolean;
 };
 
 type UsageDoc = {
@@ -204,6 +209,8 @@ const FileTransferTool: React.FC = () => {
             downloadCount: data.downloadCount,
             firstDownloadedAt: data.firstDownloadedAt,
             lastDownloadedAt: data.lastDownloadedAt,
+            hasPassword: typeof data.passwordHash === 'string',
+            notifyOnOpen: data.notifyOnOpen === true,
           });
         });
         setFiles(list);
@@ -243,6 +250,43 @@ const FileTransferTool: React.FC = () => {
       console.error('送付台帳の保存に失敗', e);
     }
   };
+  // --- 合言葉・開封のお知らせ ---
+  const [pwFor, setPwFor] = useState<string | null>(null);
+  const [pwText, setPwText] = useState('');
+  const [pwMsg, setPwMsg] = useState('');
+  const setFilePassword = async (file: UploadRecord, pw: string | null) => {
+    setPwMsg('');
+    try {
+      if (pw) {
+        // 古い形式のリンク（共有ドキュメントに実URLが載っている）は合言葉を掛けても素通りできるので断る
+        if (file.shortCode) {
+          const share = await getDoc(doc(db, 'shareLinks', file.shortCode));
+          if (share.exists() && typeof share.data().downloadUrl === 'string') {
+            setPwMsg('このリンクは古い形式のため合言葉を掛けられません。ファイルを上げ直してください。');
+            return;
+          }
+        }
+        await updateDoc(doc(db, 'uploads', file.id), { ...(await hashSharePassword(pw)) });
+        setPwMsg('合言葉を掛けました。相手には別の手段（電話・別のメール）で伝えてください。');
+      } else {
+        await updateDoc(doc(db, 'uploads', file.id), { passwordHash: deleteField(), passwordSalt: deleteField(), passwordIter: deleteField() });
+        setPwMsg('合言葉を外しました');
+      }
+      setPwText('');
+      setPwFor(null);
+    } catch (e) {
+      console.error('合言葉の設定に失敗', e);
+      setPwMsg('設定できませんでした');
+    }
+  };
+  const setNotify = async (file: UploadRecord, on: boolean) => {
+    try {
+      await updateDoc(doc(db, 'uploads', file.id), { notifyOnOpen: on });
+    } catch (e) {
+      console.error('お知らせの設定に失敗', e);
+    }
+  };
+
   const coverText = (file: UploadRecord, link: string) =>
     [
       file.recipient ? `${file.recipient} 様` : '',
@@ -1094,6 +1138,27 @@ const FileTransferTool: React.FC = () => {
                                 ? `開封 ${file.downloadCount} 回（初回 ${fmtTime(file.firstDownloadedAt)}・最終 ${fmtTime(file.lastDownloadedAt)}）`
                                 : '未開封'}
                             </p>
+                            <div className="flex flex-wrap items-center gap-2 mt-1 text-[10px]">
+                              <label className="flex items-center gap-1" title="初めてダウンロードされたとき、登録メールアドレスに知らせます">
+                                <input type="checkbox" checked={!!file.notifyOnOpen} onChange={(e) => void setNotify(file, e.target.checked)} />
+                                開いたらメールで知らせる
+                              </label>
+                              {file.hasPassword ? (
+                                <span className="flex items-center gap-1">
+                                  <span className="px-1 border border-gray-500">合言葉あり</span>
+                                  <button type="button" className="underline text-gray-500" onClick={() => void setFilePassword(file, null)}>外す</button>
+                                </span>
+                              ) : pwFor === file.id ? (
+                                <span className="flex items-center gap-1">
+                                  <input type="text" value={pwText} onChange={(e) => setPwText(e.target.value)} placeholder="合言葉（4文字以上）" className="px-1 py-0.5 border border-gray-300 w-32" autoComplete="off" />
+                                  <button type="button" disabled={pwText.trim().length < 4} onClick={() => void setFilePassword(file, pwText.trim())} className="px-1.5 py-0.5 border border-[#3b3b3b] disabled:opacity-40">掛ける</button>
+                                  <button type="button" onClick={() => { setPwFor(null); setPwText(''); }} className="underline text-gray-500">やめる</button>
+                                </span>
+                              ) : (
+                                <button type="button" className="underline text-gray-600" onClick={() => { setPwFor(file.id); setPwText(''); setPwMsg(''); }}>合言葉を掛ける</button>
+                              )}
+                            </div>
+                            {pwMsg && (pwFor === file.id || pwFor === null) && <p className="text-[10px] text-gray-600 mt-0.5">{pwMsg}</p>}
                           </div>
                           <button
                             type="button"

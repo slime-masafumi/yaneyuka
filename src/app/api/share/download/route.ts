@@ -3,7 +3,9 @@ import { createHash } from 'node:crypto';
 // firebase-admin は静的 import しない（詳細は firebaseAdmin.ts のコメント参照）。
 // 静的に書くとビルドマシンの絶対パス経由で参照されてしまい、
 // 本番コンテナではこのルートが起動時に落ちて 500 になる。
-import { getAdminDb, getFieldValue } from '@/lib/firebaseAdmin';
+import { getAdminAuth, getAdminDb, getFieldValue } from '@/lib/firebaseAdmin';
+import { verifySharePassword } from '@/lib/sharePassword';
+import { sendMail } from '@/lib/sendMail';
 
 export const runtime = 'nodejs';
 
@@ -32,7 +34,12 @@ export const runtime = 'nodejs';
 
 type DownloadRequestBody = {
   code?: string;
+  /** 合言葉つきのリンクのときだけ */
+  password?: string;
 };
+
+/** 合言葉の入れ間違いは、1コードにつき1時間でこの回数まで（総当たりよけ） */
+const MAX_PASSWORD_FAILS_PER_HOUR = 10;
 
 const GB = 1024 * 1024 * 1024;
 const DEFAULT_SITE_MONTHLY_DOWNLOAD_GB_CAP = 100;
@@ -121,13 +128,30 @@ export async function POST(req: NextRequest) {
     // オーナー限定の uploads/{fileId} から引く。古いリンクだけ shareLinks の値にフォールバックする。
     let size = typeof share.size === 'number' ? share.size : 0;
     let downloadUrl = typeof share.downloadUrl === 'string' ? share.downloadUrl : null;
-    if ((!size || !downloadUrl) && typeof share.fileId === 'string') {
-      const upload = (await db.collection('uploads').doc(share.fileId).get()).data();
-      if (!size && typeof upload?.size === 'number') size = upload.size;
-      if (!downloadUrl && typeof upload?.downloadUrl === 'string') downloadUrl = upload.downloadUrl;
-    }
+    const upload = typeof share.fileId === 'string' ? (await db.collection('uploads').doc(share.fileId).get()).data() : undefined;
+    if (!size && typeof upload?.size === 'number') size = upload.size;
+    if (!downloadUrl && typeof upload?.downloadUrl === 'string') downloadUrl = upload.downloadUrl;
     if (!downloadUrl) {
       return fail('not_found', 404);
+    }
+
+    // --- 合言葉 ---
+    // ハッシュは uploads/{fileId}（オーナーしか読めない）にだけある。入れ間違いは1時間に10回まで。
+    if (typeof upload?.passwordHash === 'string' && typeof upload?.passwordSalt === 'string') {
+      const password = typeof body?.password === 'string' ? body.password.slice(0, 200) : '';
+      if (!password) return fail('password_required', 401);
+      const failRef = db.collection('shareDownloadMarks').doc(`${code}_fail_${hourKey(now)}`);
+      const fails = (await failRef.get()).data()?.count;
+      if (typeof fails === 'number' && fails >= MAX_PASSWORD_FAILS_PER_HOUR) return fail('too_many_attempts', 429);
+      const ok = await verifySharePassword(password, {
+        passwordHash: upload.passwordHash,
+        passwordSalt: upload.passwordSalt,
+        passwordIter: typeof upload.passwordIter === 'number' ? upload.passwordIter : 120000,
+      });
+      if (!ok) {
+        await failRef.set({ code, count: FieldValue.increment(1), expiresAt: new Date(now.getTime() + GUARD_RETENTION_DAYS * 86400000) }, { merge: true });
+        return fail('wrong_password', 401);
+      }
     }
 
     // --- 濫用よけ ---
@@ -161,7 +185,7 @@ export async function POST(req: NextRequest) {
       // 受け取り手は未ログインで uploads を書けないので、ここ（サーバー）で書く。
       if (typeof share.fileId === 'string' && share.fileId) {
         const uploadRef = db.collection('uploads').doc(share.fileId);
-        const first = (await uploadRef.get()).data()?.firstDownloadedAt;
+        const first = upload?.firstDownloadedAt;
         await uploadRef.set(
           {
             downloadCount: FieldValue.increment(1),
@@ -170,6 +194,31 @@ export async function POST(req: NextRequest) {
           },
           { merge: true },
         );
+        // 初めて開かれたら、オーナーにメールで知らせる（オーナーが「開いたら知らせる」にしたときだけ）
+        if (!first && upload?.notifyOnOpen === true && typeof share.owner === 'string') {
+          try {
+            const email = (await getAdminAuth()?.getUser(share.owner))?.email;
+            if (email) {
+              const who = typeof upload.recipient === 'string' && upload.recipient ? `${upload.recipient} ` : '';
+              await sendMail({
+                to: email,
+                subject: `【yaneyuka】${who}ファイルが開かれました: ${upload.fileName ?? ''}`,
+                text: [
+                  `${who}送ったファイルが初めてダウンロードされました。`,
+                  '',
+                  `ファイル: ${upload.fileName ?? ''}`,
+                  typeof upload.note === 'string' && upload.note ? `件名: ${upload.note}` : '',
+                  `日時: ${now.toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}`,
+                  '',
+                  '送付台帳（マイページ → ファイル転送）で開封の記録を確認できます。',
+                  'このお知らせは、ファイル転送で「開いたらメールで知らせる」にしたファイルにだけ届きます。',
+                ].filter((l, i, a) => l !== '' || a[i - 1] !== '').join('\n'),
+              });
+            }
+          } catch (e) {
+            console.error('[share/download] 開封のお知らせに失敗', e);
+          }
+        }
       }
     }
 
