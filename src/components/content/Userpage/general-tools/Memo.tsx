@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   FiPlus, FiStar, FiEdit2, FiType, FiDroplet, 
   FiList, FiAlignLeft, FiAlignCenter, FiAlignRight, 
-  FiCheckSquare, FiX, FiTrash2, FiFileText 
+  FiCheckSquare, FiX, FiTrash2, FiFileText, FiChevronDown, FiCheck, FiFolder 
 } from 'react-icons/fi';
 import { LockClosedIcon, LockOpenIcon } from '@heroicons/react/20/solid';
 import { useAuth } from '@/lib/AuthContext';
@@ -684,6 +684,12 @@ const MemoTool: React.FC = () => {
     }
   };
 
+  // 自動保存のタイマーは「入力した瞬間の描画」の saveMemo を掴むので、そのままだと
+  // 1つ前の値（変える前のフォルダ・最後の1文字が欠けた表題）を保存してしまう。
+  // タイマーからは常にこの ref 経由で、その時点の最新の saveMemo を呼ぶ。
+  const saveMemoRef = useRef(saveMemo);
+  saveMemoRef.current = saveMemo;
+
   const deleteCurrentMemo = async () => {
     if (!currentMemo || !currentUser) return
     if(!confirm('本当に削除しますか？')) return;
@@ -1149,7 +1155,7 @@ const MemoTool: React.FC = () => {
                     if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current);
                     autoSaveTimeoutRef.current = setTimeout(() => {
                       if (currentMemo) {
-                        saveMemo(true).then(() => setTimeout(() => { isEditingRef.current = false; }, 500));
+                        saveMemoRef.current(true).then(() => setTimeout(() => { isEditingRef.current = false; }, 500));
                       }
                     }, 1000);
                   }}
@@ -1161,7 +1167,7 @@ const MemoTool: React.FC = () => {
                       if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current);
                       autoSaveTimeoutRef.current = setTimeout(() => {
                         if (currentMemo) {
-                          saveMemo(true).then(() => setTimeout(() => { isEditingRef.current = false; }, 500));
+                          saveMemoRef.current(true).then(() => setTimeout(() => { isEditingRef.current = false; }, 500));
                         }
                       }, 1000);
                     }
@@ -1196,28 +1202,15 @@ const MemoTool: React.FC = () => {
               {/* カテゴリとタグ */}
               <div className="flex gap-2 shrink-0">
                 <div className="relative flex-1">
-                  <input 
-                    type="text" 
-                    placeholder="フォルダ..." list="yy-memo-folders" 
+                  <FolderPicker
                     value={memoCategory}
-                    disabled={currentMemo?.isLocked || false}
-                    onChange={(e) => {
-                      if (currentMemo?.isLocked) return;
-                      setMemoCategory(e.target.value);
-                      if (currentMemo) {
-                        if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current);
-                        autoSaveTimeoutRef.current = setTimeout(() => saveMemo(true), 1000);
-                      }
+                    folders={folderNames}
+                    disabled={!currentMemo || !!currentMemo.isLocked}
+                    onPick={(name) => {
+                      setMemoCategory(name);
+                      if (currentMemo) void moveMemoToFolder(currentMemo.id, name);
                     }}
-                    className={`w-full pl-7 pr-2 py-1.5 text-[11px] border border-gray-200 rounded focus:outline-none focus:border-gray-400 ${currentMemo?.isLocked ? 'bg-gray-100 cursor-not-allowed opacity-60' : ''}`}
                   />
-                  {/* 既にあるフォルダを候補に出す。新しい名前を打てばそのフォルダが増える。 */}
-                  <datalist id="yy-memo-folders">
-                    {folderNames.map((name) => (
-                      <option key={name} value={name} />
-                    ))}
-                  </datalist>
-                  <div className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 text-xs">📂</div>
                 </div>
                 <div className="relative flex-1">
                   <input 
@@ -1230,7 +1223,7 @@ const MemoTool: React.FC = () => {
                       setMemoTags(e.target.value);
                       if (currentMemo) {
                         if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current);
-                        autoSaveTimeoutRef.current = setTimeout(() => saveMemo(true), 1000);
+                        autoSaveTimeoutRef.current = setTimeout(() => saveMemoRef.current(true), 1000);
                       }
                     }}
                     className={`w-full pl-7 pr-2 py-1.5 text-[11px] border border-gray-200 rounded focus:outline-none focus:border-gray-400 ${currentMemo?.isLocked ? 'bg-gray-100 cursor-not-allowed opacity-60' : ''}`}
@@ -1379,7 +1372,7 @@ const MemoTool: React.FC = () => {
                     if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current);
                     autoSaveTimeoutRef.current = setTimeout(() => {
                       if (currentMemo) {
-                        saveMemo(true).then(() => setTimeout(() => { isEditingRef.current = false; }, 500));
+                        saveMemoRef.current(true).then(() => setTimeout(() => { isEditingRef.current = false; }, 500));
                       }
                     }, 1000);
                   }}
@@ -1402,7 +1395,7 @@ const MemoTool: React.FC = () => {
                       if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current);
                       autoSaveTimeoutRef.current = setTimeout(() => {
                         if (currentMemo) {
-                          saveMemo(true).then(() => setTimeout(() => { isEditingRef.current = false; }, 500));
+                          saveMemoRef.current(true).then(() => setTimeout(() => { isEditingRef.current = false; }, 500));
                         }
                       }, 1000);
                     }
@@ -1424,5 +1417,117 @@ const MemoTool: React.FC = () => {
     </div>
   );
 };
+
+/**
+ * メモのフォルダ欄。右の ▼ で既存のフォルダから選び、名前を打てば新しいフォルダになる。
+ * 以前はブラウザ標準の候補（datalist）を出していたが、見た目がサイトと揃わず、
+ * 選んだ値も保存されていなかった。選んだ時点でそのメモを移す（moveMemoToFolder）。
+ */
+function FolderPicker({
+  value,
+  folders,
+  disabled,
+  onPick,
+}: {
+  value: string;
+  folders: string[];
+  disabled: boolean;
+  onPick: (name: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const boxRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => setDraft(value), [value]);
+
+  // 外側を押すか Esc で閉じる
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  const pick = (name: string) => {
+    setOpen(false);
+    setDraft(name);
+    if (name !== value) onPick(name);
+  };
+  const typed = draft.trim();
+  const isNew = typed !== '' && !folders.includes(typed);
+
+  return (
+    <div ref={boxRef} className="relative">
+      <div className={`flex items-stretch border border-gray-200 bg-white ${disabled ? 'bg-gray-100 opacity-60' : ''}`}>
+        <FiFolder className="self-center ml-2 w-3 h-3 text-gray-400 shrink-0" />
+        <input
+          type="text"
+          placeholder="フォルダ（未分類）"
+          value={draft}
+          disabled={disabled}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            setOpen(true);
+          }}
+          onFocus={() => setOpen(true)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+              e.preventDefault();
+              pick(typed);
+            }
+          }}
+          onBlur={() => {
+            // 打ち込んだまま離れたら、その名前で決める
+            if (typed !== value) pick(typed);
+          }}
+          className="flex-1 min-w-0 px-2 py-1.5 text-[11px] border-0 outline-none bg-transparent"
+        />
+        <button
+          type="button"
+          disabled={disabled}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => setOpen((o) => !o)}
+          className="px-2 border-l border-gray-200 text-gray-500 hover:bg-gray-100 disabled:cursor-not-allowed"
+          aria-label="フォルダを選ぶ"
+          title="フォルダを選ぶ"
+        >
+          <FiChevronDown className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
+        </button>
+      </div>
+      {open && !disabled && (
+        <ul className="absolute left-0 right-0 top-full mt-0.5 z-30 bg-white border border-[#3b3b3b] shadow-md max-h-60 overflow-y-auto text-[11px]">
+          {isNew && (
+            <li>
+              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => pick(typed)} className="w-full text-left px-3 py-1.5 hover:bg-gray-100 flex items-center gap-2">
+                <FiPlus className="w-3 h-3" />「{typed}」を新しいフォルダにする
+              </button>
+            </li>
+          )}
+          <li>
+            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => pick('')} className={`w-full text-left px-3 py-1.5 hover:bg-gray-100 flex items-center gap-2 ${value === '' ? 'font-bold' : 'text-gray-500'}`}>
+              <span className="w-3">{value === '' && <FiCheck className="w-3 h-3" />}</span>未分類
+            </button>
+          </li>
+          {folders.map((name) => (
+            <li key={name}>
+              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => pick(name)} className={`w-full text-left px-3 py-1.5 hover:bg-gray-100 flex items-center gap-2 ${value === name ? 'font-bold' : ''}`}>
+                <span className="w-3">{value === name && <FiCheck className="w-3 h-3" />}</span>
+                {name}
+              </button>
+            </li>
+          ))}
+          {folders.length === 0 && !isNew && <li className="px-3 py-1.5 text-gray-400">フォルダはまだありません。名前を打つと作れます</li>}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 export default MemoTool;
