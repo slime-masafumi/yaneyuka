@@ -28,6 +28,8 @@ import {
   ScheduleMode,
   ResponseValue,
 } from '@/types/schedule';
+import { buildIcs } from '@/lib/ics';
+import { candidateLabel, generateCandidates, responsesCsv, timeRangeOf, WEEKDAYS, type Slot } from '@/lib/scheduleBatch';
 import { 
   FiPlus, FiTrash2, FiCopy, FiCalendar, FiEdit2, FiCheck, 
   FiX, FiMinus, FiCircle, FiEye, FiShare2, FiList, FiUsers, FiMessageSquare, FiClock, FiRefreshCw 
@@ -91,6 +93,16 @@ const ScheduleTool: React.FC = () => {
   const [optionTimes, setOptionTimes] = useState<Array<{ timeType: 'am' | 'pm' | 'custom'; startHour: string; startMinute: string; endHour: string; endMinute: string }>>([{ timeType: 'am', startHour: '09', startMinute: '00', endHour: '12', endMinute: '00' }]);
   const [deadlineDate, setDeadlineDate] = useState('');
   const [deadlineTime, setDeadlineTime] = useState<{ timeType: 'am' | 'pm' | 'custom'; startHour: string; startMinute: string }>({ timeType: 'am', startHour: '09', startMinute: '00' });
+
+  // 候補のまとめ作成
+  const [showBatch, setShowBatch] = useState(false);
+  const [batchFrom, setBatchFrom] = useState('');
+  const [batchTo, setBatchTo] = useState('');
+  const [batchDays, setBatchDays] = useState<number[]>([1, 2, 3, 4, 5]);
+  const [batchSlots, setBatchSlots] = useState<Slot[]>(['pm']);
+  // 確定・書き出しで選んでいる候補
+  const [fixOptionId, setFixOptionId] = useState('');
+  const [fixMsg, setFixMsg] = useState('');
 
   // 参加者入力・回答入力
   const [participantName, setParticipantName] = useState('');
@@ -594,6 +606,20 @@ const ScheduleTool: React.FC = () => {
     setOptionLabels(newLabels);
   };
 
+  /** 期間・曜日・時間帯から候補をまとめて入れる（空の行は置き換える） */
+  const applyBatch = () => {
+    const list = generateCandidates(batchFrom, batchTo, batchDays, batchSlots);
+    if (!list.length) return alert('期間・曜日・時間帯を選んでください');
+    const keep = optionLabels.map((l, i) => i).filter((i) => optionLabels[i].trim());
+    const time = (slot: Slot) => (slot === 'am'
+      ? { timeType: 'am' as const, startHour: '09', startMinute: '00', endHour: '12', endMinute: '00' }
+      : { timeType: 'pm' as const, startHour: '13', startMinute: '00', endHour: '17', endMinute: '00' });
+    setOptionLabels([...keep.map((i) => optionLabels[i]), ...list.map((c) => candidateLabel(c.date, c.slot))]);
+    setOptionDates([...keep.map((i) => optionDates[i] ?? ''), ...list.map((c) => c.date)]);
+    setOptionTimes([...keep.map((i) => optionTimes[i]), ...list.map((c) => time(c.slot))]);
+    setShowBatch(false);
+  };
+
   const addOption = () => {
     setOptionLabels([...optionLabels, '']);
     setOptionDates([...optionDates, '']);
@@ -605,6 +631,53 @@ const ScheduleTool: React.FC = () => {
     setOptionLabels(optionLabels.filter((_, i) => i !== index));
     setOptionDates(optionDates.filter((_, i) => i !== index));
     setOptionTimes(optionTimes.filter((_, i) => i !== index));
+  };
+
+  // --- 確定・書き出し ---
+  const saveFile = (text: string, name: string, type: string) => {
+    const url = URL.createObjectURL(new Blob([text], { type }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+  const isoLocal = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  /** 回答で ○ が一番多い候補（同数なら先の候補） */
+  const bestOptionId = () => {
+    let best = '';
+    let max = -1;
+    for (const o of options) {
+      const yes = summaries.find((x) => x.optionId === o.id)?.yes ?? 0;
+      if (yes > max) { max = yes; best = o.id; }
+    }
+    return best;
+  };
+  const fixedEvent = () => {
+    const o = options.find((x) => x.id === (fixOptionId || bestOptionId()));
+    if (!o || !o.dateTime || !currentSchedule) return null;
+    const t = timeRangeOf(o.label);
+    return {
+      id: `${currentSchedule.slug}-${o.id}`,
+      title: currentSchedule.title,
+      date: isoLocal(o.dateTime.toDate()),
+      allDay: !t,
+      startHour: t?.startHour ?? '00',
+      startMinute: t?.startMinute ?? '00',
+      endHour: t?.endHour ?? '00',
+      endMinute: t?.endMinute ?? '00',
+      details: [currentSchedule.description, `日程調整: ${window.location.origin}/tool/schedule/${currentSchedule.slug}`].filter(Boolean).join('\n'),
+    };
+  };
+  const addFixedToMyCalendar = async () => {
+    const ev = fixedEvent();
+    if (!ev || !currentUser) return;
+    const { id: _id, ...rest } = ev;
+    void _id;
+    await addDoc(collection(db, 'users', currentUser.uid, 'calendarEvents'), { ...rest, category: '会議', color: '#3B82F6', recurrenceType: 'none', spanPart: 'single' });
+    setFixMsg(`Myカレンダーの ${ev.date} に入れました`);
   };
 
   // --- UIコンポーネント (Render Functions) ---
@@ -748,6 +821,49 @@ const ScheduleTool: React.FC = () => {
                         LINE
                       </button>
                     </div>
+                  </div>
+
+                  {/* 確定・書き出し */}
+                  <div className="border border-[#3b3b3b] p-3 mb-6 flex flex-wrap items-center gap-2 text-[11px]">
+                    <span className="font-bold text-gray-700 mr-1">確定・書き出し</span>
+                    <select
+                      value={fixOptionId || bestOptionId()}
+                      onChange={(e) => { setFixOptionId(e.target.value); setFixMsg(''); }}
+                      className="px-2 py-1 border border-gray-300 max-w-[260px]"
+                    >
+                      {options.map((o) => (
+                        <option key={o.id} value={o.id}>
+                          {o.label}（○ {summaries.find((x) => x.optionId === o.id)?.yes ?? 0}）
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      disabled={!fixedEvent()}
+                      onClick={() => {
+                        const ev = fixedEvent();
+                        if (ev) saveFile(buildIcs([ev]), `${currentSchedule.title}.ics`, 'text/calendar');
+                      }}
+                      className="px-3 py-1 border border-[#3b3b3b] bg-white hover:bg-gray-50 disabled:opacity-40"
+                      title="Google・Outlook・iPhone のカレンダーに取り込めるファイル"
+                    >
+                      .ics で保存
+                    </button>
+                    {currentUser && (
+                      <button type="button" disabled={!fixedEvent()} onClick={() => void addFixedToMyCalendar()} className="px-3 py-1 border border-[#3b3b3b] bg-white hover:bg-gray-50 disabled:opacity-40">
+                        Myカレンダーに入れる
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      disabled={!participants.length}
+                      onClick={() => saveFile(responsesCsv(options, participants, responses), `${currentSchedule.title}_回答.csv`, 'text/csv;charset=utf-8')}
+                      className="px-3 py-1 border border-[#3b3b3b] bg-white hover:bg-gray-50 disabled:opacity-40"
+                    >
+                      回答を CSV で保存
+                    </button>
+                    {fixMsg && <span className="text-green-700">{fixMsg}</span>}
+                    {!fixedEvent() && options.length > 0 && <span className="text-gray-400">日付の無い候補（アンケート）はカレンダーに入れられません</span>}
                   </div>
 
                   {/* 入力フォームと集計表のレイアウト */}
@@ -1146,6 +1262,51 @@ const ScheduleTool: React.FC = () => {
                                 <FiPlus className="w-3 h-3" /> 候補を追加
                             </button>
                         </div>
+                        {mode === 'date' && (
+                          <div className="mb-3">
+                            <button type="button" onClick={() => setShowBatch((v) => !v)} className="text-[11px] underline text-gray-600">
+                              {showBatch ? 'まとめて作るのをやめる' : '期間と曜日からまとめて作る（例: 来週の平日の午後、毎週火曜）'}
+                            </button>
+                            {showBatch && (
+                              <div className="mt-2 p-3 border border-gray-300 bg-gray-50 space-y-2 text-[11px]">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <input type="date" value={batchFrom} onChange={(e) => setBatchFrom(e.target.value)} className="px-2 py-1 border border-gray-300" />
+                                  <span>〜</span>
+                                  <input type="date" value={batchTo} onChange={(e) => setBatchTo(e.target.value)} className="px-2 py-1 border border-gray-300" />
+                                </div>
+                                <div className="flex flex-wrap gap-1">
+                                  {WEEKDAYS.map((w, i) => (
+                                    <button
+                                      key={w}
+                                      type="button"
+                                      onClick={() => setBatchDays((d) => (d.includes(i) ? d.filter((x) => x !== i) : [...d, i]))}
+                                      className={`w-7 py-1 border ${batchDays.includes(i) ? 'bg-[#3b3b3b] text-white border-[#3b3b3b]' : 'bg-white border-gray-300'}`}
+                                    >
+                                      {w}
+                                    </button>
+                                  ))}
+                                  <span className="mx-2 border-l border-gray-300" />
+                                  {(['am', 'pm'] as Slot[]).map((sl) => (
+                                    <label key={sl} className="flex items-center gap-1">
+                                      <input
+                                        type="checkbox"
+                                        checked={batchSlots.includes(sl)}
+                                        onChange={(e) => setBatchSlots((v) => (e.target.checked ? [...v, sl] : v.filter((x) => x !== sl)))}
+                                      />
+                                      {sl === 'am' ? '午前' : '午後'}
+                                    </label>
+                                  ))}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <button type="button" onClick={applyBatch} className="px-3 py-1 bg-[#3b3b3b] text-white">
+                                    候補に入れる（{generateCandidates(batchFrom, batchTo, batchDays, batchSlots).length} 件）
+                                  </button>
+                                  <span className="text-gray-500">最大 40 件。回答する人の負担を考えて絞ってください</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
                         <div className="space-y-3">
                             {optionLabels.map((label, index) => (
                                 <div key={index} className="p-3 bg-gray-50/50 border border-gray-200 rounded-lg group hover:border-blue-200 transition-colors">
