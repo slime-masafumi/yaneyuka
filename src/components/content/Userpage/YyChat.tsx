@@ -16,12 +16,18 @@ import {
   setDoc, where, arrayUnion, arrayRemove, writeBatch, getDoc, deleteField, 
   query, onSnapshot, deleteDoc
 } from 'firebase/firestore';
-import { getUsersByUids } from '@/lib/firebaseUserData';
+import { getUsersByUids, listBoardsForUser, addBoardTask, type BoardDoc } from '@/lib/firebaseUserData';
+import { useTaskContext } from '@/components/providers/TaskProvider';
+import { searchTerms, matchesAll, snippet, splitHits, parseDueHint, mentionsIn, taskTextFrom, minutesHtml, formatTaken } from '@/lib/chatTools';
 
 // --- Types Expansion ---
 interface ExtendedChatMessage extends ChatMessage {
   imageUrl?: string;
+  /** 写真の撮影日時（EXIF。現場写真は日付が証拠になる） */
+  photoTakenAt?: string | null;
 }
+
+type SearchHit = { roomId: string; messageId: string; text: string; at: Date; senderId: string };
 
 // --- Helper Components & Functions ---
 
@@ -169,7 +175,27 @@ const YyChat: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const roomMenuRef = useRef<HTMLDivElement>(null);
-  
+
+  // 現場チャット: 物件ルーム・検索・議事録・タスク
+  const { categories: myTaskCategories, addTask } = useTaskContext();
+  const [inputPhotoTaken, setInputPhotoTaken] = useState<string | null>(null);
+  const [roomFilter, setRoomFilter] = useState('');
+  const [projectName, setProjectName] = useState('');
+  const [searchQ, setSearchQ] = useState('');
+  const [searchHits, setSearchHits] = useState<SearchHit[] | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [decisionIds, setDecisionIds] = useState<Set<string>>(new Set());
+  const [minutesDone, setMinutesDone] = useState('');
+  const [taskFor, setTaskFor] = useState<ExtendedChatMessage | null>(null);
+  const [taskText, setTaskText] = useState('');
+  const [taskDue, setTaskDue] = useState('');
+  const [taskTarget, setTaskTarget] = useState('');
+  const [taskBoards, setTaskBoards] = useState<BoardDoc[]>([]);
+  const [taskDone, setTaskDone] = useState('');
+    
   // --- Effects ---
 
   useEffect(() => {
@@ -236,7 +262,7 @@ const YyChat: React.FC = () => {
         const d = doc.data();
         return {
           id: doc.id, roomId: selectedRoom.id, senderId: d.senderId, senderUsername: d.senderUsername,
-          content: d.content, imageUrl: d.imageUrl,
+          content: d.content, imageUrl: d.imageUrl, photoTakenAt: d.photoTakenAt ?? null,
           // ★ここで安全な変換関数を使用
           createdAt: toDateSafe(d.createdAt),
           readAt: d.readAt ? toDateSafe(d.readAt) : undefined,
@@ -261,10 +287,25 @@ const YyChat: React.FC = () => {
   }, [selectedRoom?.id, currentUser]);
 
   useEffect(() => {
+    if (highlightId) {
+      const el = document.getElementById(`msg-${highlightId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+    }
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages]);
+  }, [messages, highlightId]);
+
+  // ルームを替えたら選択・強調をやめる
+  useEffect(() => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+    setDecisionIds(new Set());
+    setMinutesDone('');
+  }, [selectedRoom?.id]);
 
   // メッセージを実際に閲覧した時のみ実行されるようにガードを強化
   useEffect(() => {
@@ -388,15 +429,17 @@ const YyChat: React.FC = () => {
     
     const content = inputValue.trim();
     const imageToSend = inputImage;
-    
+    const takenAt = imageToSend ? inputPhotoTaken : null;
+
     setInputValue('');
     setInputImage(null);
+    setInputPhotoTaken(null);
     saveDraft(selectedRoom.id, '');
     
     const tempId = `temp-${Date.now()}`;
     const newMsg: ExtendedChatMessage = {
       id: tempId, roomId: selectedRoom.id, senderId: currentUser.uid, 
-      senderUsername: currentUser.username, content, imageUrl: imageToSend || undefined,
+      senderUsername: currentUser.username, content, imageUrl: imageToSend || undefined, photoTakenAt: takenAt,
       createdAt: new Date(), readBy: [currentUser.uid]
     };
     setMessages(prev => [...prev, newMsg]);
@@ -405,7 +448,8 @@ const YyChat: React.FC = () => {
       await addDoc(collection(db, 'chatRooms', selectedRoom.id, 'messages'), {
         senderId: currentUser.uid, senderUsername: currentUser.username, 
         content, 
-        imageUrl: imageToSend || null, 
+        imageUrl: imageToSend || null,
+        ...(takenAt ? { photoTakenAt: takenAt } : {}),
         createdAt: serverTimestamp(), readBy: [currentUser.uid]
       });
       
@@ -438,6 +482,16 @@ const YyChat: React.FC = () => {
     try {
       const compressed = await compressImage(file);
       setInputImage(compressed);
+      // 撮影日時（縮小すると EXIF が消えるので、元のファイルから読む）
+      setInputPhotoTaken(null);
+      try {
+        const exifr = await import('exifr');
+        const ex = await exifr.parse(file, { pick: ['DateTimeOriginal', 'CreateDate'] });
+        const d = ex?.DateTimeOriginal || ex?.CreateDate;
+        if (d instanceof Date && !isNaN(d.getTime())) setInputPhotoTaken(formatTaken(d));
+      } catch {
+        /* EXIF の無い画像（スクショ等）は撮影日時なし */
+      }
     } catch (err) {
       console.error(err);
       alert('画像の読み込みに失敗しました');
@@ -536,6 +590,129 @@ const YyChat: React.FC = () => {
     return customNicknames[otherUid] || userDisplayNames[otherUid] || room.participantUsernames[otherUid] || '不明';
   };
 
+  const roomLabel = (room: ChatRoom) => getOtherParticipantName(room) + (room.project ? ` / ${room.project}` : '');
+  const projectNames = Array.from(new Set(rooms.map((r) => r.project).filter((p): p is string => !!p))).sort();
+  const visibleRooms = roomFilter ? rooms.filter((r) => r.project === roomFilter) : rooms;
+  const terms = searchTerms(searchQ);
+
+  /** 全ルームを横断して探す（参加しているルームだけ。最近の 40 ルームまで） */
+  const runSearch = async () => {
+    const t = searchTerms(searchQ);
+    if (!t.length || !currentUser) {
+      setSearchHits(null);
+      return;
+    }
+    setSearching(true);
+    try {
+      const hits: SearchHit[] = [];
+      const targets = (roomFilter ? rooms.filter((r) => r.project === roomFilter) : rooms).slice(0, 40);
+      const snaps = await Promise.all(targets.map((room) => getDocs(collection(db, 'chatRooms', room.id, 'messages')).then((sn) => ({ room, sn }))));
+      for (const { room, sn } of snaps) {
+        sn.forEach((d) => {
+          const data = d.data();
+          const text = String(data.content ?? '');
+          if (matchesAll(text, t)) hits.push({ roomId: room.id, messageId: d.id, text, at: toDateSafe(data.createdAt), senderId: data.senderId });
+        });
+      }
+      hits.sort((a, b) => b.at.getTime() - a.at.getTime());
+      setSearchHits(hits.slice(0, 200));
+    } catch (e) {
+      console.error('チャット検索に失敗', e);
+      setSearchHits([]);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const createProjectRoom = async (project: string) => {
+    if (!currentUser || !selectedRoom) return;
+    const otherUid = getOtherParticipantUid(selectedRoom);
+    if (!otherUid || !project.trim()) return;
+    const existing = rooms.find((r) => r.participants.includes(otherUid) && r.project === project.trim());
+    if (existing) {
+      setSelectedRoom(existing);
+    } else {
+      const ref = doc(collection(db, 'chatRooms'));
+      const newRoom = {
+        id: ref.id, participants: [currentUser.uid, otherUid], project: project.trim(),
+        participantUsernames: selectedRoom.participantUsernames,
+        createdAt: new Date(), lastActivityAt: new Date(),
+      };
+      await setDoc(ref, { ...newRoom, createdAt: serverTimestamp(), lastActivityAt: serverTimestamp() });
+      setSelectedRoom(newRoom as any);
+    }
+    setProjectName('');
+    setShowRoomMenu(false);
+  };
+
+  const renameProject = async (project: string) => {
+    if (!selectedRoom) return;
+    await updateDoc(doc(db, 'chatRooms', selectedRoom.id), { project: project.trim() ? project.trim() : deleteField() });
+    setProjectName('');
+    setShowRoomMenu(false);
+  };
+
+  const toggleIn = (set: Set<string>, id: string) => {
+    const n = new Set(set);
+    if (n.has(id)) n.delete(id);
+    else n.add(id);
+    return n;
+  };
+
+  /** 選んだ発言をメモの議事録にする（フォルダは物件名、無ければ「議事録」） */
+  const saveMinutes = async () => {
+    if (!currentUser || !selectedRoom || !selectedIds.size) return;
+    const lines = messages.filter((m) => selectedIds.has(m.id) && !m.id.startsWith('temp-'));
+    const label = roomLabel(selectedRoom);
+    const html = minutesHtml({ room: label, lines, nameOf: getDisplayName, decisions: decisionIds });
+    const now = Date.now();
+    const folder = selectedRoom.project || '議事録';
+    await addDoc(collection(db, 'users', currentUser.uid, 'memos'), {
+      title: `${label} 打合せ ${new Date().toLocaleDateString('ja-JP')}`,
+      content: html, category: folder, tags: ['yychat'],
+      createdAt: now, updatedAt: now, isFavorite: false, isLocked: false, order: -now,
+    });
+    setMinutesDone(`メモの「${folder}」に ${lines.length} 件の議事録を作りました`);
+    setSelectMode(false);
+    setSelectedIds(new Set());
+    setDecisionIds(new Set());
+  };
+
+  const openTask = (m: ExtendedChatMessage) => {
+    setTaskFor(m);
+    setTaskText(taskTextFrom(m.content) || '（写真の確認）');
+    setTaskDue(parseDueHint(m.content, new Date()) ?? '');
+    setTaskTarget(`my:${myTaskCategories[0]?.id ?? '1'}`);
+    setTaskDone('');
+    if (currentUser) listBoardsForUser(currentUser.uid).then(setTaskBoards).catch(() => setTaskBoards([]));
+  };
+
+  const saveTask = async () => {
+    if (!taskFor || !selectedRoom || !taskText.trim()) return;
+    const [kind, id] = [taskTarget.slice(0, taskTarget.indexOf(':')), taskTarget.slice(taskTarget.indexOf(':') + 1)];
+    try {
+      if (kind === 'my') {
+        await addTask(id, taskText.trim(), taskDue || null);
+      } else {
+        const board = taskBoards.find((b) => b.id === id);
+        // @相手 と書かれていて、相手がそのボードのメンバーなら担当にする
+        const other = getOtherParticipantUid(selectedRoom);
+        const otherName = other ? getDisplayName(other) : '';
+        const mentioned = !!other && mentionsIn(taskFor.content).some((n) => otherName.includes(n) || n.includes(otherName));
+        const member = !!board && !!other && (board.ownerUid === other || board.memberUids.includes(other));
+        await addBoardTask(id, {
+          title: taskText.trim(), completed: false, dueDate: taskDue || null, priority: 'medium',
+          assigneeUid: mentioned && member ? other! : null,
+          details: `yychat（${roomLabel(selectedRoom)}）${formatMessageDate(taskFor.createdAt)} ${getDisplayName(taskFor.senderId)}:\n${taskFor.content}`,
+        });
+      }
+      setTaskDone(`「${taskText.trim()}」を追加しました`);
+    } catch (e) {
+      console.error('タスクの追加に失敗', e);
+      setTaskDone('追加できませんでした');
+    }
+  };
+
   const getAvatarUrl = (uid: string, roomId?: string) => {
     if (!roomId || !currentUser) return userAvatars[uid];
     
@@ -563,7 +740,7 @@ const YyChat: React.FC = () => {
       <div>
         <ToolHeader
           title="yychat"
-          description="社内のリアルタイムチャット。メッセージの送受信、画像の添付、既読表示に対応。チャットルームの作成・管理もできます"
+          description="現場チャット。物件ごとに部屋を分け、全ルームを横断して検索。写真には撮影日時が付き、発言はそのままタスクや議事録（メモ）にできます"
         />
         <div className="p-4">ログインしてください</div>
       </div>
@@ -574,7 +751,7 @@ const YyChat: React.FC = () => {
     <div className="pt-0 pb-4">
       <ToolHeader
         title="yychat"
-        description="社内のリアルタイムチャット。メッセージの送受信、画像の添付、既読表示に対応。チャットルームの作成・管理もできます"
+        description="現場チャット。物件ごとに部屋を分け、全ルームを横断して検索。写真には撮影日時が付き、発言はそのままタスクや議事録（メモ）にできます"
       />
       <div className="flex h-[600px] bg-white border border-[#3b3b3b] overflow-hidden font-sans mx-4 mt-3">
       <div className={`${selectedRoom ? 'hidden md:flex' : 'flex'} w-full md:w-72 flex-col border-r bg-gray-50`}>
@@ -612,8 +789,60 @@ const YyChat: React.FC = () => {
           </div>
         </div>
 
+        {!showUserSelect && (
+          <div className="px-2 py-2 border-b bg-white space-y-1.5">
+            <input
+              value={searchQ}
+              onChange={(e) => { setSearchQ(e.target.value); if (!e.target.value.trim()) setSearchHits(null); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') void runSearch(); }}
+              placeholder="全ルームを検索（Enter）"
+              className="w-full text-xs border px-2 py-1.5 focus:outline-none focus:border-gray-700"
+            />
+            {projectNames.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {['', ...projectNames].map((p) => (
+                  <button
+                    key={p || '__all'}
+                    type="button"
+                    onClick={() => setRoomFilter(p)}
+                    className={`text-[10px] px-1.5 py-0.5 border ${roomFilter === p ? 'bg-[#3b3b3b] text-white border-[#3b3b3b]' : 'bg-white text-gray-600 border-gray-300'}`}
+                  >
+                    {p || 'すべて'}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="flex-1 overflow-y-auto">
-          {showUserSelect ? (
+          {!showUserSelect && (searching || searchHits) ? (
+            <div>
+              <div className="px-3 py-1.5 text-[10px] text-gray-500 flex justify-between">
+                <span>{searching ? '検索中…' : `${searchHits!.length} 件`}</span>
+                <button type="button" className="underline" onClick={() => { setSearchHits(null); setSearchQ(''); setHighlightId(null); }}>閉じる</button>
+              </div>
+              {searchHits?.map((h) => {
+                const room = rooms.find((r) => r.id === h.roomId);
+                return (
+                  <button
+                    key={h.roomId + h.messageId}
+                    type="button"
+                    onClick={() => { if (room) { setHighlightId(h.messageId); setSelectedRoom(room); } }}
+                    className="w-full text-left px-3 py-2 border-b border-gray-100 hover:bg-white"
+                  >
+                    <div className="flex justify-between text-[10px] text-gray-400">
+                      <span className="truncate">{room ? roomLabel(room) : ''}</span>
+                      <span className="shrink-0 ml-1">{formatMessageDate(h.at)}</span>
+                    </div>
+                    <div className="text-xs text-gray-700 break-words">
+                      {splitHits(snippet(h.text, terms), terms).map(([t, hit], i) => (hit ? <mark key={i} className="bg-yellow-200">{t}</mark> : <span key={i}>{t}</span>))}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          ) : showUserSelect ? (
             <div className="p-2">
               <div className="flex items-center gap-2 mb-2 p-1">
                 <button onClick={() => setShowUserSelect(false)} className="text-xs text-gray-500 hover:text-gray-800">← 戻る</button>
@@ -631,7 +860,7 @@ const YyChat: React.FC = () => {
                     .map(u => (
                       <div key={u.uid} 
                         onClick={async () => {
-                          const existing = rooms.find(r => r.participants.includes(u.uid) && r.participants.length === 2);
+                          const existing = rooms.find(r => r.participants.includes(u.uid) && r.participants.length === 2 && !r.project);
                           if (existing) {
                             setSelectedRoom(existing);
                           } else {
@@ -662,8 +891,8 @@ const YyChat: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-0">
-              {rooms.length === 0 && <div className="p-8 text-xs text-center text-gray-400">チャットルームがありません</div>}
-              {rooms.map(room => {
+              {visibleRooms.length === 0 && <div className="p-8 text-xs text-center text-gray-400">チャットルームがありません</div>}
+              {visibleRooms.map(room => {
                 const otherUid = room.participants.find(u => u !== currentUser.uid);
                 const isActive = selectedRoom?.id === room.id;
                 const unread = room.unreadCount?.[currentUser.uid] || 0;
@@ -671,7 +900,7 @@ const YyChat: React.FC = () => {
                 
                 return (
                   <div key={room.id}
-                    onClick={() => setSelectedRoom(room)}
+                    onClick={() => { setHighlightId(null); setSelectedRoom(room); }}
                     className={`px-3 py-2.5 cursor-pointer transition flex gap-3 items-center border-b border-transparent hover:bg-white ${isActive ? 'bg-white border-l-4 border-l-blue-500 shadow-sm' : 'hover:bg-opacity-60 border-l-4 border-l-transparent'}`}
                   >
                     <div className="w-9 h-9 rounded-full bg-gray-200 flex-shrink-0 flex items-center justify-center text-gray-500 font-bold overflow-hidden border border-gray-100">
@@ -683,6 +912,7 @@ const YyChat: React.FC = () => {
                       <div className="flex justify-between items-baseline">
                         <span className={`text-sm font-medium truncate ${isActive ? 'text-gray-900' : 'text-gray-700'}`}>
                           {getOtherParticipantName(room)}
+                          {room.project && <span className="ml-1 text-[10px] font-normal px-1 border border-gray-300 text-gray-500">{room.project}</span>}
                         </span>
                         <span className="text-[10px] text-gray-400 flex-shrink-0 ml-1">
                           {room.lastActivityAt ? formatMessageDate(room.lastActivityAt) : ''}
@@ -747,6 +977,7 @@ const YyChat: React.FC = () => {
                         setIsEditingName(true);
                     }}>
                         <h2 className="font-bold text-gray-800 text-sm truncate">{getOtherParticipantName(selectedRoom)}</h2>
+                        {selectedRoom.project && <span className="text-[10px] px-1 border border-gray-400 text-gray-600 shrink-0">{selectedRoom.project}</span>}
                         <svg className="w-3 h-3 text-gray-300 group-hover:text-gray-500 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                     </div>
                   )}
@@ -758,7 +989,30 @@ const YyChat: React.FC = () => {
                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/></svg>
                 </button>
                 {showRoomMenu && (
-                  <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-lg shadow-xl border border-gray-100 overflow-hidden z-20 py-1">
+                  <div className="absolute right-0 top-full mt-1 w-64 bg-white rounded-lg shadow-xl border border-gray-100 overflow-hidden z-20 py-1">
+                     <div className="px-3 py-2 space-y-1.5">
+                       <div className="text-[11px] font-medium text-gray-700">物件ルーム</div>
+                       <input
+                         value={projectName}
+                         onChange={(e) => setProjectName(e.target.value)}
+                         placeholder={selectedRoom.project || '物件名（A邸 新築工事）'}
+                         className="w-full text-xs border px-2 py-1 focus:outline-none focus:border-gray-700"
+                       />
+                       <div className="flex gap-1">
+                         <button type="button" disabled={!projectName.trim()} onClick={() => void createProjectRoom(projectName)} className="flex-1 text-[10px] px-1 py-1 border border-[#3b3b3b] disabled:opacity-40">この相手と新しく作る</button>
+                         <button type="button" onClick={() => void renameProject(projectName)} className="flex-1 text-[10px] px-1 py-1 border border-gray-300" title="空のまま押すと物件名を外す">この部屋の名前にする</button>
+                       </div>
+                       <p className="text-[10px] text-gray-400 leading-snug">同じ相手でも物件ごとに部屋を分けると、どの現場の話かが混ざりません</p>
+                     </div>
+                     <div className="border-t border-gray-100 my-1"></div>
+                     <button
+                        onClick={() => { setSelectMode(true); setShowRoomMenu(false); setMinutesDone(''); }}
+                        className="w-full text-left px-3 py-2.5 text-xs text-gray-700 hover:bg-gray-50"
+                      >
+                        <div className="font-medium">発言を選んで議事録にする</div>
+                        <div className="text-[10px] text-gray-400">メモに保存。決定事項はチェック項目になります</div>
+                      </button>
+                     <div className="border-t border-gray-100 my-1"></div>
                      <button
                         onClick={toggleRoomAvatarVisibility}
                         className="w-full text-left px-3 py-2.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center justify-between"
@@ -809,7 +1063,17 @@ const YyChat: React.FC = () => {
                 const isSequence = prev && prev.senderId === m.senderId && (m.createdAt.getTime() - prev.createdAt.getTime() < 60000);
 
                 return (
-                  <div key={m.id} className={`flex gap-1.5 ${isMe ? 'justify-end' : 'justify-start'} ${isSequence ? 'mt-0.5' : 'mt-2'}`}>
+                  <div key={m.id} id={`msg-${m.id}`} className={`flex gap-1.5 ${isMe ? 'justify-end' : 'justify-start'} ${isSequence ? 'mt-0.5' : 'mt-2'} ${highlightId === m.id ? 'bg-yellow-100/70 -mx-2 px-2 py-1' : ''}`}>
+                    {selectMode && (
+                      <div className="flex flex-col items-center justify-center gap-0.5 order-first shrink-0">
+                        <input type="checkbox" checked={selectedIds.has(m.id)} onChange={() => setSelectedIds((p) => toggleIn(p, m.id))} aria-label="議事録に入れる" />
+                        {selectedIds.has(m.id) && (
+                          <button type="button" onClick={() => setDecisionIds((p) => toggleIn(p, m.id))} className={`text-[9px] px-1 border ${decisionIds.has(m.id) ? 'bg-[#3b3b3b] text-white border-[#3b3b3b]' : 'bg-white text-gray-500 border-gray-300'}`} title="決定事項として議事録の先頭に出す">
+                            決定
+                          </button>
+                        )}
+                      </div>
+                    )}
                     {!isMe && (
                       <div className="flex flex-col justify-end">
                          <div className="w-6 h-6 rounded-full bg-gray-300 flex-shrink-0 flex items-center justify-center overflow-hidden text-[9px] text-white">
@@ -834,12 +1098,29 @@ const YyChat: React.FC = () => {
                         {m.imageUrl && (
                           <div className="mb-1 rounded-lg overflow-hidden border border-black/10">
                             <img src={m.imageUrl} alt="添付画像" className="max-w-full h-auto object-cover" />
+                            {m.photoTakenAt && (
+                              <div className={`text-[9px] px-1.5 py-0.5 ${isMe ? 'bg-blue-700 text-blue-100' : 'bg-gray-50 text-gray-500'}`}>撮影 {m.photoTakenAt}</div>
+                            )}
                           </div>
                         )}
-                        <LinkifiedText text={m.content} isMe={isMe} />
+                        {terms.length > 0 && searchHits ? (
+                          splitHits(m.content, terms).map(([t, hit], i) => (hit ? <mark key={i} className="bg-yellow-200 text-gray-900">{t}</mark> : <React.Fragment key={i}>{t}</React.Fragment>))
+                        ) : (
+                          <LinkifiedText text={m.content} isMe={isMe} />
+                        )}
                       </div>
                       <div className={`text-[9px] text-gray-400 mt-0.5 flex gap-1 items-center ${isMe ? 'justify-end' : 'justify-start'} opacity-70`}>
                         {formatMessageDate(m.createdAt)}
+                        {!m.id.startsWith('temp-') && (
+                          <button
+                            type="button"
+                            onClick={() => openTask(m)}
+                            className="ml-1 text-gray-400 hover:text-gray-800 opacity-0 group-hover:opacity-100 transition-opacity underline"
+                            title="この発言をタスクにする（@名前 と期限を読み取ります）"
+                          >
+                            タスク
+                          </button>
+                        )}
                         {isMe && (
                            <span>
                              {selectedRoom.participants.find(u => u !== currentUser.uid) && m.readBy?.includes(selectedRoom.participants.find(u => u !== currentUser.uid)!) ? ' 既読' : ''}
@@ -892,6 +1173,21 @@ const YyChat: React.FC = () => {
               <div ref={messagesEndRef} />
             </div>
 
+            {minutesDone && !selectMode && (
+              <div className="px-3 py-1 text-[11px] bg-green-50 text-green-800 border-t flex justify-between">
+                <span>{minutesDone}</span>
+                <button type="button" className="underline" onClick={() => setMinutesDone('')}>閉じる</button>
+              </div>
+            )}
+            {selectMode ? (
+              <div className="p-2 bg-white border-t flex flex-wrap items-center gap-2 text-xs">
+                <span className="text-gray-600">{selectedIds.size} 件選択（うち決定 {decisionIds.size}）</span>
+                <button type="button" onClick={() => setSelectedIds(new Set(messages.filter((m) => !m.id.startsWith('temp-')).map((m) => m.id)))} className="px-2 py-1 border border-gray-300">すべて</button>
+                <div className="flex-1" />
+                <button type="button" onClick={() => { setSelectMode(false); setSelectedIds(new Set()); setDecisionIds(new Set()); }} className="px-2 py-1 border border-gray-300">やめる</button>
+                <button type="button" disabled={!selectedIds.size} onClick={() => void saveMinutes()} className="px-3 py-1 bg-[#3b3b3b] text-white disabled:opacity-40">メモの議事録へ</button>
+              </div>
+            ) : (
             <div className="p-2 bg-white border-t">
               {inputImage && (
                 <div className="px-2 pb-2 flex items-center">
@@ -902,7 +1198,7 @@ const YyChat: React.FC = () => {
                         className="absolute -top-1 -right-1 w-4 h-4 bg-gray-600 text-white rounded-full flex items-center justify-center text-[10px] hover:bg-gray-800"
                       >✕</button>
                    </div>
-                   <div className="ml-2 text-xs text-gray-400">画像を送信します</div>
+                   <div className="ml-2 text-xs text-gray-400">画像を送信します{inputPhotoTaken ? `（撮影 ${inputPhotoTaken}）` : ''}</div>
                 </div>
               )}
 
@@ -947,11 +1243,56 @@ const YyChat: React.FC = () => {
                 </button>
               </div>
             </div>
+            )}
           </>
         )}
       </div>
 
       <ModalPortal>
+        {taskFor && selectedRoom && (
+          <div className="fixed inset-x-0 bottom-0 bg-black/40 z-[9999] flex items-start justify-center p-4 pt-16" style={{ top: 'var(--nav-height, 35px)' }} onClick={() => setTaskFor(null)}>
+            <div className="bg-white w-full max-w-md border border-[#3b3b3b] p-4 space-y-2 text-xs" onClick={(e) => e.stopPropagation()}>
+              <div className="flex justify-between items-center">
+                <span className="font-bold text-[13px]">発言をタスクにする</span>
+                <button type="button" onClick={() => setTaskFor(null)} aria-label="閉じる">✕</button>
+              </div>
+              <div className="text-[11px] text-gray-500 border-l-2 border-gray-300 pl-2 whitespace-pre-wrap break-words max-h-24 overflow-y-auto">
+                {getDisplayName(taskFor.senderId)}: {taskFor.content || '（写真）'}
+              </div>
+              <label className="block">
+                <span className="text-gray-500">内容</span>
+                <input value={taskText} onChange={(e) => setTaskText(e.target.value)} className="w-full border px-2 py-1 mt-0.5" />
+              </label>
+              <div className="flex gap-2">
+                <label className="flex-1">
+                  <span className="text-gray-500">期限{taskDue && parseDueHint(taskFor.content, new Date()) === taskDue ? '（文面から）' : ''}</span>
+                  <input type="date" value={taskDue} onChange={(e) => setTaskDue(e.target.value)} className="w-full border px-2 py-1 mt-0.5" />
+                </label>
+                <label className="flex-1">
+                  <span className="text-gray-500">追加先</span>
+                  <select value={taskTarget} onChange={(e) => setTaskTarget(e.target.value)} className="w-full border px-1 py-1 mt-0.5">
+                    <optgroup label="Myタスク">
+                      {myTaskCategories.map((c) => <option key={c.id} value={`my:${c.id}`}>{c.title}</option>)}
+                    </optgroup>
+                    {taskBoards.length > 0 && (
+                      <optgroup label="Teamタスク">
+                        {taskBoards.map((b) => <option key={b.id} value={`team:${b.id}`}>{b.name}</option>)}
+                      </optgroup>
+                    )}
+                  </select>
+                </label>
+              </div>
+              {taskTarget.startsWith('team:') && mentionsIn(taskFor.content).length > 0 && (
+                <p className="text-[10px] text-gray-500">@{mentionsIn(taskFor.content).join(' @')} — 相手がこのボードのメンバーなら担当に入ります</p>
+              )}
+              <div className="flex items-center justify-end gap-2 pt-1">
+                {taskDone && <span className="text-[11px] text-green-700 mr-auto">{taskDone}</span>}
+                <button type="button" onClick={() => setTaskFor(null)} className="px-3 py-1 border border-gray-300">閉じる</button>
+                <button type="button" disabled={!taskText.trim()} onClick={() => void saveTask()} className="px-3 py-1 bg-[#3b3b3b] text-white disabled:opacity-40">追加</button>
+              </div>
+            </div>
+          </div>
+        )}
         {showIconSettings && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl p-6 animate-in zoom-in-95 duration-200">

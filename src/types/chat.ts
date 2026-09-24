@@ -34,5 +34,6 @@ export interface ChatRoom {
   unreadCount?: Record<string, number>; // ユーザーUID -> 未読メッセージ数
   hiddenAvatarUserIds?: string[]; // このルームでアイコンを隠したいユーザーのIDリスト
   deletedBy?: string[]; // このルームを削除したユーザーのUID配列
+  project?: string; // 物件名（同じ相手でも物件ごとに部屋を分ける）
 }
 
