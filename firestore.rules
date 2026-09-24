@@ -81,6 +81,29 @@ service cloud.firestore {
             || request.auth.uid in get(/databases/$(database)/documents/boards/$(boardId)).data.memberUids
           );
       }
+
+      // チームのメーカー資料箱（事務所の「うちの標準仕様」）。ボードのオーナー・メンバーが読み書きする。
+      // 消せるのはボードのオーナーか、そのカードを足した人だけ。
+      match /makerBox/{itemId} {
+        function isBoardMember() {
+          return request.auth != null
+            && (get(/databases/$(database)/documents/boards/$(boardId)).data.ownerUid == request.auth.uid
+                || request.auth.uid in get(/databases/$(database)/documents/boards/$(boardId)).data.memberUids);
+        }
+        function boxShapeOk() {
+          return request.resource.data.keys().hasOnly(['name', 'categories', 'links', 'extra', 'note', 'addedBy', 'addedByName', 'createdAt', 'updatedAt'])
+            && request.resource.data.name is string
+            && request.resource.data.name.size() <= 200
+            && (!('note' in request.resource.data) || (request.resource.data.note is string && request.resource.data.note.size() <= 5000))
+            && (!('extra' in request.resource.data) || (request.resource.data.extra is list && request.resource.data.extra.size() <= 30));
+        }
+        allow read: if isBoardMember();
+        allow create: if isBoardMember() && boxShapeOk() && request.resource.data.addedBy == request.auth.uid;
+        allow update: if isBoardMember() && boxShapeOk() && request.resource.data.addedBy == resource.data.addedBy;
+        allow delete: if isBoardMember()
+          && (resource.data.addedBy == request.auth.uid
+              || get(/databases/$(database)/documents/boards/$(boardId)).data.ownerUid == request.auth.uid);
+      }
     }
 
     // ユーザープロファイル（読み出しはログイン済み全ユーザー、書き込みは本人のみ）

@@ -9,7 +9,8 @@ import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebaseClient';
 import { useAuth } from '@/lib/AuthContext';
 import { BOX_SLOTS, boxId, mergeMaker, searchMakers, linkChanges, fallbackFor, relatedBookmarks, type MakerData, type MakerBoxItem } from '@/lib/makerBox';
-import { useMakerBox, saveMakerBoxItem, removeMakerBoxItem } from '@/lib/useMakerBox';
+import { useMakerBox, saveBoxItem, removeBoxItem, watchTeamBox, type BoxScope, type TeamBoxItem } from '@/lib/useMakerBox';
+import { listBoardsForUser, type BoardDoc } from '@/lib/firebaseUserData';
 import { findByCompany, isChatNicknameOnly, summarize, todayYmd, newLogId, type ContactLogEntry } from '@/lib/contactLog';
 import { recordContactLog } from '@/lib/contactLogStore';
 
@@ -19,7 +20,39 @@ type Broken = Array<{ url: string; fallback?: string }>;
 export default function MakerBox({ bookmarks }: { bookmarks: Array<{ id: string; title: string; url: string }> }) {
   const { currentUser } = useAuth();
   const uid = currentUser?.uid;
-  const box = useMakerBox(uid);
+  const myBox = useMakerBox(uid);
+  // 置き場所: 自分 / チーム（Teamタスクのボード。メンバーで共有）
+  const [boards, setBoards] = useState<BoardDoc[]>([]);
+  const [scopeKey, setScopeKey] = useState('me');
+  const [teamItems, setTeamItems] = useState<TeamBoxItem[]>([]);
+  const [teamError, setTeamError] = useState('');
+  useEffect(() => {
+    if (!uid) return;
+    listBoardsForUser(uid).then(setBoards).catch(() => setBoards([]));
+    try {
+      const saved = localStorage.getItem('makerBox:scope');
+      if (saved) setScopeKey(saved);
+    } catch {
+      /* 覚えていなくても困らない */
+    }
+  }, [uid]);
+  const pickScope = (k: string) => {
+    setScopeKey(k);
+    try {
+      localStorage.setItem('makerBox:scope', k);
+    } catch {
+      /* 同上 */
+    }
+  };
+  const board = boards.find((b) => b.id === scopeKey);
+  useEffect(() => {
+    setTeamItems([]);
+    setTeamError('');
+    if (!board?.id) return;
+    return watchTeamBox(board.id, setTeamItems, () => setTeamError('このチームの資料箱を開けませんでした'));
+  }, [board?.id]);
+  const scope: BoxScope | null = !uid ? null : board?.id ? { kind: 'team', boardId: board.id, uid, userName: currentUser?.username || '' } : { kind: 'me', uid };
+  const box: TeamBoxItem[] = board ? teamItems : myBox;
   const [data, setData] = useState<MakerData | null>(null);
   const [broken, setBroken] = useState<Broken>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -50,14 +83,32 @@ export default function MakerBox({ bookmarks }: { bookmarks: Array<{ id: string;
     if (!uid || !data) return;
     const m = mergeMaker(data, name);
     if (!m) return;
-    await saveMakerBoxItem(uid, { id: boxId(name), ...m, extra: [], note: '', createdAt: Date.now() });
+    if (!scope) return;
+    await saveBoxItem(scope, { id: boxId(name), ...m, extra: [], note: '', createdAt: Date.now() });
     setQ('');
   };
 
-  if (!uid) return <p className="text-xs text-gray-500">メーカー資料箱を使うにはログインしてください。</p>;
+  if (!uid || !scope) return <p className="text-xs text-gray-500">メーカー資料箱を使うにはログインしてください。</p>;
 
   return (
     <div className="space-y-3 text-xs">
+      <div className="flex flex-wrap items-center gap-1">
+        <span className="text-[10px] tracking-widest text-gray-400 font-mono mr-1">BOX</span>
+        {[{ id: 'me', name: '自分' }, ...boards.map((b) => ({ id: b.id!, name: `チーム: ${b.name}` }))].map((o) => (
+          <button
+            key={o.id}
+            type="button"
+            onClick={() => pickScope(o.id)}
+            className={`px-2 py-0.5 border text-[11px] ${(board?.id ?? 'me') === o.id ? 'bg-[#3b3b3b] text-white border-[#3b3b3b]' : 'bg-white border-gray-300 text-gray-600'}`}
+          >
+            {o.name}
+          </button>
+        ))}
+        <span className="text-[10px] text-gray-400 ml-2">
+          {boards.length ? 'チームの資料箱は、Teamタスクのボードのメンバー全員で見られ、書き足せます（事務所の標準仕様に）' : 'Teamタスクでボードを作ってメンバーを入れると、チームで共有する資料箱が使えます'}
+        </span>
+      </div>
+      {teamError && <p className="text-orange-700">{teamError}</p>}
       <div className="flex flex-wrap items-start gap-3">
         <div className="relative w-72">
           <input
@@ -107,6 +158,8 @@ export default function MakerBox({ bookmarks }: { bookmarks: Array<{ id: string;
             <MakerCard
               key={item.id}
               uid={uid}
+              scope={scope}
+              teams={board ? [] : boards}
               item={item}
               current={data ? mergeMaker(data, item.name)?.links ?? null : null}
               broken={broken}
@@ -122,6 +175,8 @@ export default function MakerBox({ bookmarks }: { bookmarks: Array<{ id: string;
 
 export function MakerCard({
   uid,
+  scope,
+  teams,
   item,
   current,
   broken,
@@ -129,12 +184,16 @@ export function MakerCard({
   related,
 }: {
   uid: string;
-  item: MakerBoxItem;
+  scope: BoxScope;
+  /** 自分の資料箱のカードから、チームへ写すときの行き先 */
+  teams: BoardDoc[];
+  item: TeamBoxItem;
   current: MakerBoxItem['links'] | null;
   broken: Broken;
   contact: Contact | null;
   related: Array<{ id: string; title: string; url: string }>;
 }) {
+  const { currentUser } = useAuth();
   const [note, setNote] = useState(item.note ?? '');
   const [extraLabel, setExtraLabel] = useState('');
   const [extraUrl, setExtraUrl] = useState('');
@@ -143,7 +202,18 @@ export function MakerCard({
   useEffect(() => setNote(item.note ?? ''), [item.note]);
 
   const changes = current ? linkChanges(item.links, current) : [];
-  const save = (patch: Partial<MakerBoxItem>) => saveMakerBoxItem(uid, { ...item, ...patch });
+  const save = (patch: Partial<MakerBoxItem>) => saveBoxItem(scope, { ...item, ...patch });
+  const shareTo = async (boardId: string) => {
+    const b = teams.find((x) => x.id === boardId);
+    if (!b) return;
+    try {
+      // チームに置くときは「足した人」を自分にする（他人のカードの上書きはルールで断られる）
+      await saveBoxItem({ kind: 'team', boardId, uid, userName: currentUser?.username || '' }, { ...item, addedBy: uid, addedByName: currentUser?.username || '' });
+      setMsg(`チーム「${b.name}」の資料箱に写しました`);
+    } catch {
+      setMsg(`チーム「${b.name}」には同じメーカーが既にあります`);
+    }
+  };
   const sum = contact ? summarize(contact.log, todayYmd()) : null;
 
   const requestSample = async () => {
@@ -158,12 +228,15 @@ export function MakerCard({
       <div className="px-3 pt-2 pb-1 flex items-start justify-between gap-2 border-b border-gray-200">
         <div className="min-w-0">
           <div className="text-[14px] font-bold truncate">{item.name}</div>
-          <div className="text-[9px] tracking-widest text-gray-400 font-mono uppercase truncate">{(item.categories ?? []).join(' / ')}</div>
+          <div className="text-[9px] tracking-widest text-gray-400 font-mono uppercase truncate">
+            {(item.categories ?? []).join(' / ')}
+            {scope.kind === 'team' && item.addedByName ? `　ADDED BY ${item.addedByName}` : ''}
+          </div>
         </div>
         <button
           type="button"
           onClick={() => {
-            if (confirm(`${item.name} を資料箱から外しますか？（メモと追加リンクも消えます）`)) void removeMakerBoxItem(uid, item.id);
+            if (confirm(`${item.name} を資料箱から外しますか？（メモと追加リンクも消えます）`)) void removeBoxItem(scope, item.id).catch(() => setMsg('外せるのは、足した人かチームのオーナーだけです'));
           }}
           className="text-gray-300 hover:text-red-600 shrink-0"
           aria-label="資料箱から外す"
@@ -253,6 +326,14 @@ export function MakerCard({
           <input value={sampleText} onChange={(e) => setSampleText(e.target.value)} placeholder="サンプルの品名・品番" className="border border-gray-200 px-1 py-0.5 flex-1 min-w-0 bg-white" />
           <button type="button" onClick={() => void requestSample()} className="px-2 border border-gray-400 bg-white shrink-0">サンプル依頼を記録</button>
         </div>
+        {teams.length > 0 && (
+          <select value="" onChange={(e) => e.target.value && void shareTo(e.target.value)} className="border border-gray-200 px-1 py-0.5 bg-white text-[10px] w-full">
+            <option value="">チームの資料箱に写す…</option>
+            {teams.map((t) => (
+              <option key={t.id} value={t.id}>{t.name}</option>
+            ))}
+          </select>
+        )}
         {msg && <p className="text-[10px] text-green-700">{msg}</p>}
         {related.length > 0 && (
           <div className="text-[10px] text-gray-500 truncate">

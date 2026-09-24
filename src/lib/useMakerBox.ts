@@ -66,3 +66,43 @@ export async function saveMakerBoxItem(uid: string, item: MakerBoxItem) {
 export async function removeMakerBoxItem(uid: string, id: string) {
   await deleteDoc(doc(db, 'users', uid, 'makerBox', id));
 }
+
+// ---- チームの資料箱（boards/{boardId}/makerBox）。Teamタスクのボードのメンバーで共有する ----
+
+export type BoxScope = { kind: 'me'; uid: string } | { kind: 'team'; boardId: string; uid: string; userName: string };
+
+const scopeCol = (scope: BoxScope) =>
+  scope.kind === 'me' ? collection(db, 'users', scope.uid, 'makerBox') : collection(db, 'boards', scope.boardId, 'makerBox');
+
+export type TeamBoxItem = MakerBoxItem & { addedBy?: string; addedByName?: string };
+
+export function watchTeamBox(boardId: string, cb: (items: TeamBoxItem[]) => void, onError?: (e: unknown) => void) {
+  return onSnapshot(
+    collection(db, 'boards', boardId, 'makerBox'),
+    (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<TeamBoxItem, 'id'>) }))),
+    (e) => onError?.(e),
+  );
+}
+
+/** 置き場所を問わず保存。チームに新しく置くときは「足した人」を付ける（ルールで必須） */
+export async function saveBoxItem(scope: BoxScope, item: TeamBoxItem) {
+  const { id, ...rest } = item;
+  const base = {
+    name: rest.name,
+    categories: rest.categories ?? [],
+    links: rest.links,
+    extra: rest.extra ?? [],
+    note: rest.note ?? '',
+    createdAt: rest.createdAt ?? Date.now(),
+    updatedAt: Date.now(),
+  };
+  if (scope.kind === 'me') {
+    await setDoc(doc(scopeCol(scope), id), base, { merge: true });
+    return;
+  }
+  await setDoc(doc(scopeCol(scope), id), { ...base, addedBy: rest.addedBy ?? scope.uid, addedByName: rest.addedByName ?? scope.userName }, { merge: true });
+}
+
+export async function removeBoxItem(scope: BoxScope, id: string) {
+  await deleteDoc(doc(scopeCol(scope), id));
+}

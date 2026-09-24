@@ -288,6 +288,30 @@ await check('部外者: グループを読む', 'deny', () => getDoc(doc(db, 'ch
 await check('部外者: グループに書き込む', 'deny', () =>
   setDoc(doc(db, 'chatRooms', 'g1', 'messages', 'm2'), { senderId: uidB, content: 'x', createdAt: new Date() }));
 
+// ===== チームのメーカー資料箱 =====
+console.log('\n--- チームのメーカー資料箱 ---');
+const uidM = await as('box-member@example.com');
+const uidO = await as('box-owner@example.com');
+await check('オーナー: ボードを作る（メンバー1人）', 'allow', () =>
+  setDoc(doc(db, 'boards', 'teamA'), { name: 'A事務所', ownerUid: uidO, memberUids: [uidM], createdAt: new Date() }));
+const boxItem = (by) => ({ name: '旭化成建材', categories: ['外壁'], links: { products: 'https://example.com', catalog: '', office: '', contact: '', sample: '', cad: '' }, extra: [], note: 'うちの標準: 37mm', addedBy: by, addedByName: 'x', createdAt: Date.now(), updatedAt: Date.now() });
+await check('オーナー: 資料箱にカードを足す', 'allow', () => setDoc(doc(db, 'boards', 'teamA', 'makerBox', 'akk'), boxItem(uidO)));
+await as('box-member@example.com');
+await check('メンバー: 読む', 'allow', () => getDoc(doc(db, 'boards', 'teamA', 'makerBox', 'akk')));
+await check('メンバー: メモを書き換える', 'allow', () => updateDoc(doc(db, 'boards', 'teamA', 'makerBox', 'akk'), { note: '37mm → 50mm に変更', updatedAt: Date.now() }));
+await check('メンバー: 足した人を自分に付け替え', 'deny', () => updateDoc(doc(db, 'boards', 'teamA', 'makerBox', 'akk'), { addedBy: uidM }));
+await check('メンバー: 他人になりすまして足す', 'deny', () => setDoc(doc(db, 'boards', 'teamA', 'makerBox', 'kubota'), boxItem(uidO)));
+await check('メンバー: 余計な項目を入れる', 'deny', () => setDoc(doc(db, 'boards', 'teamA', 'makerBox', 'kubota'), { ...boxItem(uidM), secret: 1 }));
+await check('メンバー: 自分のカードを足す', 'allow', () => setDoc(doc(db, 'boards', 'teamA', 'makerBox', 'kubota'), boxItem(uidM)));
+await check('メンバー: オーナーのカードを消す', 'deny', () => deleteDoc(doc(db, 'boards', 'teamA', 'makerBox', 'akk')));
+await check('メンバー: 自分のカードを消す', 'allow', () => deleteDoc(doc(db, 'boards', 'teamA', 'makerBox', 'kubota')));
+await as('mallory@example.com');
+await check('部外者: 読む', 'deny', () => getDoc(doc(db, 'boards', 'teamA', 'makerBox', 'akk')));
+await check('部外者: 一覧', 'deny', () => getDocs(collection(db, 'boards', 'teamA', 'makerBox')));
+await check('部外者: 足す', 'deny', () => setDoc(doc(db, 'boards', 'teamA', 'makerBox', 'x'), boxItem(uidB)));
+await as('box-owner@example.com');
+await check('オーナー: 他人のカードも消せる', 'allow', () => deleteDoc(doc(db, 'boards', 'teamA', 'makerBox', 'akk')));
+
 const failed = results.filter((r) => !r.pass).length;
 console.log(`\n${results.length - failed}/${results.length} 件成功`);
 process.exit(failed === 0 && intact ? 0 : 1);
