@@ -520,7 +520,8 @@ function MailDetail({
 }) {
   const { categories, addTask } = useTaskContext();
   const todos = useMemo(() => pickTodoLines(mail.text), [mail.text]);
-  const [taskText, setTaskText] = useState(todos[0] ?? mail.subjectKey);
+  const projectName = projects.find((p) => p.id === mail.projectId)?.name;
+  const [taskText, setTaskText] = useState((projectName ? `【${projectName}】` : '') + (todos[0] ?? mail.subjectKey));
   const [taskDue, setTaskDue] = useState('');
   const [taskCat, setTaskCat] = useState(categories[0]?.id ?? '1');
   const [taskDone, setTaskDone] = useState('');
@@ -597,7 +598,7 @@ function MailDetail({
         {todos.length > 0 && (
           <div className="flex flex-wrap gap-1">
             {todos.map((t) => (
-              <button key={t} type="button" onClick={() => setTaskText(t)} className="text-[10px] px-1 border bg-white text-left max-w-full truncate" title={t}>
+              <button key={t} type="button" onClick={() => setTaskText((projectName ? `【${projectName}】` : '') + t)} className="text-[10px] px-1 border bg-white text-left max-w-full truncate" title={t}>
                 {t}
               </button>
             ))}

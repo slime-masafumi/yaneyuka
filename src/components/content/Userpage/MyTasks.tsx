@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import ToolHeader from './ToolHeader';
 import { FiEdit2, FiTrash2, FiCheck, FiCalendar } from 'react-icons/fi';
 import { useTaskContext } from '../../providers/TaskProvider';
+import { ProjectView, DoneHistory } from './myTasks/MyTaskViews';
 
 interface Task {
   id: string;
@@ -83,7 +84,19 @@ const DEFAULT_CATEGORIES: TaskCategory[] = [
 ];
 
 export default function MyTasks() {
-  const { categories, setCategories, addTask, toggleTaskComplete, changeCategoryColor, updateTask, addCategory, deleteCategory } = useTaskContext();
+  const { categories, setCategories, addTask, toggleTaskComplete, changeCategoryColor, updateTask, addCategory, deleteCategory, deleteTask: removeTask, clearTasks, renameCategory } = useTaskContext();
+  // シート / 物件別 / 完了の履歴
+  const [view, setView] = useState<'sheets' | 'projects' | 'done'>('sheets');
+  const [hideCompleted, setHideCompleted] = useState(false);
+  React.useEffect(() => {
+    try { setHideCompleted(window.localStorage.getItem('myTasks:hideCompleted') === '1'); } catch {}
+  }, []);
+  const toggleHideCompleted = () => {
+    setHideCompleted(v => {
+      try { window.localStorage.setItem('myTasks:hideCompleted', v ? '0' : '1'); } catch {}
+      return !v;
+    });
+  };
   const [editingTitle, setEditingTitle] = useState<string | null>(null);
   const [newTaskContents, setNewTaskContents] = useState<{[key: string]: { content: string; dueDate?: string | null }}>({});
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
@@ -124,9 +137,7 @@ export default function MyTasks() {
 
   const saveTitle = (categoryId: string) => {
     if (!tempTitle.trim()) return;
-    setCategories(categories.map(category => 
-      category.id === categoryId ? { ...category, title: tempTitle } : category
-    ));
+    void renameCategory(categoryId, tempTitle.trim());
     setEditingTitle(null);
   };
 
@@ -141,9 +152,7 @@ export default function MyTasks() {
 
   const clearAllTasks = (categoryId: string) => {
     if (window.confirm('このカテゴリーのタスクを全て削除してもよろしいですか？')) {
-      setCategories(categories.map(category =>
-        category.id === categoryId ? { ...category, tasks: [] } : category
-      ));
+      void clearTasks(categoryId);
     }
   };
 
@@ -152,11 +161,7 @@ export default function MyTasks() {
   };
 
   const deleteTask = (categoryId: string, taskId: string) => {
-    setCategories(categories.map(category =>
-      category.id === categoryId
-        ? { ...category, tasks: category.tasks.filter(task => task.id !== taskId) }
-        : category
-    ));
+    void removeTask(categoryId, taskId);
   };
 
   const startEditingTask = (taskId: string, currentContent: string) => {
@@ -166,16 +171,8 @@ export default function MyTasks() {
 
   const saveTaskEdit = (categoryId: string, taskId: string) => {
     if (!tempTaskContent.trim()) return;
-    setCategories(categories.map(category =>
-      category.id === categoryId
-        ? {
-            ...category,
-            tasks: category.tasks.map(task =>
-              task.id === taskId ? { ...task, content: tempTaskContent.trim() } : task
-            ),
-          }
-        : category
-    ));
+    const task = categories.find(c => c.id === categoryId)?.tasks.find(t => t.id === taskId);
+    void updateTask(categoryId, taskId, tempTaskContent.trim(), task?.dueDate ?? null);
     setEditingTaskId(null);
   };
 
@@ -202,7 +199,7 @@ export default function MyTasks() {
     <div className="pt-0 pb-4 [&>*:not(:first-child)]:mx-4 [&>*:nth-child(2)]:mt-3">
       <ToolHeader
         title="Myタスク"
-        description="個人タスクをカテゴリごとに整理し、期日・担当メモを付けて進捗管理。登録したタスクはMyカレンダーにも同期されます"
+        description="宿題管理。シートごとの整理に加え、【物件名】でまとめて見る・完了した日の履歴を見る。期限超過は赤で出し、Myカレンダーにも同期されます"
       />
       <div className="flex items-center gap-2 mb-3 flex-wrap">
         <span className="text-[11px] text-gray-600">表示列数</span>
@@ -270,6 +267,9 @@ export default function MyTasks() {
           >
             期日順
           </button>
+          <label className="text-xs flex items-center gap-1 ml-1">
+            <input type="checkbox" checked={hideCompleted} onChange={toggleHideCompleted} /> 完了を隠す
+          </label>
           {(() => {
             const overdue = categories.reduce(
               (n, c) => n + c.tasks.filter(t => dueState(t.dueDate, t.completed) === 'overdue').length,
@@ -284,6 +284,29 @@ export default function MyTasks() {
           })()}
         </div>
       </div>
+      <div className="flex items-center gap-0 mb-2 border-b border-gray-300">
+        {([['sheets', 'シート'], ['projects', '物件別'], ['done', '完了の履歴']] as const).map(([k, label]) => (
+          <button
+            key={k}
+            type="button"
+            onClick={() => setView(k)}
+            className={`px-3 py-1 text-xs -mb-px border-b-2 ${view === k ? 'border-gray-800 font-bold text-gray-900' : 'border-transparent text-gray-500'}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {view === 'projects' && (
+        <div className="border border-[#3b3b3b] p-3">
+          <ProjectView categories={categories} today={ymd(new Date())} onToggle={toggleTaskComplete} />
+        </div>
+      )}
+      {view === 'done' && (
+        <div className="border border-[#3b3b3b] p-3">
+          <DoneHistory categories={categories} onToggle={toggleTaskComplete} />
+        </div>
+      )}
+      {view === 'sheets' && (
       <div className="my-task-grid border border-[#3b3b3b] p-3">
         {categories.map(category => {
           const flexBasis = `calc((100% - ${(columnMode - 1)} * 0.75rem) / ${columnMode})`;
@@ -436,7 +459,7 @@ export default function MyTasks() {
             <div className="max-h-[360px] overflow-y-auto divide-y divide-black/5"
               style={category.color.startsWith('#') ? { backgroundColor: category.color } : {}}
             >
-              {(sortByDue ? [...category.tasks].sort(byDueDate) : category.tasks).map(task => (
+              {(sortByDue ? [...category.tasks].sort(byDueDate) : category.tasks).filter(task => !(hideCompleted && task.completed)).map(task => (
                 <div
                   key={task.id}
                   className="px-3 py-2 flex items-start gap-2"
@@ -526,6 +549,7 @@ export default function MyTasks() {
         );
         })}
       </div>
+      )}
     </div>
   );
 } 

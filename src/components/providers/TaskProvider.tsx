@@ -10,6 +10,8 @@ export interface Task {
   content: string;
   completed: boolean;
   dueDate?: string | null;
+  /** 完了した時刻（ms）。完了の履歴に使う。以前に完了したものには無い */
+  completedAt?: number | null;
   categoryId: string;
 }
 
@@ -29,6 +31,9 @@ interface TaskContextType {
   updateTask: (categoryId: string, taskId: string, content: string, dueDate?: string | null) => void;
   addCategory: (title?: string, color?: string) => Promise<string>;
   deleteCategory: (categoryId: string) => Promise<void>;
+  deleteTask: (categoryId: string, taskId: string) => Promise<void>;
+  clearTasks: (categoryId: string) => Promise<void>;
+  renameCategory: (categoryId: string, title: string) => Promise<void>;
 }
 
 const DEFAULT_CATEGORIES: TaskCategory[] = [
@@ -137,14 +142,39 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const toggleTaskComplete = async (categoryId: string, taskId: string) => {
+    const cat = categories.find(c => c.id === categoryId)
+    const t = cat?.tasks.find(x => x.id === taskId)
+    const completed = !t?.completed
+    const completedAt = completed ? Date.now() : null
     setCategories(prev => prev.map(cat =>
-      cat.id === categoryId ? { ...cat, tasks: cat.tasks.map(task => task.id === taskId ? { ...task, completed: !task.completed } : task) } : cat
+      cat.id === categoryId ? { ...cat, tasks: cat.tasks.map(task => task.id === taskId ? { ...task, completed, completedAt } : task) } : cat
     ))
     if (!currentUser) return
     const ref = doc(db, 'users', currentUser.uid, 'mytasks', categoryId, 'tasks', taskId)
-    const cat = categories.find(c => c.id === categoryId)
-    const t = cat?.tasks.find(x => x.id === taskId)
-    await updateDoc(ref, { completed: !t?.completed } as any)
+    await updateDoc(ref, { completed, completedAt } as any)
+  };
+
+  // 以前は画面側が setCategories でローカルだけ消していたため、再読込や次の同期で元に戻っていた
+  const deleteTask = async (categoryId: string, taskId: string) => {
+    setCategories(prev => prev.map(cat => cat.id === categoryId ? { ...cat, tasks: cat.tasks.filter(t => t.id !== taskId) } : cat))
+    if (!currentUser || taskId.startsWith('tmp-')) return
+    try { await deleteDoc(doc(db, 'users', currentUser.uid, 'mytasks', categoryId, 'tasks', taskId)) } catch (e) { console.error('タスクの削除に失敗', e) }
+  };
+
+  const clearTasks = async (categoryId: string) => {
+    setCategories(prev => prev.map(cat => cat.id === categoryId ? { ...cat, tasks: [] } : cat))
+    if (!currentUser) return
+    try {
+      const snap = await getDocs(collection(db, 'users', currentUser.uid, 'mytasks', categoryId, 'tasks'))
+      await Promise.all(snap.docs.map(d => deleteDoc(d.ref)))
+    } catch (e) { console.error('タスクの一括削除に失敗', e) }
+  };
+
+  const renameCategory = async (categoryId: string, title: string) => {
+    setCategories(prev => prev.map(cat => cat.id === categoryId ? { ...cat, title } : cat))
+    if (!currentUser) return
+    const color = categories.find(c => c.id === categoryId)?.color || 'bg-gray-100'
+    try { await setDoc(doc(db, 'users', currentUser.uid, 'mytasks', categoryId), { title, color }, { merge: true }) } catch (e) { console.error('シート名の保存に失敗', e) }
   };
 
   const changeCategoryColor = async (categoryId: string, color: string) => {
@@ -193,7 +223,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   return (
-    <TaskContext.Provider value={{ categories, setCategories, addTask, toggleTaskComplete, changeCategoryColor, updateTask, addCategory, deleteCategory }}>
+    <TaskContext.Provider value={{ categories, setCategories, addTask, toggleTaskComplete, changeCategoryColor, updateTask, addCategory, deleteCategory, deleteTask, clearTasks, renameCategory }}>
       {children}
     </TaskContext.Provider>
   );

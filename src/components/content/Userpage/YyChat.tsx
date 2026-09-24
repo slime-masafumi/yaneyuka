@@ -680,7 +680,8 @@ const YyChat: React.FC = () => {
 
   const openTask = (m: ExtendedChatMessage) => {
     setTaskFor(m);
-    setTaskText(taskTextFrom(m.content) || '（写真の確認）');
+    const base = taskTextFrom(m.content) || '（写真の確認）';
+    setTaskText(selectedRoom?.project ? `【${selectedRoom.project}】${base}` : base);
     setTaskDue(parseDueHint(m.content, new Date()) ?? '');
     setTaskTarget(`my:${myTaskCategories[0]?.id ?? '1'}`);
     setTaskDone('');
