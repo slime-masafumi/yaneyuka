@@ -169,6 +169,29 @@ export function requiredCount(quantity: number, perUnit: number, lossPercent = 0
   return Math.ceil((quantity * (1 + lossPercent / 100)) / perUnit);
 }
 
+/** 1尺 = 10/33 m ≒ 303.03mm */
+export const SHAKU_MM = 10000 / 33;
+export const mmToShaku = (mm: number) => mm / SHAKU_MM;
+export const shakuToMm = (shaku: number) => shaku * SHAKU_MM;
+
+/** 板の呼び寸法（サブロク等）→ mm */
+export const BOARD_SIZES: Record<string, [number, number]> = {
+  '3x6': [910, 1820], 'サブロク': [910, 1820],
+  '3x8': [910, 2420], 'サンパチ': [910, 2420],
+  '3x9': [910, 2730], 'サンク': [910, 2730],
+  '3x10': [910, 3030], 'サントウ': [910, 3030],
+  '4x8': [1220, 2440], 'シハチ': [1220, 2440],
+};
+
+/** 面積[㎡]を張るのに要る板の枚数。規格は "3x6"（全角・×・* も可）、ロス率は% */
+export function boardCount(areaM2: number, size = '3x6', lossPercent = 5): number | null {
+  const key = size.normalize('NFKC').replace(/[×*X]/g, 'x').replace(/s+/g, '');
+  const dims = BOARD_SIZES[key];
+  if (!dims) return null;
+  const per = boardArea(dims[0], dims[1]);
+  return per === null ? null : requiredCount(areaM2, per, lossPercent);
+}
+
 /** 板の定尺寸法（mm）から 1 枚あたりの面積[㎡]を出す。910×1820 → 1.6562 */
 export function boardArea(widthMm: number, heightMm: number): number | null {
   if (!(widthMm > 0) || !(heightMm > 0)) return null;

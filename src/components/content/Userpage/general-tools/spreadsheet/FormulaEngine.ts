@@ -1073,6 +1073,25 @@ class FormulaEngine {
       const n = K.requiredCount(q, per, loss as number);
       return n === null ? new CellError(ERR.NUM) : n;
     },
+    // =尺(mm) 1818 → 6尺。=尺ミリ(尺) 1 → 303.03
+    '尺': (args) => { const v = argNum(args, 0); return isErr(v) ? v : K.mmToShaku(v); },
+    '尺ミリ': (args) => { const v = argNum(args, 0); return isErr(v) ? v : K.shakuToMm(v); },
+    // =ボード枚数(面積㎡, [規格="3x6"], [ロス率%=5]) 端数は切り上げ
+    'ボード枚数': (args) => {
+      const a = argNum(args, 0); if (isErr(a)) return a;
+      const size = args.length > 1 ? argText(args, 1) : '3x6';
+      const loss = args.length > 2 ? argNum(args, 2) : 5; if (isErr(loss)) return loss;
+      const n = K.boardCount(a, size || '3x6', loss as number);
+      return n === null ? new CellError(ERR.VALUE) : n;
+    },
+    // =本数(長さm, 定尺m, [ロス率%=0]) 巾木・廻り縁・クロスの巻きなど
+    '本数': (args) => {
+      const len = argNum(args, 0); if (isErr(len)) return len;
+      const per = argNum(args, 1); if (isErr(per)) return per;
+      const loss = args.length > 2 ? argNum(args, 2) : 0; if (isErr(loss)) return loss;
+      const n = K.requiredCount(len, per, loss as number);
+      return n === null ? new CellError(ERR.NUM) : n;
+    },
     // =定尺面積(幅mm, 高さmm) 910×1820 → 1.6562
     '定尺面積': (args) => {
       const w = argNum(args, 0); if (isErr(w)) return w;
@@ -1081,6 +1100,12 @@ class FormulaEngine {
       return a === null ? new CellError(ERR.NUM) : a;
     },
   };
+
+  constructor() {
+    // 英字でも呼べるように（日本語入力を切り替えずに打てる）
+    const alias: Record<string, string> = { TSUBO: '坪', HEIBEI: '平米', JO: '帖', KEN: '間', SHAKU: '尺', BOARD: 'ボード枚数', ROLL: '本数', QTY: '必要数' };
+    for (const [en, ja] of Object.entries(alias)) this.functions[en] = this.functions[ja];
+  }
 
   // ------------------------------------------------ アドレス変換
 
