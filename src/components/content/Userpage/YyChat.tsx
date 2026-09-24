@@ -154,6 +154,10 @@ const YyChat: React.FC = () => {
   const [availableUsers, setAvailableUsers] = useState<Array<{ uid: string; username: string; email: string | null }>>([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [userSearchTerm, setUserSearchTerm] = useState('');
+  // 相手を選ぶ画面の使い道: 1対1 / グループを作る / グループにメンバーを足す
+  const [userSelectMode, setUserSelectMode] = useState<'dm' | 'group' | 'add'>('dm');
+  const [groupPicks, setGroupPicks] = useState<Set<string>>(new Set());
+  const [groupName, setGroupName] = useState('');
   const [showRoomMenu, setShowRoomMenu] = useState(false);
   
   const [userDisplayNames, setUserDisplayNames] = useState<Record<string, string>>({});
@@ -453,7 +457,6 @@ const YyChat: React.FC = () => {
         createdAt: serverTimestamp(), readBy: [currentUser.uid]
       });
       
-      const otherUid = selectedRoom.participants.find(u => u !== currentUser.uid);
       const updateData: any = {
         lastMessage: { 
           content: imageToSend ? (content ? content : '画像が送信されました') : content, 
@@ -463,7 +466,10 @@ const YyChat: React.FC = () => {
         },
         lastActivityAt: serverTimestamp()
       };
-      if (otherUid) updateData[`unreadCount.${otherUid}`] = (selectedRoom.unreadCount?.[otherUid] || 0) + 1;
+      // 自分以外の全員（グループなら複数人）の未読を増やす
+      for (const uid of selectedRoom.participants) {
+        if (uid !== currentUser.uid) updateData[`unreadCount.${uid}`] = (selectedRoom.unreadCount?.[uid] || 0) + 1;
+      }
       
       await updateDoc(doc(db, 'chatRooms', selectedRoom.id), updateData);
     } catch (e) {
@@ -556,6 +562,11 @@ const YyChat: React.FC = () => {
 
   const handleSaveNickname = async () => {
     if (!currentUser || !selectedRoom) return;
+    if (selectedRoom.isGroup) {
+      await updateDoc(doc(db, 'chatRooms', selectedRoom.id), { name: editingNameValue.trim() || deleteField() });
+      setIsEditingName(false);
+      return;
+    }
     const otherUid = selectedRoom.participants.find(u => u !== currentUser.uid);
     if (!otherUid) return;
 
@@ -583,8 +594,16 @@ const YyChat: React.FC = () => {
     return room.participants.find(u => u !== currentUser?.uid);
   };
 
+  const memberName = (room: ChatRoom, uid: string) =>
+    uid === currentUser?.uid ? currentUser?.username || '' : customNicknames[uid] || userDisplayNames[uid] || room.participantUsernames?.[uid] || 'ユーザー';
+
   const getOtherParticipantName = (room: ChatRoom) => {
     if (!currentUser) return '';
+    if (room.isGroup) {
+      if (room.name) return room.name;
+      const others = room.participants.filter((u) => u !== currentUser.uid).map((u) => memberName(room, u));
+      return others.slice(0, 3).join('、') + (others.length > 3 ? ` ほか${others.length - 3}人` : '');
+    }
     const otherUid = getOtherParticipantUid(room);
     if (!otherUid) return '不明';
     return customNicknames[otherUid] || userDisplayNames[otherUid] || room.participantUsernames[otherUid] || '不明';
@@ -628,16 +647,24 @@ const YyChat: React.FC = () => {
     if (!currentUser || !selectedRoom) return;
     const otherUid = getOtherParticipantUid(selectedRoom);
     if (!otherUid || !project.trim()) return;
-    const existing = rooms.find((r) => r.participants.includes(otherUid) && r.project === project.trim());
+    const sameMembers = (r: ChatRoom) => r.participants.length === selectedRoom.participants.length && selectedRoom.participants.every((u) => r.participants.includes(u));
+    const existing = rooms.find((r) => (selectedRoom.isGroup ? sameMembers(r) : r.participants.includes(otherUid) && r.participants.length === 2) && r.project === project.trim());
     if (existing) {
       setSelectedRoom(existing);
     } else {
       const ref = doc(collection(db, 'chatRooms'));
-      const newRoom = {
-        id: ref.id, participants: [currentUser.uid, otherUid], project: project.trim(),
-        participantUsernames: selectedRoom.participantUsernames,
-        createdAt: new Date(), lastActivityAt: new Date(),
-      };
+      const newRoom = selectedRoom.isGroup
+        ? {
+            id: ref.id, participants: [currentUser.uid, ...selectedRoom.participants.filter((u) => u !== currentUser.uid)], project: project.trim(),
+            isGroup: true, ownerUid: currentUser.uid, ...(selectedRoom.name ? { name: selectedRoom.name } : {}),
+            participantUsernames: selectedRoom.participantUsernames,
+            createdAt: new Date(), lastActivityAt: new Date(),
+          }
+        : {
+            id: ref.id, participants: [currentUser.uid, otherUid], project: project.trim(),
+            participantUsernames: selectedRoom.participantUsernames,
+            createdAt: new Date(), lastActivityAt: new Date(),
+          };
       await setDoc(ref, { ...newRoom, createdAt: serverTimestamp(), lastActivityAt: serverTimestamp() });
       setSelectedRoom(newRoom as any);
     }
@@ -697,13 +724,17 @@ const YyChat: React.FC = () => {
       } else {
         const board = taskBoards.find((b) => b.id === id);
         // @相手 と書かれていて、相手がそのボードのメンバーなら担当にする
-        const other = getOtherParticipantUid(selectedRoom);
-        const otherName = other ? getDisplayName(other) : '';
-        const mentioned = !!other && mentionsIn(taskFor.content).some((n) => otherName.includes(n) || n.includes(otherName));
+        // @名前 に合う参加者（グループなら複数から探す）を担当に
+        const names = mentionsIn(taskFor.content);
+        const other = selectedRoom.participants.find((u) => {
+          if (u === currentUser?.uid) return false;
+          const nm = memberName(selectedRoom, u);
+          return names.some((n) => nm.includes(n) || n.includes(nm));
+        });
         const member = !!board && !!other && (board.ownerUid === other || board.memberUids.includes(other));
         await addBoardTask(id, {
           title: taskText.trim(), completed: false, dueDate: taskDue || null, priority: 'medium',
-          assigneeUid: mentioned && member ? other! : null,
+          assigneeUid: other && member ? other : null,
           details: `yychat（${roomLabel(selectedRoom)}）${formatMessageDate(taskFor.createdAt)} ${getDisplayName(taskFor.senderId)}:\n${taskFor.content}`,
         });
       }
@@ -712,6 +743,44 @@ const YyChat: React.FC = () => {
       console.error('タスクの追加に失敗', e);
       setTaskDone('追加できませんでした');
     }
+  };
+
+  const createGroup = async () => {
+    if (!currentUser || groupPicks.size < 2) return;
+    const picks = availableUsers.filter((u) => groupPicks.has(u.uid)).slice(0, 19);
+    const ref = doc(collection(db, 'chatRooms'));
+    const newRoom = {
+      id: ref.id,
+      participants: [currentUser.uid, ...picks.map((u) => u.uid)],
+      participantUsernames: Object.fromEntries([[currentUser.uid, currentUser.username], ...picks.map((u) => [u.uid, u.username])]),
+      isGroup: true,
+      ownerUid: currentUser.uid,
+      ...(groupName.trim() ? { name: groupName.trim() } : {}),
+      createdAt: new Date(),
+      lastActivityAt: new Date(),
+    };
+    await setDoc(ref, { ...newRoom, createdAt: serverTimestamp(), lastActivityAt: serverTimestamp() });
+    setSelectedRoom(newRoom as any);
+    setShowUserSelect(false);
+    setGroupPicks(new Set());
+    setGroupName('');
+  };
+
+  const addMembers = async () => {
+    if (!currentUser || !selectedRoom?.isGroup || !groupPicks.size) return;
+    const picks = availableUsers.filter((u) => groupPicks.has(u.uid) && !selectedRoom.participants.includes(u.uid));
+    const next = [...selectedRoom.participants, ...picks.map((u) => u.uid)].slice(0, 20);
+    const names: Record<string, string> = {};
+    for (const u of picks) names[`participantUsernames.${u.uid}`] = u.username;
+    await updateDoc(doc(db, 'chatRooms', selectedRoom.id), { participants: next, ...names });
+    setShowUserSelect(false);
+    setGroupPicks(new Set());
+  };
+
+  const removeMember = async (uid: string) => {
+    if (!selectedRoom?.isGroup || selectedRoom.participants.length <= 2) return;
+    if (!confirm(`${memberName(selectedRoom, uid)} をこのグループから外しますか？`)) return;
+    await updateDoc(doc(db, 'chatRooms', selectedRoom.id), { participants: selectedRoom.participants.filter((u) => u !== uid) });
   };
 
   const getAvatarUrl = (uid: string, roomId?: string) => {
@@ -781,7 +850,7 @@ const YyChat: React.FC = () => {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
             </button>
             <button 
-              onClick={() => { setShowUserSelect(true); loadUsers(); }}
+              onClick={() => { setUserSelectMode('dm'); setGroupPicks(new Set()); setGroupName(''); setShowUserSelect(true); loadUsers(); }}
               className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center hover:bg-blue-700 transition shadow-sm"
               title="新規チャット"
             >
@@ -847,6 +916,15 @@ const YyChat: React.FC = () => {
             <div className="p-2">
               <div className="flex items-center gap-2 mb-2 p-1">
                 <button onClick={() => setShowUserSelect(false)} className="text-xs text-gray-500 hover:text-gray-800">← 戻る</button>
+                {userSelectMode !== 'add' && (
+                  <button
+                    type="button"
+                    onClick={() => { setUserSelectMode(userSelectMode === 'group' ? 'dm' : 'group'); setGroupPicks(new Set()); }}
+                    className={`text-[10px] px-1.5 py-1 border shrink-0 ${userSelectMode === 'group' ? 'bg-[#3b3b3b] text-white border-[#3b3b3b]' : 'border-gray-300 text-gray-600'}`}
+                  >
+                    グループ
+                  </button>
+                )}
                 <input 
                   className="flex-1 text-xs border rounded px-2 py-1.5 focus:outline-none focus:border-blue-500" 
                   placeholder="ユーザー検索..." 
@@ -854,13 +932,36 @@ const YyChat: React.FC = () => {
                   onChange={e => setUserSearchTerm(e.target.value)}
                 />
               </div>
+              {userSelectMode !== 'dm' && (
+                <div className="mb-2 p-2 bg-white border border-gray-200 space-y-1.5 text-xs">
+                  {userSelectMode === 'group' && (
+                    <input value={groupName} onChange={(e) => setGroupName(e.target.value)} placeholder="グループ名（A邸 定例メンバー）" className="w-full border px-2 py-1" />
+                  )}
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-500">{userSelectMode === 'group' ? `自分＋${groupPicks.size}人（2人以上選ぶ・20人まで）` : `${groupPicks.size}人を足す`}</span>
+                    <button
+                      type="button"
+                      disabled={userSelectMode === 'group' ? groupPicks.size < 2 || groupPicks.size > 19 : groupPicks.size === 0}
+                      onClick={() => void (userSelectMode === 'group' ? createGroup() : addMembers())}
+                      className="px-2 py-1 bg-[#3b3b3b] text-white disabled:opacity-40"
+                    >
+                      {userSelectMode === 'group' ? 'グループを作る' : '足す'}
+                    </button>
+                  </div>
+                </div>
+              )}
               {usersLoading ? <div className="text-xs p-4 text-center text-gray-400">読み込み中...</div> : (
                 <div className="space-y-0.5">
                   {availableUsers
                     .filter(u => u.uid !== currentUser.uid && (u.username.includes(userSearchTerm) || u.email?.includes(userSearchTerm)))
+                    .filter(u => userSelectMode !== 'add' || !selectedRoom?.participants.includes(u.uid))
                     .map(u => (
-                      <div key={u.uid} 
+                      <div key={u.uid}
                         onClick={async () => {
+                          if (userSelectMode !== 'dm') {
+                            setGroupPicks((p) => toggleIn(p, u.uid));
+                            return;
+                          }
                           const existing = rooms.find(r => r.participants.includes(u.uid) && r.participants.length === 2 && !r.project);
                           if (existing) {
                             setSelectedRoom(existing);
@@ -878,6 +979,7 @@ const YyChat: React.FC = () => {
                         }}
                         className="p-2 hover:bg-white rounded-lg cursor-pointer flex items-center gap-2 transition"
                       >
+                        {userSelectMode !== 'dm' && <input type="checkbox" readOnly checked={groupPicks.has(u.uid)} className="pointer-events-none" />}
                         <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-white text-[10px] overflow-hidden">
                           {getAvatarUrl(u.uid) ? <img src={getAvatarUrl(u.uid)!} className="w-full h-full object-cover"/> : u.username[0]}
                         </div>
@@ -990,7 +1092,32 @@ const YyChat: React.FC = () => {
                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/></svg>
                 </button>
                 {showRoomMenu && (
-                  <div className="absolute right-0 top-full mt-1 w-64 bg-white rounded-lg shadow-xl border border-gray-100 overflow-hidden z-20 py-1">
+                  <div className="absolute right-0 top-full mt-1 w-64 bg-white rounded-lg shadow-xl border border-gray-100 overflow-hidden z-20 py-1 max-h-[70vh] overflow-y-auto">
+                     {selectedRoom.isGroup && (
+                       <>
+                         <div className="px-3 py-2 space-y-1">
+                           <div className="text-[11px] font-medium text-gray-700 flex justify-between">
+                             <span>メンバー {selectedRoom.participants.length}人</span>
+                             {selectedRoom.ownerUid === currentUser.uid && (
+                               <button type="button" className="text-[10px] underline text-gray-500" onClick={() => { setUserSelectMode('add'); setGroupPicks(new Set()); setShowUserSelect(true); setShowRoomMenu(false); loadUsers(); }}>
+                                 メンバーを足す
+                               </button>
+                             )}
+                           </div>
+                           <ul className="text-[11px] space-y-0.5">
+                             {selectedRoom.participants.map((u) => (
+                               <li key={u} className="flex items-center justify-between">
+                                 <span className="truncate">{memberName(selectedRoom, u)}{u === selectedRoom.ownerUid ? '（作成）' : ''}</span>
+                                 {selectedRoom.ownerUid === currentUser.uid && u !== currentUser.uid && (
+                                   <button type="button" className="text-gray-300 hover:text-red-600" onClick={() => void removeMember(u)} aria-label="外す">✕</button>
+                                 )}
+                               </li>
+                             ))}
+                           </ul>
+                         </div>
+                         <div className="border-t border-gray-100 my-1"></div>
+                       </>
+                     )}
                      <div className="px-3 py-2 space-y-1.5">
                        <div className="text-[11px] font-medium text-gray-700">物件ルーム</div>
                        <input
@@ -1124,7 +1251,9 @@ const YyChat: React.FC = () => {
                         )}
                         {isMe && (
                            <span>
-                             {selectedRoom.participants.find(u => u !== currentUser.uid) && m.readBy?.includes(selectedRoom.participants.find(u => u !== currentUser.uid)!) ? ' 既読' : ''}
+                             {selectedRoom.isGroup
+                               ? (() => { const n = (m.readBy ?? []).filter((u) => u !== currentUser.uid && selectedRoom.participants.includes(u)).length; return n ? ` 既読 ${n}` : ''; })()
+                               : selectedRoom.participants.find(u => u !== currentUser.uid) && m.readBy?.includes(selectedRoom.participants.find(u => u !== currentUser.uid)!) ? ' 既読' : ''}
                            </span>
                         )}
                         {isMe && (

@@ -251,6 +251,43 @@ await check('未ログイン: 計測マーカーを書き換えて計測を無�
 await check('未ログイン: 日次カウンタを書き換え', 'deny', () =>
   setDoc(doc(db, 'shareDownloadDaily', 'ABCD2345_20260831'), { count: 0 }));
 
+// ===== yychat: 2人の部屋とグループ =====
+console.log('\n--- yychat ---');
+const uidC1 = await as('chat-c1@example.com');
+const uidC3 = await as('chat-c3@example.com');
+const uidC4 = await as('chat-c4@example.com');
+const uidC2 = await as('chat-c2@example.com');
+await check('2人の部屋を作る', 'allow', () =>
+  setDoc(doc(db, 'chatRooms', 'pair1'), { participants: [uidC2, uidC1], participantUsernames: {}, createdAt: new Date(), lastActivityAt: new Date() }));
+await check('3人の部屋を「グループ」と名乗らずに作る', 'deny', () =>
+  setDoc(doc(db, 'chatRooms', 'g0'), { participants: [uidC2, uidC1, uidC3], participantUsernames: {}, createdAt: new Date() }));
+await check('他人を作成者にしてグループを作る', 'deny', () =>
+  setDoc(doc(db, 'chatRooms', 'g0'), { participants: [uidC2, uidC1, uidC3], isGroup: true, ownerUid: uidC1, participantUsernames: {}, createdAt: new Date() }));
+await check('3人のグループを作る', 'allow', () =>
+  setDoc(doc(db, 'chatRooms', 'g1'), { participants: [uidC2, uidC1, uidC3], isGroup: true, ownerUid: uidC2, name: 'A邸 定例', participantUsernames: {}, createdAt: new Date(), lastActivityAt: new Date() }));
+await check('21人のグループは作れない', 'deny', () =>
+  setDoc(doc(db, 'chatRooms', 'g2'), { participants: [uidC2, ...Array.from({ length: 20 }, (_, i) => 'u' + i)], isGroup: true, ownerUid: uidC2, participantUsernames: {}, createdAt: new Date() }));
+await check('作った人がメンバーを足す', 'allow', () =>
+  updateDoc(doc(db, 'chatRooms', 'g1'), { participants: [uidC2, uidC1, uidC3, uidC4] }));
+await check('2人の部屋に3人目を足す', 'deny', () =>
+  updateDoc(doc(db, 'chatRooms', 'pair1'), { participants: [uidC2, uidC1, uidC3] }));
+await as('chat-c1@example.com');
+await check('メンバー: グループのメッセージを書く', 'allow', () =>
+  setDoc(doc(db, 'chatRooms', 'g1', 'messages', 'm1'), { senderId: uidC1, senderUsername: 'c1', content: 'こんにちは', createdAt: new Date(), readBy: [uidC1] }));
+await check('メンバー: 最終メッセージ・未読を更新', 'allow', () =>
+  updateDoc(doc(db, 'chatRooms', 'g1'), { lastActivityAt: new Date(), [`unreadCount.${uidC3}`]: 1 }));
+await check('作った人以外がメンバーを外す', 'deny', () =>
+  updateDoc(doc(db, 'chatRooms', 'g1'), { participants: [uidC2, uidC1] }));
+await check('作った人以外が作成者を自分に付け替え', 'deny', () =>
+  updateDoc(doc(db, 'chatRooms', 'g1'), { ownerUid: uidC1 }));
+await as('chat-c4@example.com');
+await check('後から足された人: メッセージを読む', 'allow', () =>
+  getDoc(doc(db, 'chatRooms', 'g1', 'messages', 'm1')));
+await as('mallory@example.com');
+await check('部外者: グループを読む', 'deny', () => getDoc(doc(db, 'chatRooms', 'g1')));
+await check('部外者: グループに書き込む', 'deny', () =>
+  setDoc(doc(db, 'chatRooms', 'g1', 'messages', 'm2'), { senderId: uidB, content: 'x', createdAt: new Date() }));
+
 const failed = results.filter((r) => !r.pass).length;
 console.log(`\n${results.length - failed}/${results.length} 件成功`);
 process.exit(failed === 0 && intact ? 0 : 1);

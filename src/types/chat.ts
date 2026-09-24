@@ -35,5 +35,8 @@ export interface ChatRoom {
   hiddenAvatarUserIds?: string[]; // このルームでアイコンを隠したいユーザーのIDリスト
   deletedBy?: string[]; // このルームを削除したユーザーのUID配列
   project?: string; // 物件名（同じ相手でも物件ごとに部屋を分ける）
+  isGroup?: boolean; // 3人以上のグループ
+  ownerUid?: string; // グループを作った人（メンバーの出し入れができる）
+  name?: string; // グループ名
 }
 
