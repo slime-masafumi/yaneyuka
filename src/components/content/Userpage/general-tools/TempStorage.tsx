@@ -6,6 +6,7 @@ import { collection, addDoc, query, orderBy, onSnapshot, deleteDoc, doc, where, 
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import { useAuth } from '@/lib/AuthContext';
 import { FiUpload, FiTrash2, FiDownload, FiClock, FiPackage, FiFile } from 'react-icons/fi';
+import { QrImage, QrModal } from './QrCode';
 // JSZipは動的インポートで使用（SSR対応）
 
 interface TempFile {
@@ -25,6 +26,8 @@ const MAX_TOTAL_SIZE_MB = 200; // ユーザーごとの合計容量上限（MB�
 const MAX_FILES_COUNT = 10; // ユーザーごとのファイル数上限
 
 const TempStorage: React.FC = () => {
+  // QR を出しているファイル（スマホで受け取る）
+  const [qrFile, setQrFile] = useState<{ name: string; url: string } | null>(null);
   const { isLoggedIn, currentUser } = useAuth();
   const [files, setFiles] = useState<TempFile[]>([]);
   const [status, setStatus] = useState<string>('');
@@ -421,7 +424,7 @@ const TempStorage: React.FC = () => {
     return (
       <div className="w-full bg-white rounded-b-lg shadow-sm border-b border-gray-100">
         <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white">
-          <h3 className="text-[13px] font-medium">24時間限定ファイル置き場</h3>
+          <h3 className="text-[13px] font-medium">一時ファイル — 端末間の受け渡し</h3>
         </div>
         <div className="p-4">
           <p className="text-red-500 font-semibold text-[12px]">
@@ -437,14 +440,23 @@ const TempStorage: React.FC = () => {
   return (
     <div className="w-full bg-white rounded-b-lg shadow-sm border-b border-gray-100">
       <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white">
-        <h3 className="text-[13px] font-medium">24時間限定ファイル置き場</h3>
-        <p className="text-[11px] mt-0.5">ファイルを一時的に保存できます。24時間後に自動削除される安全な一時ファイル置き場</p>
+        <h3 className="text-[13px] font-medium">一時ファイル — 端末間の受け渡し</h3>
+        <p className="text-[11px] mt-0.5">現場のスマホで撮った写真を事務所の PC で受け取る、PC のファイルをスマホへ渡す。QR を読むだけで開けて、24時間で自動で消えます</p>
       </div>
 
       <div className="p-4">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 border border-[#3b3b3b] p-3">
           {/* --- 左カラム：入力・設定 --- */}
           <div className="space-y-6">
+            {/* スマホとの受け渡し */}
+            <div className="flex gap-3 items-center border border-gray-200 p-3">
+              <QrImage text={typeof window !== 'undefined' ? `${window.location.origin}/?m=general-tools&t=temp-storage` : ''} size={96} />
+              <div className="text-[11px] text-gray-600 leading-relaxed">
+                <p className="font-bold text-gray-800 mb-1">スマホで開く</p>
+                スマホのカメラでこの QR を読むと、この画面が開きます。同じアカウントでログインしていれば、
+                スマホで上げた写真はこの一覧にすぐ出ます。PC から渡したいファイルは、一覧の「QR」をスマホで読んでください。
+              </div>
+            </div>
             {/* 1. ファイル選択エリア */}
             <div>
               <section
@@ -500,12 +512,27 @@ const TempStorage: React.FC = () => {
                         ファイルを選択
                       </label>
                       <label
+                        htmlFor="camera-upload"
+                        className="inline-flex items-center px-4 py-2 rounded bg-gray-200 text-gray-700 text-[11px] hover:bg-gray-300 cursor-pointer lg:hidden"
+                      >
+                        写真を撮る
+                      </label>
+                      <label
                         htmlFor="folder-upload"
                         className="inline-flex items-center px-4 py-2 rounded bg-blue-100 text-blue-700 text-[11px] hover:bg-blue-200 cursor-pointer"
                       >
                         フォルダを選択
                       </label>
                     </div>
+                    <input
+                      id="camera-upload"
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={handleFileInput}
+                      disabled={compressionProgress !== null || uploadProgress !== null || !!status}
+                      className="hidden"
+                    />
                     <input
                       id="file-upload"
                       type="file"
@@ -628,6 +655,14 @@ const TempStorage: React.FC = () => {
                         </p>
                         <div className="flex items-center gap-2 mt-2">
                   <button
+                    type="button"
+                    className="px-2 py-0.5 border rounded text-[10px] hover:bg-gray-100"
+                    onClick={() => setQrFile({ name: file.name, url: file.url })}
+                    title="スマホで読むとダウンロードできます"
+                  >
+                    QR
+                  </button>
+                  <button
                             type="button"
                             className={`px-2 py-0.5 border rounded text-[10px] flex items-center gap-1 ${
                               downloadingFileId === file.id 
@@ -678,6 +713,14 @@ const TempStorage: React.FC = () => {
           </div>
         </div>
       </div>
+      {qrFile && (
+        <QrModal
+          title={qrFile.name}
+          text={qrFile.url}
+          note="スマホのカメラで読むと、ログインせずにダウンロードできます。このリンクを知っている人は誰でも取れるので、他人に見せないでください（24時間で消えます）。"
+          onClose={() => setQrFile(null)}
+        />
+      )}
     </div>
   );
 };
