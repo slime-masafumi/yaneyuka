@@ -4,11 +4,12 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   FiPlus, FiStar, FiEdit2, FiType, FiDroplet, 
   FiList, FiAlignLeft, FiAlignCenter, FiAlignRight, 
-  FiCheckSquare, FiX, FiTrash2, FiFileText, FiChevronDown, FiCheck, FiFolder 
+  FiCheckSquare, FiX, FiTrash2, FiFileText, FiChevronDown, FiCheck, FiFolder, FiImage, FiMic, FiSquare 
 } from 'react-icons/fi';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { LockClosedIcon, LockOpenIcon } from '@heroicons/react/20/solid';
 import { useAuth } from '@/lib/AuthContext';
-import { db } from '@/lib/firebaseClient';
+import { db, storage } from '@/lib/firebaseClient';
 import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, setDoc, writeBatch } from 'firebase/firestore';
 import HtmlDocx from 'html-docx-js/dist/html-docx';
 
@@ -528,6 +529,99 @@ const MemoTool: React.FC = () => {
       setShowColorPalette(null);
     }
   };
+
+  /** 手で DOM を書き換えたとき（入力イベントが出ない操作）の自動保存 */
+  const scheduleSave = () => {
+    isEditingRef.current = true;
+    updateCharCount();
+    if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current);
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      saveMemoRef.current(true).then(() => setTimeout(() => { isEditingRef.current = false; }, 500));
+    }, 1000);
+  };
+
+  // --- チェック項目: 行頭に ☐ を入れ、☐ / ☑ を押すと切り替わる（PDF・Word にもそのまま出る文字）
+  const insertCheckItem = () => {
+    if (currentMemo?.isLocked) return;
+    editorRef.current?.focus();
+    document.execCommand('insertText', false, '☐ ');
+  };
+  const toggleCheckAtCaret = () => {
+    const sel = window.getSelection();
+    const node = sel?.anchorNode;
+    if (!sel || !node || node.nodeType !== Node.TEXT_NODE || !editorRef.current?.contains(node)) return;
+    const text = node.textContent ?? '';
+    const off = sel.anchorOffset;
+    // 押した位置の直前・直後どちらかの ☐☑ を切り替える
+    for (const i of [off - 1, off]) {
+      const ch = text[i];
+      if (ch === '☐' || ch === '☑') {
+        (node as Text).replaceData(i, 1, ch === '☐' ? '☑' : '☐');
+        scheduleSave();
+        return;
+      }
+    }
+  };
+
+  // --- 画像: 長辺 1600px に縮めて、自分の保管場所（userUploads/{uid}/）に置き、その画像を挿入
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const [imageBusy, setImageBusy] = useState(false);
+  const insertImage = async (file: File) => {
+    if (!currentUser || currentMemo?.isLocked) return;
+    setImageBusy(true);
+    try {
+      const bitmap = await createImageBitmap(file);
+      const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(bitmap.width * scale);
+      canvas.height = Math.round(bitmap.height * scale);
+      canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      const blob: Blob = await new Promise((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error('変換できません'))), 'image/jpeg', 0.82));
+      const path = `userUploads/${currentUser.uid}/memo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+      await uploadBytes(storageRef(storage, path), blob, { contentType: 'image/jpeg' });
+      const url = await getDownloadURL(storageRef(storage, path));
+      editorRef.current?.focus();
+      document.execCommand('insertHTML', false, `<img src="${url}" alt="" style="max-width:100%;height:auto;display:block;margin:4px 0" /><br>`);
+      scheduleSave();
+    } catch (e) {
+      console.error('画像の挿入に失敗', e);
+      alert('画像を入れられませんでした（JPEG・PNG・HEIC 以外は読めないことがあります）');
+    } finally {
+      setImageBusy(false);
+    }
+  };
+
+  // --- 音声入力: ブラウザの音声認識（Chrome・Edge・Safari）。確定した文だけをカーソル位置に入れる
+  const recognitionRef = useRef<any>(null);
+  const [listening, setListening] = useState(false);
+  const speechSupported = typeof window !== 'undefined' && !!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
+  const toggleVoice = () => {
+    if (listening) {
+      recognitionRef.current?.stop();
+      return;
+    }
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR || currentMemo?.isLocked) return;
+    const rec = new SR();
+    rec.lang = 'ja-JP';
+    rec.continuous = true;
+    rec.interimResults = false;
+    rec.onresult = (ev: any) => {
+      for (let i = ev.resultIndex; i < ev.results.length; i++) {
+        if (ev.results[i].isFinal) {
+          editorRef.current?.focus();
+          document.execCommand('insertText', false, ev.results[i][0].transcript);
+        }
+      }
+    };
+    rec.onend = () => setListening(false);
+    rec.onerror = () => setListening(false);
+    recognitionRef.current = rec;
+    editorRef.current?.focus();
+    rec.start();
+    setListening(true);
+  };
+  useEffect(() => () => recognitionRef.current?.stop(), []);
 
   const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -1284,7 +1378,23 @@ const MemoTool: React.FC = () => {
 
                   <div className="flex h-8 items-center bg-white border border-gray-200 rounded">
                     <button onClick={() => formatDoc('insertUnorderedList')} disabled={currentMemo?.isLocked || false} className="h-full w-8 flex items-center justify-center hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed" title="箇条書き"><FiList /></button>
-                    <button onClick={() => formatDoc('insertOrderedList')} disabled={currentMemo?.isLocked || false} className="h-full w-8 flex items-center justify-center hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed" title="番号付きリスト"><FiCheckSquare /></button>
+                    <button onClick={() => formatDoc('insertOrderedList')} disabled={currentMemo?.isLocked || false} className="h-full w-8 flex items-center justify-center hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed" title="番号付きリスト"><span className="text-[10px] font-bold">1.</span></button>
+                    <button onClick={insertCheckItem} disabled={currentMemo?.isLocked || false} className="h-full w-8 flex items-center justify-center hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed" title="チェック項目（☐ を押すと ☑ に）"><FiCheckSquare /></button>
+                  </div>
+
+                  <div className="flex h-8 items-center bg-white border border-gray-200 rounded">
+                    <button onClick={() => imageInputRef.current?.click()} disabled={currentMemo?.isLocked || imageBusy || !currentUser} className="h-full px-2 flex items-center gap-1 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed text-[10px]" title="写真・画像を入れる">
+                      <FiImage /> {imageBusy ? '…' : '画像'}
+                    </button>
+                    <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void insertImage(f); e.target.value = ''; }} />
+                    <button
+                      onClick={toggleVoice}
+                      disabled={!speechSupported || currentMemo?.isLocked || false}
+                      className={`h-full px-2 flex items-center gap-1 text-[10px] disabled:opacity-50 disabled:cursor-not-allowed ${listening ? 'bg-red-600 text-white' : 'hover:bg-gray-100'}`}
+                      title={speechSupported ? (listening ? '音声入力を止める' : '話した言葉をカーソル位置に入れる') : 'このブラウザは音声入力に対応していません'}
+                    >
+                      {listening ? <FiSquare /> : <FiMic />} {listening ? '停止' : '音声'}
+                    </button>
                   </div>
 
                   <div className="w-px h-4 bg-gray-300 mx-1"></div>
@@ -1356,6 +1466,7 @@ const MemoTool: React.FC = () => {
                 <div 
                   ref={editorRef}
                   contentEditable={isLoggedIn && !(currentMemo?.isLocked)}
+                  onClick={() => { if (!currentMemo?.isLocked) toggleCheckAtCaret(); }}
                   onPaste={(e) => {
                     if (currentMemo?.isLocked) {
                       e.preventDefault();
