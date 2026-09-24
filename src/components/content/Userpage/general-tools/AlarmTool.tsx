@@ -6,23 +6,17 @@ import {
   FiClock, FiActivity, FiClipboard, FiPlus, FiTrash2, FiSave, 
   FiPieChart, FiCalendar, FiSettings, FiEdit2, FiCheck, FiX, FiDownload, FiList 
 } from 'react-icons/fi';
+import { useAuth } from '@/lib/AuthContext';
+import { PHASES, NO_PHASE, periodPreset, projectStats, toCsv, yen, type WorkEntry, type WorkProject } from '@/lib/workLog';
+import { useWorkLogSync } from './useWorkLogSync';
 
 // --- 型定義 ---
 type Mode = 'timer' | 'alarm' | 'tracker';
 type TrackerTab = 'daily' | 'summary' | 'settings';
 
-type TimeEntry = {
-  id: string;
-  projectId: string;
-  description: string;
-  hours: number | '';
-};
-
-type Project = {
-  id: string;
-  name: string;
-  code: string;
-};
+// 形は src/lib/workLog.ts（工種 phase・設計料 fee を足した）
+type TimeEntry = WorkEntry;
+type Project = WorkProject;
 
 // --- 初期データ ---
 const INITIAL_PROJECTS: Project[] = [
@@ -47,9 +41,6 @@ const parseLocalDate = (s: string): Date => {
   const [y, m, d] = s.split('-').map(Number);
   return new Date(y, (m || 1) - 1, d || 1);
 };
-
-// CSVの1セルを安全にエスケープする（案件名にカンマや改行が入っても列がずれないように）
-const csvCell = (value: unknown): string => `"${String(value ?? '').replace(/"/g, '""')}"`;
 
 const AlarmTool: React.FC = () => {
   // ==========================================
@@ -229,6 +220,21 @@ const AlarmTool: React.FC = () => {
   // 日付ごとのデータを保持するState
   const [dailyRecords, setDailyRecords] = useState<Record<string, TimeEntry[]>>({});
   const [projects, setProjects] = useState<Project[]>(INITIAL_PROJECTS);
+  // 目標とする時間単価（円/h）。設計料 ÷ これ ＝ その物件にかけてよい時間
+  const [targetRate, setTargetRate] = useState<number>(10000);
+  const { isLoggedIn, currentUser } = useAuth();
+  const trackerSettings = useMemo(() => ({ projects, targetRate }), [projects, targetRate]);
+  const syncStatus = useWorkLogSync(
+    isLoggedIn ? currentUser?.uid : undefined,
+    { records: dailyRecords, settings: trackerSettings },
+    (next) => {
+      if (next.records) setDailyRecords(next.records);
+      if (next.settings) {
+        setProjects(next.settings.projects);
+        if (next.settings.targetRate > 0) setTargetRate(next.settings.targetRate);
+      }
+    }
+  );
 
   // 集計期間用State
   const [summaryStartDate, setSummaryStartDate] = useState(() => {
@@ -249,6 +255,8 @@ const AlarmTool: React.FC = () => {
       if (savedProjects) {
         setProjects(JSON.parse(savedProjects));
       }
+      const savedRate = Number(localStorage.getItem('tracker_target_rate'));
+      if (savedRate > 0) setTargetRate(savedRate);
     } catch (e) {
       console.error('Failed to load tracker data', e);
     }
@@ -267,6 +275,12 @@ const AlarmTool: React.FC = () => {
     } catch (e) {}
   }, [projects]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem('tracker_target_rate', String(targetRate));
+    } catch (e) {}
+  }, [targetRate]);
+
   const entries = useMemo(() => {
     return dailyRecords[trackerDate] || [{ ...INITIAL_ENTRY, id: crypto.randomUUID() }];
   }, [dailyRecords, trackerDate]);
@@ -275,6 +289,7 @@ const AlarmTool: React.FC = () => {
   const [editProjId, setEditProjId] = useState<string | null>(null);
   const [editProjCode, setEditProjCode] = useState('');
   const [editProjName, setEditProjName] = useState('');
+  const [editProjFee, setEditProjFee] = useState('');
 
   // --- Entry Handlers ---
   const updateDailyRecords = (newEntries: TimeEntry[]) => {
@@ -360,44 +375,19 @@ const AlarmTool: React.FC = () => {
     return { projectTotals, dailySummaries, grandTotal, projectTotalList };
   }, [dailyRecords, summaryStartDate, summaryEndDate, projects]);
 
+  // 物件別・工種別の集計と、設計料との突合
+  const stats = useMemo(
+    () => projectStats(dailyRecords, projects, summaryStartDate, summaryEndDate, targetRate),
+    [dailyRecords, projects, summaryStartDate, summaryEndDate, targetRate]
+  );
+
   // --- Export CSV Handler ---
   const handleExportCSV = () => {
-    const start = parseLocalDate(summaryStartDate);
-    const end = parseLocalDate(summaryEndDate);
-    let csvContent = "\uFEFF日付,プロジェクトNo,プロジェクト名,作業内容,工数(h)\n";
-
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      const dateStr = toLocalDateString(d);
-      const dayEntries = dailyRecords[dateStr] || [];
-      const validEntries = dayEntries.filter(e => e.projectId && Number(e.hours) > 0);
-
-      // プロジェクトNo順にソート
-      validEntries.sort((a, b) => {
-        const pA = projects.find(p => p.id === a.projectId);
-        const pB = projects.find(p => p.id === b.projectId);
-        return (pA?.code || '').localeCompare(pB?.code || '');
-      });
-
-      validEntries.forEach(e => {
-        const project = projects.find(p => p.id === e.projectId);
-        // 全セルをクォートする。案件名や作業内容にカンマ・改行が入っても列がずれない
-        const line = [
-          csvCell(dateStr),
-          csvCell(project?.code),
-          csvCell(project?.name),
-          csvCell(e.description),
-          csvCell(e.hours),
-        ].join(",");
-        csvContent += line + "\n";
-      });
-    }
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([toCsv(dailyRecords, projects, summaryStartDate, summaryEndDate)], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
+    const link = document.createElement('a');
     link.href = url;
-    // ファイル名を yaneyuka_ から開始
-    link.setAttribute("download", `yaneyuka_業務記録_${summaryStartDate}_${summaryEndDate}.csv`);
+    link.setAttribute('download', `yaneyuka_業務記録_${summaryStartDate}_${summaryEndDate}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -412,21 +402,23 @@ const AlarmTool: React.FC = () => {
 
     if (editProjId) {
       setProjects(projects.map(p => 
-        p.id === editProjId ? { ...p, code: editProjCode, name: editProjName } : p
+        p.id === editProjId ? { ...p, code: editProjCode, name: editProjName, fee: Number(editProjFee) > 0 ? Number(editProjFee) : undefined } : p
       ));
       setEditProjId(null);
     } else {
       const newId = crypto.randomUUID();
-      setProjects([...projects, { id: newId, code: editProjCode, name: editProjName }]);
+      setProjects([...projects, { id: newId, code: editProjCode, name: editProjName, ...(Number(editProjFee) > 0 ? { fee: Number(editProjFee) } : {}) }]);
     }
     setEditProjCode('');
     setEditProjName('');
+    setEditProjFee('');
   };
 
   const handleEditProject = (p: Project) => {
     setEditProjId(p.id);
     setEditProjCode(p.code);
     setEditProjName(p.name);
+    setEditProjFee(p.fee ? String(p.fee) : '');
   };
 
   const handleDeleteProject = (id: string) => {
@@ -594,6 +586,9 @@ const AlarmTool: React.FC = () => {
                   <FiSettings className="w-3 h-3"/> 設定
               </button>
               </div>
+              <span className={`text-[10px] ml-auto mr-2 ${syncStatus === 'error' ? 'text-red-600' : 'text-gray-400'}`}>
+                {syncStatus === 'synced' ? '端末間で同期' : syncStatus === 'syncing' ? '同期中…' : syncStatus === 'error' ? '同期できませんでした' : 'このブラウザに保存（ログインで同期）'}
+              </span>
               {trackerTab === 'daily' && (
                 <div className="flex items-center gap-2 bg-white px-2 py-1 rounded border border-gray-300">
                   <FiCalendar className="text-gray-400 w-3 h-3" />
@@ -613,20 +608,27 @@ const AlarmTool: React.FC = () => {
               <div className="space-y-4">
                 <div className="border border-gray-200 rounded overflow-hidden shadow-sm">
                   <div className="grid grid-cols-12 bg-gray-50 border-b border-gray-200 text-[10px] font-bold text-gray-500">
-                    <div className="col-span-4 p-2 border-r border-gray-200">プロジェクト名</div>
-                    <div className="col-span-6 p-2 border-r border-gray-200">作業内容</div>
+                    <div className="col-span-3 p-2 border-r border-gray-200">プロジェクト名</div>
+                    <div className="col-span-2 p-2 border-r border-gray-200">工種</div>
+                    <div className="col-span-5 p-2 border-r border-gray-200">作業内容</div>
                     <div className="col-span-2 p-2 text-center">時間 (h)</div>
                   </div>
                   <div className="divide-y divide-gray-100 bg-white">
                     {entries.map((entry) => (
                       <div key={entry.id} className="grid grid-cols-12 group hover:bg-blue-50/30 transition-colors relative">
-                        <div className="col-span-4 p-1 border-r border-gray-100">
+                        <div className="col-span-3 p-1 border-r border-gray-100">
                           <select value={entry.projectId} onChange={(e) => updateEntry(entry.id, 'projectId', e.target.value)} className="w-full h-full p-1.5 bg-transparent outline-none text-[11px] text-gray-700 cursor-pointer rounded focus:bg-white focus:ring-1 focus:ring-blue-200">
                             <option value="" className="text-gray-300">選択してください</option>
                             {projects.map(p => <option key={p.id} value={p.id}>{p.code} : {p.name}</option>)}
                           </select>
                         </div>
-                        <div className="col-span-6 p-1 border-r border-gray-100 relative">
+                        <div className="col-span-2 p-1 border-r border-gray-100">
+                          <select value={entry.phase ?? ''} onChange={(e) => updateEntry(entry.id, 'phase', e.target.value)} className="w-full h-full p-1.5 bg-transparent outline-none text-[11px] text-gray-700 cursor-pointer rounded focus:bg-white focus:ring-1 focus:ring-blue-200">
+                            <option value="">{NO_PHASE}</option>
+                            {PHASES.map((ph) => <option key={ph} value={ph}>{ph}</option>)}
+                          </select>
+                        </div>
+                        <div className="col-span-5 p-1 border-r border-gray-100 relative">
                           <input type="text" value={entry.description} onChange={(e) => updateEntry(entry.id, 'description', e.target.value)} placeholder="具体的な内容を入力" className="w-full h-full p-1.5 bg-transparent outline-none text-[11px] text-gray-700 placeholder-gray-300 rounded focus:bg-white focus:ring-1 focus:ring-blue-200"/>
                           <button onClick={() => removeEntry(entry.id)} className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-all z-10" title="行を削除"><FiTrash2 className="w-3 h-3" /></button>
                         </div>
@@ -675,6 +677,27 @@ const AlarmTool: React.FC = () => {
                       />
                     </div>
               </div>
+                  <div className="flex flex-wrap gap-1 sm:mt-4">
+                    {([
+                      ['thisMonth', '今月'],
+                      ['lastMonth', '先月'],
+                      ['fiscalYear', '今年度'],
+                      ['all', '全期間'],
+                    ] as const).map(([k, label]) => (
+                      <button
+                        key={k}
+                        type="button"
+                        onClick={() => {
+                          const [a, b] = periodPreset(k);
+                          setSummaryStartDate(a);
+                          setSummaryEndDate(b);
+                        }}
+                        className="px-2 py-1 text-[10px] border border-gray-300 bg-white hover:bg-gray-100"
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
               <button
                     onClick={handleExportCSV}
                     className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white text-[11px] font-bold px-3 py-1.5 rounded shadow-sm transition-colors"
@@ -742,17 +765,51 @@ const AlarmTool: React.FC = () => {
                         <FiList className="w-3 h-3" /> プロジェクト別合計
                       </h4>
                       <div className="flex-1 overflow-y-auto pr-1 custom-scrollbar">
-                        {summaryData.projectTotalList.length === 0 ? (
+                        {stats.list.length === 0 ? (
                           <p className="text-[10px] text-gray-400 text-center py-4">データなし</p>
                         ) : (
                           <div className="space-y-2">
-                            {summaryData.projectTotalList.map((item) => (
-                              <div key={item.projectId} className="flex justify-between items-center text-[11px] p-2 hover:bg-gray-50 rounded border border-transparent hover:border-gray-100 transition-colors">
-                                <div className="flex flex-col min-w-0 pr-2">
-                                  <span className="font-bold text-gray-700 truncate" title={item.projectName}>{item.projectName}</span>
-                                  <span className="text-[10px] text-gray-400 font-mono">{item.projectCode}</span>
+                            {stats.list.map((item) => (
+                              <div key={item.projectId} className="text-[11px] p-2 border border-gray-100">
+                                <div className="flex justify-between items-start gap-2">
+                                  <div className="flex flex-col min-w-0">
+                                    <span className="font-bold text-gray-700 truncate" title={item.name}>{item.name}</span>
+                                    <span className="text-[10px] text-gray-400 font-mono">{item.code}</span>
+                                  </div>
+                                  <span className="font-mono font-bold text-gray-800 whitespace-nowrap">{item.hours.toFixed(1)} h</span>
                                 </div>
-                                <span className="font-mono font-bold text-blue-600 whitespace-nowrap">{item.hours.toFixed(1)} h</span>
+                                {/* 工種の内訳 */}
+                                <div className="flex h-1.5 mt-1.5 bg-gray-100">
+                                  {Object.entries(item.byPhase).map(([ph, h], i) => (
+                                    <div key={ph} title={`${ph} ${h.toFixed(1)}h`} style={{ width: `${(h / item.hours) * 100}%`, background: ['#3b3b3b', '#6b7280', '#9ca3af', '#4b5563', '#d1d5db', '#1f2937', '#e5e7eb', '#a3a3a3'][i % 8] }} />
+                                  ))}
+                                </div>
+                                <div className="flex flex-wrap gap-x-2 text-[9px] text-gray-500 mt-0.5">
+                                  {Object.entries(item.byPhase).map(([ph, h]) => (
+                                    <span key={ph}>{ph} {h.toFixed(1)}</span>
+                                  ))}
+                                </div>
+                                {/* 設計料との突合（全期間の時間で見る） */}
+                                {item.fee ? (
+                                  <div className="mt-1.5 pt-1.5 border-t border-gray-100 space-y-0.5">
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-500">時間単価（設計料 {yen(item.fee)}）</span>
+                                      <b className={item.hourlyValue !== undefined && item.hourlyValue < targetRate ? 'text-red-600' : 'text-gray-800'}>
+                                        {item.hourlyValue !== undefined ? `${yen(item.hourlyValue)}/h` : '—'}
+                                      </b>
+                                    </div>
+                                    {item.usage !== undefined && item.budgetHours !== undefined && (
+                                      <>
+                                        <div className="w-full bg-gray-100 h-1">
+                                          <div className={`h-full ${item.usage > 1 ? 'bg-red-600' : 'bg-gray-700'}`} style={{ width: `${Math.min(item.usage, 1) * 100}%` }} />
+                                        </div>
+                                        <div className="text-[9px] text-gray-500">
+                                          予算時間 {item.budgetHours.toFixed(0)}h のうち {(item.usage * 100).toFixed(0)}% を使用{item.usage > 1 ? '（超過）' : ''}
+                                        </div>
+                                      </>
+                                    )}
+                                  </div>
+                                ) : null}
                               </div>
                             ))}
                           </div>
@@ -787,7 +844,17 @@ const AlarmTool: React.FC = () => {
                       value={editProjName}
                       onChange={(e)=>setEditProjName(e.target.value)}
                     />
+                    <input
+                      type="number"
+                      min="0"
+                      step="10000"
+                      placeholder="設計料（円・任意）"
+                      className="w-1/4 p-1.5 text-[11px] border border-gray-300 rounded outline-none focus:border-blue-500"
+                      value={editProjFee}
+                      onChange={(e)=>setEditProjFee(e.target.value)}
+                    />
                   </div>
+                  <p className="text-[10px] text-gray-400">設計料を入れると、集計でその物件の時間単価と予算時間の消化率が出ます。</p>
                   <div className="flex justify-end gap-2 mt-2">
                     {editProjId && (
                   <button
@@ -806,6 +873,20 @@ const AlarmTool: React.FC = () => {
               </div>
             </div>
 
+                <div className="mb-4 bg-white p-3 rounded border border-gray-200 shadow-sm flex flex-wrap items-center gap-2 text-[11px]">
+                  <span className="text-gray-600">目標の時間単価</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1000"
+                    value={targetRate}
+                    onChange={(e) => setTargetRate(Number(e.target.value) || 0)}
+                    className="w-28 p-1.5 text-[11px] border border-gray-300 rounded outline-none text-right"
+                  />
+                  <span className="text-gray-600">円/h</span>
+                  <span className="text-[10px] text-gray-400 w-full">設計料 ÷ この単価 が、その物件にかけてよい時間（予算時間）になります。人件費と経費から逆算した値を入れてください。</span>
+                </div>
+
                 {/* プロジェクトリスト */}
                 <div className="flex-1 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
                   {projects.length === 0 && <p className="text-[10px] text-gray-400 text-center py-4">プロジェクトがありません</p>}
@@ -813,6 +894,7 @@ const AlarmTool: React.FC = () => {
                     <div key={p.id} className={`flex items-center gap-3 p-3 rounded border bg-white transition-colors ${editProjId === p.id ? 'bg-blue-50 border-blue-300' : 'border-gray-200'}`}>
                       <span className="text-[10px] font-mono bg-gray-100 px-2 py-1 rounded text-gray-600 border border-gray-200 min-w-[60px] text-center">{p.code}</span>
                       <span className="text-[11px] text-gray-700 truncate flex-1 font-bold">{p.name}</span>
+                      {p.fee ? <span className="text-[10px] text-gray-500 font-mono">{yen(p.fee)}</span> : null}
                       <div className="flex items-center gap-1">
                         <button onClick={()=>handleEditProject(p)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" title="編集"><FiEdit2 className="w-3.5 h-3.5" /></button>
                         <button onClick={()=>handleDeleteProject(p.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="削除"><FiTrash2 className="w-3.5 h-3.5" /></button>
