@@ -7,6 +7,8 @@ import { useAuth } from '@/lib/AuthContext';
 import { addBoardTask, createBoard, deleteBoard, deleteBoardTask, findUserByEmail, getUsersByUids, listBoardTasks, listBoardsForUser, setBoardMembers, updateBoard, updateBoardTask } from '@/lib/firebaseUserData';
 import { db } from '@/lib/firebaseClient';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import TeamGantt from './teamTasks/TeamGantt';
+import { dueStatus, matchesFilter, ROLES, sortTasks, type TaskFilter } from '@/lib/teamTaskView';
 
 interface Project {
   id: string;
@@ -25,6 +27,8 @@ interface Task {
   assignee?: { id: string; email: string };
   priority?: 'low' | 'medium' | 'high';
   details?: string;
+  startDate?: string | null;
+  role?: string;
 }
 
 const COLORS = [
@@ -54,6 +58,12 @@ const TeamTasks: React.FC = () => {
   const tasksUnsubsRef = useRef<Record<string, () => void>>({});
   const [columnMode, setColumnModeState] = useState<2 | 3 | 4>(3);
   const [deleteTargetId, setDeleteTargetId] = useState<string>('');
+  // 表示（カード / 工程表）と絞り込み
+  const [view, setView] = useState<'cards' | 'gantt'>('cards');
+  const [filter, setFilter] = useState<TaskFilter>({ assignee: '', state: 'open', role: '' });
+  const [sortBy, setSortBy] = useState<'due' | 'priority'>('due');
+  const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
+  const visibleTasks = (projectId: string) => sortTasks((tasksByProject[projectId] || []).filter((t) => matchesFilter(t, filter, today)), sortBy);
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -132,7 +142,7 @@ const TeamTasks: React.FC = () => {
             (snap) => {
             const list = snap.docs.map(d => {
               const t = d.data() as any
-              return { id: d.id, title: t.title, completed: t.completed, dueDate: (t.dueDate ?? null), priority: (t.priority as any) ?? 'medium', assigneeId: t.assigneeUid || undefined }
+              return { id: d.id, title: t.title, completed: t.completed, dueDate: (t.dueDate ?? null), startDate: (t.startDate ?? null), role: t.role || undefined, priority: (t.priority as any) ?? 'medium', assigneeId: t.assigneeUid || undefined }
             })
             setTasksByProject(prev => ({ ...prev, [b.id]: list }))
             try { localStorage.setItem(`teamTasks:${currentUser.uid}:${b.id}`, JSON.stringify(list)) } catch {}
@@ -144,7 +154,7 @@ const TeamTasks: React.FC = () => {
               try {
                 const list = await listBoardTasks(b.id)
                 setTasksByProject(prev => ({ ...prev, [b.id]: (list || []).map(t => ({
-                  id: t.id!, title: t.title, completed: t.completed, dueDate: (t.dueDate ?? null), priority: (t.priority as any) ?? 'medium', assigneeId: t.assigneeUid || undefined
+                  id: t.id!, title: t.title, completed: t.completed, dueDate: (t.dueDate ?? null), startDate: (t.startDate ?? null), role: t.role || undefined, priority: (t.priority as any) ?? 'medium', assigneeId: t.assigneeUid || undefined
                 })) as any }))
               } catch {}
               // 失敗した購読を解除し、次回handleBoardsで再購読できるようにする
@@ -406,7 +416,61 @@ const TeamTasks: React.FC = () => {
       {projects.length === 0 && (
         <div className="text-gray-500 mb-4">プロジェクトがありません。新規作成してください。</div>
       )}
-      <div className="team-task-grid border border-[#3b3b3b] p-3">
+      {/* 表示の切り替えと絞り込み */}
+      <div className="mb-2 flex flex-wrap items-center gap-2 text-[11px]">
+        {([['cards', 'カード'], ['gantt', '工程表']] as const).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setView(id)}
+            className={`px-3 py-1 border ${view === id ? 'bg-[#3b3b3b] text-white border-[#3b3b3b]' : 'bg-white border-[#3b3b3b] hover:bg-gray-100'}`}
+          >
+            {label}
+          </button>
+        ))}
+        <span className="mx-1 h-4 border-l border-gray-300" />
+        <select value={filter.state} onChange={(e) => setFilter({ ...filter, state: e.target.value as TaskFilter['state'] })} className="px-2 py-1 border border-gray-300">
+          <option value="open">未完了</option>
+          <option value="overdue">期限切れのみ</option>
+          <option value="all">すべて</option>
+        </select>
+        <select value={filter.assignee} onChange={(e) => setFilter({ ...filter, assignee: e.target.value })} className="px-2 py-1 border border-gray-300">
+          <option value="">担当: 全員</option>
+          {currentUser && <option value={`me:${currentUser.uid}`}>担当: 自分</option>}
+          {Array.from(new Map(Object.values(membersByProject).flat().map((m) => [m.uid, m])).values())
+            .filter((m) => m.uid !== currentUser?.uid)
+            .map((m) => <option key={m.uid} value={m.uid}>担当: {m.label}</option>)}
+        </select>
+        <select value={filter.role} onChange={(e) => setFilter({ ...filter, role: e.target.value })} className="px-2 py-1 border border-gray-300">
+          <option value="">役割: すべて</option>
+          {ROLES.map((ro) => <option key={ro} value={ro}>役割: {ro}</option>)}
+        </select>
+        <select value={sortBy} onChange={(e) => setSortBy(e.target.value as 'due' | 'priority')} className="px-2 py-1 border border-gray-300">
+          <option value="due">期限の近い順</option>
+          <option value="priority">重要度の高い順</option>
+        </select>
+        {(() => {
+          const overdue = Object.values(tasksByProject).flat().filter((t) => dueStatus(t, today).status === 'overdue').length;
+          return overdue ? (
+            <button type="button" onClick={() => setFilter({ ...filter, state: 'overdue' })} className="text-red-600 font-bold underline">
+              期限切れ {overdue} 件
+            </button>
+          ) : null;
+        })()}
+      </div>
+
+      {view === 'gantt' && (
+        <TeamGantt
+          today={today}
+          groups={projects.map((p) => ({
+            id: p.id,
+            name: p.name,
+            tasks: visibleTasks(p.id).map((t) => ({ ...t, assigneeLabel: (membersByProject[p.id] || []).find((m) => m.uid === t.assigneeId)?.label })),
+          }))}
+        />
+      )}
+
+      <div className={`team-task-grid border border-[#3b3b3b] p-3 ${view === 'gantt' ? 'hidden' : ''}`}>
         {projects.map((project, idx) => {
           const flexBasis = `calc((100% - ${(columnMode - 1)} * 0.75rem) / ${columnMode})`;
           const cardStyle: React.CSSProperties = {
@@ -638,14 +702,7 @@ const TeamTasks: React.FC = () => {
             <div className="max-h-[360px] overflow-y-auto divide-y divide-black/5"
               style={project.color?.startsWith('#') ? { backgroundColor: project.color } : {}}
             >
-              {[...(tasksByProject[project.id] || [])]
-                .sort((a, b) => {
-                  // 日付順にソート（dueDateがnull/undefinedのものは最後に）
-                  if (!a.dueDate && !b.dueDate) return 0;
-                  if (!a.dueDate) return 1;
-                  if (!b.dueDate) return -1;
-                  return a.dueDate.localeCompare(b.dueDate);
-                })
+              {visibleTasks(project.id)
                 .map(task => (
                 <div
                   key={task.id}
@@ -674,6 +731,38 @@ const TeamTasks: React.FC = () => {
                       className={`flex-1 text-xs select-none cursor-pointer ${task.completed ? (isDarkColor(project.color || '') ? 'line-through text-white/60' : 'line-through text-black/40') : (isDarkColor(project.color || '') ? 'text-white' : 'text-gray-800')}`}
                     >{task.title}</span>
                   )}
+
+                  {/* 役割と開始日（編集時） */}
+                  {editingTaskId === task.id ? (
+                    <>
+                      <select
+                        className="text-[10px] rounded px-1 py-0.5 bg-white text-gray-800"
+                        value={task.role || ''}
+                        onChange={async (e) => {
+                          const ro = e.target.value;
+                          try { await updateBoardTask(project.id, task.id, { role: ro || null }) } catch {}
+                          setTasksByProject(prev => ({ ...prev, [project.id]: prev[project.id].map(t => t.id === task.id ? { ...t, role: ro || undefined } : t) }))
+                        }}
+                        title="役割"
+                      >
+                        <option value="">役割</option>
+                        {ROLES.map((ro) => <option key={ro} value={ro}>{ro}</option>)}
+                      </select>
+                      <input
+                        type="date"
+                        className="text-[10px] rounded px-1 py-0.5 bg-white text-gray-800"
+                        value={task.startDate || ''}
+                        title="開始日（工程表に出す）"
+                        onChange={async (e) => {
+                          const v = e.target.value || null;
+                          try { await updateBoardTask(project.id, task.id, { startDate: v }) } catch {}
+                          setTasksByProject(prev => ({ ...prev, [project.id]: prev[project.id].map(t => t.id === task.id ? { ...t, startDate: v } : t) }))
+                        }}
+                      />
+                    </>
+                  ) : task.role ? (
+                    <span className={`text-[9px] px-1 border ${isDarkColor(project.color || '') ? 'border-white/40 text-white/80' : 'border-black/20 text-gray-700'}`}>{task.role}</span>
+                  ) : null}
 
                   {/* 担当者名 or セレクト（編集時） */}
                   {editingTaskId === task.id ? (
@@ -724,7 +813,12 @@ const TeamTasks: React.FC = () => {
                   )}
 
                   {/* 期限（表示） */}
-                  <span className={`text-[10px] ${isDarkColor(project.color || '') ? 'text-white/70' : 'text-gray-800/70'}`} style={{ minWidth: 72, textAlign: 'right' }}>
+                  <span
+                    className={`text-[10px] ${(() => { const st = dueStatus(task, today).status; return st === 'overdue' ? 'text-red-600 font-bold' : st === 'soon' ? 'text-amber-600 font-bold' : isDarkColor(project.color || '') ? 'text-white/70' : 'text-gray-800/70'; })()}`}
+                    style={{ minWidth: 72, textAlign: 'right' }}
+                    title={(() => { const d = dueStatus(task, today); return d.status === 'overdue' ? `${-(d.days ?? 0)}日 過ぎています` : d.status === 'soon' ? `あと${d.days}日` : ''; })()}
+                  >
+                    {dueStatus(task, today).status === 'overdue' && '期限切れ '}
                     {(() => {
                       const v = task.dueDate
                       if (!v) return ''

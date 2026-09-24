@@ -162,6 +162,10 @@ export type BoardTaskDoc = {
   priority?: 'low' | 'medium' | 'high'
   assigneeUid?: string | null
   details?: string
+  /** 工程表に出す開始日（無ければ期限の1日だけのマイルストーン） */
+  startDate?: string | null
+  /** 担当の役割（設計・施工・施主・確認検査機関 …） */
+  role?: string | null
   createdAt?: any
   updatedAt?: any
 }
