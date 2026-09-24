@@ -17,6 +17,7 @@ import UnitVolumeCalculation from '@/components/content/Userpage/design-tools/6_
 import RainwaterCalculation from '@/components/content/Userpage/design-tools/2_RainwaterCalculation';
 import ExteriorRainwater from '@/components/content/Userpage/design-tools/ExteriorRainwater';
 import PavementDesign from '@/components/content/Userpage/design-tools/PavementDesign';
+import AreaTableLauncher from '@/components/content/Userpage/design-tools/AreaTableLauncher';
 import FireEquipment from '@/components/content/Userpage/design-tools/3_FireEquipment';
 import BuildingRegulations from '@/components/content/Userpage/design-tools/7_BuildingRegulations';
 import PropertyCard from '@/components/content/Userpage/design-tools/PropertyCard';
@@ -45,7 +46,7 @@ function PlaceholderTool({ name, description }: { name: string; description: str
 const TOOL_COMPONENTS: Record<string, React.ReactNode> = {
   'property-card': <PropertyCard hideHeader />,
   'schedule': <Schedule />,
-  'area-table': <PlaceholderTool name="面積表" description="各階・各室の面積を集計する面積表ツールです。（準備中）" />,
+  'area-table': <AreaTableLauncher />,
   'use-zone': <UseZone hideHeader />,
   'building-regulations': <BuildingRegulations hideHeader />,
   'fire-equipment': <FireEquipment hideHeader />,

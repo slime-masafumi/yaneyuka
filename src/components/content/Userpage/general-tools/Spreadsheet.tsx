@@ -22,6 +22,7 @@ import FormulaBar from './spreadsheet/FormulaBar';
 import Grid from './spreadsheet/Grid';
 import HistoryManager, { HistorySnapshot } from './spreadsheet/HistoryManager';
 import FormulaEngine from './spreadsheet/FormulaEngine';
+import { PENDING_TEMPLATE_KEY, SHEET_TEMPLATES, type SheetTemplate } from './spreadsheet/templates';
 
 type CellBorder = { top?: boolean; right?: boolean; bottom?: boolean; left?: boolean };
 type CellFormat = {
@@ -291,6 +292,40 @@ const Spreadsheet: React.FC = () => {
     try { await setDoc(doc(db, 'users', currentUser.uid, 'sheets', id), init as any) } catch {}
   }
 
+  /**
+   * テンプレートから新しいシートを作る。ログインしていれば保存し、していなければ
+   * 画面の今のシートに展開する（保存はされない）。
+   */
+  const [showTemplates, setShowTemplates] = useState(false)
+  const createFromTemplate = async (tpl: SheetTemplate) => {
+    setShowTemplates(false)
+    const base = { rows: tpl.rows, cols: tpl.cols, cells: { ...tpl.cells }, formats: { ...tpl.formats } as Record<string, CellFormat> }
+    setColWidths([...tpl.colWidths])
+    if (!currentUser) {
+      setSheet(prev => ({ ...prev, name: tpl.name, ...base }))
+      return
+    }
+    const id = `s${Date.now()}`
+    const init: SheetData = { id, name: tpl.name, ...base }
+    setSheetList(prev => { const next = [{ id, name: tpl.name }, ...prev]; try { localStorage.setItem(`sheets:${currentUser.uid}`, JSON.stringify(next)) } catch {}; return next })
+    setCurrentSheetId(id)
+    setSheet(init)
+    try { await setDoc(doc(db, 'users', currentUser.uid, 'sheets', id), { ...init, colWidths: tpl.colWidths } as any) } catch {}
+  }
+
+  // 設計ツールの「面積表」などから、テンプレート付きで開かれたとき。
+  // シートの読み込み（下の effect）が画面を初期化したあとで当てないと上書きされるので、
+  // ここでは受け取るだけにして、読み込みの最後で applyPendingTemplate を呼ぶ。
+  const pendingTemplateRef = useRef<string | null>(null)
+  if (pendingTemplateRef.current === null && typeof window !== 'undefined') {
+    try { pendingTemplateRef.current = sessionStorage.getItem(PENDING_TEMPLATE_KEY) ?? ''; sessionStorage.removeItem(PENDING_TEMPLATE_KEY) } catch { pendingTemplateRef.current = '' }
+  }
+  const applyPendingTemplate = () => {
+    const tpl = SHEET_TEMPLATES.find(t => t.id === pendingTemplateRef.current)
+    pendingTemplateRef.current = ''
+    if (tpl) void createFromTemplate(tpl)
+  }
+
   const renameCurrentSheet = async () => {
     if (!currentUser) return
     const nextName = prompt('シート名を入力', sheet.name || '')?.trim()
@@ -489,7 +524,7 @@ const Spreadsheet: React.FC = () => {
 
   // 表計算: シート一覧 + 選択シート購読
   useEffect(() => {
-    if (!currentUser) { setSheet({ id: 'default', name: 'シート1', rows: 20, cols: 10, cells: {}, formats: {} }); setSheetList([]); setCurrentSheetId('default'); return }
+    if (!currentUser) { setSheet({ id: 'default', name: 'シート1', rows: 20, cols: 10, cells: {}, formats: {} }); setSheetList([]); setCurrentSheetId('default'); applyPendingTemplate(); return }
     // 一覧を取得
     (async () => {
       try {
@@ -506,6 +541,7 @@ const Spreadsheet: React.FC = () => {
           setCurrentSheetId('default')
         }
       } catch {}
+      applyPendingTemplate()
     })()
   }, [currentUser])
 
@@ -1421,6 +1457,10 @@ const Spreadsheet: React.FC = () => {
     { name: 'ROUND', tpl: '=ROUND(A1,2)', hint: '四捨五入' },
     { name: 'TODAY', tpl: '=TODAY()', hint: '本日' },
     { name: 'NOW', tpl: '=NOW()', hint: '日時' },
+    // 建築関数（このツール独自）
+    { name: '坪', tpl: '=坪(A1)', hint: '㎡→坪' },
+    { name: '必要数', tpl: '=必要数(A1,定尺面積(910,1820),5)', hint: '板の枚数（ロス5%）' },
+    { name: '勾配角度', tpl: '=勾配角度(4)', hint: '4寸→度' },
   ] as const
 
   // マウスアップ時の処理（オートフィル確定）
@@ -1972,6 +2012,27 @@ const Spreadsheet: React.FC = () => {
           >
             <PlusIcon className="w-4 h-4" />
           </button>
+        </div>
+        <div className="relative">
+          <button
+            type="button"
+            className="px-2 py-1 text-xs rounded bg-gray-700 text-white hover:bg-gray-800"
+            onClick={() => setShowTemplates(v => !v)}
+            title="面積表・仕上表・建具表・数量拾い・工事費内訳を式つきで作る"
+          >
+            テンプレートから作成
+          </button>
+          {showTemplates && (
+            <div className="absolute left-0 top-full mt-1 z-30 w-[320px] bg-white border border-[#3b3b3b] shadow-lg">
+              {SHEET_TEMPLATES.map(t => (
+                <button key={t.id} type="button" onClick={() => void createFromTemplate(t)} className="block w-full text-left px-3 py-2 hover:bg-gray-100 border-b last:border-b-0">
+                  <span className="block text-[12px] font-bold text-gray-800">{t.name}</span>
+                  <span className="block text-[10px] text-gray-500">{t.description}</span>
+                </button>
+              ))}
+              {!currentUser && <p className="px-3 py-2 text-[10px] text-gray-500 bg-gray-50">ログインしていないと保存されません（この画面でだけ使えます）</p>}
+            </div>
+          )}
         </div>
         <button type="button" className="px-2 py-1 text-xs rounded bg-gray-200 hover:bg-gray-700 hover:text-white" onClick={renameCurrentSheet}>名称変更</button>
         <button type="button" className="px-2 py-1 text-xs rounded bg-gray-200 hover:bg-red-600 hover:text-white" onClick={deleteCurrentSheet}>削除</button>
