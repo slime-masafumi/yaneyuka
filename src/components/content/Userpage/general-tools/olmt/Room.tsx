@@ -55,6 +55,7 @@ export default function Room({
   const [uploading, setUploading] = useState(false);
   const [minutes, setMinutes] = useState<{ text: string; html: string; title: string } | null>(null);
   const [copied, setCopied] = useState('');
+  const [showSettings, setShowSettings] = useState(false);
   const [now, setNow] = useState(Date.now());
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -199,30 +200,61 @@ export default function Room({
 
   return (
     <div className="flex flex-col h-full min-h-0">
+      {isOwner && showSettings && (
+        <MeetingSettings
+          room={room}
+          onSave={(p) => {
+            void backend.updateRoom(p);
+            setShowSettings(false);
+          }}
+        />
+      )}
       {/* 上の帯 */}
       <div className="flex flex-wrap items-center gap-2 px-3 py-2 border-b bg-gray-50 text-[12px]">
         <button type="button" onClick={onLeave} className="text-gray-500 hover:text-black" title="一覧に戻る">
           <FiChevronLeft />
         </button>
         <b className="mr-2 truncate max-w-[240px]">{room.title}</b>
-        {room.meetingUrl ? (
+        {room.meetingUrl && (
           <a href={room.meetingUrl} target="_blank" rel="noopener noreferrer" className={btn(false)}>
             <FiExternalLink /> 会議に入る
           </a>
-        ) : isOwner ? (
-          <button
-            type="button"
-            className={btn(false)}
-            onClick={() => {
-              const url = prompt('会議の URL（Zoom・Teams・Meet など）');
-              if (url && /^https:\/\//.test(url)) void backend.updateRoom({ meetingUrl: url });
-            }}
-          >
-            会議の URL を登録
+        )}
+        {room.passcode && (
+          <button type="button" className="text-[11px] text-gray-600 underline decoration-dotted" onClick={() => void copy(room.passcode!, 'pass')} title="パスコードをコピー">
+            パスコード {room.passcode}{copied === 'pass' ? '（コピー済み）' : ''}
           </button>
-        ) : null}
+        )}
+        {room.dialIn && <span className="text-[11px] text-gray-600">電話 {room.dialIn}</span>}
+        {room.schedule && <span className="text-[11px] text-gray-500">{room.schedule}</span>}
+        {isOwner && (
+          <button type="button" className={btn(showSettings)} onClick={() => setShowSettings((v) => !v)}>
+            {room.meetingUrl ? '会議の設定' : '会議の URL を登録'}
+          </button>
+        )}
         <button type="button" className={btn(false)} onClick={() => void copy(inviteUrl, 'invite')}>
           <FiCopy /> {copied === 'invite' ? 'コピーしました' : '招待リンク'}
+        </button>
+        <button
+          type="button"
+          className={btn(false)}
+          title="会議の URL・パスコード・電話番号・図面ボードの招待リンクをまとめた文面"
+          onClick={() =>
+            void copy(
+              [
+                `【${room.title}】${room.schedule ? ` ${room.schedule}` : ''}`,
+                room.meetingUrl ? `会議: ${room.meetingUrl}` : '',
+                room.passcode ? `パスコード: ${room.passcode}` : '',
+                room.dialIn ? `電話で参加: ${room.dialIn}` : '',
+                `図面ボード（同じ図面を見ながら指し示し・赤入れ）: ${inviteUrl}`,
+              ]
+                .filter(Boolean)
+                .join('\n'),
+              'letter',
+            )
+          }
+        >
+          <FiCopy /> {copied === 'letter' ? 'コピーしました' : '招待文'}
         </button>
         {isOwner && (
           <>
@@ -420,6 +452,34 @@ function Decisions({
         <button type="button" className="w-full py-1 text-[11px] bg-[#3b3b3b] text-white" onClick={add}>書き足す</button>
       </div>
       <button type="button" className="w-full py-1 text-[11px] border" onClick={onMinutes}>議事録にする</button>
+    </div>
+  );
+}
+
+/** 会議の設定（オーナーだけ）。定例ごとに URL・パスコード・電話番号・日時を部屋に束ねておく */
+function MeetingSettings({ room, onSave }: { room: RoomDoc; onSave: (p: Partial<RoomDoc>) => void }) {
+  const [url, setUrl] = useState(room.meetingUrl ?? '');
+  const [passcode, setPasscode] = useState(room.passcode ?? '');
+  const [dialIn, setDialIn] = useState(room.dialIn ?? '');
+  const [schedule, setSchedule] = useState(room.schedule ?? '');
+  const bad = !!url.trim() && !/^https:\/\//.test(url.trim());
+  const field = 'px-2 py-1 text-[12px] border border-gray-300';
+  return (
+    <div className="px-3 py-2 border-b bg-white grid gap-2 grid-cols-1 md:grid-cols-[2fr_1fr_1fr_1fr_auto] items-end text-[11px]">
+      <label className="flex flex-col gap-0.5"><span className="text-gray-500">会議の URL</span><input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://zoom.us/j/…" className={field} /></label>
+      <label className="flex flex-col gap-0.5"><span className="text-gray-500">パスコード</span><input value={passcode} onChange={(e) => setPasscode(e.target.value)} className={field} /></label>
+      <label className="flex flex-col gap-0.5"><span className="text-gray-500">電話で参加</span><input value={dialIn} onChange={(e) => setDialIn(e.target.value)} placeholder="03-xxxx-xxxx / ID" className={field} /></label>
+      <label className="flex flex-col gap-0.5"><span className="text-gray-500">定例の日時</span><input value={schedule} onChange={(e) => setSchedule(e.target.value)} placeholder="毎週火曜 10:00" className={field} /></label>
+      <button
+        type="button"
+        disabled={bad}
+        onClick={() => onSave({ meetingUrl: url.trim(), passcode: passcode.trim(), dialIn: dialIn.trim(), schedule: schedule.trim() })}
+        className="px-3 py-1.5 bg-[#3b3b3b] text-white disabled:opacity-40"
+      >
+        保存
+      </button>
+      {bad && <p className="text-orange-700 md:col-span-5">会議の URL は https:// から始まるものを入れてください</p>}
+      <p className="text-gray-400 md:col-span-5">パスコード・電話番号は、この部屋の招待リンクを持っている人に見えます。</p>
     </div>
   );
 }

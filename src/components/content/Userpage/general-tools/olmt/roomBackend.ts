@@ -19,6 +19,10 @@ export type RoomDoc = {
   ownerUid: string;
   title: string;
   meetingUrl: string;
+  /** 会議のパスコード・電話での参加番号・定例の日時（例: 毎週火曜 10:00）。部屋に入れる人には見える */
+  passcode?: string;
+  dialIn?: string;
+  schedule?: string;
   pdf?: { path: string; name: string };
   sessions: Session[];
   currentSession?: string | null;
