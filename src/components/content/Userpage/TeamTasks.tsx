@@ -8,7 +8,7 @@ import { addBoardTask, createBoard, deleteBoard, deleteBoardTask, findUserByEmai
 import { db } from '@/lib/firebaseClient';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import TeamGantt from './teamTasks/TeamGantt';
-import { dueStatus, matchesFilter, ROLES, sortTasks, type TaskFilter } from '@/lib/teamTaskView';
+import { dueStatus, matchesFilter, ROLES, sortTasks, type TaskFilter, cascadeDelays } from '@/lib/teamTaskView';
 
 interface Project {
   id: string;
@@ -29,6 +29,7 @@ interface Task {
   details?: string;
   startDate?: string | null;
   role?: string;
+  after?: string | null;
 }
 
 const COLORS = [
@@ -63,6 +64,31 @@ const TeamTasks: React.FC = () => {
   const [filter, setFilter] = useState<TaskFilter>({ assignee: '', state: 'open', role: '' });
   const [sortBy, setSortBy] = useState<'due' | 'priority'>('due');
   const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
+  // 遅れの波及（プロジェクトごと。前のタスクは同じプロジェクトの中から選ぶ）
+  const slips = new Map(Object.values(tasksByProject).flatMap((list) => [...cascadeDelays(list, today)]));
+  const pendingShifts = [...slips.entries()].filter(([, s]) => s.cause);
+  const applyShifts = async () => {
+    if (!pendingShifts.length) return;
+    if (!confirm(`前のタスクの遅れに合わせて、後ろの ${pendingShifts.length} 件の開始日・期限をずらします。よろしいですか？`)) return;
+    for (const [pid, list] of Object.entries(tasksByProject)) {
+      const moves = list.filter((t) => slips.get(t.id)?.cause);
+      if (!moves.length) continue;
+      for (const t of moves) {
+        const s = slips.get(t.id)!;
+        const hadStart = !!t.startDate && !!t.dueDate && t.startDate <= t.dueDate;
+        try { await updateBoardTask(pid, t.id, { dueDate: s.due, ...(hadStart ? { startDate: s.start } : {}) }) } catch {}
+      }
+      setTasksByProject((prev) => ({
+        ...prev,
+        [pid]: prev[pid].map((t) => {
+          const s = slips.get(t.id);
+          if (!s?.cause) return t;
+          const hadStart = !!t.startDate && !!t.dueDate && t.startDate <= t.dueDate;
+          return { ...t, dueDate: s.due, ...(hadStart ? { startDate: s.start } : {}) };
+        }),
+      }));
+    }
+  };
   const visibleTasks = (projectId: string) => sortTasks((tasksByProject[projectId] || []).filter((t) => matchesFilter(t, filter, today)), sortBy);
 
   React.useEffect(() => {
@@ -142,7 +168,7 @@ const TeamTasks: React.FC = () => {
             (snap) => {
             const list = snap.docs.map(d => {
               const t = d.data() as any
-              return { id: d.id, title: t.title, completed: t.completed, dueDate: (t.dueDate ?? null), startDate: (t.startDate ?? null), role: t.role || undefined, priority: (t.priority as any) ?? 'medium', assigneeId: t.assigneeUid || undefined }
+              return { id: d.id, title: t.title, completed: t.completed, dueDate: (t.dueDate ?? null), startDate: (t.startDate ?? null), role: t.role || undefined, after: t.after ?? null, priority: (t.priority as any) ?? 'medium', assigneeId: t.assigneeUid || undefined }
             })
             setTasksByProject(prev => ({ ...prev, [b.id]: list }))
             try { localStorage.setItem(`teamTasks:${currentUser.uid}:${b.id}`, JSON.stringify(list)) } catch {}
@@ -154,7 +180,7 @@ const TeamTasks: React.FC = () => {
               try {
                 const list = await listBoardTasks(b.id)
                 setTasksByProject(prev => ({ ...prev, [b.id]: (list || []).map(t => ({
-                  id: t.id!, title: t.title, completed: t.completed, dueDate: (t.dueDate ?? null), startDate: (t.startDate ?? null), role: t.role || undefined, priority: (t.priority as any) ?? 'medium', assigneeId: t.assigneeUid || undefined
+                  id: t.id!, title: t.title, completed: t.completed, dueDate: (t.dueDate ?? null), startDate: (t.startDate ?? null), role: t.role || undefined, after: t.after ?? null, priority: (t.priority as any) ?? 'medium', assigneeId: t.assigneeUid || undefined
                 })) as any }))
               } catch {}
               // 失敗した購読を解除し、次回handleBoardsで再購読できるようにする
@@ -462,6 +488,9 @@ const TeamTasks: React.FC = () => {
       {view === 'gantt' && (
         <TeamGantt
           today={today}
+          slips={slips}
+          pendingShifts={pendingShifts.length}
+          onApplyShifts={() => void applyShifts()}
           groups={projects.map((p) => ({
             id: p.id,
             name: p.name,
@@ -759,6 +788,19 @@ const TeamTasks: React.FC = () => {
                           setTasksByProject(prev => ({ ...prev, [project.id]: prev[project.id].map(t => t.id === task.id ? { ...t, startDate: v } : t) }))
                         }}
                       />
+                      <select
+                        className="text-[10px] rounded px-1 py-0.5 bg-white text-gray-800 max-w-[110px]"
+                        value={task.after || ''}
+                        title="前のタスク（これが終わってから始める。遅れると後ろへ波及）"
+                        onChange={async (e) => {
+                          const v = e.target.value || null;
+                          try { await updateBoardTask(project.id, task.id, { after: v }) } catch {}
+                          setTasksByProject(prev => ({ ...prev, [project.id]: prev[project.id].map(t => t.id === task.id ? { ...t, after: v } : t) }))
+                        }}
+                      >
+                        <option value="">前のタスク</option>
+                        {(tasksByProject[project.id] || []).filter((o) => o.id !== task.id).map((o) => <option key={o.id} value={o.id}>{o.title}</option>)}
+                      </select>
                     </>
                   ) : task.role ? (
                     <span className={`text-[9px] px-1 border ${isDarkColor(project.color || '') ? 'border-white/40 text-white/80' : 'border-black/20 text-gray-700'}`}>{task.role}</span>

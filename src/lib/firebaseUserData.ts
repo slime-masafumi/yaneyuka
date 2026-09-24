@@ -166,6 +166,8 @@ export type BoardTaskDoc = {
   startDate?: string | null
   /** 担当の役割（設計・施工・施主・確認検査機関 …） */
   role?: string | null
+  /** 前のタスクの id（遅れが後ろへ波及する） */
+  after?: string | null
   createdAt?: any
   updatedAt?: any
 }

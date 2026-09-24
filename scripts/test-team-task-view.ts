@@ -1,5 +1,5 @@
 // Teamタスクの見え方（src/lib/teamTaskView.ts）のテスト。  node scripts/test-team-task-view.ts
-import { dueStatus, matchesFilter, sortTasks, ganttRange, ganttBar } from '../src/lib/teamTaskView.ts';
+import { dueStatus, matchesFilter, sortTasks, ganttRange, ganttBar, cascadeDelays } from '../src/lib/teamTaskView.ts';
 
 let bad = 0;
 const check = (label: string, got: unknown, want: unknown) => {
