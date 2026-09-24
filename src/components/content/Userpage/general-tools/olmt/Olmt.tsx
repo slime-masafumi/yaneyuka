@@ -1,6 +1,6 @@
 'use client';
 /**
- * OLMT — 図面を囲むオンライン会議。
+ * OnlineMeetingTool（OLMT）— 図面を囲むオンライン会議。
  *
  * 会議ソフトの代わりは作らない（必ず負ける）。Zoom や Teams は外で開いたまま、
  * 画面共有では出来ないこと —「この通り芯の柱」を指す、同じ図面に全員で赤を入れる、
@@ -81,7 +81,7 @@ export default function Olmt() {
 
   const header = (
     <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
-      <h3 className="text-[13px] font-medium">OLMT — 図面ボード</h3>
+      <h3 className="text-[13px] font-medium">OnlineMeetingTool — 図面ボード</h3>
       <p className="text-[11px] mt-0.5">
         会議ソフトは開いたまま、隣で同じ図面を囲む。参加者のポインタが見え、全員で赤を入れ、決定事項をその場で議事録にします
       </p>

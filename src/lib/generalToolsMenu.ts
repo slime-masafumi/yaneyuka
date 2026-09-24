@@ -27,22 +27,22 @@ export type GeneralToolId =
 
 export type GeneralToolEntry = { id: GeneralToolId; label: string };
 
-/** 並びは従来のタブ行と同じ。 */
+/** 並びは左カラム（Sidebar の Ⅲ）と同じ考え方: 手元で完結 → 相手とやりとり → 建築に紐づく。 */
 export const GENERAL_TOOL_MENU: GeneralToolEntry[] = [
-  { id: 'bookmark', label: 'ブックマーク' },
-  { id: 'map', label: '地図' },
-  { id: 'olmt', label: 'OLMT' },
-  { id: 'schedule', label: 'スケ調' },
   { id: 'memo', label: 'メモ' },
   { id: 'sheet', label: '表計算' },
   { id: 'calc', label: '関数電卓' },
+  { id: 'unit-converter', label: '単位変換' },
+  { id: 'bookmark', label: 'ブックマーク' },
   { id: 'image-converter', label: '画像変換' },
-  { id: 'construction-photos', label: '工事写真' },
   { id: 'pdf-compressor', label: 'PDF圧縮' },
-  { id: 'drawing-pdf', label: '図面PDF' },
+  { id: 'olmt', label: 'OnlineMeetingTool' },
+  { id: 'schedule', label: 'スケジュール調整' },
   { id: 'temp-storage', label: '一時ファイル' },
   { id: 'file-transfer', label: 'ファイル転送' },
-  { id: 'unit-converter', label: '単位変換' },
+  { id: 'map', label: '地図' },
+  { id: 'construction-photos', label: '工事写真' },
+  { id: 'drawing-pdf', label: '図面PDF' },
   { id: 'alarm', label: '業務管理・アラーム' },
 ];
 

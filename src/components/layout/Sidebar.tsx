@@ -102,37 +102,37 @@ const RAIL_MODES: RailMode[] = [
   },
   {
     label: '一般ツール', bg: '#241c33', ac: '#9b87d4',
-    // 20本を「連絡 → 予定・タスク → 記録と作成 → 調べる → ファイル」の順に並べる。
-    // 見出しは付けない（畳まずに収まるので、並び順だけで関連が伝わればよい）。
+    // 22本を性格で3つに寄せて並べる。見出しや畳み込みは付けない（並び順だけで伝える）。
+    //   1. 手元で完結する道具（予定・メモ・計算・変換）
+    //   2. 相手とやりとりする道具（メール・チャット・会議・日程調整・ファイルの受け渡し）
+    //   3. 建築の仕事に紐づく道具（法規・敷地・現場写真・図面・工数・メーカー担当）
     // tool を持つ項目は一般ツールの中のタブを直接開く。
     items: [
-      // 連絡
-      { label: 'yymail', menu: 'yymail' },
-      { label: 'yychat', menu: 'yychat' },
-      { label: 'OLMT', menu: 'general-tools', tool: 'olmt' },
-      { label: '担当連絡先', menu: 'contacts' },
-      // 予定・タスク
+      // 手元で完結する道具
       { label: 'Myカレンダー', menu: 'my-calendar' },
       { label: 'Myタスク', menu: 'my-tasks' },
-      { label: 'Teamタスク', menu: 'team-tasks' },
-      { label: 'スケ調', menu: 'general-tools', tool: 'schedule' },
-      // 記録・作成
       { label: 'メモ', menu: 'general-tools', tool: 'memo' },
       { label: '表計算', menu: 'general-tools', tool: 'sheet' },
-      { label: '業務管理・アラーム', menu: 'general-tools', tool: 'alarm' },
-      // 調べる
-      { label: 'My法規', menu: 'my-regulations' },
-      { label: '単位変換', menu: 'general-tools', tool: 'unit-converter' },
       { label: '関数電卓', menu: 'general-tools', tool: 'calc' },
-      { label: '地図', menu: 'general-tools', tool: 'map' },
+      { label: '単位変換', menu: 'general-tools', tool: 'unit-converter' },
       { label: 'ブックマーク', menu: 'general-tools', tool: 'bookmark' },
-      // ファイル
       { label: '画像変換', menu: 'general-tools', tool: 'image-converter' },
-      { label: '工事写真', menu: 'general-tools', tool: 'construction-photos' },
       { label: 'PDF圧縮', menu: 'general-tools', tool: 'pdf-compressor' },
-      { label: '図面PDF', menu: 'general-tools', tool: 'drawing-pdf' },
+      // 相手とやりとりする道具
+      { label: 'yymail', menu: 'yymail' },
+      { label: 'yychat', menu: 'yychat' },
+      { label: 'OnlineMeetingTool', menu: 'general-tools', tool: 'olmt' },
+      { label: 'スケジュール調整', menu: 'general-tools', tool: 'schedule' },
+      { label: 'Teamタスク', menu: 'team-tasks' },
       { label: '一時ファイル', menu: 'general-tools', tool: 'temp-storage' },
       { label: 'ファイル転送', menu: 'general-tools', tool: 'file-transfer' },
+      // 建築の仕事に紐づく道具
+      { label: 'My法規', menu: 'my-regulations' },
+      { label: '地図', menu: 'general-tools', tool: 'map' },
+      { label: '工事写真', menu: 'general-tools', tool: 'construction-photos' },
+      { label: '図面PDF', menu: 'general-tools', tool: 'drawing-pdf' },
+      { label: '業務管理・アラーム', menu: 'general-tools', tool: 'alarm' },
+      { label: '担当連絡先', menu: 'contacts' },
     ],
   },
   {
@@ -332,7 +332,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onItemClick, onPageChange, onLogoClic
       </h3>
       <div className="category-scroll-container"></div>
 
-      {/* Ⅱ〜Ⅴ：旧フッターバーから引き取ったメニュー */}
+      {/* Ⅱ〜Ⅴ：旧フッターバーから引き取ったメニュー。
+          行の高さは 21px。Ⅲ の22本が 1280×720 で切り替えバーの上に収まる高さにしてある
+          （24.8px だと最後の2本が隠れ、スクロールバーも出さないので気づけなかった）。 */}
       {mode !== 0 && (
         <div className="space-y-0 pb-2">
           {railMode.items.map((item) =>
@@ -343,7 +345,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onItemClick, onPageChange, onLogoClic
                   target="_blank"
                   rel="noopener noreferrer"
                   title={item.label}
-                  className="subcategory flex items-center gap-2 flex-1 min-w-0 text-left px-4 py-1 text-[12px] 2xl:text-[13px] hover:text-white text-gray-300"
+                  className="subcategory flex items-center gap-2 flex-1 min-w-0 text-left px-4 py-[3px] leading-tight text-[12px] 2xl:text-[13px] hover:text-white text-gray-300"
                 >
                   <RailIcon src={item.icon} />
                   <span className="truncate">{item.label}</span>
@@ -364,7 +366,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onItemClick, onPageChange, onLogoClic
               <button
                 key={item.label}
                 type="button"
-                className={`subcategory flex items-center gap-2 w-full text-left px-4 py-1 text-[12px] 2xl:text-[13px] hover:text-white ${
+                className={`subcategory flex items-center gap-2 w-full text-left px-4 py-[3px] leading-tight text-[12px] 2xl:text-[13px] hover:text-white ${
                   isItemActive(item) ? ACTIVE : 'text-gray-300'
                 }`}
                 onClick={() => {
