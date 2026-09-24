@@ -46,9 +46,10 @@ export const DESIGN_TOOL_MENU: DesignToolCategory[] = [
     ],
   },
   {
+    // id は URL（?c=detail-design）に出ているので変えない。表示名だけ「意匠設計」
     id: 'detail-design',
-    label: '実施設計',
-    title: '実施設計',
+    label: '意匠設計',
+    title: '意匠設計',
     description: '',
     subTabs: [
       { id: 'glass-thickness', label: 'ガラス厚計算', title: 'ガラス厚計算', description: '風圧力に対するガラス厚の検証（NSG技術資料準拠）' },
@@ -107,9 +108,9 @@ export const DESIGN_TOOL_MENU: DesignToolCategory[] = [
     description: '',
     subTabs: [
       { id: 'plant-selection', label: '植栽選定', title: '植栽選定', description: '条件に合った樹種を検索・選定' },
-      { id: 'exterior-rainwater', label: '外構雨水', title: '外構雨水排水', description: 'マニング公式による雨水管渠の排水能力を計算' },
+      { id: 'exterior-rainwater', label: '外構雨水', title: '外構雨水', description: '雨水管渠の排水能力（マニング公式）と、埋設管が上を通る車に耐えるか（耐荷重）を判定' },
       { id: 'slope-calc', label: '勾配計算', title: '勾配計算', description: '外構の勾配計算ツール（準備中）' },
-      { id: 'pavement', label: '舗装設計', title: '舗装設計', description: '舗装構成の設計ツール（準備中）' },
+      { id: 'pavement', label: '舗装設計', title: '舗装設計', description: 'アスファルト舗装の構成を TA 法（舗装設計便覧）で決める。使われ方と路床の CBR から必要な厚さを出し、構成を判定' },
     ],
   },
 ];

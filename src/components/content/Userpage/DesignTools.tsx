@@ -15,6 +15,8 @@ import ColorProposal from '@/components/content/Userpage/design-tools/5_ColorPro
 import PlantSelection from '@/components/content/Userpage/design-tools/8_PlantSelection';
 import UnitVolumeCalculation from '@/components/content/Userpage/design-tools/6_UnitVolumeCalculation';
 import RainwaterCalculation from '@/components/content/Userpage/design-tools/2_RainwaterCalculation';
+import ExteriorRainwater from '@/components/content/Userpage/design-tools/ExteriorRainwater';
+import PavementDesign from '@/components/content/Userpage/design-tools/PavementDesign';
 import FireEquipment from '@/components/content/Userpage/design-tools/3_FireEquipment';
 import BuildingRegulations from '@/components/content/Userpage/design-tools/7_BuildingRegulations';
 import PropertyCard from '@/components/content/Userpage/design-tools/PropertyCard';
@@ -75,9 +77,9 @@ const TOOL_COMPONENTS: Record<string, React.ReactNode> = {
   'elec-capacity': <PlaceholderTool name="電気容量計算" description="電気設備容量の計算ツールです。（準備中）" />,
   'trunk-size': <PlaceholderTool name="幹線サイズ" description="幹線ケーブルサイズの選定ツールです。（準備中）" />,
   'plant-selection': <PlantSelection hideHeader />,
-  'exterior-rainwater': <RainwaterCalculation mode="exterior" hideTabBar />,
+  'exterior-rainwater': <ExteriorRainwater />,
   'slope-calc': <PlaceholderTool name="勾配計算" description="外構の勾配計算ツールです。（準備中）" />,
-  'pavement': <PlaceholderTool name="舗装設計" description="舗装構成の設計ツールです。（準備中）" />,
+  'pavement': <PavementDesign />,
 };
 
 type SubTab = DesignToolEntry & { component: React.ReactNode };
