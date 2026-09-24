@@ -1,6 +1,7 @@
 import React from 'react';
 import MakerLink from '@/components/MakerLink';
 import makers from '@/data/makers.json';
+import SaveToMakerBox from '@/components/SaveToMakerBox';
 
 /**
  * 建材メーカーの一覧行。
@@ -82,6 +83,7 @@ const MakerRows: React.FC<MakerRowsProps> = ({
                 {si < SLOTS.length - 1 ? '｜' : null}
               </React.Fragment>
             ))}
+            <SaveToMakerBox name={m.name} />
           </span>
         </div>
       ))}

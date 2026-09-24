@@ -5,6 +5,7 @@ import { FiStar, FiTrash2, FiExternalLink, FiSettings, FiGrid, FiList, FiSearch 
 import { useAuth } from '@/lib/AuthContext';
 import { db } from '@/lib/firebaseClient';
 import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
+import MakerBox from './makerBox/MakerBox';
 
 // スキームを省略して入力されたURL（例: example.com）は相対リンク扱いになり
 // サイト内に飛んでしまうため、https:// を補って正規化する。
@@ -57,6 +58,8 @@ const BookmarkTool: React.FC = () => {
   
   // --- モード管理ステート（新規追加） ---
   const [isEditMode, setIsEditMode] = useState(false); // デフォルトは閲覧モード
+  // メーカー資料箱（1 メーカー = 1 カード）。ブックマークとは別の保存先（users/{uid}/makerBox）
+  const [boxMode, setBoxMode] = useState(false);
 
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [currentBookmark, setCurrentBookmark] = useState<Bookmark | null>(null);
@@ -395,32 +398,41 @@ const BookmarkTool: React.FC = () => {
       <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
         <div className="flex justify-between items-start">
         <div>
-            <h3 className="text-[13px] font-medium">ブックマーク</h3>
-            <p className="text-[11px] mt-0.5">よく使うURLを保存・管理。カテゴリー・タグ分類、お気に入り機能、グリッド/リスト表示切替に対応</p>
+            <h3 className="text-[13px] font-medium">{boxMode ? 'ブックマーク — メーカー資料箱' : 'ブックマーク'}</h3>
+            <p className="text-[11px] mt-0.5">{boxMode ? '1メーカー＝1カードに商品ページ・カタログ・CAD・サンプル・担当者・うちの標準仕様を束ねる' : 'よく使うURLを保存・管理。URLを貼るとタイトル・説明を自動で取得、リンク切れ確認つき'}</p>
         </div>
         <div className="flex items-center gap-3">
           {/* モード切替スイッチ */}
           <div className="bg-gray-700 rounded-lg p-0.5 flex">
             <button
-              onClick={() => setIsEditMode(false)}
+              onClick={() => { setBoxMode(false); setIsEditMode(false); }}
               className={`px-3 py-1 rounded-md text-[11px] flex items-center gap-1 transition-all ${
-                !isEditMode ? 'bg-white text-gray-800 shadow' : 'text-gray-300 hover:text-white'
+                !boxMode && !isEditMode ? 'bg-white text-gray-800 shadow' : 'text-gray-300 hover:text-white'
               }`}
             >
               <FiGrid /> ランチャー
             </button>
             <button
-              onClick={() => setIsEditMode(true)}
+              onClick={() => { setBoxMode(false); setIsEditMode(true); }}
               className={`px-3 py-1 rounded-md text-[11px] flex items-center gap-1 transition-all ${
-                isEditMode ? 'bg-white text-gray-800 shadow' : 'text-gray-300 hover:text-white'
+                !boxMode && isEditMode ? 'bg-white text-gray-800 shadow' : 'text-gray-300 hover:text-white'
               }`}
             >
               <FiList /> 編集・管理
+            </button>
+            <button
+              onClick={() => setBoxMode(true)}
+              className={`px-3 py-1 rounded-md text-[11px] flex items-center gap-1 transition-all ${
+                boxMode ? 'bg-white text-gray-800 shadow' : 'text-gray-300 hover:text-white'
+              }`}
+            >
+              メーカー資料箱
             </button>
           </div>
 
           {/* リンク切れ確認。カタログや製品ページの URL は数年で変わるので、
               溜めるほど死ぬ。結果は一覧の各行に出す。 */}
+          {!boxMode && (<>
           <button
             onClick={checkAllLinks}
             disabled={isCheckingLinks || bookmarks.length === 0}
@@ -437,6 +449,7 @@ const BookmarkTool: React.FC = () => {
           >
             ＋ 新規
           </button>
+          </>)}
           </div>
         </div>
       </div>
@@ -446,7 +459,12 @@ const BookmarkTool: React.FC = () => {
         {/* =================================================================
             【閲覧モード (ランチャーUI)】
            ================================================================= */}
-        {!isEditMode && (
+        {boxMode && (
+          <div>
+            <MakerBox bookmarks={bookmarks} />
+          </div>
+        )}
+        {!boxMode && !isEditMode && (
           <div className="h-full flex flex-col">
             {/* 1. 検索バー & タブUI */}
             <div className="mb-6">
@@ -567,7 +585,7 @@ const BookmarkTool: React.FC = () => {
         {/* =================================================================
             【編集モード (従来のUI)】
            ================================================================= */}
-        {isEditMode && (
+        {!boxMode && isEditMode && (
           <div className="flex gap-6 h-full">
             {/* 左サイド：リスト (既存コードのレイアウト調整) */}
             <div className="w-1/4 flex flex-col border-r border-gray-100 pr-4">
