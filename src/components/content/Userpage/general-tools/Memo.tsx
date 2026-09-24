@@ -12,6 +12,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { db, storage } from '@/lib/firebaseClient';
 import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, setDoc, writeBatch } from 'firebase/firestore';
 import HtmlDocx from 'html-docx-js/dist/html-docx';
+import HomeworkToTasks from './memo/HomeworkToTasks';
 
 interface Memo {
   id: string;
@@ -199,6 +200,8 @@ const MemoTool: React.FC = () => {
   const [currentMemo, setCurrentMemo] = useState<Memo | null>(null);
   const [memoTitle, setMemoTitle] = useState('');
   const [memoCategory, setMemoCategory] = useState('');
+  // 宿題を Myタスクへ（開いたときの本文を渡す）
+  const [homeworkText, setHomeworkText] = useState<string | null>(null);
   const [memoTags, setMemoTags] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   // 選択中のフォルダ。null = すべて / '' = 未分類 / それ以外 = フォルダ名
@@ -1396,6 +1399,18 @@ const MemoTool: React.FC = () => {
                       {listening ? <FiSquare /> : <FiMic />} {listening ? '停止' : '音声'}
                     </button>
                   </div>
+
+                  <div className="flex h-8 items-center bg-white border border-gray-200 rounded">
+                    <button
+                      onClick={() => setHomeworkText(editorRef.current?.innerText ?? '')}
+                      disabled={!currentMemo || !currentUser}
+                      className="h-full px-2 flex items-center gap-1 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed text-[10px]"
+                      title="宿題・指摘・☐ の行を拾って Myタスクに入れる（担当・期限も読み取ります）"
+                    >
+                      <FiCheckSquare /> 宿題→タスク
+                    </button>
+                  </div>
+                  {homeworkText !== null && <HomeworkToTasks text={homeworkText} folder={memoCategory} onClose={() => setHomeworkText(null)} />}
 
                   <div className="w-px h-4 bg-gray-300 mx-1"></div>
 
