@@ -30,6 +30,7 @@ import {
 } from '@/types/schedule';
 import { buildIcs } from '@/lib/ics';
 import { candidateLabel, generateCandidates, responsesCsv, timeRangeOf, WEEKDAYS, type Slot } from '@/lib/scheduleBatch';
+import { MEETING_KINDS, PARTY_ROLES, roleCoverage, bestOption } from '@/lib/scheduleRoles';
 import { 
   FiPlus, FiTrash2, FiCopy, FiCalendar, FiEdit2, FiCheck, 
   FiX, FiMinus, FiCircle, FiEye, FiShare2, FiList, FiUsers, FiMessageSquare, FiClock, FiRefreshCw 
@@ -645,23 +646,26 @@ const ScheduleTool: React.FC = () => {
     URL.revokeObjectURL(url);
   };
   const isoLocal = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  /** 回答で ○ が一番多い候補（同数なら先の候補） */
-  const bestOptionId = () => {
-    let best = '';
-    let max = -1;
-    for (const o of options) {
-      const yes = summaries.find((x) => x.optionId === o.id)?.yes ?? 0;
-      if (yes > max) { max = yes; best = o.id; }
-    }
-    return best;
+  // 役割: 主催者が回答者に付けた役割と、必ず出てほしい役割
+  const roleMap = currentSchedule?.roles ?? {};
+  const requiredRoles = currentSchedule?.requiredRoles ?? [];
+  const coverage = roleCoverage(options, participants, responses, roleMap, requiredRoles);
+  const isScheduleOwner = !!currentUser && currentSchedule?.ownerUid === currentUser.uid;
+  const patchSchedule = async (patch: Record<string, string | string[] | Record<string, string> | null>, local: Partial<Schedule>) => {
+    if (!currentSchedule) return;
+    setCurrentSchedule({ ...currentSchedule, ...local });
+    setSchedules((prev) => prev.map((s) => (s.id === currentSchedule.id ? { ...s, ...local } : s)));
+    try { await updateDoc(doc(db, 'schedules', currentSchedule.id), patch); } catch (e) { console.error('スケジュールの更新に失敗', e); }
   };
+  /** 確定の候補: 必須の役割が全員○の日 → ○ が一番多い日（同数なら先の候補） */
+  const bestOptionId = () => bestOption(coverage);
   const fixedEvent = () => {
     const o = options.find((x) => x.id === (fixOptionId || bestOptionId()));
     if (!o || !o.dateTime || !currentSchedule) return null;
     const t = timeRangeOf(o.label);
     return {
       id: `${currentSchedule.slug}-${o.id}`,
-      title: currentSchedule.title,
+      title: currentSchedule.kind ? `【${currentSchedule.kind}】${currentSchedule.title}` : currentSchedule.title,
       date: isoLocal(o.dateTime.toDate()),
       allDay: !t,
       startHour: t?.startHour ?? '00',
@@ -676,7 +680,7 @@ const ScheduleTool: React.FC = () => {
     if (!ev || !currentUser) return;
     const { id: _id, ...rest } = ev;
     void _id;
-    await addDoc(collection(db, 'users', currentUser.uid, 'calendarEvents'), { ...rest, category: '会議', color: '#3B82F6', recurrenceType: 'none', spanPart: 'single' });
+    await addDoc(collection(db, 'users', currentUser.uid, 'calendarEvents'), { ...rest, category: currentSchedule?.kind || '会議', color: '#3B82F6', recurrenceType: 'none', spanPart: 'single' });
     setFixMsg(`Myカレンダーの ${ev.date} に入れました`);
   };
 
@@ -767,7 +771,7 @@ const ScheduleTool: React.FC = () => {
         <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
           <div>
             <h3 className="text-[13px] font-medium">スケジュール調整</h3>
-            <p className="text-[11px] mt-0.5">会議やイベントの日程調整が簡単に。参加者の希望日程を集約し、簡易アンケートも作成可能</p>
+            <p className="text-[11px] mt-0.5">現場定例・検査・施主打合せの日程調整。候補をまとめて作り、施主・設計・施工など必要な役割が揃う日を探して、確定したらカレンダーへ</p>
           </div>
         </div>
         
@@ -780,7 +784,10 @@ const ScheduleTool: React.FC = () => {
                   {/* タイトルセクション */}
                   <div className="flex justify-between items-start mb-5 pb-4 border-b border-gray-100">
                     <div>
-                      <h2 className="text-lg font-bold text-gray-800 leading-tight mb-2">{currentSchedule.title}</h2>
+                      <h2 className="text-lg font-bold text-gray-800 leading-tight mb-2">
+                        {currentSchedule.kind && <span className="text-[11px] font-normal border border-gray-400 px-1 mr-2 align-middle">{currentSchedule.kind}</span>}
+                        {currentSchedule.title}
+                      </h2>
                       {currentSchedule.description && (
                         <p className="text-xs text-gray-600 whitespace-pre-wrap leading-relaxed bg-gray-50 p-2 rounded border border-gray-100 inline-block max-w-2xl">
                             {currentSchedule.description}
@@ -865,6 +872,77 @@ const ScheduleTool: React.FC = () => {
                     {fixMsg && <span className="text-green-700">{fixMsg}</span>}
                     {!fixedEvent() && options.length > 0 && <span className="text-gray-400">日付の無い候補（アンケート）はカレンダーに入れられません</span>}
                   </div>
+
+                  {/* 種別と役割（主催者だけ）。回答者には役割を聞かず、主催者が付ける */}
+                  {isScheduleOwner && (
+                    <div className="border border-gray-300 p-3 mb-6 text-[11px] space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-bold text-gray-700">種別</span>
+                        <select
+                          value={currentSchedule.kind ?? ''}
+                          onChange={(e) => void patchSchedule({ kind: e.target.value || null }, { kind: e.target.value || undefined })}
+                          className="px-2 py-1 border border-gray-300"
+                        >
+                          <option value="">なし</option>
+                          {MEETING_KINDS.map((k) => <option key={k}>{k}</option>)}
+                        </select>
+                        <span className="font-bold text-gray-700 ml-3">必ず出てほしい役割</span>
+                        {PARTY_ROLES.filter((r) => r !== 'その他').map((r) => (
+                          <label key={r} className="flex items-center gap-0.5">
+                            <input
+                              type="checkbox"
+                              checked={requiredRoles.includes(r)}
+                              onChange={(e) => {
+                                const next = e.target.checked ? [...requiredRoles, r] : requiredRoles.filter((x) => x !== r);
+                                void patchSchedule({ requiredRoles: next }, { requiredRoles: next });
+                              }}
+                            />
+                            {r}
+                          </label>
+                        ))}
+                      </div>
+                      {participants.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                          <span className="font-bold text-gray-700">回答者の役割</span>
+                          {participants.map((p) => (
+                            <label key={p.id} className="flex items-center gap-1">
+                              <span className="truncate max-w-[100px]">{p.name}</span>
+                              <select
+                                value={roleMap[p.id] ?? ''}
+                                onChange={(e) => {
+                                  const next = { ...roleMap };
+                                  if (e.target.value) next[p.id] = e.target.value;
+                                  else delete next[p.id];
+                                  void patchSchedule({ roles: next }, { roles: next });
+                                }}
+                                className="px-1 py-0.5 border border-gray-300"
+                              >
+                                <option value="">—</option>
+                                {PARTY_ROLES.map((r) => <option key={r}>{r}</option>)}
+                              </select>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                      {requiredRoles.length > 0 && options.length > 0 && (
+                        <ul className="border-t border-gray-200 pt-1.5 space-y-0.5">
+                          {coverage.map((c) => {
+                            const o = options.find((x) => x.id === c.optionId);
+                            return (
+                              <li key={c.optionId} className="flex gap-2">
+                                <span className={`w-4 ${c.allOk ? 'text-green-700 font-bold' : 'text-gray-300'}`}>{c.allOk ? '◎' : '・'}</span>
+                                <span className="min-w-[160px]">{o?.label}</span>
+                                <span className="text-gray-500">
+                                  {c.allOk ? '必要な役割が全員 ○' : [c.missing.length ? `出られない: ${c.missing.join('・')}` : '', c.weak.length ? `△のみ: ${c.weak.join('・')}` : ''].filter(Boolean).join('　')}
+                                </span>
+                              </li>
+                            );
+                          })}
+                          <li className="text-gray-400 pt-0.5">確定・書き出しの候補は、必要な役割が全員 ○ の日を先に選びます。役割を付けていない回答者は数に入りません。</li>
+                        </ul>
+                      )}
+                    </div>
+                  )}
 
                   {/* 入力フォームと集計表のレイアウト */}
                   <div className="flex flex-col lg:flex-row gap-5">
@@ -1147,7 +1225,7 @@ const ScheduleTool: React.FC = () => {
         <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
           <div>
             <h3 className="text-[13px] font-medium">スケジュール調整</h3>
-            <p className="text-[11px] mt-0.5">会議やイベントの日程調整が簡単に。参加者の希望日程を集約し、簡易アンケートも作成可能</p>
+            <p className="text-[11px] mt-0.5">現場定例・検査・施主打合せの日程調整。候補をまとめて作り、施主・設計・施工など必要な役割が揃う日を探して、確定したらカレンダーへ</p>
           </div>
         </div>
         

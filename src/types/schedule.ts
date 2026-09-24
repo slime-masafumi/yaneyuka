@@ -18,6 +18,12 @@ export interface Schedule {
   deadline?: Timestamp;
   createdAt: Timestamp;
   updatedAt: Timestamp;
+  /** 種別（現場定例・中間検査・施主打合せ…） */
+  kind?: string;
+  /** 回答者 id → 役割（主催者が付ける） */
+  roles?: Record<string, string>;
+  /** 必ず出てほしい役割 */
+  requiredRoles?: string[];
 }
 
 export interface ScheduleOption {
