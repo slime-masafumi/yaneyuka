@@ -3,6 +3,11 @@
 import React, { useState } from 'react';
 import MakerLink from '@/components/MakerLink';
 import MakerRows from '@/components/MakerRows';
+import BasicKnowledge, { KnowledgeToggle, type KnowledgeEntry } from '@/components/BasicKnowledge';
+import KNOWLEDGE_JSON from '@/data/knowledge/roof.json';
+
+const KNOWLEDGE = KNOWLEDGE_JSON as unknown as KnowledgeEntry[];
+
 
 interface RoofContentProps {
   subcategory: string;
@@ -57,57 +62,7 @@ const RoofContent: React.FC<RoofContentProps> = ({ subcategory }) => {
             </div>
             
             {/* 基本知識トグル */}
-            {showBasicKnowledge && (
-              <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg text-xs">
-                <h3 className="font-bold text-[13px] mb-1.5">大スパンへの対応力</h3>
-                
-                <p className="mb-1.5 text-xs ml-3">
-                  金属板を台形波状に成形することで断面性能を高めた屋根材。
-                </p>
-                
-                <p className="mb-2 text-xs ml-3">
-                  軽量かつ高強度であり、梁間隔を大きく飛ばせるため、工場・倉庫・体育館などの大型建築物に最適。
-                </p>
-                
-                <h4 className="font-bold text-[12px] mb-1">梁ピッチ（許容スパン）と製品選定</h4>
-                
-                <p className="mb-1 text-xs ml-3">
-                  製品の「山高（やまだか）」と「板厚」により、対応可能な梁間隔（母屋ピッチ）が決まる。
-                </p>
-                
-                <ul className="mb-2 space-y-0.5 text-xs ml-3 list-none">
-                  <li><span className="mr-1">・</span><strong>山高</strong>: 高いほど断面二次モーメントが大きく、長スパンに対応可能（例：H88、H150など）。</li>
-                  <li><span className="mr-1">・</span><strong>板厚</strong>: 一般的に0.6mm～1.2mm。厚いほど強度が向上する。</li>
-                </ul>
-                
-                <h4 className="font-bold text-[12px] mb-1">3つの固定工法と特徴</h4>
-                
-                <ul className="mb-2 space-y-0.5 text-xs ml-3 list-none">
-                  <li><span className="mr-1">・</span><strong>ハゼ締めタイプ（ボルトレス）</strong>: タイトフレームに屋根材を固定し、ハゼ（継ぎ目）を電動工具で巻き締めする工法。ボルトが露出しないため防水性・防錆性が最も高い。現在の主流。</li>
-                  <li><span className="mr-1">・</span><strong>重ねタイプ</strong>: 屋根材を重ね合わせ、ボルトで貫通固定する工法。安価で施工が容易だが、ボルト周りの漏水・錆リスクがある。小規模建物や改修向け。</li>
-                  <li><span className="mr-1">・</span><strong>嵌合（かんごう）タイプ</strong>: キャップを嵌め込んで固定する工法。ハゼ締めが不要で施工が早く、強風にも強い。意匠性に優れる。</li>
-                </ul>
-                
-                <h4 className="font-bold text-[12px] mb-1">結露対策の重要性</h4>
-                
-                <p className="mb-1 text-xs ml-3">
-                  金属屋根は外気温の影響を受けやすく、冬季や梅雨時は裏面結露のリスクが高い。
-                </p>
-                
-                <ul className="mb-2 space-y-0.5 text-xs ml-3 list-none">
-                  <li><span className="mr-1">・</span><strong>ペフ（結露防止材）付き</strong>: 裏面にポリエチレンフォームを貼り付けた製品。簡易的な断熱・結露防止に有効。</li>
-                  <li><span className="mr-1">・</span><strong>二重折板（ダブルパック）</strong>: 上下2枚の折板の間に断熱材（グラスウール等）を挟む工法。高い断熱性・遮音性を確保でき、空調効率を重視する施設に適する。</li>
-                </ul>
-                
-                <h4 className="font-bold text-[12px] mb-1">素材による耐久性の違い</h4>
-                
-                <ul className="space-y-0.5 text-xs ml-3 list-none">
-                  <li><span className="mr-1">・</span><strong>ガルバリウム鋼板</strong>: アルミニウム・亜鉛合金めっき。防食性に優れ、現在の標準仕様。</li>
-                  <li><span className="mr-1">・</span><strong>エスジーエル（SGL）</strong>: ガルバリウムにマグネシウムを添加し、耐食性をさらに向上させた次世代鋼板。沿岸部でも採用が増加。</li>
-                  <li><span className="mr-1">・</span><strong>ステンレス</strong>: 初期コストは高いが、最強の耐食性を誇る。重塩害地域やメンテナンス困難な場所で採用。</li>
-                </ul>
-              </div>
-            )}
+            {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
             <div className="flex flex-wrap gap-2 mb-8">
               {/* カード1：掲載募集カード */}
               <div className="border rounded p-3 bg-white text-sm w-[240px] h-[365px] card">
@@ -157,89 +112,7 @@ const RoofContent: React.FC<RoofContentProps> = ({ subcategory }) => {
             </div>
             
             {/* 基本知識トグル */}
-            {showBasicKnowledge && (
-              <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg text-xs">
-                <h3 className="font-bold text-[13px] mb-1.5">長尺屋根における「熱伸縮」対策</h3>
-                
-                <p className="mb-1.5 text-xs ml-3">
-                  金属は温度変化による伸縮が激しい（例：鉄は10mで約10mm程度の伸縮差が生じる）。
-                </p>
-                
-                <p className="mb-2 text-xs ml-3">
-                  桁行（屋根の長さ）が長い場合、固定箇所を一点にし、他は<strong>「スライド吊子（つりこ）」</strong>を使用して屋根材の伸縮を逃がす必要がある。
-                </p>
-                
-                <p className="mb-2 text-xs ml-3">
-                  対策を怠ると、ボルトの破断や屋根材の座屈、異音（ボコンという音）の原因となる。
-                </p>
-                
-                <h4 className="font-bold text-[12px] mb-1">「電食（でんしょく）」リスクの回避</h4>
-                
-                <p className="mb-1 text-xs ml-3">
-                  異種金属が接触し、水分が介在すると腐食が加速する現象（ガルバニック腐食）。
-                </p>
-                
-                <ul className="mb-2 space-y-0.5 text-xs ml-3 list-none">
-                  <li><span className="mr-1">・</span>組み合わせNG例: ガルバリウム鋼板 × 銅、ガルバリウム鋼板 × ステンレス（条件による）。</li>
-                  <li><span className="mr-1">・</span>銅製の避雷針や雨樋からの雨水がガルバリウム屋根に流れるだけでも穴が開くため、流路の絶縁処理が必須。</li>
-                </ul>
-                
-                <h4 className="font-bold text-[12px] mb-1">緩勾配における「毛細管現象」対策</h4>
-                
-                <p className="mb-1 text-xs ml-3">
-                  縦ハゼの嵌合部や重なり部分は、勾配が緩いと毛細管現象で雨水を吸い上げるリスクがある。
-                </p>
-                
-                <p className="mb-2 text-xs ml-3">
-                  止水材: 嵌合部（キャップやハゼの中）に工場でブチルゴム等のシーリング材が注入されている製品を選定することが、漏水事故防止の鍵。
-                </p>
-                
-                <h4 className="font-bold text-[12px] mb-1">「あおり止め」と耐風圧性能</h4>
-                
-                <p className="mb-1 text-xs ml-3">
-                  近年の台風巨大化に伴い、軒先やケラバ部分の耐風性能が重要視されている。
-                </p>
-                
-                <p className="mb-2 text-xs ml-3">
-                  軒先部分は風の巻き上げ力が最も強いため、通常の固定に加えて<strong>「あおり止めタイトフレーム」</strong>や補強ビスの使用が推奨されるケースが増えている。
-                </p>
-                
-                <h4 className="font-bold text-[12px] mb-1">意匠性と「ベコ付き（オイルキャニング）」</h4>
-                
-                <p className="mb-1 text-xs ml-3">
-                  平滑な金属板は、施工時の歪みや熱膨張により表面が波打つ「ベコ付き」が発生しやすい。
-                </p>
-                
-                <p className="mb-2 text-xs ml-3">
-                  対策: 板厚を上げる（0.4mm以上）、または<strong>「さざなみ加工」「リブ加工」</strong>が入った製品を選ぶことで、波打ちを目立たなくし、剛性も高めることができる。
-                </p>
-                
-                <h4 className="font-bold text-[12px] mb-1">太陽光パネル設置の優位性（立平葺き）</h4>
-                
-                <p className="mb-1 text-xs ml-3">
-                  キャッチ工法: 立平葺き（縦ハゼ）は、ハゼ部分を金具で掴んでパネルを固定できる。
-                </p>
-                
-                <p className="mb-2 text-xs ml-3">
-                  屋根に穴を開けずに設置できるため、漏水リスクがなく、将来のパネル撤去時も屋根へのダメージがない。
-                </p>
-                
-                <h4 className="font-bold text-[12px] mb-1">裏面断熱材の種類の違い</h4>
-                
-                <ul className="mb-2 space-y-0.5 text-xs ml-3 list-none">
-                  <li><span className="mr-1">・</span><strong>ポリエチレンフォーム（ペフ）</strong>: 一般的だが、経年劣化で縮んだり剥がれたりする場合がある。また、防火地域では使用制限がある場合も。</li>
-                  <li><span className="mr-1">・</span><strong>ガラス繊維シート（不燃）</strong>: 防火認定を取得するために使用される裏打ち材。断熱性はペフに劣るため、別途下地断熱が必要なケースが多い。</li>
-                </ul>
-                
-                <h4 className="font-bold text-[12px] mb-1">ステンレス鋼板の種類（SUS304 vs SUS430）</h4>
-                
-                <ul className="space-y-0.5 text-xs ml-3 list-none">
-                  <li><span className="mr-1">・</span><strong>SUS304（オーステナイト系）</strong>: 耐食性が非常に高く、磁石につかない。沿岸部に最適。</li>
-                  <li><span className="mr-1">・</span><strong>SUS430（フェライト系）</strong>: 304より安価だが耐食性は劣る。磁石につく。塗装ステンレスとして使われることが多い。</li>
-                  <li><span className="mr-1">・</span>「ステンレス屋根」と指定するだけでなく、鋼種（304か445/430か）まで確認が必要。</li>
-                </ul>
-              </div>
-            )}
+            {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
             <div className="flex flex-wrap gap-2 mb-8">
               {/* カード1：掲載募集カード */}
               <div className="border rounded p-3 bg-white text-sm w-[240px] h-[365px] card">
@@ -301,104 +174,7 @@ const RoofContent: React.FC<RoofContentProps> = ({ subcategory }) => {
             </div>
             
             {/* 基本知識トグル */}
-            {showBasicKnowledge && (
-              <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg text-xs">
-                <h3 className="font-bold text-[13px] mb-1.5">【化粧スレート（住宅用平板スレート）】の重要知識</h3>
-                
-                <h4 className="font-bold text-[12px] mb-1">「縁切り（えんきり）」とタスペーサーの必須性</h4>
-                
-                <p className="mb-1 text-xs ml-3">
-                  塗装メンテナンス時、屋根材同士の重なり目が塗料で塞がると、毛細管現象で雨水を吸い上げ、雨漏りの原因になる。
-                </p>
-                
-                <p className="mb-2 text-xs ml-3">
-                  対策: 塗装後にカッターで塗膜を切る「縁切り」作業、または隙間を確保する部材<strong>「タスペーサー」</strong>の挿入が必須。これを行わない業者は避けるべき。
-                </p>
-                
-                <h4 className="font-bold text-[12px] mb-1">ノンアスベスト移行期の「割れ・剥離」問題</h4>
-                
-                <p className="mb-1 text-xs ml-3">
-                  2000年前後〜2008年頃に製造された初期のノンアスベスト製品は、経年劣化で層間剥離やひび割れが起きやすいものがある。
-                </p>
-                
-                <p className="mb-2 text-xs ml-3">
-                  注意点: これらの製品は<strong>「塗装しても基材自体が崩れるため意味がない」</strong>ケースが多い。塗装ではなく、カバー工法か葺き替えを提案する必要がある。
-                </p>
-                
-                <h4 className="font-bold text-[12px] mb-1">対応勾配と防水の仕組み</h4>
-                
-                <p className="mb-1 text-xs ml-3">
-                  スレート自体には完全な防水性はなく、一次防水（スレート）で雨を受け流し、侵入した水を二次防水（ルーフィング／防水シート）で防ぐ構造。
-                </p>
-                
-                <p className="mb-2 text-xs ml-3">
-                  必要勾配: 一般的に3寸（30/100）以上。これより緩い勾配だと雨水が逆流しやすくなるため、対応製品か、下地防水の強化が必要。
-                </p>
-                
-                <h4 className="font-bold text-[12px] mb-1">カバー工法（重ね葺き）の適性</h4>
-                
-                <p className="mb-1 text-xs ml-3">
-                  スレートは平滑であるため、既存屋根を撤去せずに新しい屋根材（主に金属屋根やアスファルトシングル）を被せる「カバー工法」に最も適している。
-                </p>
-                
-                <ul className="mb-2 space-y-0.5 text-xs ml-3 list-none">
-                  <li><span className="mr-1">・</span><strong>メリット</strong>: アスベスト含有屋根材の処分費をカットでき、断熱性・遮音性も向上する。</li>
-                  <li><span className="mr-1">・</span><strong>デメリット</strong>: 屋根重量が増すため、耐震性への影響を考慮する必要がある（金属屋根なら軽量なので影響は少ない）。</li>
-                </ul>
-                
-                <h3 className="font-bold text-[13px] mb-1.5 mt-3">【波形スレート（工場・倉庫用）】の重要知識</h3>
-                
-                <h4 className="font-bold text-[12px] mb-1">大波（おおなみ）と小波（こなみ）の用途違い</h4>
-                
-                <ul className="mb-2 space-y-0.5 text-xs ml-3 list-none">
-                  <li><span className="mr-1">・</span><strong>大波スレート</strong>: 主に工場・倉庫の「屋根」に使用される。強度が強く、踏み抜き防止の補強が入っているものもある。</li>
-                  <li><span className="mr-1">・</span><strong>小波スレート</strong>: 主に「外壁」に使用される。屋根に使うと強度が不足する場合があるため注意が必要。</li>
-                </ul>
-                
-                <h4 className="font-bold text-[12px] mb-1">フックボルトのメンテナンス</h4>
-                
-                <p className="mb-1 text-xs ml-3">
-                  スレート本体よりも先に、固定している「フックボルト」が錆びて劣化する。
-                </p>
-                
-                <p className="mb-2 text-xs ml-3">
-                  ボルト穴からの漏水や、強風時の屋根材飛散の原因となるため、定期的なボルト交換やキャップの取り付け（サビヤーズ等）が重要。
-                </p>
-                
-                <h4 className="font-bold text-[12px] mb-1">アスベスト含有の有無と処理</h4>
-                
-                <p className="mb-1 text-xs ml-3">
-                  2004年以前の波形スレートはアスベストを含んでいる可能性が高い。
-                </p>
-                
-                <ul className="mb-2 space-y-0.5 text-xs ml-3 list-none">
-                  <li><span className="mr-1">・</span><strong>改修</strong>: 撤去・処分費が高額になるため、既存スレートの上に金属屋根を被せる「カバールーフ工法」が一般的。</li>
-                  <li><span className="mr-1">・</span><strong>解体</strong>: 解体時は法律に基づいた厳格な飛散防止措置が必要となる。</li>
-                </ul>
-                
-                <h3 className="font-bold text-[13px] mb-1.5 mt-3">【共通・その他】</h3>
-                
-                <h4 className="font-bold text-[12px] mb-1">天然スレート（玄昌石など）との違い</h4>
-                
-                <p className="mb-1 text-xs ml-3">
-                  ヨーロッパの城郭や日本の洋館で見られる天然石の屋根材。
-                </p>
-                
-                <p className="mb-2 text-xs ml-3">
-                  特徴: 塗装不要で数百年持つ耐久性があるが、非常に高価で重量があり、施工できる職人も限られる。一般的な「スレート（コロニアル）」とは別物として区別が必要。
-                </p>
-                
-                <h4 className="font-bold text-[12px] mb-1">ルーフィング（下葺き材）の寿命が屋根の寿命</h4>
-                
-                <p className="mb-1 text-xs ml-3">
-                  スレート屋根の防水性能の要は、下にある防水シート（ルーフィング）。
-                </p>
-                
-                <p className="mb-2 text-xs ml-3">
-                  スレートが割れていなくても、ルーフィングの寿命（約20年前後）が来ると雨漏りする。屋根材のグレードだけでなく、ルーフィングのグレード（改質アスファルトルーフィング等）にも注目すべき。
-                </p>
-              </div>
-            )}
+            {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
             <div className="flex flex-wrap gap-2 mb-8">
               {/* カード1：掲載募集カード */}
               <div className="border rounded p-3 bg-white text-sm w-[240px] h-[365px] card">
@@ -438,101 +214,7 @@ const RoofContent: React.FC<RoofContentProps> = ({ subcategory }) => {
             </div>
             
             {/* 基本知識トグル */}
-            {showBasicKnowledge && (
-              <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg text-xs">
-                <h3 className="font-bold text-[13px] mb-1.5">【粘土瓦（陶器瓦・いぶし瓦）】の重要知識</h3>
-                
-                <h4 className="font-bold text-[12px] mb-1">「防災瓦（ぼうさいがわら）」の標準化</h4>
-                
-                <p className="mb-1 text-xs ml-3">
-                  昔の瓦屋根は地震や台風でズレたり落下したりしやすかったが、近年の製品は瓦同士をツメで噛み合わせ、全て釘で固定する<strong>「防災瓦（ロック構造）」</strong>が標準。
-                </p>
-                
-                <p className="mb-2 text-xs ml-3">
-                  耐震・耐風性: 従来の瓦屋根とは比較にならないほど向上している。震度7クラスの実験でも落下しない製品が多い。
-                </p>
-                
-                <h4 className="font-bold text-[12px] mb-1">「塗装不要」という最大のメリット</h4>
-                
-                <p className="mb-1 text-xs ml-3">
-                  粘土瓦（特に釉薬瓦／陶器瓦）は、茶碗と同じで色褪せせず、塗装メンテナンスが永久に不要。
-                </p>
-                
-                <p className="mb-2 text-xs ml-3">
-                  ※漆喰（しっくい）などの副資材のメンテナンスは必要だが、ランニングコストは全屋根材の中で最も安い。
-                </p>
-                
-                <h4 className="font-bold text-[12px] mb-1">漆喰（しっくい）の代わりに「南蛮（なんばん）」</h4>
-                
-                <p className="mb-1 text-xs ml-3">
-                  棟（屋根の頂上）の土台や隙間埋めに使われる漆喰は、10〜15年で崩れる弱点があった。
-                </p>
-                
-                <p className="mb-2 text-xs ml-3">
-                  現在は、シリコンや防水材を配合して強度・防水性を高めた<strong>「南蛮漆喰（シルガード等）」</strong>を使用するのが主流。従来の白漆喰の上塗りメンテナンスよりも長持ちする。
-                </p>
-                
-                <h3 className="font-bold text-[13px] mb-1.5 mt-3">【セメント瓦・モニエル瓦】の注意点</h3>
-                
-                <h4 className="font-bold text-[12px] mb-1">粘土瓦との決定的な違いは「塗装が必要」</h4>
-                
-                <p className="mb-1 text-xs ml-3">
-                  見た目は粘土瓦に似ているが、セメントが主成分のため防水性がなく、塗装が切れると水を吸って割れる。
-                </p>
-                
-                <p className="mb-2 text-xs ml-3">
-                  見分け方: 小口（断面）が凸凹していて、表面がザラついている場合はモニエル瓦（乾式コンクリート瓦）の可能性が高い。
-                </p>
-                
-                <h4 className="font-bold text-[12px] mb-1">モニエル瓦の「スラリー層」問題</h4>
-                
-                <p className="mb-1 text-xs ml-3">
-                  モニエル瓦の表面には着色スラリー層（脆い層）があり、知らずに普通の塗料を塗ると、早期に塗膜がペロリと剥がれる事故が多発する。
-                </p>
-                
-                <p className="mb-1 text-xs ml-3">
-                  徹底的な高圧洗浄でスラリー層を除去するか、専用の下塗り材を使用する知識が必要。
-                </p>
-                
-                <p className="mb-2 text-xs ml-3">
-                  ※既に多くのメーカーが撤退しているため、割れた際の交換用瓦が入手困難。葺き替え推奨のケースが多い。
-                </p>
-                
-                <h3 className="font-bold text-[13px] mb-1.5 mt-3">【金属瓦（金属成型瓦）】の重要知識</h3>
-                
-                <h4 className="font-bold text-[12px] mb-1">「金属瓦」とは何か</h4>
-                
-                <p className="mb-1 text-xs ml-3">
-                  素材は「ガルバリウム鋼板」や「エスジーエル鋼板」だが、プレス加工で日本瓦や洋瓦の形状に成型したもの。
-                </p>
-                
-                <p className="mb-2 text-xs ml-3">
-                  最大のメリット: 粘土瓦の約1/10の軽さ。見た目は重厚感があるが、建物への負担は最小限で耐震リフォームに最適。
-                </p>
-                
-                <h4 className="font-bold text-[12px] mb-1">「石粒付き金属屋根（ストーンチップ）」の優位性</h4>
-                
-                <p className="mb-1 text-xs ml-3">
-                  ガルバリウム鋼板の表面に天然石の粒をコーティングしたタイプ（ディプロマット、デクラ等）。
-                </p>
-                
-                <ul className="mb-2 space-y-0.5 text-xs ml-3 list-none">
-                  <li><span className="mr-1">・</span><strong>塗装不要</strong>: 天然石の色なので塗り替えが不要（30年以上の耐久実績あり）。</li>
-                  <li><span className="mr-1">・</span><strong>遮音・断熱</strong>: 石粒が雨音を拡散・吸収するため、平滑な金属屋根より静かで、断熱性も高い。</li>
-                  <li><span className="mr-1">・</span><strong>雪止め効果</strong>: 表面がザラザラしているため、雪が滑り落ちにくく、雪止め金具を省略できる場合がある（地域による）。</li>
-                </ul>
-                
-                <h4 className="font-bold text-[12px] mb-1">「カバー工法」における金属瓦の役割</h4>
-                
-                <p className="mb-1 text-xs ml-3">
-                  スレート屋根やアスファルトシングル屋根の上から被せるカバー工法において、意匠性（高級感）を出したい場合に採用される。
-                </p>
-                
-                <p className="mb-2 text-xs ml-3">
-                  純和風の家で瓦から葺き替える際、普通の板金屋根（立平葺き等）にすると「安っぽく見える」のを防ぐために選ばれることが多い。
-                </p>
-              </div>
-            )}
+            {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
             <div className="flex flex-wrap gap-2 mb-8">
               {/* カード1：掲載募集カード */}
               <div className="border rounded p-3 bg-white text-sm w-[240px] h-[365px] card">
@@ -584,118 +266,7 @@ const RoofContent: React.FC<RoofContentProps> = ({ subcategory }) => {
             </div>
             
             {/* 基本知識トグル */}
-            {showBasicKnowledge && (
-              <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg text-xs">
-                <h3 className="font-bold text-[13px] mb-1.5">【アスファルトシングル】の重要知識</h3>
-                
-                <h4 className="font-bold text-[12px] mb-1">「曲面・ドーム」への追従性</h4>
-                
-                <p className="mb-1 text-xs ml-3">
-                  柔らかいシート状のため、ドーム型や複雑なＲ形状の屋根に施工できる数少ない屋根材。
-                </p>
-                
-                <p className="mb-2 text-xs ml-3">
-                  意匠性が高く、輸入住宅や洋風建築での採用が多いが、施工できる職人が瓦や板金に比べて少ないため、業者の施工実績確認が必要。
-                </p>
-                
-                <h4 className="font-bold text-[12px] mb-1">「石粒（グラニュール）」の脱落と雨樋詰まり</h4>
-                
-                <p className="mb-1 text-xs ml-3">
-                  表面の石粒が経年でポロポロと落ちる特性がある。
-                </p>
-                
-                <p className="mb-2 text-xs ml-3">
-                  注意点: 落ちた石粒が雨樋の底に堆積して詰まりの原因になることが多い。定期的な雨樋清掃の必要性を施主に伝える必要がある。
-                </p>
-                
-                <h4 className="font-bold text-[12px] mb-1">強風地域の「セメント（接着剤）」施工</h4>
-                
-                <p className="mb-1 text-xs ml-3">
-                  軽量でめくれやすいため、強風地域や軒先部分では、釘打ちだけでなく専用のシングルセメントによる圧着が施工品質を左右する。
-                </p>
-                
-                <p className="mb-2 text-xs ml-3">
-                  接着が不十分だと、台風時に広範囲で剥がれ飛ぶリスクがある。
-                </p>
-                
-                <h3 className="font-bold text-[13px] mb-1.5 mt-3">【ポリカーボネート・波板（カーポート・テラス）】の知識</h3>
-                
-                <h4 className="font-bold text-[12px] mb-1">アクリルとポリカの「強度」の違い</h4>
-                
-                <p className="mb-1 text-xs ml-3">
-                  ひと昔前のアクリル板は劣化して割れやすかったが、現在のポリカーボネートはガラスの約200倍の強度があり、ハンマーでも割れない。
-                </p>
-                
-                <p className="mb-2 text-xs ml-3">
-                  交換提案: 古いカーポートがバリバリに割れている場合はアクリルの可能性が高く、ポリカへの張り替えを推奨する。
-                </p>
-                
-                <h4 className="font-bold text-[12px] mb-1">「熱線遮断（ねっせんしゃだん）」仕様の選定</h4>
-                
-                <p className="mb-1 text-xs ml-3">
-                  通常のポリカは紫外線（UV）はカットするが、熱（赤外線）を通すため夏場は暑い。
-                </p>
-                
-                <p className="mb-2 text-xs ml-3">
-                  推奨: 車内温度抑制や室内の冷房効率アップのため、青みがかかった<strong>「熱線吸収（遮断）ポリカ」</strong>を選ぶのが基本。価格差は小さいが効果は大きい。
-                </p>
-                
-                <h4 className="font-bold text-[12px] mb-1">施工時の「あそび（クリアランス）」</h4>
-                
-                <p className="mb-2 text-xs ml-3">
-                  ポリカは熱による伸縮が大きいため、ビス穴を少し大きめに開けて<strong>「あそび」</strong>を持たせないと、膨張時にパキパキと音が鳴ったり、変形したりする。
-                </p>
-                
-                <h3 className="font-bold text-[13px] mb-1.5 mt-3">【膜屋根（テント倉庫・ドーム）】の知識</h3>
-                
-                <h4 className="font-bold text-[12px] mb-1">「不燃（ふねん）」と「防炎（ぼうえん）」の法的制限</h4>
-                
-                <ul className="mb-2 space-y-0.5 text-xs ml-3 list-none">
-                  <li><span className="mr-1">・</span><strong>不燃膜（F種）</strong>: ガラス繊維ベース。燃えないため、防火地域や大規模建築で使用可能。</li>
-                  <li><span className="mr-1">・</span><strong>防炎膜</strong>: 燃え広がらない加工をしたもの。安価だが、延焼のおそれがあるため建設地や規模に厳しい制限がある。</li>
-                </ul>
-                
-                <p className="mb-2 text-xs ml-3">
-                  計画地の法規制（防火地域・準防火地域）によって、使える膜材（メーカー）が自動的に決まることが多い。
-                </p>
-                
-                <h4 className="font-bold text-[12px] mb-1">照明コストを下げる「透光性（とうこうせい）」</h4>
-                
-                <p className="mb-1 text-xs ml-3">
-                  膜屋根は光を通すため、昼間は照明なしでも作業できる明るさを確保できる（省エネ効果）。
-                </p>
-                
-                <p className="mb-2 text-xs ml-3">
-                  ただし、遮熱性能が低い製品だと夏場は温室のように暑くなるため、<strong>「酸化チタン光触媒」</strong>などの遮熱コーティング付き製品が推奨される。
-                </p>
-                
-                <h3 className="font-bold text-[13px] mb-1.5 mt-3">【トップライト（天窓）】の知識</h3>
-                
-                <h4 className="font-bold text-[12px] mb-1">「網入りガラス」の熱割れリスク</h4>
-                
-                <p className="mb-1 text-xs ml-3">
-                  防火地域・準防火地域では、法的に<strong>「網入りガラス」</strong>の使用が義務付けられるケースが多い。
-                </p>
-                
-                <p className="mb-1 text-xs ml-3">
-                  リスク: 網入りガラスは、内部のワイヤーが熱で膨張してガラスを割る「熱割れ」が起きやすい。
-                </p>
-                
-                <p className="mb-2 text-xs ml-3">
-                  対策として、強化ガラスと網入りガラスのペアガラスや、熱割れしにくい耐熱強化ガラスを採用する等の検討が必要。
-                </p>
-                
-                <h4 className="font-bold text-[12px] mb-1">固定式（フィックス）と可動式の選択</h4>
-                
-                <p className="mb-1 text-xs ml-3">
-                  可動式: 通風・排熱効果が高いが、可動部（パッキンやギア）の劣化により、将来的な雨漏りリスクが固定式より高い。
-                </p>
-                
-                <p className="mb-2 text-xs ml-3">
-                  メンテナンスが困難な高所の場合は、リスクの低い固定式を選ぶのが無難。
-                </p>
-              </div>
-            )}
+            {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
             <div className="flex flex-wrap gap-2 mb-8">
               {/* カード1：掲載募集カード */}
               <div className="border rounded p-3 bg-white text-sm w-[240px] h-[365px] card">

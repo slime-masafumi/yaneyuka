@@ -15,7 +15,6 @@ import { mergeMaker, type MakerData } from '@/lib/makerBox';
 import { DESIGN_TOOL_MENU } from '@/lib/designToolsMenu';
 import { GENERAL_TOOL_MENU } from '@/lib/generalToolsMenu';
 import { buildUserpageQuery } from '@/lib/userpageUrl';
-import { productData, knowledgeTips, type Product } from '@/data/chatbotProducts';
 import { openMakerConect } from '@/lib/makerConectPreset';
 import SaveToMakerBox from '@/components/SaveToMakerBox';
 
@@ -47,7 +46,6 @@ type Answer = {
   page?: { route: string; param: string; name: string };
   makers: MakerRowLite[];
   named: MakerRowLite[];
-  products: Product[];
   tools: ToolEntry[];
   followUps: string[];
 };
@@ -65,21 +63,9 @@ const Chatbot: React.FC = () => {
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const listRef = useRef<HTMLDivElement>(null);
 
-  // 建材ページの知識（約11万字）とメーカー一覧は開いたときに読む
+  // 建材ページの基本知識（約15万字）とメーカー一覧は開いたときに読む
   useEffect(() => {
-    import('@/data/knowledge.json').then((m) => {
-      const pages = (m.default ?? m) as unknown as KnowledgePage[];
-      // 手書きの短い答えも同じ引き出しに入れる
-      const tips: KnowledgePage[] = knowledgeTips.map((t) => ({
-        route: t.relatedPage ? `/${t.relatedPage}` : '',
-        param: '',
-        name: t.title,
-        title: `${t.title} ${t.keywords.join(' ')}`,
-        makerPages: [],
-        sections: [{ heading: t.title, text: t.content }],
-      }));
-      setKnowledge([...pages, ...tips]);
-    });
+    import('@/data/knowledge.json').then((m) => setKnowledge((m.default ?? m) as unknown as KnowledgePage[]));
     import('@/data/makers.json').then((m) => setMakers((m.default ?? m) as unknown as MakerData));
   }, []);
 
@@ -125,7 +111,7 @@ const Chatbot: React.FC = () => {
     if (asksForMakers(q) && lastPage) {
       const kp = knowledge.find((k) => k.route === lastPage.route && k.param === lastPage.param);
       const list = kp ? makersForPage(makers, kp, 10) : [];
-      return { role: 'bot', answer: { query: q, sections: [], page: lastPage, makers: list, named: [], products: [], tools: [], followUps: [] } };
+      return { role: 'bot', answer: { query: q, sections: [], page: lastPage, makers: list, named: [], tools: [], followUps: [] } };
     }
     const hits = searchKnowledge(knowledge, q, 4);
     const named = makersNamedIn(makers, q)
@@ -136,7 +122,6 @@ const Chatbot: React.FC = () => {
       .filter((x): x is MakerRowLite => !!x);
     const toolHits = searchTools(tools, q, 3);
     const top = hits.find((h) => h.page.param)?.page;
-    const products = top ? Object.values(productData).flatMap((u) => u[top.name] ?? u[top.param] ?? []).slice(0, 4) : [];
     if (!hits.length && !named.length && !toolHits.length) {
       return {
         role: 'bot',
@@ -153,7 +138,6 @@ const Chatbot: React.FC = () => {
         page: top ? { route: top.route, param: top.param, name: top.name } : undefined,
         makers: top ? makersForPage(makers, top, 6) : [],
         named,
-        products,
         tools: toolHits,
         followUps: followUps.map((h) => `${top!.name} ${h.replace(/[「」【】]/g, '')}`),
       },
@@ -268,20 +252,6 @@ const Chatbot: React.FC = () => {
                     <MakerList list={m.answer.named} title="MAKER 質問に出てきたメーカー" part={m.answer.page?.name} />
                     {m.answer.page && <MakerList list={m.answer.makers} title={`MAKER ${m.answer.page.name} のメーカー`} part={m.answer.page.name} />}
 
-                    {m.answer.products.length > 0 && (
-                      <div className="mt-3">
-                        <div className="text-[10px] tracking-widest font-mono text-gray-400">PRODUCT 代表的な製品</div>
-                        <ul className="border-t border-gray-200 mt-1 divide-y divide-gray-100">
-                          {m.answer.products.map((p) => (
-                            <li key={p.maker + p.product} className="py-1">
-                              <b>{p.maker}</b> {p.product}
-                              <span className="text-gray-500"> — {p.description}</span>
-                              <span className="text-[10px] text-gray-400 ml-1">{[...p.features, p.price_range].join(' / ')}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
 
                     {m.answer.tools.length > 0 && (
                       <div className="mt-3">
