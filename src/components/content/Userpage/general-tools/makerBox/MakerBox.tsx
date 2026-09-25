@@ -13,6 +13,7 @@ import { useMakerBox, saveBoxItem, removeBoxItem, watchTeamBox, type BoxScope, t
 import { listBoardsForUser, type BoardDoc } from '@/lib/firebaseUserData';
 import { findByCompany, isChatNicknameOnly, summarize, todayYmd, newLogId, type ContactLogEntry } from '@/lib/contactLog';
 import { recordContactLog } from '@/lib/contactLogStore';
+import { openMakerConect } from '@/lib/makerConectPreset';
 
 type Contact = { id: string; company?: string; name?: string; phone?: string; email?: string; log?: ContactLogEntry[] };
 type Broken = Array<{ url: string; fallback?: string }>;
@@ -325,6 +326,7 @@ export function MakerCard({
         <div className="flex gap-1">
           <input value={sampleText} onChange={(e) => setSampleText(e.target.value)} placeholder="サンプルの品名・品番" className="border border-gray-200 px-1 py-0.5 flex-1 min-w-0 bg-white" />
           <button type="button" onClick={() => void requestSample()} className="px-2 border border-gray-400 bg-white shrink-0">サンプル依頼を記録</button>
+          <button type="button" onClick={() => openMakerConect({ makers: [item.name], part: (item.categories ?? [])[0] })} className="px-2 border border-gray-400 bg-white shrink-0" title="Maker conect で依頼文を作ってメーカーの窓口を開く">問い合わせ</button>
         </div>
         {teams.length > 0 && (
           <select value="" onChange={(e) => e.target.value && void shareTo(e.target.value)} className="border border-gray-200 px-1 py-0.5 bg-white text-[10px] w-full">
