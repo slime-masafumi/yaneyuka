@@ -23,6 +23,8 @@
     "check:links": "node scripts/check-maker-links.mjs",
     "makers:extract": "node scripts/extract-makers.mjs",
     "makers:verify": "node scripts/verify-makers.mjs",
+    "knowledge:build": "node scripts/extract-knowledge.mjs",
+    "knowledge:verify": "node scripts/extract-knowledge.mjs --verify",
     "makers:find-cad": "node scripts/find-cad-links.mjs",
     "makers:apply-cad": "node scripts/apply-cad-links.mjs",
     "events:update": "node scripts/update-events.mjs",
