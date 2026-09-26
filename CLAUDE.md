@@ -20,7 +20,8 @@ Claude Code が起動時に自動で読む。**自律的に進め、◆Project�
 - **管理フォルダ**: `◆Project管理\Project-data\` 配下で ☆/★ を除いた名前が `web-yaneyuka.com` と一致するもの(固定パスを書かない)。MD が 5 本未満なら `project-survey` skill で**聞かずに作る**。更新は 5 トリガー(ベースライン §16)でセッション終了前に
 - **提出 / 再提出 / TestFlight / 「Mac に送って」** → 先に `asc-submit` skill と `_提出前チェック手順書_iOS.md`。**iOS ビルド → Mac** → `ios-release` skill
 - **更新ゲート**: 無ければ入れる、あれば正本(`◆Project管理\共有\sync\shared\update-gate\`)との差分を取り込む → `update-gate` skill。verify 全項目 PASS がリリース条件
-- **セッション開始**: `git fetch origin && git status -sb`。origin に差分があれば `merge --ff-only` で取り込む(未 push の変更と差分が両方あるときだけ報告)
+- **セッション開始**: `git fetch origin && git status -sb`。origin に差分があれば `merge --ff-only` で取り込む(未 push の変更と差分が両方あるときだけ報告)。**Windows では取り込み後に `docs/release/RELEASE_LOG.md` を読み、管理側 `01_最新情報.md` より新しい行があれば版 / build / Upload 日を転記**(Mac が書く。ユーザーを介さない共有経路)
+- **Mac で Archive / Upload をしたら**(`ios-release` skill): `docs/release/RELEASE_LOG.md` に 1 行追記 → UI / UX に大きな変更がある版は `docs/release/<版>/` に主要画面のシミュレータスクショ → **Mac で直したソースも含めて全部 commit + push**(push が Windows への同期。push しないまま終えない)
 - **セッション終了**: `git status` で `.env` / `*.p8` / `*.jks` が混ざっていないことを確認 → commit → **push**。WIP でも push しないまま終えない(Asus は平日職場にあり、push 忘れで最長 1 週間止まる)
 - 全リポジトリまとめてはデスクトップの「slime-app 同期ツール」(赤)。新規リポジトリは `◆Project管理\共有\sync\register-new.ps1` で登録しないと同期されない
 - Web サイト・非アプリのリポジトリは、提出 / 更新ゲートの行は該当なし
