@@ -109,9 +109,11 @@ export type Bedding = { id: string; label: string; forRigid: boolean };
 
 export const BEDDINGS: Bedding[] = [
   // 塩ビ管（有効支承角で係数が決まる）
-  { id: 'pvc60', label: '砂基礎（管の下半分を砂で）有効支承角 60°', forRigid: false },
-  { id: 'pvc90', label: '砂基礎（管の半分まで砂で巻く）有効支承角 90°', forRigid: false },
-  { id: 'pvc120', label: '全周砂巻き 有効支承角 120°', forRigid: false },
+  // 施工支承角（砂で受ける範囲）→ 有効支承角（計算に使う角度）。塩ビ管協会 表3
+  // 施工 90° = 管底の 1/4 周だけ砂で受ける、180° = 管の下半分まで砂で巻く
+  { id: 'pvc60', label: '砂基礎 90°（有効 60°）', forRigid: false },
+  { id: 'pvc90', label: '砂基礎 180°・下半分（有効 90°）', forRigid: false },
+  { id: 'pvc120', label: '全周砂巻き 360°（有効 120°）', forRigid: false },
   // ヒューム管（要覧 表2.2.1-1）
   { id: 'sand60', label: '砂基礎 支承角 60°', forRigid: true },
   { id: 'sand90', label: '砂基礎 支承角 90°', forRigid: true },
@@ -138,16 +140,46 @@ export const PVC_ALLOW_DEFLECTION = 5; // %
 export const SOIL_UNIT_WEIGHT = 18; // kN/m³
 
 // ---------------------------------------------------------------------------
+// 表層仕上げ
+// ---------------------------------------------------------------------------
+
+/**
+ * 仕上げ層は土より重いので、その分だけ鉛直土圧に足す（土被りは仕上げ面から測る）。
+ * 舗装・土間コンクリートが車輪の荷重を広げる効果は、要覧・塩ビ管協会の式と同じく見込まない（安全側）。
+ * 路盤（砕石）は埋戻し土と同じ扱い。
+ */
+export type Surface = { id: string; label: string; gamma: number; thickness: number };
+
+export const SURFACES: Surface[] = [
+  { id: 'soil', label: '土・芝・砂利', gamma: 0, thickness: 0 },
+  { id: 'asphalt', label: 'アスファルト舗装', gamma: 22.5, thickness: 0.05 },
+  { id: 'block', label: 'インターロッキング・平板', gamma: 23, thickness: 0.08 },
+  { id: 'concrete', label: '土間コンクリート', gamma: 24.5, thickness: 0.15 },
+];
+
+/** 仕上げ層が土より重い分（kN/m²）。厚さは土被りを超えない */
+export function surfaceExtra(surfaceId: string | undefined, thickness: number | undefined, H: number, gamma: number): number {
+  const s = SURFACES.find((x) => x.id === surfaceId);
+  if (!s || s.gamma <= 0) return 0;
+  const t = Math.min(Math.max(thickness ?? s.thickness, 0), H);
+  return Math.max(s.gamma - gamma, 0) * t;
+}
+
+// ---------------------------------------------------------------------------
 // 判定
 // ---------------------------------------------------------------------------
 
 export type PipeInput = {
   kind: PipeKind;
   size: number;
-  /** 土被り（地表から管頂まで） m */
+  /** 土被り（仕上げ面から管頂まで） m */
   cover: number;
   vehicle: string;
   bedding: string;
+  /** 表層仕上げ（SURFACES の id）。省略時は土 */
+  surface?: string;
+  /** 仕上げ層の厚さ m。省略時は SURFACES の既定値 */
+  surfaceThickness?: number;
   /** 溝の掘削幅（ヒューム管のマーストン式に使う）。省略時は外径 + 0.6m */
   trenchWidth?: number;
   gamma?: number;
@@ -157,8 +189,10 @@ export type Check = { label: string; value: number; limit: number; unit: string;
 
 export type PipeResult = {
   ok: boolean;
-  /** 埋戻し土による鉛直土圧 kN/m² */
+  /** 埋戻し土と仕上げ層による鉛直土圧 kN/m² */
   earth: number;
+  /** earth のうち仕上げ層が土より重い分 kN/m² */
+  surfaceExtra: number;
   /** 活荷重による鉛直荷重 kN/m² */
   live: number;
   wheel: number;
@@ -171,6 +205,24 @@ export function marstonCd(H: number, Bd: number, Kmu = 0.1924): number {
   return (1 - Math.exp((-2 * Kmu * H) / Bd)) / (2 * Kmu);
 }
 
+/**
+ * 塩ビ管の曲げ応力（N/mm²）とたわみ（mm・%）。外径・管厚 mm、土圧・活荷重 kN/m²。
+ * 塩ビ管協会 式1.5〜1.7（管長 1mm 当たり: Z = t²/6、I = t³/12、r' = (外径 − 管厚)/2）
+ */
+export function pvcRing(od: number, t: number, bedding: string, earth: number, live: number) {
+  const kk = PVC_K[bedding];
+  if (!kk) return null;
+  const r = (od - t) / 2;
+  const Z = (t * t) / 6;
+  const I = (t * t * t) / 12;
+  const q = earth / 1000;
+  const L = live / 1000;
+  const sigmaTop = ((kk.k1Top * q + PVC_K2.top * L) * r * r) / Z;
+  const sigmaBottom = ((kk.k1Bottom * q + PVC_K2.bottom * L) * r * r) / Z;
+  const delta = ((kk.K1 * q + PVC_K2.K2 * L) * r ** 4) / (PVC_E * I);
+  return { sigmaTop, sigmaBottom, delta, V: (delta / (2 * r)) * 100 };
+}
+
 export function checkPipe(inp: PipeInput): PipeResult | null {
   const H = inp.cover;
   if (!(H > 0)) return null;
@@ -180,6 +232,8 @@ export function checkPipe(inp: PipeInput): PipeResult | null {
   const gamma = inp.gamma ?? SOIL_UNIT_WEIGHT;
   const notes: string[] = [];
   if (P > 0 && H < 0.6) notes.push('車両が通る所の土被りは 0.6m 以上を目安にしてください（浅いほど車両の荷重が集中します）');
+  const extra = surfaceExtra(inp.surface, inp.surfaceThickness, H, gamma);
+  if (extra > 0) notes.push(`仕上げ層が土より重い分 ${extra.toFixed(1)} kN/m² を鉛直土圧に含めています`);
 
   if (isRigid(inp.kind)) {
     const spec = HUME[inp.size];
@@ -189,7 +243,7 @@ export function checkPipe(inp: PipeInput): PipeResult | null {
     const T = spec.t / 1000;
     const Bc = D + 2 * T;
     const Bd = inp.trenchWidth && inp.trenchWidth > Bc ? inp.trenchWidth : Bc + 0.6;
-    const earth = gamma * marstonCd(H, Bd) * (Bd * Bd) / Bc;
+    const earth = gamma * marstonCd(H, Bd) * (Bd * Bd) / Bc + extra;
     const r = (D + T) / 2;
     const mcr = inp.kind === 'HP1' ? spec.mcr1 : spec.mcr2;
     const capacity = mcr / (k * r * r);
@@ -197,6 +251,7 @@ export function checkPipe(inp: PipeInput): PipeResult | null {
     return {
       ok: S >= 1,
       earth,
+      surfaceExtra: extra,
       live,
       wheel: P,
       checks: [
@@ -214,17 +269,9 @@ export function checkPipe(inp: PipeInput): PipeResult | null {
   const kk = PVC_K[inp.bedding];
   if (!spec || !kk) return null;
   const t = inp.kind === 'VP' ? spec.vp : spec.vu;
-  const r = (spec.od - t) / 2; // mm
-  const Z = (t * t) / 6; // mm³/mm
-  const I = (t * t * t) / 12; // mm⁴/mm
-  const earth = gamma * H; // 塩ビ管は直土圧（アーチ作用を当てにしない）
-  const q = earth / 1000; // N/mm²
-  const L = live / 1000;
-  const sigmaTop = ((kk.k1Top * q + PVC_K2.top * L) * r * r) / Z;
-  const sigmaBottom = ((kk.k1Bottom * q + PVC_K2.bottom * L) * r * r) / Z;
+  const earth = gamma * H + extra; // 塩ビ管は直土圧（アーチ作用を当てにしない）
+  const { sigmaTop, sigmaBottom, delta, V } = pvcRing(spec.od, t, inp.bedding, earth, live)!;
   const sigma = Math.max(sigmaTop, sigmaBottom);
-  const delta = ((kk.K1 * q + PVC_K2.K2 * L) * r ** 4) / (PVC_E * I); // mm
-  const V = (delta / (2 * r)) * 100;
   const checks: Check[] = [
     { label: `曲げ応力（${sigmaTop >= sigmaBottom ? '管頂' : '管底'}）`, value: sigma, limit: PVC_ALLOW_STRESS, unit: 'N/mm²', ok: sigma <= PVC_ALLOW_STRESS, ratio: sigma / PVC_ALLOW_STRESS },
     { label: 'たわみ率', value: V, limit: PVC_ALLOW_DEFLECTION, unit: '%', ok: V <= PVC_ALLOW_DEFLECTION, ratio: V / PVC_ALLOW_DEFLECTION },
@@ -232,6 +279,7 @@ export function checkPipe(inp: PipeInput): PipeResult | null {
   return {
     ok: checks.every((c) => c.ok),
     earth,
+    surfaceExtra: extra,
     live,
     wheel: P,
     checks,

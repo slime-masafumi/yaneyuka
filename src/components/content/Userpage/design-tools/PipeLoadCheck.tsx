@@ -6,7 +6,7 @@
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  BEDDINGS, PIPE_KINDS, VEHICLES, checkPipe, coverRange, isRigid, outerDiameter, sizesOf, SOIL_UNIT_WEIGHT, type PipeKind,
+  BEDDINGS, PIPE_KINDS, SURFACES, VEHICLES, checkPipe, coverRange, isRigid, outerDiameter, sizesOf, SOIL_UNIT_WEIGHT, type PipeKind,
 } from '@/lib/pipeLoad';
 
 const field = 'w-full text-[12px] px-2 py-1.5';
@@ -61,6 +61,8 @@ export default function PipeLoadCheck() {
   const [cover, setCover] = useState('0.6');
   const [vehicle, setVehicle] = useState('t8');
   const [bedding, setBedding] = useState('pvc60');
+  const [surface, setSurface] = useState('asphalt');
+  const [surfaceT, setSurfaceT] = useState('');
   const [trench, setTrench] = useState('');
   const [gamma, setGamma] = useState(String(SOIL_UNIT_WEIGHT));
 
@@ -80,16 +82,20 @@ export default function PipeLoadCheck() {
     size,
     vehicle,
     bedding,
+    surface,
+    surfaceThickness: surfaceT ? Number(surfaceT) : undefined,
     trenchWidth: trench ? Number(trench) : undefined,
     gamma: Number(gamma) || SOIL_UNIT_WEIGHT,
   };
   const H = Number(cover);
-  const result = useMemo(() => checkPipe({ ...base, cover: H }), [kind, size, vehicle, bedding, trench, gamma, H]); // eslint-disable-line react-hooks/exhaustive-deps
-  const range = useMemo(() => coverRange(base), [kind, size, vehicle, bedding, trench, gamma]); // eslint-disable-line react-hooks/exhaustive-deps
+  const result = useMemo(() => checkPipe({ ...base, cover: H }), [kind, size, vehicle, bedding, surface, surfaceT, trench, gamma, H]); // eslint-disable-line react-hooks/exhaustive-deps
+  const range = useMemo(() => coverRange(base), [kind, size, vehicle, bedding, surface, surfaceT, trench, gamma]); // eslint-disable-line react-hooks/exhaustive-deps
   const byVehicle = useMemo(
     () => VEHICLES.map((v) => ({ v, r: checkPipe({ ...base, vehicle: v.id, cover: H }) })),
-    [kind, size, bedding, trench, gamma, H] // eslint-disable-line react-hooks/exhaustive-deps
+    [kind, size, bedding, surface, surfaceT, trench, gamma, H] // eslint-disable-line react-hooks/exhaustive-deps
   );
+  const surfaceDef = SURFACES.find((x) => x.id === surface) ?? SURFACES[0];
+  const paved = surfaceDef.thickness > 0;
   const od = outerDiameter(kind, size);
 
   return (
@@ -123,7 +129,7 @@ export default function PipeLoadCheck() {
                 </select>
               </label>
               <label className="block">
-                <span className={label}>土被り（管頂まで） m</span>
+                <span className={label}>土被り（仕上げ面〜管頂） m</span>
                 <input type="number" step="0.1" min="0.1" value={cover} onChange={(e) => setCover(e.target.value)} className={field} />
               </label>
             </div>
@@ -135,6 +141,22 @@ export default function PipeLoadCheck() {
                 ))}
               </select>
             </label>
+            <div className="grid grid-cols-[1fr_96px] gap-2">
+              <label className="block">
+                <span className={label}>表層仕上げ</span>
+                <select value={surface} onChange={(e) => { setSurface(e.target.value); setSurfaceT(''); }} className={field}>
+                  {SURFACES.map((x) => (
+                    <option key={x.id} value={x.id}>{x.label}</option>
+                  ))}
+                </select>
+              </label>
+              {paved && (
+                <label className="block">
+                  <span className={label}>厚さ m</span>
+                  <input type="number" step="0.01" min="0" value={surfaceT} placeholder={String(surfaceDef.thickness)} onChange={(e) => setSurfaceT(e.target.value)} className={field} />
+                </label>
+              )}
+            </div>
           </div>
 
           <div className="bg-gray-50 p-3 border border-[#3b3b3b]">
@@ -202,7 +224,7 @@ export default function PipeLoadCheck() {
 
               <dl className="grid grid-cols-3 gap-2 mt-3 text-[11px]">
                 <div className="bg-white/70 p-2">
-                  <dt className="text-gray-500">埋戻し土の鉛直土圧</dt>
+                  <dt className="text-gray-500">鉛直土圧（仕上げ層を含む）</dt>
                   <dd className="font-bold">{result.earth.toFixed(1)} kN/m²</dd>
                 </div>
                 <div className="bg-white/70 p-2">
@@ -223,6 +245,12 @@ export default function PipeLoadCheck() {
               {result.notes.map((n) => (
                 <p key={n} className="text-[10px] text-gray-500 mt-1">※ {n}</p>
               ))}
+              {surface === 'concrete' && (
+                <p className="text-[10px] text-gray-500 mt-1">※ 土間コンクリートは車輪の荷重を広く分散させるので、実際の荷重はこの計算より小さくなります（一般の設計式と同じく、分散の効果は見込まず安全側で出しています）</p>
+              )}
+              {paved && vehicle !== 'none' && (
+                <p className="text-[10px] text-gray-500 mt-1">※ 舗装する前に工事車両や転圧ローラが通るときは、仕上げ層の厚さだけ土被りが浅くなります。そのときの土被りでも確認してください</p>
+              )}
             </div>
           ) : (
             <p className="text-gray-500">土被りを入れてください。</p>
@@ -247,6 +275,7 @@ export default function PipeLoadCheck() {
             ※ ヒューム管は「ヒューム管設計施工要覧」（全国ヒューム管協会）の方法で、鉛直土圧はマーストン式（溝型）、耐荷力は JIS A 5372 の曲げひび割れ耐力から求め、
             耐荷力 ÷（土圧＋活荷重）が 1.0 以上を OK としています。<br />
             ※ 塩ビ管（VU・VP、JIS K 6741）は塩化ビニル管・継手協会の埋設設計の方法で、曲げ応力 17.7 N/mm² 以下・たわみ率 5% 以下を OK としています（下水道用の許容値）。<br />
+            ※ 表層仕上げは、仕上げ層が土より重い分を鉛直土圧に足しています（アスファルト 22.5・インターロッキング 23・コンクリート 24.5 kN/m³）。舗装が荷重を広げる効果は見込みません。<br />
             ※ 車両の荷重は T-25（後輪 100kN）を基準に総重量で比例させ、衝撃係数を含めています。目安の計算です。公道の下や発注者の基準がある場合はそちらに従ってください。
           </p>
         </div>

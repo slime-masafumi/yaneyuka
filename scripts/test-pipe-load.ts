@@ -1,6 +1,6 @@
 // 埋設管の耐荷重（src/lib/pipeLoad.ts）のテスト。  node scripts/test-pipe-load.ts
 // 期待値は「ヒューム管設計施工要覧」の表・計算例、JIS A 5372 の表から取っている。
-import { liveLoad, impactFactor, marstonCd, checkPipe, coverRange, wheelLoad } from '../src/lib/pipeLoad.ts';
+import { liveLoad, impactFactor, marstonCd, checkPipe, coverRange, wheelLoad, pvcRing, surfaceExtra } from '../src/lib/pipeLoad.ts';
 
 let bad = 0;
 const near = (label: string, got: number, want: number, tol: number) => {
@@ -43,6 +43,30 @@ near('Mcr = 0.318·Pc·r + 0.239·W·r', 0.318 * 41.3 * 0.541 + 0.239 * 6.69 * 0
 // 同じ条件で土被り 0.3m は NG（1輪の荷重が集中する）。0.5m なら S≒1.07 で通る
 check('HP300 1種 土被り0.3m は NG', checkPipe({ kind: 'HP1', size: 300, cover: 0.3, vehicle: 't25', bedding: 'sand90' })!.ok, false);
 check('2種は1種より強い', checkPipe({ kind: 'HP2', size: 300, cover: 0.5, vehicle: 't25', bedding: 'sand90' })!.checks[0].value > checkPipe({ kind: 'HP1', size: 300, cover: 0.5, vehicle: 't25', bedding: 'sand90' })!.checks[0].value, true);
+
+// 塩ビ管協会「埋設設計基準」の計算例（外径165・肉厚9.6、有効60°、土被り1.0m: q=19.00, L=42.98）
+// → 管頂 2.32・管底 1.85 N/mm²、たわみ率 0.35%
+{
+  const r = pvcRing(165, 9.6, 'pvc60', 19.0, 42.98)!;
+  near('協会例 管頂', r.sigmaTop, 2.32, 0.005);
+  near('協会例 管底', r.sigmaBottom, 1.85, 0.005);
+  near('協会例 たわみ率', r.V, 0.35, 0.005);
+}
+
+// 表層仕上げ: 土より重い分だけ土圧が増える。厚さは土被りまで
+near('土は増えない', surfaceExtra('soil', undefined, 1.0, 18), 0, 1e-9);
+near('土間コン150 (24.5-18)×0.15', surfaceExtra('concrete', undefined, 1.0, 18), 0.975, 1e-9);
+near('アスファルト 厚さ指定 0.1', surfaceExtra('asphalt', 0.1, 1.0, 18), 0.45, 1e-9);
+near('厚さは土被りで頭打ち', surfaceExtra('concrete', 0.5, 0.3, 18), 1.95, 1e-9);
+{
+  const soil = checkPipe({ kind: 'VU', size: 150, cover: 1.0, vehicle: 't25', bedding: 'pvc60', surface: 'soil' })!;
+  const conc = checkPipe({ kind: 'VU', size: 150, cover: 1.0, vehicle: 't25', bedding: 'pvc60', surface: 'concrete' })!;
+  near('土間コンで土圧 +0.975', conc.earth - soil.earth, 0.975, 1e-9);
+  check('活荷重は仕上げで変えない', conc.live === soil.live, true);
+  const hs = checkPipe({ kind: 'HP1', size: 300, cover: 1.2, vehicle: 't25', bedding: 'sand90', surface: 'soil' })!;
+  const hc = checkPipe({ kind: 'HP1', size: 300, cover: 1.2, vehicle: 't25', bedding: 'sand90', surface: 'concrete' })!;
+  check('ヒューム管も土間コンで安全率が下がる', hc.checks[0].value < hs.checks[0].value, true);
+}
 
 // VU150・有効60°・土被り1.0m・T-25（手計算: σ 8.70 N/mm²、たわみ率 2.50%）
 {
