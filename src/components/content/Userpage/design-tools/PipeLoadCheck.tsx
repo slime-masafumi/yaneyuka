@@ -6,7 +6,7 @@
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  BEDDINGS, PIPE_KINDS, SURFACES, VEHICLES, checkPipe, coverRange, isRigid, outerDiameter, sizesOf, SOIL_UNIT_WEIGHT, type PipeKind,
+  BACKFILLS, BEDDINGS, PIPE_KINDS, SURFACES, VEHICLES, checkPipe, coverRange, isRigid, outerDiameter, sizesOf, SOIL_UNIT_WEIGHT, type PipeKind,
 } from '@/lib/pipeLoad';
 
 const field = 'w-full text-[12px] px-2 py-1.5';
@@ -65,6 +65,7 @@ export default function PipeLoadCheck() {
   const [surfaceT, setSurfaceT] = useState('');
   const [trench, setTrench] = useState('');
   const [gamma, setGamma] = useState(String(SOIL_UNIT_WEIGHT));
+  const [backfill, setBackfill] = useState('granular');
 
   const rigid = isRigid(kind);
   const sizes = sizesOf(kind);
@@ -86,13 +87,14 @@ export default function PipeLoadCheck() {
     surfaceThickness: surfaceT ? Number(surfaceT) : undefined,
     trenchWidth: trench ? Number(trench) : undefined,
     gamma: Number(gamma) || SOIL_UNIT_WEIGHT,
+    backfill,
   };
   const H = Number(cover);
-  const result = useMemo(() => checkPipe({ ...base, cover: H }), [kind, size, vehicle, bedding, surface, surfaceT, trench, gamma, H]); // eslint-disable-line react-hooks/exhaustive-deps
-  const range = useMemo(() => coverRange(base), [kind, size, vehicle, bedding, surface, surfaceT, trench, gamma]); // eslint-disable-line react-hooks/exhaustive-deps
+  const result = useMemo(() => checkPipe({ ...base, cover: H }), [kind, size, vehicle, bedding, surface, surfaceT, trench, gamma, backfill, H]); // eslint-disable-line react-hooks/exhaustive-deps
+  const range = useMemo(() => coverRange(base), [kind, size, vehicle, bedding, surface, surfaceT, trench, gamma, backfill]); // eslint-disable-line react-hooks/exhaustive-deps
   const byVehicle = useMemo(
     () => VEHICLES.map((v) => ({ v, r: checkPipe({ ...base, vehicle: v.id, cover: H }) })),
-    [kind, size, bedding, surface, surfaceT, trench, gamma, H] // eslint-disable-line react-hooks/exhaustive-deps
+    [kind, size, bedding, surface, surfaceT, trench, gamma, backfill, H] // eslint-disable-line react-hooks/exhaustive-deps
   );
   const surfaceDef = SURFACES.find((x) => x.id === surface) ?? SURFACES[0];
   const paved = surfaceDef.thickness > 0;
@@ -177,6 +179,14 @@ export default function PipeLoadCheck() {
           <details className="bg-gray-50 p-3 border border-[#3b3b3b]">
             <summary className="text-[11px] font-bold text-gray-700 cursor-pointer">詳細な条件</summary>
             <div className="grid grid-cols-2 gap-2 mt-2">
+              <label className="block col-span-2">
+                <span className="block text-[10px] text-gray-500 mb-1">埋戻し土の種類{rigid ? '（マーストン式の K·μ’）' : '（塩ビ管は砂・良質土が前提）'}</span>
+                <select value={backfill} onChange={(e) => setBackfill(e.target.value)} className={field}>
+                  {BACKFILLS.map((b) => (
+                    <option key={b.id} value={b.id}>{b.label}</option>
+                  ))}
+                </select>
+              </label>
               <label className="block">
                 <span className="block text-[10px] text-gray-500 mb-1">埋戻し土の単位体積重量 kN/m³</span>
                 <input type="number" step="0.5" value={gamma} onChange={(e) => setGamma(e.target.value)} className={field} />
@@ -245,8 +255,14 @@ export default function PipeLoadCheck() {
               {result.notes.map((n) => (
                 <p key={n} className="text-[10px] text-gray-500 mt-1">※ {n}</p>
               ))}
-              {surface === 'concrete' && (
-                <p className="text-[10px] text-gray-500 mt-1">※ 土間コンクリートは車輪の荷重を広く分散させるので、実際の荷重はこの計算より小さくなります（一般の設計式と同じく、分散の効果は見込まず安全側で出しています）</p>
+              {surfaceDef.slab && (
+                <p className="text-[10px] text-gray-500 mt-1">※ コンクリート版は車輪の荷重を広く分散させるので、実際の荷重はこの計算より小さくなります（一般の設計式と同じく、分散の効果は見込まず安全側で出しています）</p>
+              )}
+              {vehicle !== 'none' && (
+                <p className="text-[10px] text-gray-500 mt-1">※ 車両の向きで管の断面の計算は変わりません（1輪の真下と車両占有幅の大きい方を採っています）。管を横断する場合は継手を轍の真下に置かない、平行に走る場合は管を轍の位置からずらしてください</p>
+              )}
+              {vehicle !== 'none' && !rigid && (
+                <p className="text-[10px] text-gray-500 mt-1">※ 駐車位置の下など荷重が掛かり続ける所では、塩ビ管のたわみが時間とともに少しずつ増えます（クリープ）。余裕を見てください</p>
               )}
               {paved && vehicle !== 'none' && (
                 <p className="text-[10px] text-gray-500 mt-1">※ 舗装する前に工事車両や転圧ローラが通るときは、仕上げ層の厚さだけ土被りが浅くなります。そのときの土被りでも確認してください</p>
@@ -275,7 +291,8 @@ export default function PipeLoadCheck() {
             ※ ヒューム管は「ヒューム管設計施工要覧」（全国ヒューム管協会）の方法で、鉛直土圧はマーストン式（溝型）、耐荷力は JIS A 5372 の曲げひび割れ耐力から求め、
             耐荷力 ÷（土圧＋活荷重）が 1.0 以上を OK としています。<br />
             ※ 塩ビ管（VU・VP、JIS K 6741）は塩化ビニル管・継手協会の埋設設計の方法で、曲げ応力 17.7 N/mm² 以下・たわみ率 5% 以下を OK としています（下水道用の許容値）。<br />
-            ※ 表層仕上げは、仕上げ層が土より重い分を鉛直土圧に足しています（アスファルト 22.5・インターロッキング 23・コンクリート 24.5 kN/m³）。舗装が荷重を広げる効果は見込みません。<br />
+            ※ 表層仕上げは、仕上げ層が土より重い分を鉛直土圧に足しています（{SURFACES.filter((x) => x.gamma > 0).map((x) => `${x.label} ${x.gamma}`).join('・')} kN/m³）。舗装が荷重を広げる効果は見込みません。<br />
+            ※ 地耐力（地盤の強さ）は管が割れるかどうかの計算には入りません。軟弱地盤では管が不同沈下して継手が抜けるので、コンクリート基礎・はしご胴木などで基礎を固めてください。<br />
             ※ 車両の荷重は T-25（後輪 100kN）を基準に総重量で比例させ、衝撃係数を含めています。目安の計算です。公道の下や発注者の基準がある場合はそちらに従ってください。
           </p>
         </div>

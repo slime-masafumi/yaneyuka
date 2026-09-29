@@ -147,14 +147,40 @@ export const SOIL_UNIT_WEIGHT = 18; // kN/m³
  * 仕上げ層は土より重いので、その分だけ鉛直土圧に足す（土被りは仕上げ面から測る）。
  * 舗装・土間コンクリートが車輪の荷重を広げる効果は、要覧・塩ビ管協会の式と同じく見込まない（安全側）。
  * 路盤（砕石）は埋戻し土と同じ扱い。
+ * 単位体積重量は道路橋示方書の値（アスファルト 22.5、無筋コンクリート 23、鉄筋コンクリート 24.5）を基に、
+ * 透水性アスファルトは空隙率 20% 前後なので 20、半たわみ性は空隙にセメントミルクを詰めるので 23 とした。
+ * 厚さの既定値は構内舗装でよく使う値。slab はコンクリート版（荷重を広げる効果が特に大きい）。
  */
-export type Surface = { id: string; label: string; gamma: number; thickness: number };
+export type Surface = { id: string; label: string; gamma: number; thickness: number; slab?: boolean };
 
 export const SURFACES: Surface[] = [
-  { id: 'soil', label: '土・芝・砂利', gamma: 0, thickness: 0 },
+  { id: 'soil', label: '土・芝', gamma: 0, thickness: 0 },
+  { id: 'gravel', label: '砂利・砕石敷き', gamma: 20, thickness: 0.1 },
   { id: 'asphalt', label: 'アスファルト舗装', gamma: 22.5, thickness: 0.05 },
+  { id: 'porous', label: '透水性アスファルト舗装', gamma: 20, thickness: 0.05 },
+  { id: 'semiflex', label: '半たわみ性舗装', gamma: 23, thickness: 0.05 },
   { id: 'block', label: 'インターロッキング・平板', gamma: 23, thickness: 0.08 },
-  { id: 'concrete', label: '土間コンクリート', gamma: 24.5, thickness: 0.15 },
+  { id: 'concretePave', label: 'コンクリート舗装（無筋・鉄網）', gamma: 23, thickness: 0.2, slab: true },
+  { id: 'concrete', label: '土間コンクリート（鉄筋・メッシュ）', gamma: 24.5, thickness: 0.15, slab: true },
+];
+
+// ---------------------------------------------------------------------------
+// 埋戻し土
+// ---------------------------------------------------------------------------
+
+/**
+ * マーストン式の K·μ'（ランキンの土圧係数 × 溝側面との摩擦係数）。値が小さいほど溝の側面で支えられず、
+ * 管に掛かる土圧が大きい。Marston の標準値（要覧も溝型で K·μ' = K·tanφ を使う）。
+ * 塩ビ管の計算（直土圧）はこの値を使わない。協会の係数は、管の周りを良質土で十分に締め固めた前提。
+ */
+export type Backfill = { id: string; label: string; kmu: number; granular: boolean };
+
+export const BACKFILLS: Backfill[] = [
+  { id: 'granular', label: '砂・砕石（粘着力なし）', kmu: 0.1924, granular: true },
+  { id: 'sandy', label: '砂質土・山砂', kmu: 0.165, granular: true },
+  { id: 'topsoil', label: '表土（水を含んだもの）', kmu: 0.15, granular: false },
+  { id: 'clay', label: '粘性土', kmu: 0.13, granular: false },
+  { id: 'satclay', label: '水を含んだ粘性土', kmu: 0.11, granular: false },
 ];
 
 /** 仕上げ層が土より重い分（kN/m²）。厚さは土被りを超えない */
@@ -183,6 +209,8 @@ export type PipeInput = {
   /** 溝の掘削幅（ヒューム管のマーストン式に使う）。省略時は外径 + 0.6m */
   trenchWidth?: number;
   gamma?: number;
+  /** 埋戻し土（BACKFILLS の id）。省略時は砂・砕石 */
+  backfill?: string;
 };
 
 export type Check = { label: string; value: number; limit: number; unit: string; ok: boolean; ratio: number };
@@ -200,7 +228,7 @@ export type PipeResult = {
   notes: string[];
 };
 
-/** マーストン式・溝型の荷重係数 Cd（φ=30°、K·μ = 0.1924） */
+/** マーストン式・溝型の荷重係数 Cd（既定は φ=30° の砂、K·μ = 0.1924） */
 export function marstonCd(H: number, Bd: number, Kmu = 0.1924): number {
   return (1 - Math.exp((-2 * Kmu * H) / Bd)) / (2 * Kmu);
 }
@@ -234,6 +262,7 @@ export function checkPipe(inp: PipeInput): PipeResult | null {
   if (P > 0 && H < 0.6) notes.push('車両が通る所の土被りは 0.6m 以上を目安にしてください（浅いほど車両の荷重が集中します）');
   const extra = surfaceExtra(inp.surface, inp.surfaceThickness, H, gamma);
   if (extra > 0) notes.push(`仕上げ層が土より重い分 ${extra.toFixed(1)} kN/m² を鉛直土圧に含めています`);
+  const backfill = BACKFILLS.find((b) => b.id === inp.backfill) ?? BACKFILLS[0];
 
   if (isRigid(inp.kind)) {
     const spec = HUME[inp.size];
@@ -243,7 +272,7 @@ export function checkPipe(inp: PipeInput): PipeResult | null {
     const T = spec.t / 1000;
     const Bc = D + 2 * T;
     const Bd = inp.trenchWidth && inp.trenchWidth > Bc ? inp.trenchWidth : Bc + 0.6;
-    const earth = gamma * marstonCd(H, Bd) * (Bd * Bd) / Bc + extra;
+    const earth = gamma * marstonCd(H, Bd, backfill.kmu) * (Bd * Bd) / Bc + extra;
     const r = (D + T) / 2;
     const mcr = inp.kind === 'HP1' ? spec.mcr1 : spec.mcr2;
     const capacity = mcr / (k * r * r);
@@ -260,7 +289,7 @@ export function checkPipe(inp: PipeInput): PipeResult | null {
       notes: [
         ...notes,
         `耐荷力 ${capacity.toFixed(1)} kN/m²（曲げひび割れ耐力 ${mcr} kN·m/m ÷ k ${k} ÷ r² ）`,
-        `鉛直土圧はマーストン式（溝型）。掘削幅 ${Bd.toFixed(2)} m で計算しています`,
+        `鉛直土圧はマーストン式（溝型）。掘削幅 ${Bd.toFixed(2)} m・埋戻し ${backfill.label}（K·μ' ${backfill.kmu}）で計算しています`,
       ],
     };
   }
@@ -283,7 +312,11 @@ export function checkPipe(inp: PipeInput): PipeResult | null {
     live,
     wheel: P,
     checks,
-    notes: [...notes, `管厚 ${t} mm・たわみ量 ${delta.toFixed(1)} mm`],
+    notes: [
+      ...notes,
+      `管厚 ${t} mm・たわみ量 ${delta.toFixed(1)} mm`,
+      ...(backfill.granular ? [] : ['塩ビ管の計算は、管の周りを砂・良質土で十分に締め固めた前提です。粘性土のまま埋め戻すと横から支えられず、たわみはこれより大きくなります。管の周り（基礎〜管頂 +10cm 程度）は砂で巻いてください']),
+    ],
   };
 }
 

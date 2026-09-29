@@ -68,6 +68,22 @@ near('厚さは土被りで頭打ち', surfaceExtra('concrete', 0.5, 0.3, 18), 1
   check('ヒューム管も土間コンで安全率が下がる', hc.checks[0].value < hs.checks[0].value, true);
 }
 
+// 埋戻し土: 粘性土ほど K·μ' が小さく、ヒューム管の土圧が増える。塩ビ管（直土圧）は変わらない
+{
+  const base = { kind: 'HP1' as const, size: 300, vehicle: 'none', bedding: 'sand90', surface: 'soil' };
+  const sand = checkPipe({ ...base, cover: 3.0 })!;
+  const clay = checkPipe({ ...base, cover: 3.0, backfill: 'clay' })!;
+  near('HP300 H=3 砂の土圧', sand.earth, 83.8, 0.1);
+  near('HP300 H=3 粘性土の土圧（+18%）', clay.earth, 98.6, 0.1);
+  const vs = checkPipe({ kind: 'VU', size: 150, cover: 1.0, vehicle: 'none', bedding: 'pvc60', surface: 'soil' })!;
+  const vc = checkPipe({ kind: 'VU', size: 150, cover: 1.0, vehicle: 'none', bedding: 'pvc60', surface: 'soil', backfill: 'clay' })!;
+  check('塩ビ管は埋戻し土で土圧が変わらない', vs.earth === vc.earth, true);
+  check('塩ビ管は粘性土で注記が出る', vc.notes.some((n) => n.includes('砂で巻いて')), true);
+}
+near('コンクリート舗装 200 (23-18)×0.2', surfaceExtra('concretePave', undefined, 1.0, 18), 1.0, 1e-9);
+near('半たわみ 50 (23-18)×0.05', surfaceExtra('semiflex', undefined, 1.0, 18), 0.25, 1e-9);
+near('透水性 50 (20-18)×0.05', surfaceExtra('porous', undefined, 1.0, 18), 0.1, 1e-9);
+
 // VU150・有効60°・土被り1.0m・T-25（手計算: σ 8.70 N/mm²、たわみ率 2.50%）
 {
   const r = checkPipe({ kind: 'VU', size: 150, cover: 1.0, vehicle: 't25', bedding: 'pvc60' })!;
