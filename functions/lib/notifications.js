@@ -49,6 +49,8 @@ async function deliver(uid, id, notice) {
         throw e;
     }
 }
+/** 期限の自動配置（src/components/content/Userpage/calendar/DeadlineHelper.tsx）が使う分類 */
+const DEADLINE_CATEGORIES = new Set(['申請・検査', '中間検査', '完了検査', '資格試験']);
 /** 日本時間の YYYY-MM-DD（Myタスク・Teamタスクの期限は <input type=date> の文字列） */
 const ymdJst = (ms) => new Date(ms + 9 * 3600 * 1000).toISOString().slice(0, 10);
 const clip = (s, n) => (s.length > n ? `${s.slice(0, n)}…` : s);
@@ -95,6 +97,7 @@ exports.notifyTaskAssignee = functions.firestore
  * 毎朝 8 時の締切リマインド。
  * - Myタスク・Teamタスク: 期限が今日・明日で、終わっていないもの（Teamタスクは担当者、担当が無ければボードの持ち主）
  * - スケジュール調整: 締切まで 24 時間を切ったもの（作った人へ、回答の人数を添えて）
+ * - Myカレンダー: 今日・明日の予定のうち、通知を付けたもの（remind: true）と申請・検査・資格試験の期限
  * - 60 日より前の通知は消す
  * tasks は users/{uid}/mytasks/{c}/tasks と boards/{b}/tasks の両方が同じ名前なので、
  * コレクショングループ 1 回で両方を拾う（firestore.indexes.json の fieldOverrides が要る）。
@@ -148,6 +151,32 @@ exports.sendDeadlineReminders = (0, scheduler_1.onSchedule)({
             console.error('[sendDeadlineReminders] task', doc.ref.path, e);
         }
     }
+    // Myカレンダー。date は 'YYYY-MM-DD'。期限の自動配置（DeadlineHelper）で入れた分類は、
+    // remind を付け忘れていても知らせる（通知のために入れた期限なので）
+    const events = await db.collectionGroup('calendarEvents').where('date', 'in', [today, tomorrow]).limit(5000).get();
+    for (const doc of events.docs) {
+        const e = doc.data();
+        const seg = doc.ref.path.split('/');
+        if (seg[0] !== 'users' || seg.length !== 4)
+            continue;
+        if (e.remind !== true && !DEADLINE_CATEGORIES.has(e.category))
+            continue;
+        // 複数日にまたがる予定は初日だけ（spanPart が middle / end の分は送らない）
+        if (e.spanPart && e.spanPart !== 'single' && e.spanPart !== 'start')
+            continue;
+        try {
+            if (await deliver(seg[1], `cal-${doc.id}-${e.date}`, {
+                type: 'calendarDue',
+                title: `Myカレンダー：${e.date === today ? '今日' : '明日'}の予定`,
+                body: `${e.category ? `［${e.category}］` : ''}${clip(e.title || '', 60)}`,
+                link: '/?m=my-calendar',
+            }))
+                sent++;
+        }
+        catch (err) {
+            console.error('[sendDeadlineReminders] calendar', doc.ref.path, err);
+        }
+    }
     const schedules = await db.collection('schedules')
         .where('deadline', '>', admin.firestore.Timestamp.fromMillis(now))
         .where('deadline', '<=', admin.firestore.Timestamp.fromMillis(now + 24 * 3600 * 1000))
@@ -180,6 +209,6 @@ exports.sendDeadlineReminders = (0, scheduler_1.onSchedule)({
         old.docs.forEach((d) => batch.delete(d.ref));
         await batch.commit();
     }
-    console.log(`[sendDeadlineReminders] tasks=${tasks.size} schedules=${schedules.size} sent=${sent} removed=${old.size}`);
+    console.log(`[sendDeadlineReminders] tasks=${tasks.size} events=${events.size} schedules=${schedules.size} sent=${sent} removed=${old.size}`);
 });
 //# sourceMappingURL=notifications.js.map

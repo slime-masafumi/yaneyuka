@@ -4,6 +4,7 @@
  * マイページ（ブックマーク → メーカー資料箱）に 1 枚のカードとして控える。
  */
 import React, { useState } from 'react';
+import { FiCheck, FiPlus } from 'react-icons/fi';
 import { useAuth } from '@/lib/AuthContext';
 import makers from '@/data/makers.json';
 import { boxId, mergeMaker, type MakerData } from '@/lib/makerBox';
@@ -44,10 +45,11 @@ export default function SaveToMakerBox({ name }: { name: string }) {
       type="button"
       onClick={toggle}
       disabled={busy}
-      className={`ml-1 text-[11px] whitespace-nowrap ${saved ? 'text-gray-900 font-bold' : 'text-gray-400 hover:text-gray-800'}`}
+      className={`ml-1 inline-flex items-center gap-0.5 text-[11px] whitespace-nowrap ${saved ? 'text-gray-900 font-bold' : 'text-gray-400 hover:text-gray-800'}`}
       title={saved ? 'メーカー資料箱から外す' : 'マイページのメーカー資料箱に控える（商品ページ・カタログ・CAD などを 1 枚に）'}
     >
-      {saved ? '✓資料箱' : '＋資料箱'}
+      {saved ? <FiCheck className="w-3 h-3" aria-hidden /> : <FiPlus className="w-3 h-3" aria-hidden />}
+      資料箱
     </button>
   );
 }

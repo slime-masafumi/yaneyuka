@@ -1,4 +1,4 @@
-import { Inter } from 'next/font/google'
+import { Inter, JetBrains_Mono } from 'next/font/google'
 import Script from 'next/script'
 import './globals.css'
 import ClientSideEffects from './ClientSideEffects';
@@ -6,6 +6,8 @@ import ClientProviders from './ClientProviders';
 import type { Metadata, Viewport } from 'next';
 
 const inter = Inter({ subsets: ['latin'] })
+// 補助の等幅（番号・ラベル・日時）。ツールの見出し帯 .yy-head などが var(--font-mono) で使う
+const mono = JetBrains_Mono({ subsets: ['latin'], weight: ['400'], variable: '--font-mono', display: 'swap' })
 
 // --- SEO: Metadata ---
 export const metadata: Metadata = {
@@ -116,7 +118,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
         />
       </head>
-      <body className={inter.className}>
+      <body className={`${inter.className} ${mono.variable}`}>
         <ClientSideEffects />
         <ClientProviders>
           {children}

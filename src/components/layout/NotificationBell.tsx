@@ -9,8 +9,9 @@ import { db } from '@/lib/firebaseClient';
 /**
  * 上部ナビのベル。users/{uid}/notifications を新しい順に出す。
  *
- * 通知を書くのは Cloud Functions だけ（functions/src/notifications.ts）:
- * Teamタスクの担当になった / Myタスク・Teamタスクの期限が今日・明日 / スケ調の締切まで 24 時間。
+ * 他人宛ての通知は Cloud Functions だけが書く（functions/src/notifications.ts）:
+ * Teamタスクの担当になった / Myタスク・Teamタスク・カレンダーの期限が今日・明日 / スケ調の締切まで 24 時間。
+ * 自分宛ての通知は画面からも書く（ルールは本人のみ書き込み可）: My法規の改正検知、資料箱のカタログ更新。
  * 画面を開いている間に新しく届いたものは、ブラウザの通知が許可されていればそちらにも出す。
  */
 type Notice = { id: string; title: string; body: string; link: string; createdAt: number; read: boolean };
@@ -113,7 +114,7 @@ export default function NotificationBell() {
             <p className="px-3 py-6 text-center text-[11px] text-gray-400">
               通知はまだありません
               <br />
-              <span className="text-[10px]">Teamタスクの担当・期限の前日と当日・スケ調の締切前日に届きます</span>
+              <span className="text-[10px]">Teamタスクの担当・タスクとカレンダーの期限（前日と当日）・スケ調の締切・法令の改正・カタログの更新が届きます</span>
             </p>
           ) : (
             <ul className="max-h-[360px] overflow-y-auto">

@@ -59,6 +59,9 @@ const ymd = (ms) => new Date(ms + 9 * 3600e3).toISOString().slice(0, 10);
   await db.doc('schedules/s1/participants/p1').set({ name: 'A' });
   await db.doc('schedules/s1/participants/p2').set({ name: 'B' });
   await db.doc('schedules/s2').set({ title: '来週', ownerUid: 'carol', deadline: admin.firestore.Timestamp.fromMillis(now + 3 * 86400e3) });
+  await db.doc('users/carol/calendarEvents/e1').set({ title: '中間検査', date: tomorrow, category: '中間検査', spanPart: 'single' });
+  await db.doc('users/carol/calendarEvents/e2').set({ title: '打合せ', date: today, category: '施主打合せ', remind: true });
+  await db.doc('users/carol/calendarEvents/e3').set({ title: 'ただの予定', date: today, category: '個人' });
   await db.doc('users/carol/notifications/old').set({ title: '古い', createdAt: now - 90 * 86400e3, read: true });
 
   const run = () => sendDeadlineReminders.run({ scheduleTime: new Date().toISOString() });
@@ -67,7 +70,7 @@ const ymd = (ms) => new Date(ms + 9 * 3600e3).toISOString().slice(0, 10);
   check('bob: 担当1件＋今日が期限（済・先は除く）', bob, ['Teamタスク：今日が期限です', 'アリス さんがタスクの担当にしました']);
   check('担当なしはボードの持ち主へ', (await notes('alice')).map((x) => x.title), ['Teamタスク：明日が期限です']);
   const carol = await notes('carol');
-  check('Myタスクと24時間以内のスケ調だけ・古い通知は消える', carol.map((x) => x.title).sort(), ['Myタスク：明日が期限です', 'スケジュール調整：締切まで 24 時間を切りました']);
+  check('Myタスク・通知付きと期限の予定・24時間以内のスケ調だけ・古い通知は消える', carol.map((x) => x.title).sort(), ['Myカレンダー：今日の予定', 'Myカレンダー：明日の予定', 'Myタスク：明日が期限です', 'スケジュール調整：締切まで 24 時間を切りました']);
   check('スケ調に回答人数', carol.find((x) => x.type === 'scheduleDeadline')?.body.includes('回答 2 人'), true);
 
   await db.doc(`users/bob/notifications/due-boards_b1_tasks_d1-${today}`).update({ read: true });

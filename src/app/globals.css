@@ -1141,6 +1141,115 @@ nav {
 .yy-tool {
   --yy-line: #3b3b3b;
   --yy-surface: #f9fafb;
+  --yy-accent: #52aa96;
+}
+
+/* ---------------------------------------------------------------------------
+   ツールの見出し帯（src/components/content/Userpage/ToolHeader.tsx）
+
+   墨の帯に、等幅の小さな大文字（番号・英字コード）と細いタイトル。大きさは
+   「タイトル 18px」と「10〜11px の文字」の 2 段だけにして中間を作らない。
+   差し色 #52AA96 は「できること」の選択中とフォーカスの細線にだけ使う。
+   .yy-tool の外（設計ツールなど）でも崩れないよう、ここは .yy-tool に閉じない。
+   --------------------------------------------------------------------------- */
+.yy-mono,
+.yy-head__code,
+.yy-head__no,
+.yy-head__tag {
+  font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.yy-head {
+  background: #141414;
+  color: #ece9e2;
+  border-bottom: 1px solid #000;
+}
+.yy-head__row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 16px 9px;
+}
+.yy-head__code {
+  display: flex;
+  gap: 10px;
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #8c887f;
+  margin: 0 0 3px;
+}
+.yy-head__title {
+  font-size: 18px;
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin: 0;
+  color: #f4f2ec;
+}
+.yy-head__lead {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #aaa69d;
+  margin: 3px 0 0;
+}
+.yy-head__aside {
+  font-size: 11px;
+  color: #ece9e2;
+  flex-shrink: 0;
+}
+/* 狭い画面では右端の補助を下の段へ落とす（タイトルが 1 文字ずつ縦に潰れないように） */
+@media (max-width: 639px) {
+  .yy-head__row { flex-wrap: wrap; align-items: flex-start; }
+  .yy-head__row > .min-w-0 { flex: 1 1 100%; }
+  .yy-head__aside { flex-shrink: 1; max-width: 100%; }
+}
+.yy-head__features {
+  display: flex;
+  flex-wrap: wrap;
+  border-top: 1px solid #2a2a2a;
+  padding: 0 8px;
+}
+.yy-head__feature {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 6px 8px 5px;
+  font-size: 11px;
+  color: #cfcbc2;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 160ms ease, border-color 160ms ease;
+}
+.yy-head__feature:hover { color: #fff; }
+.yy-head__feature.is-active {
+  color: #fff;
+  border-bottom-color: #52aa96;
+}
+.yy-head__feature.is-static { cursor: default; }
+.yy-head__feature.is-static:hover { color: #cfcbc2; }
+.yy-head__feature:focus-visible { outline: 1px solid #52aa96; outline-offset: -1px; }
+.yy-head__no {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: #6f6b63;
+}
+.yy-head__feature.is-active .yy-head__no { color: #52aa96; }
+.yy-head__tag {
+  font-size: 8.5px;
+  letter-spacing: 0.12em;
+  color: #6f6b63;
+  border: 1px solid #3a3a3a;
+  padding: 0 3px;
+}
+/* 帯の右端に置くボタン（ツール側の aside） */
+.yy-head__aside button,
+.yy-head__aside a {
+  color: #ece9e2;
 }
 
 /* 入力欄。角丸をやめて枠線の色を揃える。高さと文字サイズは各ツールのまま。 */
@@ -1164,7 +1273,8 @@ nav {
 .yy-tool input:focus-visible,
 .yy-tool select:focus-visible,
 .yy-tool textarea:focus-visible {
-  outline: 2px solid var(--yy-line);
+  /* フォーカスだけ差し色。枠は墨のまま、内側に 1px の光を足す */
+  outline: 1px solid var(--yy-accent);
   outline-offset: -2px;
 }
 

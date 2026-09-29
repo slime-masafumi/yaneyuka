@@ -29,6 +29,8 @@ export type MakerBoxItem = {
   note?: string;
   createdAt?: number;
   updatedAt?: number;
+  /** 通知済みのリンク更新の指紋（changeSignature）。自分の資料箱だけに書く */
+  notifiedChange?: string;
 };
 
 const usable = (u?: string) => !!u && u !== '#' && u.trim() !== '';
@@ -88,8 +90,9 @@ export function searchMakers(data: MakerData, q: string, limit = 20): Array<{ na
 export function linkChanges(saved: MakerLinks, current: MakerLinks): Array<{ key: keyof MakerLinks; label: string; from: string; to: string }> {
   const out: Array<{ key: keyof MakerLinks; label: string; from: string; to: string }> = [];
   for (const { key, label } of BOX_SLOTS) {
-    const a = saved[key] ?? '';
-    const b = current[key] ?? '';
+    // 古い・壊れたカードで links が無いことがあるので、落ちないように読む
+    const a = saved?.[key] ?? '';
+    const b = current?.[key] ?? '';
     if (usable(b) && a !== b) out.push({ key, label, from: a, to: b });
   }
   return out;
@@ -114,4 +117,22 @@ export function relatedBookmarks<T extends { url: string }>(item: Pick<MakerBoxI
   const hosts = new Set(BOX_SLOTS.map(({ key }) => hostOf(item.links[key])).filter((h) => h && !/google\.com$|forms\.gle$/.test(h)));
   if (!hosts.size) return [];
   return bookmarks.filter((b) => hosts.has(hostOf(b.url)));
+}
+
+/**
+ * 更新の「指紋」。同じ更新で何度も通知しないよう、通知した指紋をカード側に控える（notifiedChange）。
+ * yaneyuka 側でもう一度リンクが変われば指紋も変わるので、そのときはまた知らせる。
+ */
+export function changeSignature(itemId: string, changes: Array<{ key: string; to: string }>): string {
+  return fnv1a(`${itemId}|${changes.map((c) => `${c.key}=${c.to}`).sort().join('|')}`);
+}
+
+/** 短いハッシュ（FNV-1a 32bit）。ドキュメント ID に使えるよう 16 進の英数字だけにする */
+export function fnv1a(text: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(16).padStart(8, '0');
 }
