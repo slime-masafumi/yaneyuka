@@ -62,6 +62,7 @@ const ymd = (ms) => new Date(ms + 9 * 3600e3).toISOString().slice(0, 10);
   await db.doc('users/carol/calendarEvents/e1').set({ title: '中間検査', date: tomorrow, category: '中間検査', spanPart: 'single' });
   await db.doc('users/carol/calendarEvents/e2').set({ title: '打合せ', date: today, category: '施主打合せ', remind: true });
   await db.doc('users/carol/calendarEvents/e3').set({ title: 'ただの予定', date: today, category: '個人' });
+  await db.doc('users/carol/calendarEvents/e4').set({ title: '通知を切った検査', date: today, category: '完了検査', remind: false });
   await db.doc('users/carol/notifications/old').set({ title: '古い', createdAt: now - 90 * 86400e3, read: true });
 
   const run = () => sendDeadlineReminders.run({ scheduleTime: new Date().toISOString() });

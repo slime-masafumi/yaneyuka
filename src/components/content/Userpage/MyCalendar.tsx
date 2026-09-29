@@ -2,8 +2,11 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ToolHeader from './ToolHeader';
-import { parseIcs, buildIcs } from '@/lib/ics';
-import DeadlineHelper, { BUILDING_CATEGORIES, type NewDeadline } from './calendar/DeadlineHelper';
+import { FiChevronLeft, FiChevronRight, FiX } from 'react-icons/fi';
+import { parseIcs, buildIcs, type IcsEvent } from '@/lib/ics';
+import DeadlineHelper, { type NewDeadline } from './calendar/DeadlineHelper';
+import IcsImport, { type ImportTarget } from './calendar/IcsImport';
+import { BUILDING_CATEGORIES, COLOR_PALETTE, DEADLINE_CATEGORY_NAMES, DEFAULT_CATEGORIES } from './calendar/categories';
 import { useAuth } from '@/lib/AuthContext';
 import { useTaskContext } from '../../providers/TaskProvider';
 import { db } from '@/lib/firebaseClient';
@@ -28,6 +31,10 @@ interface CalendarEvent {
   recurrenceUntil?: string;
   spanGroupId?: string;
   spanPart?: 'single' | 'start' | 'middle' | 'end';
+  /** .ics ファイルから入れた予定の鍵（UID|開始）。同じファイルを読み直しても増やさないため */
+  icsKey?: string;
+  /** 前日と当日にサイト内通知を送る（functions の定期処理が見る） */
+  remind?: boolean;
 }
 
 interface Category {
@@ -95,20 +102,12 @@ const formatFullDateJP = (dateStr: string) => {
   return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日(${days[d.getDay()]})`;
 };
 
-// カラーパレット (青→緑→黄→赤...の順)
-const COLOR_PALETTE = [
-  '#3B82F6', // 青
-  '#10B981', // 緑
-  '#F59E0B', // 黄
-  '#EF4444', // 赤
-  '#8B5CF6', // 紫
-  '#06B6D4', // 水色
-  '#84CC16', // ライム
-  '#F97316', // オレンジ
-  '#EC4899', // ピンク
-  '#6B7280', // グレー
-  '#14B8A6', // ティール
-];
+/** 小さな等幅の大文字ラベル（曜日・日付・件数） */
+const MONO = 'yy-mono text-[10px] tracking-[0.12em] uppercase';
+/** 外部カレンダー（URL 購読）の予定は id が ics- で始まる。読むだけ */
+const isFeedEvent = (ev: { id: string }) => ev.id.startsWith('ics-');
+/** Firestore の 1 回の書き込みは 500 件まで。余裕を見て 400 件ずつ */
+const BATCH_LIMIT = 400;
 
 // --- Main Component ---
 
@@ -119,17 +118,21 @@ const MyCalendar: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string>(() => formatDateForStorage(new Date()));
   const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [categories, setCategories] = useState<Category[]>([
-    { id: '1', name: '会議', color: '#3B82F6' },
-    { id: '2', name: '作業', color: '#10B981' },
-    { id: '3', name: '締切', color: '#EF4444' }
-  ]);
+  const [categories, setCategories] = useState<Category[]>(() => DEFAULT_CATEGORIES.map((c, i) => ({ id: String(i + 1), ...c })));
   
   // UI State
   const [showModal, setShowModal] = useState(false);
   const [showCategoryManager, setShowCategoryManager] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showDeadlines, setShowDeadlines] = useState(false);
+  const [deadlineTab, setDeadlineTab] = useState<'permit' | 'exam'>('permit');
+  // .ics ファイルの取り込み。カレンダーの上にドロップしたファイルはそのまま渡す
+  const [showIcsImport, setShowIcsImport] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [fileDragOver, setFileDragOver] = useState(false);
+  // 帯の「できること」を未ログインで押したときの一行説明
+  const [notice, setNotice] = useState('');
+  const categorySectionRef = useRef<HTMLDivElement>(null);
   const [showHolidays, setShowHolidays] = useState(true);
   const [holidays, setHolidays] = useState<Record<string, string>>({});
   
@@ -147,6 +150,9 @@ const MyCalendar: React.FC = () => {
   const [allDay, setAllDay] = useState(false);
   const [recurrenceType, setRecurrenceType] = useState<'none' | 'daily' | 'weekly' | 'monthly'>('none');
   const [recurrenceUntil, setRecurrenceUntil] = useState('');
+  const [remind, setRemind] = useState(false);
+  // 外部カレンダーの予定を開いたとき、その名前（読むだけ・保存すると自分の予定として複製）
+  const [readonlySource, setReadonlySource] = useState<string | null>(null);
 
   // Category Manager State
   const [categoryName, setCategoryName] = useState('');
@@ -156,7 +162,8 @@ const MyCalendar: React.FC = () => {
   const [editingCategoryColor, setEditingCategoryColor] = useState('');
   
   // Theme State
-  const [leftAreaBgColor, setLeftAreaBgColor] = useState<string>('#1e293b');
+  // 左の欄は紙色が既定（以前は濃紺）。色を変えたら端末に覚える
+  const [leftAreaBgColor, setLeftAreaBgColor] = useState<string>('#f7f6f2');
   const [rightAreaBgColor, setRightAreaBgColor] = useState<string>('#ffffff');
   const [rightAreaFont, setRightAreaFont] = useState<string>('inherit');
 
@@ -217,6 +224,16 @@ const MyCalendar: React.FC = () => {
     } catch {}
   }, [currentUser]);
 
+  /** 色を変えたら覚える（以前は読むだけで保存しておらず、開き直すと戻っていた） */
+  const saveTheme = (left: string, right: string) => {
+    setLeftAreaBgColor(left);
+    setRightAreaBgColor(right);
+    if (!currentUser) return;
+    try {
+      localStorage.setItem(`calendarTheme:${currentUser.uid}`, JSON.stringify({ left, right, font: rightAreaFont }));
+    } catch {}
+  };
+
   useEffect(() => {
     if (!isLoggedIn || !currentUser) return;
     const colRef = collection(db, 'users', currentUser.uid, 'calendarCategories');
@@ -232,12 +249,7 @@ const MyCalendar: React.FC = () => {
         });
         setCategories(finalCategories);
       } else {
-        const defaults = [
-            { name: '会議', color: '#3B82F6' },
-            { name: '作業', color: '#10B981' },
-            { name: '締切', color: '#EF4444' }
-          ];
-        defaults.forEach(c => addDoc(colRef, c));
+        DEFAULT_CATEGORIES.forEach(c => addDoc(colRef, c));
       }
     });
     return () => unsub();
@@ -423,7 +435,7 @@ const MyCalendar: React.FC = () => {
       taskCategories.forEach(cat => {
         cat.tasks.forEach(t => { 
           const tDate = t.dueDate;
-          if (tDate === dateString) tasks.push({ ...t, categoryName: cat.title, color: '#3B82F6', isTeamTask: false, categoryId: cat.id }) 
+          if (tDate === dateString) tasks.push({ ...t, categoryName: cat.title, color: '#5B6B73', isTeamTask: false, categoryId: cat.id }) 
         });
       });
     }
@@ -446,8 +458,10 @@ const MyCalendar: React.FC = () => {
     const endDate = new Date(lastDayOfMonth);
     endDate.setDate(endDate.getDate() + (6 - endDate.getDay()));
 
-    const relevantEvents = events.filter(e => {
-        const d = new Date(e.date);
+    // 外部カレンダー（URL 購読）の予定も升目に出す。以前は左の「Schedule」にしか出ず、
+    // 購読しても月の表には何も出なかった
+    const relevantEvents = [...events, ...icsEvents].filter(e => {
+        const d = new Date(`${e.date}T00:00:00`);
         return d >= startDate && d <= endDate;
     });
 
@@ -499,7 +513,7 @@ const MyCalendar: React.FC = () => {
         });
     });
     return slots;
-  }, [events, currentDate]);
+  }, [events, icsEvents, currentDate]);
 
   // --- Actions ---
 
@@ -509,19 +523,25 @@ const MyCalendar: React.FC = () => {
     setStartDateInput(base); setEndDateInput(base);
     setEventTitle(''); setEventCategory(''); setEventDetails(''); setEditingEventId(null);
     setStartHour('09'); setStartMinute('00'); setEndHour('10'); setEndMinute('00'); setAllDay(false);
+    setRemind(false); setReadonlySource(null);
     if(categories.length > 0) setEventCategory(categories[0].name);
     setShowModal(true);
   };
 
   const editEvent = (event: CalendarEvent) => {
-    setEditingEventId(event.id);
+    // 外部カレンダーの予定は書き換えられない。中身を見せて、保存したら自分の予定として複製する
+    const fromFeed = isFeedEvent(event);
+    setReadonlySource(fromFeed ? event.category : null);
+    setEditingEventId(fromFeed ? null : event.id);
     setEventTitle(event.title);
-    setEventCategory(event.category);
+    setEventCategory(fromFeed ? (categories[0]?.name ?? '') : event.category);
     setEventDetails(event.details);
     setAllDay(event.allDay || false);
+    // remind が無い古い予定でも、期限の種別なら通知は届く（functions 側が種別でも見る）ので、そのとおりに見せる
+    setRemind(event.remind ?? DEADLINE_CATEGORY_NAMES.includes(event.category));
     setStartHour(event.startHour); setStartMinute(event.startMinute);
     setEndHour(event.endHour); setEndMinute(event.endMinute);
-    setStartDateInput(event.date); 
+    setStartDateInput(event.date);
       if (event.spanGroupId) {
         const group = events.filter(e => e.spanGroupId === event.spanGroupId).sort((a,b) => a.date.localeCompare(b.date));
         if(group.length > 0) {
@@ -538,18 +558,37 @@ const MyCalendar: React.FC = () => {
     setShowModal(true);
   };
 
+  /** 種別を選んだとき。期限の種別なら通知を入れておく（新しい予定のときだけ。編集中の選択は尊重する） */
+  const pickCategory = (name: string) => {
+    setEventCategory(name);
+    if (!editingEventId && DEADLINE_CATEGORY_NAMES.includes(name)) setRemind(true);
+  };
+
+  /** 種別の色。まだ作っていない建築の種別は、その既定の色 */
+  const colorOfCategory = (name: string) =>
+    categories.find(c => c.name === name)?.color
+    ?? BUILDING_CATEGORIES.find(c => c.name === name)?.color
+    ?? '#6B7280';
+
   const saveEvent = async () => {
     if (!eventTitle || !currentUser) return;
-    const color = categories.find(c => c.name === eventCategory)?.color || '#6B7280';
+    // 建築の種別を入力欄から選んだときは、ここで初めて種別を作る
+    const building = BUILDING_CATEGORIES.find(c => c.name === eventCategory);
+    if (building) await ensureCategories([building]);
+    const color = colorOfCategory(eventCategory);
     const start = new Date(startDateInput);
     const end = new Date(endDateInput);
     const diffTime = Math.abs(end.getTime() - start.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-    const spanGroupId = diffDays > 0 ? `span-${Date.now()}` : undefined;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    // まとまりの id は Firestore の自動 id を借りる（重ならない）
+    const spanGroupId = diffDays > 0 ? `span-${doc(collection(db, 'users', currentUser.uid, 'calendarEvents')).id}` : undefined;
 
+    // 編集は「消して作り直す」ので、.ics から入れた印（重複よけ・繰り返しのまとまり）を引き継ぐ
+    const prev = editingEventId ? events.find(e => e.id === editingEventId) : undefined;
     const basePayload = {
       title: eventTitle, allDay, startHour, startMinute, endHour, endMinute,
-      category: eventCategory, details: eventDetails, color, recurrenceType, recurrenceUntil, spanGroupId
+      category: eventCategory, details: eventDetails, color, recurrenceType, recurrenceUntil, spanGroupId,
+      remind, icsKey: prev?.icsKey, recurrenceId: prev?.recurrenceId,
     };
 
     if (editingEventId) {
@@ -573,14 +612,15 @@ const MyCalendar: React.FC = () => {
         currentDate.setDate(start.getDate() + i);
         const dateStr = formatDateForStorage(currentDate);
         const spanPart = diffDays === 0 ? 'single' : (i === 0 ? 'start' : (i === diffDays ? 'end' : 'middle'));
-        const payload = { ...basePayload, date: dateStr, spanPart };
+        const payload = stripUndefined({ ...basePayload, date: dateStr, spanPart });
         const ref = doc(collection(db, 'users', currentUser.uid, 'calendarEvents'));
-        batch.set(ref, stripUndefined(payload));
+        batch.set(ref, payload);
         newEvents.push({ id: ref.id, ...payload } as CalendarEvent);
     }
     await batch.commit();
     setEvents(prev => [...prev, ...newEvents]);
-          setShowModal(false);
+    setShowModal(false);
+    setReadonlySource(null);
   };
 
   /** カテゴリが無ければ作る（期限の書き込み・建築の種別の追加で使う） */
@@ -590,7 +630,10 @@ const MyCalendar: React.FC = () => {
     await Promise.all(missing.map((m) => addDoc(collection(db, 'users', currentUser.uid, 'calendarCategories'), m)));
   };
 
-  /** 期限を終日の予定としてまとめて入れる */
+  /**
+   * 期限を終日の予定としてまとめて入れる。
+   * remind: true を付けると、functions の定期処理が前日と当日にサイト内通知を送る。
+   */
   const addDeadlines = async (items: NewDeadline[]) => {
     if (!currentUser) {
       alert('入力するには会員登録（無料）が必要です。');
@@ -603,7 +646,10 @@ const MyCalendar: React.FC = () => {
       const ref = doc(collection(db, 'users', currentUser.uid, 'calendarEvents'));
       const payload = {
         title: it.title, date: it.date, allDay: true, startHour: '00', startMinute: '00', endHour: '00', endMinute: '00',
-        category: it.category, details: it.details, color: it.color, recurrenceType: 'none' as const, spanPart: 'single' as const,
+        // 種別を自分で塗り替えていれば、その色に合わせる
+        category: it.category, details: it.details, color: categories.find((c) => c.name === it.category)?.color ?? it.color,
+        recurrenceType: 'none' as const, spanPart: 'single' as const,
+        remind: it.remind ?? true,
       };
       batch.set(ref, payload);
       added.push({ id: ref.id, ...payload });
@@ -612,9 +658,74 @@ const MyCalendar: React.FC = () => {
     setEvents((prev) => [...prev, ...added]);
   };
 
+  /** 取り込み済みの .ics の鍵（同じファイルを読み直したときに飛ばす） */
+  const importedKeys = useMemo(() => new Set(events.map(e => e.icsKey).filter((k): k is string => !!k)), [events]);
+
+  /**
+   * .ics ファイルの予定を自分の予定として書き込む。
+   * 複数日の終日予定（研修・休暇など）は、手で入れたときと同じ「連続した帯」にする。
+   * 繰り返しは展開済みの 1 回ずつで届く。recurrenceId に UID を入れて、まとめて消せるようにする。
+   */
+  const importIcsEvents = async (items: IcsEvent[], target: ImportTarget, remindAll: boolean): Promise<number> => {
+    if (!currentUser) throw new Error('not logged in');
+    await ensureCategories([target]);
+    const color = categories.find(c => c.name === target.name)?.color ?? target.color;
+    const docs: Record<string, unknown>[] = [];
+    items.forEach((it) => {
+      if (importedKeys.has(it.key)) return;
+      const details = [it.details, it.location ? `場所: ${it.location}` : ''].filter(Boolean).join('\n');
+      const common = {
+        title: it.title, allDay: it.allDay, startHour: it.startHour, startMinute: it.startMinute,
+        endHour: it.endHour, endMinute: it.endMinute, category: target.name, details, color,
+        recurrenceType: 'none', icsKey: it.key,
+        ...(it.recurring ? { recurrenceId: `ics:${it.uid}` } : {}),
+        ...(remindAll ? { remind: true } : {}),
+      };
+      const s = new Date(`${it.date}T00:00:00`);
+      const e = new Date(`${it.endDate}T00:00:00`);
+      const days = Math.round((e.getTime() - s.getTime()) / 86400000);
+      // 終日で 2〜62 日にまたがるものだけ帯にする（時刻つきは開始日に 1 件）
+      if (it.allDay && days > 0 && days <= 61) {
+        const spanGroupId = `span-ics-${doc(collection(db, 'users', currentUser.uid, 'calendarEvents')).id}`;
+        for (let i = 0; i <= days; i++) {
+          const d = new Date(s);
+          d.setDate(s.getDate() + i);
+          docs.push({ ...common, date: formatDateForStorage(d), spanGroupId, spanPart: i === 0 ? 'start' : i === days ? 'end' : 'middle' });
+        }
+      } else {
+        docs.push({ ...common, date: it.date, spanPart: 'single' });
+      }
+    });
+
+    const added: CalendarEvent[] = [];
+    for (let i = 0; i < docs.length; i += BATCH_LIMIT) {
+      const batch = writeBatch(db);
+      for (const payload of docs.slice(i, i + BATCH_LIMIT)) {
+        const ref = doc(collection(db, 'users', currentUser.uid, 'calendarEvents'));
+        batch.set(ref, payload);
+        added.push({ id: ref.id, ...(payload as Omit<CalendarEvent, 'id'>) });
+      }
+      await batch.commit();
+    }
+    setEvents(prev => [...prev, ...added]);
+    return items.filter(it => !importedKeys.has(it.key)).length;
+  };
+
   const deleteEvent = async () => {
     if (!editingEventId || !currentUser) return;
     const target = events.find(e => e.id === editingEventId);
+    // .ics から入れた繰り返しは、同じ系列をまとめて消せるようにする（1 回ずつ消すのは数百回になりうる）
+    const series = target?.recurrenceId ? events.filter(e => e.recurrenceId === target.recurrenceId) : [];
+    if (target && series.length > 1 && confirm(`この繰り返しの予定（${series.length} 件）をまとめて削除しますか？\n「キャンセル」でこの回だけを削除します。`)) {
+        setEvents(prev => prev.filter(e => e.recurrenceId !== target.recurrenceId));
+        for (let i = 0; i < series.length; i += BATCH_LIMIT) {
+          const batch = writeBatch(db);
+          series.slice(i, i + BATCH_LIMIT).forEach(e => batch.delete(doc(db, 'users', currentUser.uid, 'calendarEvents', e.id)));
+          await batch.commit();
+        }
+        setShowModal(false);
+        return;
+    }
     if (target?.spanGroupId) {
         if(!confirm('これは連続したスケジュールの一部です。すべて削除しますか？')) return;
         const groupEvents = events.filter(e => e.spanGroupId === target.spanGroupId);
@@ -730,7 +841,8 @@ const MyCalendar: React.FC = () => {
           const text = await res.text();
           parseIcs(text).forEach((e) => {
             collected.push({
-              id: `ics-${feed.id}-${e.uid}`,
+              // 繰り返しは 1 回ずつ同じ UID で来るので、回ごとの鍵（UID|開始）で見分ける
+              id: `ics-${feed.id}-${e.key}`,
               title: e.title,
               date: e.date,
               allDay: e.allDay,
@@ -739,7 +851,7 @@ const MyCalendar: React.FC = () => {
               endHour: e.endHour,
               endMinute: e.endMinute,
               category: feed.name,
-              details: e.details,
+              details: [e.details, e.location ? `場所: ${e.location}` : ''].filter(Boolean).join('\n'),
               color: feed.color,
             });
           });
@@ -806,6 +918,7 @@ const MyCalendar: React.FC = () => {
   };
 
   const onDragStartEvent = (ev: React.DragEvent, event: CalendarEvent) => {
+    if (isFeedEvent(event)) { ev.preventDefault(); return; }
     setDraggingEventId(event.id);
     const group = event.spanGroupId ? events.filter(e => e.spanGroupId === event.spanGroupId) : [event];
     const cellElement = (ev.target as HTMLElement).closest('.calendar-cell');
@@ -817,7 +930,7 @@ const MyCalendar: React.FC = () => {
     ghost.style.height = '20px';
     ghost.style.backgroundColor = event.color;
     ghost.style.color = 'white';
-    ghost.style.borderRadius = '4px';
+    ghost.style.borderRadius = '0';
     ghost.style.padding = '0 4px';
     ghost.style.fontSize = '10px';
     ghost.style.position = 'absolute';
@@ -829,7 +942,29 @@ const MyCalendar: React.FC = () => {
   };
 
   const onDragEndEvent = () => { setDraggingEventId(null); setDragOverDate(null); };
-  const onDragOverDay = (ev: React.DragEvent, dateStr: string) => { ev.preventDefault(); if (dragOverDate !== dateStr) setDragOverDate(dateStr); };
+  const onDragOverDay = (ev: React.DragEvent, dateStr: string) => {
+    ev.preventDefault();
+    // ファイルを持ってきたときは日付の升目を光らせない（取り込みの枠を出す）
+    if (draggingEventId && dragOverDate !== dateStr) setDragOverDate(dateStr);
+  };
+
+  /** カレンダーの上に .ics ファイルを落としたら、取り込みの画面を開く */
+  const hasFiles = (ev: React.DragEvent) => Array.from(ev.dataTransfer?.types ?? []).includes('Files');
+  const onFileDragOver = (ev: React.DragEvent) => {
+    if (!hasFiles(ev)) return;
+    ev.preventDefault();
+    if (!fileDragOver) setFileDragOver(true);
+  };
+  const onFileDrop = (ev: React.DragEvent) => {
+    if (!hasFiles(ev)) return;
+    ev.preventDefault();
+    setFileDragOver(false);
+    const f = ev.dataTransfer.files?.[0];
+    if (!f) return;
+    if (!isLoggedIn) { setNotice('.ics の読み込みはログインすると使えます（読み込んだ予定は自分の予定として保存されます）'); return; }
+    setImportFile(f);
+    setShowIcsImport(true);
+  };
   
   const onDropToDay = async (ev: React.DragEvent, dateStr: string) => {
     ev.preventDefault();
@@ -873,154 +1008,246 @@ const MyCalendar: React.FC = () => {
   };
 
   // --- Render ---
+
+  const dark = isDarkColor(leftAreaBgColor);
+  const rdark = isDarkColor(rightAreaBgColor);
+  // 升目の線は 1px の細線。地が暗いときは白の細線
+  const gridLine = rdark ? 'border-white/15' : 'border-black/10';
+  const SUN = '#9A5040';
+  const SAT = '#4F6D8A';
+  const missingBuilding = BUILDING_CATEGORIES.filter(b => !categories.some(c => c.name === b.name));
+  const monthPrefix = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-`;
+  const monthCount = events.filter(e => e.date.startsWith(monthPrefix) && (!e.spanPart || e.spanPart === 'single' || e.spanPart === 'start')).length;
+
+  /** 帯の「できること」。ログインが要るものは、未ログインなら理由を 1 行出すだけにする */
+  const needLogin = (what: string, open: () => void) => () => {
+    if (!isLoggedIn) { setNotice(`${what}はログインすると使えます（予定は自分のアカウントに保存されます）`); return; }
+    setNotice('');
+    open();
+  };
+  const features = [
+    {
+      label: '期限を入れる',
+      hint: '着工・特定工程・完了の予定から、確認申請の提出目安と検査の申請期限を逆算して入れる。前日と当日に通知',
+      login: true,
+      active: showDeadlines && deadlineTab === 'permit',
+      onClick: needLogin('期限の書き込み', () => { setDeadlineTab('permit'); setShowDeadlines(true); }),
+    },
+    {
+      label: '資格試験',
+      hint: '建築士・施工管理技士などの申込締切（目安）を選んで入れる',
+      login: true,
+      active: showDeadlines && deadlineTab === 'exam',
+      onClick: needLogin('資格試験の締切の書き込み', () => { setDeadlineTab('exam'); setShowDeadlines(true); }),
+    },
+    {
+      label: '外部カレンダー連携',
+      hint: 'Google カレンダー等の .ics URL を購読して重ねて表示 / 自分の予定を .ics で書き出す',
+      login: true,
+      active: showSettingsModal,
+      onClick: needLogin('外部カレンダー連携', () => setShowSettingsModal(true)),
+    },
+    {
+      label: '.icsを読み込む',
+      hint: '.ics ファイルの予定を自分の予定として取り込む（カレンダーの上にドロップしても開く）',
+      login: true,
+      active: showIcsImport,
+      onClick: needLogin('.ics の読み込み', () => { setImportFile(null); setShowIcsImport(true); }),
+    },
+    {
+      label: '種別',
+      hint: '現場定例・施主打合せ・中間検査・完了検査などの種別と色',
+      active: showCategoryManager,
+      onClick: () => {
+        setShowCategoryManager(true);
+        categorySectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      },
+    },
+  ];
+
+  const selectDay = (delta: number) => {
+    const d = new Date(`${selectedDate}T00:00:00`);
+    d.setDate(d.getDate() + delta);
+    setSelectedDate(formatDateForStorage(d));
+  };
+  const selectedEvents = getEventsForDate(new Date(`${selectedDate}T00:00:00`));
+  const selectedTasks = getTasksForDate(new Date(`${selectedDate}T00:00:00`));
+  const fieldCls = 'w-full bg-white px-2 py-1.5 text-[12px]';
+
   return (
     <div className="pt-0 pb-4">
       <div className="w-full h-[calc(100vh-var(--nav-height)-1rem)] flex flex-col [&>*:not(:first-child)]:mx-4">
-        
+
         {/* Header */}
         <ToolHeader
+          no="A3"
+          code="CALENDAR"
           title="Myカレンダー"
-          description="会議・作業・締切などの予定をカレンダー形式で管理。MyタスクとTeamタスクの期日も自動表示され、繰り返し予定やカテゴリ別の色分けにも対応"
+          description="現場定例・検査・申請の期限を月の表で。Myタスク・Teamタスクの期日も重ね、Google カレンダー等とは .ics でやりとりする"
+          features={features}
+          aside={isLoggedIn ? <span className={`${MONO} text-[#aaa69d]`}>{String(monthCount).padStart(3, '0')} EVENTS / MONTH</span> : undefined}
         />
+        {notice && (
+          <div className="flex items-center justify-between gap-2 mt-2 text-[11px] text-gray-600 border-l border-[#52AA96] pl-2">
+            <span>{notice}</span>
+            <button type="button" onClick={() => setNotice('')} aria-label="閉じる" className="text-gray-400 hover:text-gray-700"><FiX size={12} /></button>
+          </div>
+        )}
         {/* Main Card */}
-        <div className="bg-white border border-[#3b3b3b] overflow-hidden flex flex-col md:flex-row flex-1 mt-3">
-          
+        <div
+          className="relative bg-white border border-[#3b3b3b] overflow-hidden flex flex-col md:flex-row flex-1 mt-3"
+          onDragOver={onFileDragOver}
+          onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setFileDragOver(false); }}
+          onDrop={onFileDrop}
+        >
+          {fileDragOver && (
+            <div className="absolute inset-0 z-[200] pointer-events-none border border-[#52AA96] bg-white/80 flex items-center justify-center">
+              <span className={`${MONO} text-[#141414]`}>[ DROP .ICS TO IMPORT ]</span>
+            </div>
+          )}
+
           {/* Left Sidebar */}
-          <div 
-            className="w-full md:w-[200px] flex flex-col border-r border-gray-100 transition-colors duration-300 flex-shrink-0"
+          <div
+            className={`w-full md:w-[200px] flex flex-col border-r transition-colors duration-300 flex-shrink-0 ${dark ? 'border-white/10' : 'border-black/10'}`}
             style={{ backgroundColor: leftAreaBgColor }}
           >
             {/* Today's Schedule */}
-            <div className="p-4 border-b border-white/10 flex flex-col h-[300px] flex-shrink-0">
+            <div className={`p-4 border-b flex flex-col h-[300px] flex-shrink-0 ${dark ? 'border-white/10' : 'border-black/10'}`}>
               <div className="flex items-center justify-between mb-3">
-                <h3 className={`text-xs font-bold tracking-wider ${isDarkColor(leftAreaBgColor) ? 'text-white/90' : 'text-gray-500'}`}>Schedule</h3>
-                <button onClick={() => { const today = new Date(); setSelectedDate(formatDateForStorage(today)); setCurrentDate(today); }} className={`text-[9px] px-2 py-1 rounded-full font-bold transition ${isDarkColor(leftAreaBgColor) ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-600'}`}>TODAY</button>
+                <h3 className={`${MONO} ${dark ? 'text-white/70' : 'text-gray-500'}`}>Schedule</h3>
+                <button onClick={() => { const today = new Date(); setSelectedDate(formatDateForStorage(today)); setCurrentDate(today); }} className={`${MONO} underline underline-offset-2 ${dark ? 'text-white/80' : 'text-[#141414]'}`}>Today</button>
               </div>
-              <div className="flex items-center justify-between bg-black/10 rounded-lg p-1 mb-2">
-                <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate()-1); setSelectedDate(formatDateForStorage(d)); }} className={`w-6 h-6 flex items-center justify-center rounded-md ${isDarkColor(leftAreaBgColor) ? 'text-white' : 'text-gray-600'}`}>←</button>
-                <div className={`text-[10px] font-bold ${isDarkColor(leftAreaBgColor) ? 'text-white' : 'text-gray-800'}`}>{formatFullDateJP(selectedDate)}</div>
-                <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate()+1); setSelectedDate(formatDateForStorage(d)); }} className={`w-6 h-6 flex items-center justify-center rounded-md ${isDarkColor(leftAreaBgColor) ? 'text-white' : 'text-gray-600'}`}>→</button>
+              <div className={`flex items-center justify-between border-b pb-1 mb-2 ${dark ? 'border-white/10' : 'border-black/10'}`}>
+                <button onClick={() => selectDay(-1)} aria-label="前の日" className={`w-6 h-6 flex items-center justify-center ${dark ? 'text-white/70' : 'text-gray-500'}`}><FiChevronLeft size={13} /></button>
+                <div className={`text-[11px] ${dark ? 'text-white' : 'text-[#141414]'}`}>{formatFullDateJP(selectedDate)}</div>
+                <button onClick={() => selectDay(1)} aria-label="次の日" className={`w-6 h-6 flex items-center justify-center ${dark ? 'text-white/70' : 'text-gray-500'}`}><FiChevronRight size={13} /></button>
               </div>
-              <div className="space-y-1.5 overflow-y-auto flex-1 pr-1 custom-scrollbar">
-                {getEventsForDate(new Date(selectedDate)).length === 0 && getTasksForDate(new Date(selectedDate)).length === 0 ? (
-                  <div className={`text-center py-6 text-[10px] italic ${isDarkColor(leftAreaBgColor) ? 'text-white/40' : 'text-gray-400'}`}>No events</div>
-                          ) : (
-                            <>
-                    {getEventsForDate(new Date(selectedDate)).map(ev => (
-                      <div key={ev.id} className="group flex items-center gap-2 p-1.5 rounded cursor-pointer transition hover:scale-[1.02]" style={{ backgroundColor: `${ev.color}20` }} onClick={() => editEvent(ev)}>
-                        <div className="w-1 h-6 rounded-full" style={{ backgroundColor: ev.color }}></div>
+              <div className="overflow-y-auto flex-1 pr-1 custom-scrollbar">
+                {selectedEvents.length === 0 && selectedTasks.length === 0 ? (
+                  <p className={`py-4 text-[11px] ${dark ? 'text-white/40' : 'text-gray-400'}`}>
+                    予定はありません。{isLoggedIn && <button type="button" onClick={() => openModal(new Date(`${selectedDate}T00:00:00`))} className="underline underline-offset-2">予定を入れる</button>}
+                  </p>
+                ) : (
+                  <>
+                    {selectedEvents.map(ev => (
+                      <div key={ev.id} className={`flex items-stretch gap-2 py-1.5 cursor-pointer border-b ${dark ? 'border-white/10 hover:bg-white/5' : 'border-black/5 hover:bg-black/[0.03]'}`} onClick={() => editEvent(ev)}>
+                        <div className="w-0.5 flex-shrink-0" style={{ backgroundColor: ev.color }}></div>
                         <div className="flex-1 min-w-0">
-                          <div className={`text-[10px] font-bold truncate ${isDarkColor(leftAreaBgColor) ? 'text-white' : 'text-gray-800'}`}>{ev.title}</div>
-                          <div className={`text-[9px] truncate ${isDarkColor(leftAreaBgColor) ? 'text-white/60' : 'text-gray-500'}`}>{ev.allDay ? 'All Day' : `${ev.startHour}:${ev.startMinute} -`}</div>
+                          <div className={`text-[11px] font-bold truncate ${dark ? 'text-white' : 'text-[#141414]'}`}>{ev.title}</div>
+                          <div className={`yy-mono text-[10px] truncate ${dark ? 'text-white/60' : 'text-gray-500'}`}>
+                            {ev.allDay ? 'ALL DAY' : `${ev.startHour}:${ev.startMinute}`}
+                            {ev.remind ? ' · 通知' : ''}
+                            {isFeedEvent(ev) ? ` · ${ev.category}` : ''}
+                          </div>
                         </div>
                       </div>
                     ))}
-                    {getTasksForDate(new Date(selectedDate)).map((task) => (
-                      <div key={task.id || task.task?.id} className={`flex items-center gap-2 p-1.5 rounded border ${isDarkColor(leftAreaBgColor) ? 'border-white/10 bg-white/5' : 'border-gray-100 bg-white'}`}>
-                        <input type="checkbox" checked={task.completed || task.task?.completed} disabled={task.isTeamTask} onChange={() => !task.isTeamTask && task.categoryId && toggleTaskComplete(task.categoryId, task.id || task.task?.id)} className="w-3 h-3 rounded border-gray-300 accent-blue-500" />
-                        <span className={`text-[10px] truncate flex-1 ${isDarkColor(leftAreaBgColor) ? 'text-white' : 'text-gray-700'} ${(task.completed || task.task?.completed) ? 'line-through opacity-50' : ''}`}>{task.title || task.task?.title}</span>
+                    {selectedTasks.map((task) => (
+                      <div key={task.id || task.task?.id} className={`flex items-center gap-2 py-1.5 border-b ${dark ? 'border-white/10' : 'border-black/5'}`}>
+                        <input type="checkbox" checked={task.completed || task.task?.completed} disabled={task.isTeamTask} onChange={() => !task.isTeamTask && task.categoryId && toggleTaskComplete(task.categoryId, task.id || task.task?.id)} className="w-3 h-3 accent-[#3b3b3b]" />
+                        <span className={`text-[11px] truncate flex-1 ${dark ? 'text-white' : 'text-gray-700'} ${(task.completed || task.task?.completed) ? 'line-through opacity-50' : ''}`}>{task.title || task.task?.title}</span>
                       </div>
                     ))}
-                            </>
-                          )}
-                </div>
-                  </div>
-                  
+                  </>
+                )}
+              </div>
+            </div>
+
             {/* Categories */}
-            <div className="p-4 flex-1 flex flex-col overflow-hidden">
-              {/* 「設定・連携」は独立した行を1本使っていたので、ここへ入れた（縦を約30px節約）。 */}
+            <div ref={categorySectionRef} className="p-4 flex-1 flex flex-col overflow-hidden scroll-mt-4">
               <div className="flex items-center justify-between mb-2">
                 <h3
-                  className={`text-xs font-bold tracking-wider cursor-pointer ${isDarkColor(leftAreaBgColor) ? 'text-white/90' : 'text-gray-500'}`}
+                  className={`${MONO} cursor-pointer ${dark ? 'text-white/70' : 'text-gray-500'}`}
                   onClick={() => setShowCategoryManager(!showCategoryManager)}
                 >
                   Category
                 </h3>
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`text-[9px] cursor-pointer ${isDarkColor(leftAreaBgColor) ? 'text-white/50' : 'text-gray-400'}`}
-                    onClick={() => setShowCategoryManager(!showCategoryManager)}
-                  >
-                    {showCategoryManager ? 'Hide' : 'Edit'}
-                  </span>
-                  <button
-                    onClick={() => setShowSettingsModal(true)}
-                    className={`text-[9px] flex items-center gap-1 ${isDarkColor(leftAreaBgColor) ? 'text-white/50 hover:text-white' : 'text-gray-400 hover:text-gray-700'}`}
-                  >
-                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                    設定・連携
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  className={`${MONO} underline underline-offset-2 ${dark ? 'text-white/60' : 'text-gray-500 hover:text-[#141414]'}`}
+                  onClick={() => setShowCategoryManager(!showCategoryManager)}
+                >
+                  {showCategoryManager ? 'Done' : 'Edit'}
+                </button>
               </div>
-                    
-                    {showCategoryManager && (
-                <div className="mb-3 animate-in slide-in-from-top-2">
+
+              {showCategoryManager && (
+                <div className="mb-3">
                   <div className="flex gap-1 mb-2">
-                    <input className="flex-1 bg-white/10 border border-white/20 rounded px-2 py-1 text-[10px] text-white placeholder-white/40 focus:outline-none focus:border-blue-400" placeholder="New..." value={categoryName} onChange={e => setCategoryName(e.target.value)} />
-                    <button onClick={addCategory} className="bg-blue-500 hover:bg-blue-600 text-white px-2 rounded text-[10px]">+</button>
+                    <input
+                      className={`flex-1 min-w-0 border px-2 py-1 text-[11px] focus:outline-none ${dark ? 'bg-white/10 border-white/30 text-white placeholder-white/40' : 'bg-white text-[#141414] placeholder-gray-400'}`}
+                      placeholder="新しい種別"
+                      value={categoryName}
+                      onChange={e => setCategoryName(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') void addCategory(); }}
+                    />
+                    <button onClick={addCategory} className={`px-2 border text-[11px] ${dark ? 'border-white/30 text-white' : 'border-[#3b3b3b] text-[#141414] bg-white'}`}>追加</button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => void ensureCategories(BUILDING_CATEGORIES)}
-                    className="w-full mb-2 text-[10px] border border-white/30 text-white/80 hover:bg-white/10 py-1"
-                    title="現場定例・施主打合せ・申請・検査・中間検査・完了検査・資格試験"
-                  >
-                    建築の種別をまとめて追加
-                  </button>
                   <div className="flex flex-wrap gap-1 mb-2">
                     {COLOR_PALETTE.map(c => (
-                      <button key={c} onClick={() => setSelectedColor(c)} className={`w-3 h-3 rounded-full ${selectedColor === c ? 'ring-1 ring-white scale-125' : ''}`} style={{ backgroundColor: c }} />
-                            ))}
-                          </div>
-                        </div>
+                      <button key={c} onClick={() => setSelectedColor(c)} aria-label={`色 ${c}`} className={`w-3 h-3 ${selectedColor === c ? (dark ? 'outline outline-1 outline-white outline-offset-1' : 'outline outline-1 outline-[#141414] outline-offset-1') : ''}`} style={{ backgroundColor: c }} />
+                    ))}
+                  </div>
+                  {missingBuilding.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => void ensureCategories(BUILDING_CATEGORIES)}
+                      className={`w-full text-left text-[11px] underline underline-offset-2 ${dark ? 'text-white/70' : 'text-gray-600 hover:text-[#141414]'}`}
+                      title={missingBuilding.map(b => b.name).join('・')}
+                    >
+                      建築の種別をまとめて追加（{missingBuilding.length}）
+                    </button>
+                  )}
+                  <p className={`mt-1 text-[10px] ${dark ? 'text-white/40' : 'text-gray-400'}`}>予定の入力欄からも、建築の種別を直接選べます。</p>
+                </div>
               )}
 
-              <div className="space-y-0.5 overflow-y-auto flex-1 pr-1 custom-scrollbar">
+              <div className="overflow-y-auto flex-1 pr-1 custom-scrollbar">
                 {categories.map(cat => {
-                  const displayColor = editingCategoryId === cat.id && editingCategoryColor 
-                    ? editingCategoryColor 
+                  const displayColor = editingCategoryId === cat.id && editingCategoryColor
+                    ? editingCategoryColor
                     : cat.color;
-                  
+
                   return (
-                  <div key={cat.id} className="group flex flex-col py-1 px-2 rounded hover:bg-white/10 transition">
+                  <div key={cat.id} className={`group flex flex-col py-1 ${dark ? 'hover:bg-white/5' : 'hover:bg-black/[0.03]'}`}>
                     <div className="flex items-center gap-2">
                       {editingCategoryId === cat.id ? (
                         <div className="flex-1">
-                                  <input 
+                          <input
                             autoFocus
-                            className="bg-transparent border-b border-white/50 text-white w-full outline-none text-xs"
-                                    value={editingCategoryName}
-                                    onChange={(e) => setEditingCategoryName(e.target.value)}
+                            className={`bg-transparent border-0 border-b w-full outline-none text-[11px] ${dark ? 'border-white/50 text-white' : 'border-[#3b3b3b] text-[#141414]'}`}
+                            value={editingCategoryName}
+                            onChange={(e) => setEditingCategoryName(e.target.value)}
                             onBlur={() => updateCategory(cat.id, editingCategoryName, editingCategoryColor || cat.color)}
                             onKeyDown={(e) => e.key === 'Enter' && updateCategory(cat.id, editingCategoryName, editingCategoryColor || cat.color)}
                           />
                           <div className="flex flex-wrap gap-1 mt-1">
                             {COLOR_PALETTE.map(c => (
-                                <div 
-                                    key={c} 
+                                <div
+                                    key={c}
                                     // ★重要: onMouseDownで実行し、blurをキャンセルして即座に反映させる
                                     onMouseDown={(e) => {
-                                      e.preventDefault(); 
+                                      e.preventDefault();
                                       updateCategoryColor(cat.id, c);
-                                    }} 
-                                    className={`w-3 h-3 rounded-full cursor-pointer ${(editingCategoryColor || cat.color) === c ? 'ring-1 ring-white' : ''}`} 
-                                    style={{ backgroundColor: c }} 
-                                      />
-                                    ))}
-                                  </div>
-                                </div>
-                              ) : (
+                                    }}
+                                    className={`w-3 h-3 cursor-pointer ${(editingCategoryColor || cat.color) === c ? (dark ? 'outline outline-1 outline-white outline-offset-1' : 'outline outline-1 outline-[#141414] outline-offset-1') : ''}`}
+                                    style={{ backgroundColor: c }}
+                                />
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
                         <>
-                          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: displayColor }}></div>
-                          <span 
-                            className={`flex-1 cursor-pointer text-xs ${isDarkColor(leftAreaBgColor) ? 'text-white/80' : 'text-gray-700'}`}
-                            onClick={() => { 
-                                if(showCategoryManager) { 
-                                    setEditingCategoryId(cat.id); 
-                                    setEditingCategoryName(cat.name); 
+                          <div className="w-2 h-2 flex-shrink-0" style={{ backgroundColor: displayColor }}></div>
+                          <span
+                            className={`flex-1 cursor-pointer text-[11px] ${dark ? 'text-white/80' : 'text-gray-700'}`}
+                            onClick={() => {
+                                if(showCategoryManager) {
+                                    setEditingCategoryId(cat.id);
+                                    setEditingCategoryName(cat.name);
                                     setEditingCategoryColor(cat.color);
                                     editingCategoryRef.current = { id: cat.id, color: cat.color };
-                                } 
+                                }
                             }}
                             onDoubleClick={() => {
                               setEditingCategoryId(cat.id);
@@ -1032,119 +1259,111 @@ const MyCalendar: React.FC = () => {
                           >
                             {cat.name}
                           </span>
-                          {showCategoryManager && <button onClick={() => deleteCategory(cat.id)} className="text-red-400 opacity-0 group-hover:opacity-100 hover:text-red-300 ml-1 text-[10px]">×</button>}
+                          {showCategoryManager && <button onClick={() => deleteCategory(cat.id)} aria-label={`${cat.name}を削除`} className="text-red-700 opacity-0 group-hover:opacity-100 ml-1"><FiX size={11} /></button>}
                         </>
-                              )}
-                            </div>
-                        </div>
+                      )}
+                    </div>
+                  </div>
                   );
                 })}
-                      </div>
               </div>
             </div>
+          </div>
 
           {/* Right Area: Calendar Grid */}
-          <div className="flex-1 flex flex-col bg-white relative h-full" style={{ backgroundColor: rightAreaBgColor, fontFamily: rightAreaFont }}>
-            
+          <div className="flex-1 min-w-0 flex flex-col bg-white relative h-full" style={{ backgroundColor: rightAreaBgColor, fontFamily: rightAreaFont }}>
+
             {/* Toolbar */}
-            <div className={`px-6 py-3 flex items-center justify-between border-b flex-shrink-0 ${isDarkColor(rightAreaBgColor) ? 'border-white/20' : 'border-gray-300'}`}>
-              <div className="flex items-center gap-4">
-                <span className={`text-xl font-bold tracking-tight ${isDarkColor(rightAreaBgColor) ? 'text-white' : 'text-gray-800'}`}>
-                  {currentDate.getFullYear()}.{String(currentDate.getMonth() + 1).padStart(2, '0')}
-                  </span>
-                <div className="flex items-center gap-1">
-                  <button onClick={() => { const d = new Date(currentDate); d.setMonth(d.getMonth()-1); setCurrentDate(d); }} className="w-7 h-7 flex items-center justify-center rounded-full bg-white hover:bg-white transition text-gray-600">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                    </button>
-                  <button onClick={() => { const d = new Date(currentDate); d.setMonth(d.getMonth()+1); setCurrentDate(d); }} className="w-7 h-7 flex items-center justify-center rounded-full bg-white hover:bg-white transition text-gray-600">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                    </button>
-                  </div>
-                </div>
-              
+            <div className={`px-4 py-2 flex flex-wrap items-center justify-between gap-2 border-b flex-shrink-0 ${gridLine}`}>
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowDeadlines(true)}
-                  className={`text-[10px] px-2 py-1 border ${isDarkColor(rightAreaBgColor) ? 'text-white border-white/40 hover:bg-white/10' : 'text-gray-700 border-gray-300 hover:bg-gray-100'}`}
-                  title="建築確認・検査の期限や、資格試験の申込締切をまとめて入れる"
-                >
-                  期限を入れる
+                <button onClick={() => { const d = new Date(currentDate); d.setMonth(d.getMonth()-1); setCurrentDate(d); }} aria-label="前の月" className={`w-6 h-6 flex items-center justify-center ${rdark ? 'text-white/70 hover:text-white' : 'text-gray-500 hover:text-[#141414]'}`}>
+                  <FiChevronLeft size={14} />
                 </button>
-                <div className="flex items-center gap-2 text-[10px] font-medium mr-2">
-                  <label className={`flex items-center gap-1 cursor-pointer px-2 py-1 rounded transition ${isDarkColor(rightAreaBgColor) ? 'text-white hover:bg-white/10' : 'text-gray-600 hover:bg-gray-100'}`}>
-                    <input type="checkbox" checked={showMyTasksOnCalendar} onChange={e => setShowMyTasksOnCalendar(e.target.checked)} className="accent-blue-600 rounded-sm w-3 h-3" />
-                    Myタスク
-                  </label>
-                  <label className={`flex items-center gap-1 cursor-pointer px-2 py-1 rounded transition ${isDarkColor(rightAreaBgColor) ? 'text-white hover:bg-white/10' : 'text-gray-600 hover:bg-gray-100'}`}>
-                    <input type="checkbox" checked={showTeamTasksOnCalendar} onChange={e => setShowTeamTasksOnCalendar(e.target.checked)} className="accent-blue-600 rounded-sm w-3 h-3" />
-                    Teamタスク
-                  </label>
-                      </div>
-                
-                <div className="flex gap-1 pl-2 border-l border-gray-200">
-                  <input type="color" value={leftAreaBgColor} onChange={e => setLeftAreaBgColor(e.target.value)} className="w-5 h-5 rounded-full overflow-hidden border border-gray-200 cursor-pointer p-0" title="Sidebar Color" />
-                  <input type="color" value={rightAreaBgColor} onChange={e => setRightAreaBgColor(e.target.value)} className="w-5 h-5 rounded-full overflow-hidden border border-gray-200 cursor-pointer p-0" title="Background Color" />
+                <span className={`yy-mono text-[12px] font-bold tracking-[0.08em] ${rdark ? 'text-white' : 'text-[#141414]'}`}>
+                  {currentDate.getFullYear()}.{String(currentDate.getMonth() + 1).padStart(2, '0')}
+                </span>
+                <button onClick={() => { const d = new Date(currentDate); d.setMonth(d.getMonth()+1); setCurrentDate(d); }} aria-label="次の月" className={`w-6 h-6 flex items-center justify-center ${rdark ? 'text-white/70 hover:text-white' : 'text-gray-500 hover:text-[#141414]'}`}>
+                  <FiChevronRight size={14} />
+                </button>
+                <button onClick={() => { const t = new Date(); setCurrentDate(t); setSelectedDate(formatDateForStorage(t)); }} className={`${MONO} underline underline-offset-2 ml-1 ${rdark ? 'text-white/70' : 'text-gray-500 hover:text-[#141414]'}`}>Today</button>
+                {icsLoading && <span className={`${MONO} ${rdark ? 'text-white/50' : 'text-gray-400'}`}>Loading feeds…</span>}
+              </div>
+
+              <div className="flex items-center gap-3 flex-wrap">
+                <label className={`flex items-center gap-1 cursor-pointer text-[11px] ${rdark ? 'text-white' : 'text-gray-600'}`}>
+                  <input type="checkbox" checked={showMyTasksOnCalendar} onChange={e => setShowMyTasksOnCalendar(e.target.checked)} className="accent-[#3b3b3b] w-3 h-3" />
+                  Myタスク
+                </label>
+                <label className={`flex items-center gap-1 cursor-pointer text-[11px] ${rdark ? 'text-white' : 'text-gray-600'}`}>
+                  <input type="checkbox" checked={showTeamTasksOnCalendar} onChange={e => setShowTeamTasksOnCalendar(e.target.checked)} className="accent-[#3b3b3b] w-3 h-3" />
+                  Teamタスク
+                </label>
+                <div className={`flex items-center gap-1 pl-3 border-l ${gridLine}`}>
+                  <input type="color" value={leftAreaBgColor} onChange={e => saveTheme(e.target.value, rightAreaBgColor)} className="w-4 h-4 border border-black/20 cursor-pointer p-0" title="左の欄の色" />
+                  <input type="color" value={rightAreaBgColor} onChange={e => saveTheme(leftAreaBgColor, e.target.value)} className="w-4 h-4 border border-black/20 cursor-pointer p-0" title="カレンダーの地の色" />
                 </div>
               </div>
             </div>
 
             {/* Header Days */}
-            <div className={`grid grid-cols-7 border-b flex-shrink-0 ${isDarkColor(rightAreaBgColor) ? 'border-white/20' : 'border-gray-300'}`}>
+            <div className={`grid grid-cols-7 border-b flex-shrink-0 ${gridLine}`}>
               {['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map((day, i) => (
-                <div key={day} className={`py-1.5 text-center text-[10px] font-bold tracking-wider ${
-                  i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : (isDarkColor(rightAreaBgColor) ? 'text-white/60' : 'text-gray-400')
-                }`}>{day}</div>
-                    ))}
-                  </div>
+                <div
+                  key={day}
+                  className={`py-1.5 pl-1.5 ${MONO} ${i === 0 || i === 6 ? '' : (rdark ? 'text-white/50' : 'text-gray-500')}`}
+                  style={i === 0 ? { color: SUN } : i === 6 ? { color: SAT } : undefined}
+                >
+                  {day}
+                </div>
+              ))}
+            </div>
 
             {/* Grid Container */}
             <div className="flex-1 grid grid-cols-7 grid-rows-6 h-full min-h-0">
-                    {(() => {
-                      const year = currentDate.getFullYear();
-                      const month = currentDate.getMonth();
+              {(() => {
+                const year = currentDate.getFullYear();
+                const month = currentDate.getMonth();
                 const firstDay = new Date(year, month, 1).getDay();
                 const lastDate = new Date(year, month + 1, 0).getDate();
-                      const days = [];
+                const days = [];
                 const slots = dailySlots;
                 let dayCount = 1;
                 let nextMonthDay = 1;
-
-                const borderColor = isDarkColor(rightAreaBgColor) ? 'border-white/20' : 'border-gray-300';
 
                 for (let row = 0; row < 6; row++) {
                   for (let col = 0; col < 7; col++) {
                     const isPrevMonth = row === 0 && col < firstDay;
                     const isNextMonth = dayCount > lastDate;
-                    
+
                     const cellZIndex = 50 - col;
 
                     // ★重要: paddingを0にして、バーが境界線まで届くようにする
-                    const cellClass = `calendar-cell border-b border-r ${borderColor} relative p-0 flex flex-col ${isDarkColor(rightAreaBgColor) ? 'bg-white/5' : 'bg-transparent'}`;
+                    const cellClass = `calendar-cell border-b border-r ${gridLine} relative p-0 flex flex-col ${rdark ? 'bg-white/5' : 'bg-transparent'}`;
 
                     if (isPrevMonth) {
                       days.push(<div key={`prev-${col}`} className={cellClass} style={{ zIndex: cellZIndex }} />);
                     } else if (isNextMonth) {
                       days.push(<div key={`next-${nextMonthDay}`} className={cellClass} style={{ zIndex: cellZIndex }} />);
                       nextMonthDay++;
-                        } else {
+                    } else {
                       const date = new Date(year, month, dayCount);
                       const dateStr = formatDateForStorage(date);
                       const isToday = new Date().toDateString() === date.toDateString();
                       const isSelected = selectedDate === dateStr;
                       const holiday = showHolidays ? isHoliday(dateStr) : null;
-                      
+
                       const daySlots = slots[dateStr] || [];
                       const dayTasks = (showMyTasksOnCalendar || showTeamTasksOnCalendar) ? getTasksForDate(date) : [];
 
-                      const hoverClass = isDarkColor(rightAreaBgColor) ? 'hover:bg-white/10' : 'hover:bg-gray-100';
-                        
-                        days.push(
-                          <div
+                      const hoverClass = rdark ? 'hover:bg-white/10' : 'hover:bg-black/[0.03]';
+                      const numColor = isToday ? '#52AA96' : holiday || col === 0 ? SUN : col === 6 ? SAT : undefined;
+
+                      days.push(
+                        <div
                           key={dayCount}
                           className={`
                             ${cellClass} ${hoverClass} transition-colors overflow-visible
-                            ${isSelected ? (isDarkColor(rightAreaBgColor) ? 'bg-white/10' : 'bg-blue-50/50') : ''}
+                            ${isSelected ? (rdark ? 'bg-white/10' : 'bg-black/[0.035]') : ''}
                           `}
                           style={{ zIndex: cellZIndex }}
                           onClick={() => { setSelectedDate(dateStr); }}
@@ -1152,28 +1371,33 @@ const MyCalendar: React.FC = () => {
                           onDragOver={e => onDragOverDay(e, dateStr)}
                           onDrop={e => onDropToDay(e, dateStr)}
                         >
+                          {/* 今日は差し色の細線を升目の上辺に 1 本だけ引く */}
+                          {isToday && <div className="absolute left-0 right-0 top-0 h-px bg-[#52AA96] pointer-events-none" />}
                           {/* 日付数字部分にのみパディングを適用 */}
-                          <div className="flex justify-between items-start pl-1 pt-1 pr-1 flex-shrink-0 mb-1 pointer-events-none relative z-0">
-                            <span className={`text-xs font-medium w-5 h-5 flex items-center justify-center rounded-full ${isToday ? 'bg-blue-600 text-white shadow-md' : (holiday || col===0 ? 'text-red-400' : col===6 ? 'text-blue-400' : (isDarkColor(rightAreaBgColor) ? 'text-white' : 'text-gray-700'))}`}>
-                              {dayCount}
+                          <div className="flex justify-between items-start gap-1 pl-1.5 pt-1 pr-1 flex-shrink-0 mb-1 pointer-events-none relative z-0">
+                            <span
+                              className={`yy-mono text-[11px] leading-4 ${isToday ? 'font-bold' : ''} ${numColor ? '' : (rdark ? 'text-white' : 'text-[#3b3b3b]')}`}
+                              style={numColor ? { color: numColor } : undefined}
+                            >
+                              {String(dayCount).padStart(2, '0')}
                             </span>
-                            {holiday && <span className="text-[9px] text-red-400 font-medium truncate max-w-[50px] mr-1">{holiday}</span>}
-                            </div>
+                            {holiday && <span className="text-[10px] truncate min-w-0" style={{ color: SUN }}>{holiday}</span>}
+                          </div>
 
                           <div className="flex flex-col gap-[1px] relative flex-1 min-h-0 w-full">
                             {daySlots.map((ev, idx) => {
-                              if (!ev) return <div key={`empty-${idx}`} className="h-[18px]"></div>; 
-                              
+                              if (!ev) return <div key={`empty-${idx}`} className="h-[18px]"></div>;
+
                               const isStart = !ev.spanPart || ev.spanPart === 'start' || ev.spanPart === 'single';
                               const isEnd = !ev.spanPart || ev.spanPart === 'end' || ev.spanPart === 'single';
+                              const fromFeed = isFeedEvent(ev);
 
                               // ★重要: CSSで連続バーの「完全な結合」を表現
-                              const barStyle: React.CSSProperties = { 
-                                  backgroundColor: ev.color, 
-                                  zIndex: 100, 
-                                  position: 'relative'
-                              };
-                              
+                              // 外部カレンダーの予定は塗らず、色の細線だけ（自分の予定と見分ける・読むだけ）
+                              const barStyle: React.CSSProperties = fromFeed
+                                ? { borderLeft: `2px solid ${ev.color}`, zIndex: 100, position: 'relative' }
+                                : { backgroundColor: ev.color, zIndex: 100, position: 'relative' };
+
                               if(isStart && isEnd) {
                                   // 単日
                                   barStyle.width = 'calc(100% - 4px)';
@@ -1186,7 +1410,7 @@ const MyCalendar: React.FC = () => {
                                   barStyle.marginRight = '-1px';
                               } else if(isEnd) {
                                   // 右端
-                                  barStyle.width = 'calc(100% - 2px)'; 
+                                  barStyle.width = 'calc(100% - 2px)';
                                   barStyle.marginLeft = '0px';
                                   barStyle.marginRight = '2px';
                               } else {
@@ -1196,193 +1420,239 @@ const MyCalendar: React.FC = () => {
                                   barStyle.marginRight = '-1px';
                               }
 
-                                return (
-                                <div 
+                              return (
+                                <div
                                   key={ev.id}
                                   className={`
-                                    h-[18px] text-[10px] px-1 text-white truncate cursor-pointer hover:opacity-80 flex items-center relative
-                                    ${isStart ? 'rounded-l ml-0.5' : 'rounded-l-none pl-2 border-l-0'}
-                                    ${isEnd ? 'rounded-r mr-0.5' : 'rounded-r-none pr-0 border-r-0'}
+                                    h-[18px] text-[10px] px-1 truncate cursor-pointer hover:opacity-80 flex items-center relative
+                                    ${fromFeed ? (rdark ? 'text-white/80' : 'text-gray-600') : 'text-white'}
+                                    ${isStart ? '' : 'pl-2'}
                                   `}
                                   style={barStyle}
+                                  title={fromFeed ? `${ev.title}（${ev.category}・読むだけ）` : ev.title}
                                   onClick={(e) => { e.stopPropagation(); editEvent(ev); }}
-                                  draggable
+                                  draggable={!fromFeed}
                                   onDragStart={(e) => onDragStartEvent(e, ev)}
                                   onDragEnd={onDragEndEvent}
                                 >
                                   {isStart && (
                                     <>
-                                      <span className="opacity-70 text-[9px] mr-1">{ev.allDay ? '' : ev.startHour + ':'}</span>
+                                      {!ev.allDay && <span className="yy-mono opacity-70 text-[9px] mr-1">{ev.startHour}:{ev.startMinute}</span>}
                                       <span className="truncate">{ev.title}</span>
                                     </>
                                   )}
                                 </div>
-                                );
-                              })}
-                            
+                              );
+                            })}
+
                             {dayTasks.length > 0 && (
-                                <div className="mt-1 border-t border-gray-300/30 pt-1 px-1">
-                                    {dayTasks.map(task => (
-                                        <div key={task.id || task.task?.id} className="flex items-center gap-1 text-[9px] opacity-80 h-[14px] mb-0.5">
-                                            <div className="w-2 h-2 rounded-full flex-shrink-0 border border-black/30" style={{backgroundColor: task.color || '#3B82F6'}}></div>
-                                            <span className={`truncate ${(task.completed || task.task?.completed) ? 'line-through' : ''} ${isDarkColor(rightAreaBgColor) ? 'text-white' : 'text-gray-600'}`}>{task.title || task.task?.title}</span>
-                                </div>
-                              ))}
-                            </div>
+                              <div className={`mt-1 border-t pt-1 px-1 ${gridLine}`}>
+                                {dayTasks.map(task => (
+                                  <div key={task.id || task.task?.id} className="flex items-center gap-1 text-[10px] h-[14px] mb-0.5">
+                                    <div className="w-1.5 h-1.5 flex-shrink-0" style={{backgroundColor: task.color || '#5B6B73'}}></div>
+                                    <span className={`truncate ${(task.completed || task.task?.completed) ? 'line-through opacity-60' : ''} ${rdark ? 'text-white' : 'text-gray-600'}`}>{task.title || task.task?.title}</span>
+                                  </div>
+                                ))}
+                              </div>
                             )}
                           </div>
-                          
-                          {dragOverDate === dateStr && <div className="absolute inset-0 bg-blue-500/10 border-2 border-blue-500 rounded-sm z-30 pointer-events-none" />}
-                      </div>
-                    );
+
+                          {dragOverDate === dateStr && <div className="absolute inset-0 border border-[#52AA96] z-30 pointer-events-none" />}
+                        </div>
+                      );
                       dayCount++;
-                      }
+                    }
                   }
                 }
-                      return days;
-                    })()}
-                  </div>
-                </div>
-              </div>
+                return days;
+              })()}
+            </div>
+          </div>
+        </div>
 
         {/* Modal: New/Edit Event */}
         {showModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-              <div className="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
-                <h3 className="font-bold text-gray-800">{editingEventId ? '予定を編集' : '新しい予定'}</h3>
-                <button onClick={() => {setShowModal(false); setEditingEventId(null);}} className="text-gray-400 hover:text-gray-600 text-xl">×</button>
-            </div>
-              
-              <form onSubmit={(e) => { e.preventDefault(); saveEvent(); }} className="p-6 space-y-4">
+          <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-16 bg-black/40" onClick={() => { setShowModal(false); setEditingEventId(null); }}>
+            <div className="bg-white border border-[#3b3b3b] w-full max-w-md max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+              <div className="px-4 py-2 border-b border-[#3b3b3b] flex justify-between items-center">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">タイトル</label>
-                  <input className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="予定のタイトルを入力" value={eventTitle} onChange={e => setEventTitle(e.target.value)} required autoFocus />
-        </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">開始日</label>
-                    <input type="date" className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" value={startDateInput} onChange={e => { setStartDateInput(e.target.value); if(e.target.value > endDateInput) setEndDateInput(e.target.value); }} />
+                  <p className={`${MONO} text-gray-500`}>[ EVENT ]</p>
+                  <h3 className="text-[12px] font-bold text-[#141414]">{readonlySource ? '外部カレンダーの予定' : editingEventId ? '予定を編集' : '新しい予定'}</h3>
                 </div>
-                <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">終了日</label>
-                    <input type="date" className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" value={endDateInput} onChange={e => setEndDateInput(e.target.value)} min={startDateInput} />
-                </div>
+                <button onClick={() => {setShowModal(false); setEditingEventId(null);}} aria-label="閉じる" className="text-gray-500 hover:text-[#141414]"><FiX size={14} /></button>
               </div>
 
-                <div className="grid grid-cols-1 gap-4">
+              <form onSubmit={(e) => { e.preventDefault(); saveEvent(); }} className="p-4 space-y-3 text-[12px]">
+                {readonlySource && (
+                  <p className="text-[11px] text-gray-600 border-l border-[#52AA96] pl-2">
+                    「{readonlySource}」から読んでいる予定です。ここでは書き換えられません。保存すると自分の予定として複製します。
+                  </p>
+                )}
+                <div>
+                  <label className="yy-label">タイトル</label>
+                  <input className={fieldCls} placeholder="予定のタイトルを入力" value={eventTitle} onChange={e => setEventTitle(e.target.value)} required autoFocus />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">カテゴリー</label>
-                    <select className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" value={eventCategory} onChange={e => setEventCategory(e.target.value)}>
-                      <option value="">(選択なし)</option>
-                      {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                    </select>
+                    <label className="yy-label">開始日</label>
+                    <input type="date" className={fieldCls} value={startDateInput} onChange={e => { setStartDateInput(e.target.value); if(e.target.value > endDateInput) setEndDateInput(e.target.value); }} />
                   </div>
-          </div>
+                  <div>
+                    <label className="yy-label">終了日</label>
+                    <input type="date" className={fieldCls} value={endDateInput} onChange={e => setEndDateInput(e.target.value)} min={startDateInput} />
+                  </div>
+                </div>
+
+                {/* 種別。建築の種別はまだ作っていなくても選べ、保存したときに作る */}
+                <div>
+                  <label className="yy-label">種別</label>
+                  <div className="flex flex-wrap gap-1">
+                    {[
+                      { name: '', color: '', missing: false },
+                      ...categories.map(c => ({ name: c.name, color: c.color, missing: false })),
+                      ...missingBuilding.map(b => ({ ...b, missing: true })),
+                    ].map(c => {
+                      const on = eventCategory === c.name;
+                      return (
+                        <button
+                          key={c.name || '(none)'}
+                          type="button"
+                          onClick={() => pickCategory(c.name)}
+                          title={c.missing ? '初めて使うと種別に加わります' : undefined}
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 text-[11px] border ${c.missing ? 'border-dashed' : ''} ${on ? 'border-[#141414] text-[#141414] font-bold' : 'border-gray-300 text-gray-600 hover:border-gray-500'}`}
+                        >
+                          {c.color && <span className="w-2 h-2 inline-block" style={{ backgroundColor: c.color }} />}
+                          {c.missing && !on ? '＋' : ''}{c.name || 'なし'}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
 
                 {!allDay && (
                   <div className="flex items-center gap-2">
-                    <div className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 flex items-center gap-1">
-                      <select value={startHour} onChange={e => setStartHour(e.target.value)} className="bg-transparent text-sm font-medium focus:outline-none appearance-none">{Array.from({length:24},(_,i)=>i.toString().padStart(2,'0')).map(h=><option key={h} value={h}>{h}</option>)}</select>
+                    <div className="flex-1 border border-[#3b3b3b] px-2 py-1 flex items-center gap-1 yy-mono">
+                      <select value={startHour} onChange={e => setStartHour(e.target.value)} className="!border-0 bg-transparent text-[12px] focus:outline-none appearance-none">{Array.from({length:24},(_,i)=>i.toString().padStart(2,'0')).map(h=><option key={h} value={h}>{h}</option>)}</select>
                       <span>:</span>
-                      <select value={startMinute} onChange={e => setStartMinute(e.target.value)} className="bg-transparent text-sm font-medium focus:outline-none appearance-none"><option value="00">00</option><option value="15">15</option><option value="30">30</option><option value="45">45</option></select>
-                  </div>
+                      <select value={startMinute} onChange={e => setStartMinute(e.target.value)} className="!border-0 bg-transparent text-[12px] focus:outline-none appearance-none"><option value="00">00</option><option value="15">15</option><option value="30">30</option><option value="45">45</option></select>
+                    </div>
                     <span className="text-gray-400">→</span>
-                    <div className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 flex items-center gap-1">
-                      <select value={endHour} onChange={e => setEndHour(e.target.value)} className="bg-transparent text-sm font-medium focus:outline-none appearance-none">{Array.from({length:24},(_,i)=>i.toString().padStart(2,'0')).map(h=><option key={h} value={h}>{h}</option>)}</select>
+                    <div className="flex-1 border border-[#3b3b3b] px-2 py-1 flex items-center gap-1 yy-mono">
+                      <select value={endHour} onChange={e => setEndHour(e.target.value)} className="!border-0 bg-transparent text-[12px] focus:outline-none appearance-none">{Array.from({length:24},(_,i)=>i.toString().padStart(2,'0')).map(h=><option key={h} value={h}>{h}</option>)}</select>
                       <span>:</span>
-                      <select value={endMinute} onChange={e => setEndMinute(e.target.value)} className="bg-transparent text-sm font-medium focus:outline-none appearance-none"><option value="00">00</option><option value="15">15</option><option value="30">30</option><option value="45">45</option></select>
-                </div>
-            </div>
-          )}
+                      <select value={endMinute} onChange={e => setEndMinute(e.target.value)} className="!border-0 bg-transparent text-[12px] focus:outline-none appearance-none"><option value="00">00</option><option value="15">15</option><option value="30">30</option><option value="45">45</option></select>
+                    </div>
+                  </div>
+                )}
 
-                <div className="flex items-center gap-4 py-2">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <div className={`w-5 h-5 rounded border flex items-center justify-center transition ${allDay ? 'bg-blue-500 border-blue-500' : 'border-gray-300 bg-white'}`}>
-                      {allDay && <span className="text-white text-xs">✓</span>}
-        </div>
-                    <input type="checkbox" checked={allDay} onChange={e => setAllDay(e.target.checked)} className="hidden" />
-                    <span className="text-xs text-gray-600 font-medium">終日</span>
+                <div className="flex items-center gap-5 flex-wrap">
+                  <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-gray-700">
+                    <input type="checkbox" checked={allDay} onChange={e => setAllDay(e.target.checked)} className="w-3 h-3 accent-[#3b3b3b]" />
+                    終日
+                  </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-gray-700" title="前日と当日に、サイト内の通知（ベル）でお知らせします">
+                    <input type="checkbox" checked={remind} onChange={e => setRemind(e.target.checked)} className="w-3 h-3 accent-[#3b3b3b]" />
+                    前日と当日に通知
                   </label>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">詳細</label>
-                  <textarea rows={3} className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition resize-none" placeholder="メモを入力..." value={eventDetails} onChange={e => setEventDetails(e.target.value)} />
+                  <label className="yy-label">詳細</label>
+                  <textarea rows={3} className={`${fieldCls} resize-none`} placeholder="メモを入力..." value={eventDetails} onChange={e => setEventDetails(e.target.value)} />
                 </div>
-                
-                <div className="pt-4 flex justify-between items-center">
-                  {editingEventId ? <button type="button" onClick={deleteEvent} className="text-red-500 text-sm hover:underline font-medium">削除</button> : <div></div>}
-                  <div className="flex gap-3">
-                    <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition">キャンセル</button>
-                    <button type="submit" className="px-6 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-md transition transform hover:scale-105">保存</button>
-                    </div>
+
+                <div className="pt-2 flex justify-between items-center">
+                  {editingEventId ? <button type="button" onClick={deleteEvent} className="text-[11px] text-red-700 underline underline-offset-2">削除</button> : <div></div>}
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => setShowModal(false)} className="yy-btn">キャンセル</button>
+                    <button type="submit" className="yy-btn yy-btn--primary">{readonlySource ? '自分の予定に複製' : '保存'}</button>
                   </div>
+                </div>
               </form>
-                    </div>
-                  </div>
+            </div>
+          </div>
         )}
 
-        {/* Modal: Settings / ICS */}
-        {showDeadlines && <DeadlineHelper onAdd={addDeadlines} onClose={() => setShowDeadlines(false)} />}
+        {showDeadlines && <DeadlineHelper key={deadlineTab} initialTab={deadlineTab} onAdd={addDeadlines} onClose={() => setShowDeadlines(false)} />}
 
+        {showIcsImport && (
+          <IcsImport
+            initialFile={importFile}
+            categories={categories}
+            existingKeys={importedKeys}
+            onImport={importIcsEvents}
+            onClose={() => { setShowIcsImport(false); setImportFile(null); }}
+          />
+        )}
+
+        {/* Modal: 外部カレンダー連携（URL の購読と書き出し） */}
         {showSettingsModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-              <div className="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
-                <h3 className="font-bold text-gray-800">カレンダー設定・連携</h3>
-                <button onClick={() => setShowSettingsModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">×</button>
-                  </div>
-              <div className="p-6">
+          <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-16 bg-black/40" onClick={() => setShowSettingsModal(false)}>
+            <div className="bg-white border border-[#3b3b3b] w-full max-w-md max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+              <div className="px-4 py-2 border-b border-[#3b3b3b] flex justify-between items-center">
+                <div>
+                  <p className={`${MONO} text-gray-500`}>[ SYNC ]</p>
+                  <h3 className="text-[12px] font-bold text-[#141414]">外部カレンダー連携</h3>
+                </div>
+                <button onClick={() => setShowSettingsModal(false)} aria-label="閉じる" className="text-gray-500 hover:text-[#141414]"><FiX size={14} /></button>
+              </div>
+              <div className="p-4 text-[12px]">
                 <div className="mb-4">
-                  <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">外部カレンダー読み込み (ICS)</h4>
+                  <h4 className={`${MONO} text-gray-500 mb-2`}>001 購読（URL・表示だけ）</h4>
                   <div className="flex flex-col gap-2">
-                    <input className="w-full bg-gray-50 border border-gray-200 rounded px-2 py-1.5 text-xs" placeholder="カレンダー名 (例: Google)" value={newIcsName} onChange={e => setNewIcsName(e.target.value)} />
+                    <input className={fieldCls} placeholder="カレンダー名 (例: Google)" value={newIcsName} onChange={e => setNewIcsName(e.target.value)} />
                     <div className="flex gap-2">
-                        <input className="flex-1 bg-gray-50 border border-gray-200 rounded px-2 py-1.5 text-xs" placeholder="https://.../basic.ics" value={newIcsUrl} onChange={e => setNewIcsUrl(e.target.value)} />
-                        <button onClick={addIcsFeed} className="bg-blue-600 text-white px-3 rounded text-xs">追加</button>
+                      <input className={`${fieldCls} flex-1 min-w-0`} placeholder="https://.../basic.ics" value={newIcsUrl} onChange={e => setNewIcsUrl(e.target.value)} />
+                      <button onClick={addIcsFeed} className="yy-btn yy-btn--primary">追加</button>
+                    </div>
                   </div>
-                </div>
-                  <div className="mt-3 space-y-1">
+                  <div className="mt-3">
                     {icsFeeds.map(feed => (
-                        <div key={feed.id} className="bg-gray-50 p-2 rounded text-xs">
-                          <div className="flex items-center justify-between">
-                            <span className="truncate flex-1">{feed.name}</span>
-                            {/* 読めた件数か、読めなかった理由をフィードごとに出す。
-                                黙って0件だと、URLが悪いのか予定が無いのか分からない。 */}
-                            <span className="ml-2 shrink-0 text-[10px] text-gray-500">
-                              {icsLoading
-                                ? '読み込み中…'
-                                : icsErrors[feed.id]
-                                  ? <span className="text-red-600">{icsErrors[feed.id]}</span>
-                                  : `${icsEvents.filter(e => e.id.startsWith(`ics-${feed.id}-`)).length}件`}
-                            </span>
-                            <button onClick={() => removeIcsFeed(feed.id)} className="text-red-500 hover:text-red-700 ml-2">削除</button>
-                          </div>
-                        </div>
+                      <div key={feed.id} className="flex items-center justify-between py-1.5 border-b border-gray-200 text-[11px]">
+                        <span className="truncate flex-1">{feed.name}</span>
+                        {/* 読めた件数か、読めなかった理由をフィードごとに出す。
+                            黙って0件だと、URLが悪いのか予定が無いのか分からない。 */}
+                        <span className="ml-2 shrink-0 yy-mono text-[10px] text-gray-500">
+                          {icsLoading
+                            ? 'LOADING…'
+                            : icsErrors[feed.id]
+                              ? <span className="text-red-700">{icsErrors[feed.id]}</span>
+                              : `${icsEvents.filter(e => e.id.startsWith(`ics-${feed.id}-`)).length} 件`}
+                        </span>
+                        <button onClick={() => removeIcsFeed(feed.id)} className="text-red-700 underline underline-offset-2 ml-3">削除</button>
+                      </div>
                     ))}
-                </div>
-                </div>
-                <div className="text-[10px] text-gray-400">
-                    ※Googleカレンダーの「設定と共有」→「iCal形式の非公開URL」などを貼り付けてください。<br />
-                    読み込んだ予定は表示のみで、編集・削除はできません。繰り返し予定は初回だけ表示します。
                   </div>
+                  <p className="text-[10px] text-gray-400 mt-2">
+                    Googleカレンダーの「設定と共有」→「iCal形式の非公開URL」などを貼り付けてください。
+                    読んだ予定は表示だけで、編集・通知はできません。繰り返しは 1 年前〜2 年先まで展開して表示します。
+                  </p>
+                </div>
+
+                <div className="mb-4 pt-3 border-t border-gray-200">
+                  <h4 className={`${MONO} text-gray-500 mb-2`}>002 ファイルから取り込む</h4>
+                  <button
+                    type="button"
+                    onClick={() => { setShowSettingsModal(false); setImportFile(null); setShowIcsImport(true); }}
+                    className="yy-btn"
+                  >
+                    .ics ファイルを読み込む
+                  </button>
+                  <p className="text-[10px] text-gray-400 mt-1">自分の予定として保存します（編集・通知ができる）。カレンダーの上にドロップしても開きます。</p>
+                </div>
 
                 {/* 書き出し。取り込みだけだと片道になるので、出す側も用意する。 */}
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">書き出し (ICS)</h4>
-                  <button
-                    onClick={exportCalendarToIcs}
-                    className="bg-gray-700 text-white px-3 py-1.5 text-xs"
-                  >
+                <div className="pt-3 border-t border-gray-200">
+                  <h4 className={`${MONO} text-gray-500 mb-2`}>003 書き出し</h4>
+                  <button onClick={exportCalendarToIcs} className="yy-btn">
                     自分の予定を .ics で保存
                   </button>
                   <p className="text-[10px] text-gray-400 mt-1">
                     Googleカレンダー等の「インポート」から取り込めます。外部カレンダーの予定は含みません。
                   </p>
-                  </div>
-                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}

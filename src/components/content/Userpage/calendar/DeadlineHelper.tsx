@@ -4,25 +4,41 @@
  *   建築確認・検査 … 着工・特定工程・完了の予定から、確認申請の提出目安と検査の申請期限を逆算して入れる
  *   資格試験の申込 … 資格試験ページの受付期限（目安）から、申し込みの締切を入れる
  * 計算は src/lib/permitSchedule.ts。資格の一覧は Qualifications.tsx と同じものを読む。
+ *
+ * 入れた予定には remind: true を付ける（期限の前日と当日にサイト内通知が届く。
+ * 通知は functions の定期処理が users/{uid}/calendarEvents の date を見て送る）。
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { FiX } from 'react-icons/fi';
 import { permitMilestones, REVIEW_CLASSES, type ReviewClass } from '@/lib/permitSchedule';
+import { BUILDING_CATEGORIES } from './categories';
 
-export type NewDeadline = { title: string; date: string; details: string; category: string; color: string };
+export type NewDeadline = { title: string; date: string; details: string; category: string; color: string; remind?: boolean };
 
-const PERMIT_CATEGORY = { name: '申請・検査', color: '#EF4444' };
-const EXAM_CATEGORY = { name: '資格試験', color: '#8B5CF6' };
+const byName = (name: string) => BUILDING_CATEGORIES.find((c) => c.name === name)!;
+const PERMIT_CATEGORY = byName('申請・検査');
+const EXAM_CATEGORY = byName('資格試験');
 
 type Exam = { name: string; section: string; deadline: string; date: Date | null; url?: string };
 
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-export default function DeadlineHelper({ onAdd, onClose }: { onAdd: (items: NewDeadline[]) => Promise<void>; onClose: () => void }) {
-  const [tab, setTab] = useState<'permit' | 'exam'>('permit');
+const mono = 'yy-mono text-[10px] tracking-[0.12em] uppercase text-gray-500';
+
+export default function DeadlineHelper({
+  onAdd,
+  onClose,
+  initialTab = 'permit',
+}: {
+  onAdd: (items: NewDeadline[]) => Promise<void>;
+  onClose: () => void;
+  initialTab?: 'permit' | 'exam';
+}) {
+  const [tab, setTab] = useState<'permit' | 'exam'>(initialTab);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState('');
+  const [remind, setRemind] = useState(true);
 
   // 建築確認・検査
   const [project, setProject] = useState('');
@@ -54,28 +70,37 @@ export default function DeadlineHelper({ onAdd, onClose }: { onAdd: (items: NewD
     if (!items.length) return;
     setBusy(true);
     try {
-      await onAdd(items);
-      setDone(`${items.length} 件をカレンダーに入れました`);
+      await onAdd(items.map((it) => ({ ...it, remind })));
+      setDone(`${items.length} 件をカレンダーに入れました${remind ? '（前日と当日に通知）' : ''}`);
     } finally {
       setBusy(false);
     }
   };
 
-  const input = 'w-full px-2 py-1 text-[12px] border border-gray-300';
+  const input = 'w-full px-2 py-1 text-[12px] border border-[#3b3b3b] bg-white';
+  const remindBox = (
+    <label className="flex items-center gap-1.5 text-[11px] text-gray-700 cursor-pointer">
+      <input type="checkbox" checked={remind} onChange={(e) => setRemind(e.target.checked)} className="w-3 h-3 accent-[#3b3b3b]" />
+      前日と当日に通知
+    </label>
+  );
   return createPortal(
     <div className="fixed inset-x-0 bottom-0 z-[10000] bg-black/40 flex items-start justify-center pt-8" style={{ top: 'var(--nav-height, 35px)' }} onClick={onClose}>
       <div className="bg-white border border-[#3b3b3b] w-[640px] max-w-[95vw] max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-3 py-2 bg-[#3b3b3b] text-white text-[12px]">
-          <b>期限をカレンダーに入れる</b>
-          <button type="button" onClick={onClose} aria-label="閉じる"><FiX /></button>
+        <div className="flex items-center justify-between px-3 py-2 border-b border-[#3b3b3b]">
+          <div>
+            <p className={mono}>[ DEADLINE ]</p>
+            <p className="text-[12px] font-bold text-[#141414]">期限をカレンダーに入れる</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="閉じる" className="text-gray-500 hover:text-[#141414]"><FiX size={14} /></button>
         </div>
-        <div className="flex gap-2 px-3 pt-3">
+        <div className="flex gap-4 px-3 border-b border-gray-200">
           {([['permit', '建築確認・検査'], ['exam', '資格試験の申込']] as const).map(([id, label]) => (
             <button
               key={id}
               type="button"
               onClick={() => { setTab(id); setDone(''); }}
-              className={`px-4 py-1.5 text-xs border ${tab === id ? 'bg-[#3b3b3b] text-white border-[#3b3b3b] font-bold' : 'bg-white text-gray-700 border-[#3b3b3b] hover:bg-gray-100'}`}
+              className={`py-1.5 text-[11px] border-b ${tab === id ? 'border-[#52AA96] text-[#141414] font-bold' : 'border-transparent text-gray-500 hover:text-[#141414]'}`}
             >
               {label}
             </button>
@@ -85,8 +110,8 @@ export default function DeadlineHelper({ onAdd, onClose }: { onAdd: (items: NewD
         <div className="p-3 overflow-y-auto text-[12px] space-y-3">
           {tab === 'permit' ? (
             <>
-              <div className="grid grid-cols-2 gap-2">
-                <label className="block col-span-2"><span className="text-[11px] text-gray-600">物件名</span><input className={input} value={project} onChange={(e) => setProject(e.target.value)} placeholder="A邸新築工事" /></label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <label className="block sm:col-span-2"><span className="text-[11px] text-gray-600">物件名</span><input className={input} value={project} onChange={(e) => setProject(e.target.value)} placeholder="A邸新築工事" /></label>
                 <label className="block"><span className="text-[11px] text-gray-600">着工予定日 *</span><input type="date" className={input} value={start} onChange={(e) => setStart(e.target.value)} /></label>
                 <label className="block"><span className="text-[11px] text-gray-600">確認の審査区分</span>
                   <select className={input} value={review} onChange={(e) => setReview(e.target.value as ReviewClass)}>
@@ -98,12 +123,16 @@ export default function DeadlineHelper({ onAdd, onClose }: { onAdd: (items: NewD
                 <label className="block"><span className="text-[11px] text-gray-600">補正などの余裕（日）</span><input type="number" min={0} className={input} value={margin} onChange={(e) => setMargin(Number(e.target.value) || 0)} /></label>
               </div>
               {milestones.length > 0 ? (
-                <table className="w-full text-[11px] border">
+                <table className="w-full text-[11px] border-t border-b border-gray-300">
                   <tbody>
                     {milestones.map((m) => (
-                      <tr key={m.title} className="border-t align-top">
-                        <td className="px-2 py-1 whitespace-nowrap font-mono">{m.date}</td>
-                        <td className={`px-2 py-1 ${m.kind === 'deadline' ? 'font-bold text-red-700' : ''}`}>{m.title}<div className="text-[10px] font-normal text-gray-500">{m.note}</div></td>
+                      <tr key={m.title} className="border-t border-gray-200 first:border-t-0 align-top">
+                        <td className="px-2 py-1 whitespace-nowrap yy-mono text-[11px]">{m.date}</td>
+                        <td className={`px-2 py-1 ${m.kind === 'deadline' ? 'font-bold text-[#141414]' : 'text-gray-700'}`}>
+                          {m.kind === 'deadline' && <span className={`${mono} mr-1.5`}>DUE</span>}
+                          {m.title}
+                          <div className="text-[10px] font-normal text-gray-500">{m.note}</div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -114,19 +143,22 @@ export default function DeadlineHelper({ onAdd, onClose }: { onAdd: (items: NewD
               <p className="text-[10px] text-gray-400">
                 建築基準法 6条4項・7条・7条の3 の期間から逆算した目安です。中間検査の特定工程は自治体ごとに違います。事前協議や他法令の手続きは含みません。
               </p>
-              <button
-                type="button"
-                disabled={!milestones.length || busy}
-                onClick={() => void add(milestones.map((m) => ({ title: m.title, date: m.date, details: m.note, category: PERMIT_CATEGORY.name, color: PERMIT_CATEGORY.color })))}
-                className="px-4 py-1.5 text-[12px] bg-[#3b3b3b] text-white disabled:opacity-40"
-              >
-                {busy ? '入れています…' : `${milestones.length} 件をカレンダーに入れる`}
-              </button>
+              <div className="flex items-center gap-4 flex-wrap">
+                <button
+                  type="button"
+                  disabled={!milestones.length || busy}
+                  onClick={() => void add(milestones.map((m) => ({ title: m.title, date: m.date, details: m.note, category: PERMIT_CATEGORY.name, color: PERMIT_CATEGORY.color })))}
+                  className="px-4 py-1.5 text-[12px] bg-[#3b3b3b] text-white font-bold disabled:opacity-40"
+                >
+                  {busy ? '入れています…' : `${milestones.length} 件をカレンダーに入れる`}
+                </button>
+                {remindBox}
+              </div>
             </>
           ) : (
             <>
               {!exams.length && <p className="text-gray-500">読み込み中…</p>}
-              <ul className="border divide-y max-h-[45vh] overflow-y-auto">
+              <ul className="border-t border-b border-gray-300 divide-y divide-gray-200 max-h-[45vh] overflow-y-auto">
                 {exams.map((ex) => {
                   const key = `${ex.section}/${ex.name}`;
                   return (
@@ -136,6 +168,7 @@ export default function DeadlineHelper({ onAdd, onClose }: { onAdd: (items: NewD
                           type="checkbox"
                           disabled={!ex.date}
                           checked={picked.has(key)}
+                          className="w-3 h-3 accent-[#3b3b3b]"
                           onChange={(e) => {
                             const next = new Set(picked);
                             if (e.target.checked) next.add(key);
@@ -143,51 +176,44 @@ export default function DeadlineHelper({ onAdd, onClose }: { onAdd: (items: NewD
                             setPicked(next);
                           }}
                         />
-                        <span className="flex-1">{ex.name}</span>
-                        <span className="text-[10px] text-gray-500">{ex.deadline || '未定'}</span>
-                        <span className="text-[10px] font-mono w-[76px] text-right">{ex.date ? iso(ex.date) : '—'}</span>
+                        <span className="flex-1 min-w-0 truncate">{ex.name}</span>
+                        <span className="text-[10px] text-gray-500 hidden sm:inline">{ex.deadline || '未定'}</span>
+                        <span className="yy-mono text-[10px] w-[76px] text-right">{ex.date ? iso(ex.date) : '—'}</span>
                       </label>
                     </li>
                   );
                 })}
               </ul>
               <p className="text-[10px] text-gray-400">「上旬〜中旬」などの受付期限を日付に置き換えた目安です（締切側の日付）。正式な日程は各試験の公式サイトで確かめてください。</p>
-              <button
-                type="button"
-                disabled={!picked.size || busy}
-                onClick={() =>
-                  void add(
-                    exams
-                      .filter((ex) => ex.date && picked.has(`${ex.section}/${ex.name}`))
-                      .map((ex) => ({
-                        title: `【申込締切の目安】${ex.name}`,
-                        date: iso(ex.date!),
-                        details: `受付期限: ${ex.deadline}${ex.url ? `\n${ex.url}` : ''}`,
-                        category: EXAM_CATEGORY.name,
-                        color: EXAM_CATEGORY.color,
-                      }))
-                  )
-                }
-                className="px-4 py-1.5 text-[12px] bg-[#3b3b3b] text-white disabled:opacity-40"
-              >
-                {busy ? '入れています…' : `${picked.size} 件をカレンダーに入れる`}
-              </button>
+              <div className="flex items-center gap-4 flex-wrap">
+                <button
+                  type="button"
+                  disabled={!picked.size || busy}
+                  onClick={() =>
+                    void add(
+                      exams
+                        .filter((ex) => ex.date && picked.has(`${ex.section}/${ex.name}`))
+                        .map((ex) => ({
+                          title: `【申込締切の目安】${ex.name}`,
+                          date: iso(ex.date!),
+                          details: `受付期限: ${ex.deadline}${ex.url ? `\n${ex.url}` : ''}`,
+                          category: EXAM_CATEGORY.name,
+                          color: EXAM_CATEGORY.color,
+                        }))
+                    )
+                  }
+                  className="px-4 py-1.5 text-[12px] bg-[#3b3b3b] text-white font-bold disabled:opacity-40"
+                >
+                  {busy ? '入れています…' : `${picked.size} 件をカレンダーに入れる`}
+                </button>
+                {remindBox}
+              </div>
             </>
           )}
-          {done && <p className="text-[11px] text-green-700">{done}</p>}
+          {done && <p className="text-[11px] text-[#141414] border-l border-[#52AA96] pl-2">{done}</p>}
         </div>
       </div>
     </div>,
     document.body
   );
 }
-
-/** 建築の仕事でよく使う予定の種別（カテゴリ）。無いものだけ足す */
-export const BUILDING_CATEGORIES = [
-  { name: '現場定例', color: '#3B82F6' },
-  { name: '施主打合せ', color: '#10B981' },
-  { name: '申請・検査', color: '#EF4444' },
-  { name: '中間検査', color: '#F59E0B' },
-  { name: '完了検査', color: '#DC2626' },
-  { name: '資格試験', color: '#8B5CF6' },
-];

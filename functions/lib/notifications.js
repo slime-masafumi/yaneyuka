@@ -159,6 +159,9 @@ exports.sendDeadlineReminders = (0, scheduler_1.onSchedule)({
         const seg = doc.ref.path.split('/');
         if (seg[0] !== 'users' || seg.length !== 4)
             continue;
+        // チェックを外した予定（remind: false）は分類が期限でも送らない。remind が無い古い予定だけ分類で判断する
+        if (e.remind === false)
+            continue;
         if (e.remind !== true && !DEADLINE_CATEGORIES.has(e.category))
             continue;
         // 複数日にまたがる予定は初日だけ（spanPart が middle / end の分は送らない）
