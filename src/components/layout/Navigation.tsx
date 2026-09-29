@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useForumUnread, markForumSeen } from '@/lib/useForumUnread';
+import NotificationBell from './NotificationBell';
 
 interface NavigationProps {
   onMenuClick?: (menuItem: string) => void;
@@ -203,6 +204,7 @@ const Navigation: React.FC<NavigationProps> = ({ onMenuClick, activeItem }) => {
             ))}
             {/* 右端：お問い合わせ・掲載希望 */}
             <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+              <NotificationBell />
               <button
                 type="button"
                 onClick={() => handleMenuClick('feedback')}

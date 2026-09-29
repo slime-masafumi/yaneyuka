@@ -168,6 +168,8 @@ export type BoardTaskDoc = {
   role?: string | null
   /** 前のタスクの id（遅れが後ろへ波及する） */
   after?: string | null
+  /** 担当を付けた人の uid。担当者への通知（functions の notifyTaskAssignee）で「自分で自分に付けた」を除くのに使う */
+  assignedByUid?: string | null
   createdAt?: any
   updatedAt?: any
 }
@@ -209,14 +211,18 @@ export async function listBoardTasks(boardId: string): Promise<BoardTaskDoc[]> {
   return snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }))
 }
 
+/** 担当を書き込むときだけ、付けた人を添える */
+const withAssigner = <T extends Partial<BoardTaskDoc>>(data: T): T =>
+  'assigneeUid' in data ? { ...data, assignedByUid: auth.currentUser?.uid ?? null } : data
+
 export async function addBoardTask(boardId: string, task: Omit<BoardTaskDoc, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
   const colRef = collection(db, 'boards', boardId, 'tasks')
-  const ref = await addDoc(colRef, { ...task, createdAt: serverTimestamp(), updatedAt: serverTimestamp() })
+  const ref = await addDoc(colRef, { ...withAssigner(task), createdAt: serverTimestamp(), updatedAt: serverTimestamp() })
   return ref.id
 }
 
 export async function updateBoardTask(boardId: string, taskId: string, data: Partial<BoardTaskDoc>) {
-  await updateDoc(doc(db, 'boards', boardId, 'tasks', taskId), { ...data, updatedAt: serverTimestamp() } as any)
+  await updateDoc(doc(db, 'boards', boardId, 'tasks', taskId), { ...withAssigner(data), updatedAt: serverTimestamp() } as any)
 }
 
 export async function deleteBoardTask(boardId: string, taskId: string) {

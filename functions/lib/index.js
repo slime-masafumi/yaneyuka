@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.cleanupShareDownloadGuards = exports.cleanupTempFiles = exports.sendChatNotification = void 0;
+exports.sendDeadlineReminders = exports.notifyTaskAssignee = exports.cleanupShareDownloadGuards = exports.cleanupTempFiles = exports.sendChatNotification = void 0;
 const functions = __importStar(require("firebase-functions"));
 const admin = __importStar(require("firebase-admin"));
 const scheduler_1 = require("firebase-functions/v2/scheduler");
@@ -251,4 +251,8 @@ exports.cleanupShareDownloadGuards = (0, scheduler_1.onSchedule)({
     }
     console.log(`🗑️ ダウンロード計測ガードを ${removed} 件削除しました。`);
 });
+// サイト内の通知（担当者への通知・締切リマインド）
+var notifications_1 = require("./notifications");
+Object.defineProperty(exports, "notifyTaskAssignee", { enumerable: true, get: function () { return notifications_1.notifyTaskAssignee; } });
+Object.defineProperty(exports, "sendDeadlineReminders", { enumerable: true, get: function () { return notifications_1.sendDeadlineReminders; } });
 //# sourceMappingURL=index.js.map

@@ -238,3 +238,6 @@ export const cleanupShareDownloadGuards = onSchedule({
 
   console.log(`🗑️ ダウンロード計測ガードを ${removed} 件削除しました。`);
 });
+
+// サイト内の通知（担当者への通知・締切リマインド）
+export { notifyTaskAssignee, sendDeadlineReminders } from './notifications';
