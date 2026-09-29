@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   FiPlus, FiStar, FiEdit2, FiType, FiDroplet, 
   FiList, FiAlignLeft, FiAlignCenter, FiAlignRight, 
-  FiCheckSquare, FiX, FiTrash2, FiFileText, FiChevronDown, FiCheck, FiFolder, FiImage, FiMic, FiSquare 
+  FiCheckSquare, FiX, FiTrash2, FiFileText, FiChevronDown, FiCheck, FiFolder, FiImage, FiMic, FiSquare, FiTag 
 } from 'react-icons/fi';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { LockClosedIcon, LockOpenIcon } from '@heroicons/react/20/solid';
@@ -996,10 +996,13 @@ const MemoTool: React.FC = () => {
     const matchesTag = !tagFilter || memo.tags.includes(tagFilter);
     return matchesSearch && matchesFolder && matchesTag;
   }).sort((a, b) => {
-    // ブックマークはどの並び順でも先頭に置く（付けた意味がなくなるので）
-    const aFavorite = a.isFavorite || false;
-    const bFavorite = b.isFavorite || false;
-    if (aFavorite !== bFavorite) return aFavorite ? -1 : 1;
+    // ★ を先頭に置くのは手動（ドラッグ順）のときだけ。更新順などを選んだのに ★ が
+    // 先に来ると、選んだ順に並ばず「効かない」ように見えるので、その順番どおりに並べる。
+    if (sortOrder === 'manual') {
+      const aFavorite = a.isFavorite || false;
+      const bFavorite = b.isFavorite || false;
+      if (aFavorite !== bFavorite) return aFavorite ? -1 : 1;
+    }
     return compareMemos(a, b, sortOrder);
   });
 
@@ -1309,7 +1312,10 @@ const MemoTool: React.FC = () => {
                     }}
                   />
                 </div>
-                <div className="relative flex-1">
+                <div className={`flex-1 flex items-stretch border border-gray-200 bg-white ${currentMemo?.isLocked ? 'bg-gray-100 opacity-60' : ''}`}>
+                  <span className="flex items-center px-2 text-gray-400 shrink-0">
+                    <FiTag className="w-3 h-3" />
+                  </span>
                   <input 
                     type="text" 
                     placeholder="タグ (カンマ区切り)..." 
@@ -1323,9 +1329,8 @@ const MemoTool: React.FC = () => {
                         autoSaveTimeoutRef.current = setTimeout(() => saveMemoRef.current(true), 1000);
                       }
                     }}
-                    className={`w-full pl-7 pr-2 py-1.5 text-[11px] border border-gray-200 rounded focus:outline-none focus:border-gray-400 ${currentMemo?.isLocked ? 'bg-gray-100 cursor-not-allowed opacity-60' : ''}`}
+                    className={`flex-1 min-w-0 px-2 py-1.5 text-[11px] outline-none bg-transparent ${currentMemo?.isLocked ? 'cursor-not-allowed' : ''}`}
                   />
-                  <div className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 text-xs">🏷</div>
                 </div>
               </div>
 
@@ -1592,7 +1597,10 @@ function FolderPicker({
   return (
     <div ref={boxRef} className="relative">
       <div className={`flex items-stretch border border-gray-200 bg-white ${disabled ? 'bg-gray-100 opacity-60' : ''}`}>
-        <FiFolder className="self-center ml-2 w-3 h-3 text-gray-400 shrink-0" />
+        {/* アイコンは入力欄の外。左右の余白を同じにする（以前は右が 0 で欄に貼り付いていた） */}
+        <span className="flex items-center px-2 text-gray-400 shrink-0">
+          <FiFolder className="w-3 h-3" />
+        </span>
         <input
           type="text"
           placeholder="フォルダ（未分類）"
