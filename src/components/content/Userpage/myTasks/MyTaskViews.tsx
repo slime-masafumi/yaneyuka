@@ -22,17 +22,17 @@ export function ProjectView({
   onToggle: (categoryId: string, taskId: string) => void;
 }) {
   const groups = groupByProject(categories, today);
-  if (!groups.length) return <p className="py-8 text-center text-xs text-gray-400">未完了のタスクはありません</p>;
+  if (!groups.length) return <p className="py-2 text-[11px] text-gray-500">未完了のタスクはありません</p>;
   return (
     <div className="grid gap-3 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
       {groups.map((g) => (
         <section key={g.project || '__none'} className="border border-gray-300 bg-white">
-          <header className="px-3 py-1.5 border-b border-gray-200 flex items-baseline justify-between">
-            <h3 className={`text-sm font-bold ${g.project ? '' : 'text-gray-400'}`}>{g.project || '物件なし'}</h3>
+          <div className="px-3 py-1.5 border-b border-gray-200 flex items-baseline justify-between">
+            <h3 className={`text-[12px] font-bold ${g.project ? '' : 'text-gray-400'}`}>{g.project || '物件なし'}</h3>
             <span className="text-[11px] text-gray-500">
               {g.open} 件{g.overdue ? <span className="ml-1 bg-red-600 text-white font-bold px-1">超過 {g.overdue}</span> : null}
             </span>
-          </header>
+          </div>
           <ul className="divide-y divide-gray-100">
             {g.items.map(({ task, sheetId, sheetTitle, rest }) => {
               const over = !task.completed && !!task.dueDate && task.dueDate < today;
@@ -57,7 +57,7 @@ export function ProjectView({
 
 export function DoneHistory({ categories, onToggle }: { categories: TaskCategory[]; onToggle: (categoryId: string, taskId: string) => void }) {
   const days = completedHistory<Task>(categories);
-  if (!days.length) return <p className="py-8 text-center text-xs text-gray-400">完了したタスクはまだありません</p>;
+  if (!days.length) return <p className="py-2 text-[11px] text-gray-500">完了したタスクはまだありません</p>;
   return (
     <div className="space-y-3 text-xs">
       {days.map((d) => (

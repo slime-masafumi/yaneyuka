@@ -104,7 +104,7 @@ export default function BoardCanvas({ pdf, page, zoom, strokes, ghost, pointers,
       {!pdf && <div className="absolute inset-0 flex items-center justify-center text-[12px] text-gray-500">図面の PDF がまだありません</div>}
       {error && <div className="absolute inset-x-0 top-2 text-center text-[12px] text-red-600">{error}</div>}
       <div className="relative mx-auto my-2" style={{ width: size?.w, height: size?.h }}>
-        <canvas ref={canvasRef} className="block bg-white shadow" />
+        <canvas ref={canvasRef} className="block bg-white outline outline-1 outline-gray-300" />
         {size && (
           <svg
             width={size.w}

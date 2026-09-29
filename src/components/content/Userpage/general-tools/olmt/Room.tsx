@@ -5,7 +5,7 @@
  *   - 赤入れを全員で書ける。会議の回ごとに残り、前回の赤を薄く重ねて開ける
  *   - 決定事項・宿題を会議中に書き、終わったら議事録にしてメモへ
  */
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { addDoc, collection } from 'firebase/firestore';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
@@ -29,16 +29,23 @@ const colorOf = (uid: string) => PEOPLE_COLORS[[...uid].reduce((s, c) => s + c.c
 /** 最後に動いてから1分たったポインタは消す（抜けた人を残さない） */
 const PRESENCE_TTL = 60_000;
 
+/** 見出し帯（Olmt 側の ToolHeader）の「できること」から部屋の中の機能を呼ぶための入口 */
+export type RoomCommand = 'pen' | 'decisions' | 'minutes' | 'settings' | 'meeting';
+export type RoomHandle = { run: (cmd: RoomCommand) => void };
+
 export default function Room({
   backend,
   roomId,
   me,
   onLeave,
+  handleRef,
 }: {
   backend: RoomBackend;
   roomId: string;
   me: { uid: string; name: string };
   onLeave: () => void;
+  /** 見出し帯から機能を呼ぶための口（押された時に run が呼ばれる） */
+  handleRef?: React.Ref<RoomHandle>;
 }) {
   const pdfjs = usePdfjs();
   const [room, setRoom] = useState<RoomDoc | null | undefined>(undefined);
@@ -58,6 +65,7 @@ export default function Room({
   const [showSettings, setShowSettings] = useState(false);
   const [now, setNow] = useState(Date.now());
   const fileRef = useRef<HTMLInputElement>(null);
+  const decisionsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => backend.watchRoom(setRoom), [backend]);
   useEffect(() => backend.watchStrokes(setStrokes), [backend]);
@@ -119,16 +127,7 @@ export default function Room({
   const others = active.filter((p) => p.uid !== me.uid && p.page === page);
   const sessionDecisions = decisions.filter((d) => d.sessionId === session).sort((a, b) => a.at - b.at);
 
-  if (room === undefined) return <p className="p-4 text-[12px] text-gray-500">部屋を開いています…</p>;
-  if (room === null)
-    return (
-      <div className="p-4 text-[12px] space-y-2">
-        <p>この部屋は見つかりません（削除されたか、リンクが違います）。</p>
-        <button type="button" className="underline" onClick={onLeave}>一覧に戻る</button>
-      </div>
-    );
-
-  const inviteUrl = `${window.location.origin}/olmt/?room=${roomId}`;
+  const inviteUrlOf = () => `${window.location.origin}/olmt/?room=${roomId}`;
   const copy = async (text: string, what: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -138,6 +137,64 @@ export default function Room({
       prompt('コピーしてください', text);
     }
   };
+
+  const openMinutes = (label: string, startedAt: number, sessionId: string | null) => {
+    if (!room) return;
+    const names = [...new Set(strokes.filter((s) => s.sessionId === sessionId).map((s) => s.name).concat(active.map((p) => p.name)))];
+    const m = buildMinutes({
+      title: `${room.title} ${label}`,
+      date: new Date(startedAt).toLocaleString('ja-JP', { dateStyle: 'medium', timeStyle: 'short' }),
+      participants: names,
+      drawing: room.pdf?.name,
+      decisions: decisions.filter((d) => d.sessionId === sessionId).sort((a, b) => a.at - b.at),
+    });
+    setMinutes({ ...m, title: `${room.title} ${label} 議事録` });
+  };
+
+  const inviteLetter = () =>
+    !room ? '' :
+    [
+      `【${room.title}】${room.schedule ? ` ${room.schedule}` : ''}`,
+      room.meetingUrl ? `会議: ${room.meetingUrl}` : '',
+      room.passcode ? `パスコード: ${room.passcode}` : '',
+      room.dialIn ? `電話で参加: ${room.dialIn}` : '',
+      `図面ボード（同じ図面を見ながら指し示し・赤入れ）: ${inviteUrlOf()}`,
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+  // 見出し帯（Olmt 側）の「できること」から呼ばれる。押されたときに Olmt が run を呼ぶ。
+  useImperativeHandle(handleRef, () => ({
+    run: (cmd) => {
+      if (!room) return;
+      if (cmd === 'pen') setTool('pen');
+      if (cmd === 'decisions') {
+        decisionsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        decisionsRef.current?.querySelector('textarea')?.focus();
+      }
+      if (cmd === 'minutes') openMinutes(current?.label ?? '', current?.startedAt ?? Date.now(), session);
+      // 設定は主催者だけ。参加者は招待文（会議 URL・パスコードつき）を写す
+      if (cmd === 'settings') {
+        if (isOwner) setShowSettings(true);
+        else void copy(inviteLetter(), 'letter');
+      }
+      if (cmd === 'meeting') {
+        if (room.meetingUrl) window.open(room.meetingUrl, '_blank', 'noopener,noreferrer');
+        else if (isOwner) setShowSettings(true);
+      }
+    },
+  }));
+
+  if (room === undefined) return <p className="p-4 text-[12px] text-gray-500">部屋を開いています…</p>;
+  if (room === null)
+    return (
+      <div className="p-4 text-[12px] space-y-2">
+        <p>この部屋は見つかりません（削除されたか、リンクが違います）。</p>
+        <button type="button" className="underline" onClick={onLeave}>一覧に戻る</button>
+      </div>
+    );
+
+  const inviteUrl = inviteUrlOf();
 
   const startSession = async () => {
     const n = sessions.length + 1;
@@ -153,17 +210,6 @@ export default function Room({
     openMinutes(current.label, current.startedAt, current.id);
   };
 
-  const openMinutes = (label: string, startedAt: number, sessionId: string | null) => {
-    const names = [...new Set(strokes.filter((s) => s.sessionId === sessionId).map((s) => s.name).concat(active.map((p) => p.name)))];
-    const m = buildMinutes({
-      title: `${room.title} ${label}`,
-      date: new Date(startedAt).toLocaleString('ja-JP', { dateStyle: 'medium', timeStyle: 'short' }),
-      participants: names,
-      drawing: room.pdf?.name,
-      decisions: decisions.filter((d) => d.sessionId === sessionId).sort((a, b) => a.at - b.at),
-    });
-    setMinutes({ ...m, title: `${room.title} ${label} 議事録` });
-  };
 
   const saveMinutesToMemo = async () => {
     if (!minutes) return;
@@ -197,6 +243,7 @@ export default function Room({
   };
 
   const btn = (on: boolean) => `px-2 py-1 text-[11px] border flex items-center gap-1 ${on ? 'bg-[#3b3b3b] text-white border-[#3b3b3b]' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}`;
+
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -239,20 +286,7 @@ export default function Room({
           type="button"
           className={btn(false)}
           title="会議の URL・パスコード・電話番号・図面ボードの招待リンクをまとめた文面"
-          onClick={() =>
-            void copy(
-              [
-                `【${room.title}】${room.schedule ? ` ${room.schedule}` : ''}`,
-                room.meetingUrl ? `会議: ${room.meetingUrl}` : '',
-                room.passcode ? `パスコード: ${room.passcode}` : '',
-                room.dialIn ? `電話で参加: ${room.dialIn}` : '',
-                `図面ボード（同じ図面を見ながら指し示し・赤入れ）: ${inviteUrl}`,
-              ]
-                .filter(Boolean)
-                .join('\n'),
-              'letter',
-            )
-          }
+          onClick={() => void copy(inviteLetter(), 'letter')}
         >
           <FiCopy /> {copied === 'letter' ? 'コピーしました' : '招待文'}
         </button>
@@ -273,9 +307,9 @@ export default function Room({
             )}
           </>
         )}
-        {!isOwner && current && <span className="text-[11px] text-green-700">● {current.label} 進行中</span>}
+        {!isOwner && current && <span className="text-[11px] text-gray-700"><span className="text-[#52AA96]">●</span> {current.label} 進行中</span>}
         <span className="ml-auto text-[11px] text-gray-500">
-          参加中 {active.length}人{active.length ? `：${active.map((p) => p.name).join('、')}` : ''}
+          <span className="yy-mono text-[10px] tracking-[0.08em]">{String(active.length).padStart(2, '0')}</span> 人参加中{active.length ? `：${active.map((p) => p.name).join('、')}` : ''}
         </span>
       </div>
 
@@ -303,7 +337,7 @@ export default function Room({
           <div className="border-t pt-2 space-y-1">
             <div className="flex items-center justify-between">
               <button type="button" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className="p-1 disabled:opacity-30"><FiChevronLeft /></button>
-              <span>{page} / {pdf?.numPages ?? '-'}</span>
+              <span className="yy-mono text-[10px]">{page} / {pdf?.numPages ?? '-'}</span>
               <button type="button" disabled={!pdf || page >= pdf.numPages} onClick={() => setPage((p) => p + 1)} className="p-1 disabled:opacity-30"><FiChevronRight /></button>
             </div>
             <select value={zoom} onChange={(e) => setZoom(Number(e.target.value))} className="w-full px-1 py-0.5 text-[11px]">
@@ -353,6 +387,7 @@ export default function Room({
 
         {/* 決定事項・宿題 */}
         <Decisions
+          boxRef={decisionsRef}
           items={sessionDecisions}
           label={current?.label ?? '会議外'}
           me={me}
@@ -367,7 +402,7 @@ export default function Room({
         createPortal(
           <div className="fixed inset-x-0 bottom-0 z-[10000] bg-black/50 flex items-start justify-center pt-10" style={{ top: 'var(--nav-height, 35px)' }} onClick={() => setMinutes(null)}>
             <div className="bg-white border border-[#3b3b3b] w-[560px] max-w-[95vw]" onClick={(e) => e.stopPropagation()}>
-              <div className="flex justify-between items-center px-3 py-2 bg-[#3b3b3b] text-white text-[12px]">
+              <div className="flex justify-between items-center px-3 py-2 bg-[#141414] text-white text-[12px]">
                 <b>{minutes.title}</b>
                 <button type="button" onClick={() => setMinutes(null)} aria-label="閉じる"><FiX /></button>
               </div>
@@ -389,8 +424,9 @@ export default function Room({
 }
 
 function Decisions({
-  items, label, me, isOwner, backend, session, onMinutes,
+  items, label, me, isOwner, backend, session, onMinutes, boxRef,
 }: {
+  boxRef?: React.RefObject<HTMLDivElement | null>;
   items: DecisionDoc[];
   label: string;
   me: { uid: string; name: string };
@@ -414,7 +450,7 @@ function Decisions({
     const list = items.filter((d) => d.kind === k);
     return (
       <div>
-        <div className="text-[11px] font-bold text-gray-600 mb-1">{title}（{list.length}）</div>
+        <div className="text-[11px] font-bold text-gray-600 mb-1">{title} <span className="yy-mono font-normal text-gray-400">{String(list.length).padStart(2, '0')}</span></div>
         <ul className="space-y-1">
           {list.map((d) => (
             <li key={d.id} className="flex items-start gap-1 text-[11px]">
@@ -433,8 +469,8 @@ function Decisions({
     );
   };
   return (
-    <div className="w-[240px] shrink-0 border-l p-2 space-y-3 overflow-y-auto bg-white">
-      <div className="text-[11px] text-gray-500">{label}</div>
+    <div ref={boxRef} className="w-[240px] shrink-0 border-l p-2 space-y-3 overflow-y-auto bg-white">
+      <div className="yy-mono text-[10px] tracking-[0.08em] text-gray-500">{label}</div>
       {section('decision', '決定事項')}
       {section('todo', '宿題')}
       <div className="border-t pt-2 space-y-1">

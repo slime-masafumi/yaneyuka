@@ -23,6 +23,7 @@ import {
 import { zoneInfoAt, ZONING_MIN_ZOOM, type ZoneInfo, type ZoningStatus } from './map/zoningStore';
 import { useSites, type Site } from './map/useSites';
 import { BASES, type BaseId, type MapViewState } from './map/SiteMap';
+import ToolHeader from '../ToolHeader';
 
 const SiteMap = dynamic(() => import('./map/SiteMap'), {
   ssr: false,
@@ -120,6 +121,13 @@ const MapView: React.FC = () => {
   const [printSite, setPrintSite] = useState<Site | 'view' | null>(null);
   const [showLegend, setShowLegend] = useState(false);
   const mapBoxRef = useRef<HTMLDivElement>(null);
+  // 見出し帯の「できること」から左の各欄へ飛ぶための足場（狭い画面では地図の下に回るため）
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const layersRef = useRef<HTMLDivElement>(null);
+  const measureRef = useRef<HTMLDivElement>(null);
+  const sitesRef = useRef<HTMLDivElement>(null);
+  const scrollToMapRef = (r: React.RefObject<HTMLElement | null>) =>
+    r.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   const { sites, add, update, remove, synced } = useSites();
 
   // 前回見ていた場所から始める
@@ -214,12 +222,47 @@ const MapView: React.FC = () => {
 
   return (
     <div className="w-full bg-white flex flex-col h-full lg:h-[calc(100vh-var(--nav-height))] overflow-hidden">
-      <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
-        <h3 className="text-[13px] font-medium">地図</h3>
-        <p className="text-[11px] mt-0.5">
-          敷地調査と付近見取図。用途地域・建蔽率・容積率・防火指定を重ねて読み、距離・方位・面積を測って、敷地ごとに保存・印刷できます
-        </p>
-      </div>
+      <ToolHeader
+        no="12"
+        code="MAP"
+        title="地図"
+        description="敷地調査と付近見取図。用途地域・建蔽率・容積率・防火指定を重ねて読み、距離・方位・面積を測って残す。"
+        features={[
+          {
+            label: '住所・地番で探す',
+            onClick: () => { scrollToMapRef(searchInputRef); searchInputRef.current?.focus(); },
+          },
+          {
+            label: '用途地域・防火指定',
+            hint: '地図に用途地域・防火地域を重ね、クリックした地点の建蔽率・容積率を読む',
+            active: zoning,
+            onClick: () => { setZoning(true); scrollToMapRef(layersRef); },
+          },
+          {
+            label: '距離・方位',
+            hint: '区間ごとの長さと真北からの方位',
+            active: mode === 'distance',
+            onClick: () => { switchMode('distance'); scrollToMapRef(measureRef); },
+          },
+          {
+            label: '面積（㎡・坪）',
+            hint: '敷地の角を順にクリックして求積し、敷地として保存する',
+            active: mode === 'area',
+            onClick: () => { switchMode('area'); scrollToMapRef(measureRef); },
+          },
+          {
+            label: '敷地の保存',
+            hint: synced ? '保存した敷地は端末間で同期しています' : 'このブラウザに保存。ログインすると端末間で同期します',
+            onClick: () => scrollToMapRef(sitesRef),
+          },
+          {
+            label: '付近見取図（A3 横）',
+            hint: '方位記号・縮尺バー・出典つきで今の表示を印刷する',
+            active: printSite !== null,
+            onClick: () => setPrintSite('view'),
+          },
+        ]}
+      />
 
       <div className="p-3 flex-1 min-h-0 overflow-hidden">
         <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-3 h-full">
@@ -229,6 +272,7 @@ const MapView: React.FC = () => {
             <div className="bg-gray-50 p-3 border border-[#3b3b3b] space-y-2">
               <form className="flex gap-1" onSubmit={(e) => { e.preventDefault(); void search(); }}>
                 <input
+                  ref={searchInputRef}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="住所・地番・施設名"
@@ -253,7 +297,7 @@ const MapView: React.FC = () => {
             </div>
 
             {/* 表示 */}
-            <div className="bg-gray-50 p-3 border border-[#3b3b3b] space-y-2">
+            <div ref={layersRef} className="bg-gray-50 p-3 border border-[#3b3b3b] space-y-2 scroll-mt-3">
               <div className="text-[11px] font-bold text-gray-600">下図</div>
               <div className="flex flex-wrap gap-1">
                 {(Object.keys(BASES) as BaseId[]).map((id) => (
@@ -296,7 +340,7 @@ const MapView: React.FC = () => {
             </div>
 
             {/* 計測 */}
-            <div className="bg-gray-50 p-3 border border-[#3b3b3b] space-y-2">
+            <div ref={measureRef} className="bg-gray-50 p-3 border border-[#3b3b3b] space-y-2 scroll-mt-3">
               <div className="text-[11px] font-bold text-gray-600">測る</div>
               <div className="flex gap-1">
                 <button type="button" className={btn(mode === 'none')} onClick={() => switchMode('none')}>
@@ -346,7 +390,7 @@ const MapView: React.FC = () => {
               {mode === 'none' && (
                 selected ? (
                   <div className="bg-white border p-2 space-y-2">
-                    <div className="text-[11px] text-gray-500 tabular-nums">
+                    <div className="yy-mono text-[10px] tracking-[0.08em] text-gray-500 tabular-nums">
                       {selected.lat.toFixed(6)}, {selected.lng.toFixed(6)}
                     </div>
                     {zoning && zoningStatus !== 'not-configured' && (
@@ -371,9 +415,9 @@ const MapView: React.FC = () => {
             </div>
 
             {/* 保存した敷地 */}
-            <div className="bg-gray-50 p-3 border border-[#3b3b3b] space-y-2">
+            <div ref={sitesRef} className="bg-gray-50 p-3 border border-[#3b3b3b] space-y-2 scroll-mt-3">
               <div className="flex items-center justify-between">
-                <div className="text-[11px] font-bold text-gray-600">保存した敷地（{sites.length}）</div>
+                <div className="text-[11px] font-bold text-gray-600">保存した敷地 <span className="yy-mono font-normal text-gray-400">{String(sites.length).padStart(3, '0')}</span></div>
                 <span className="text-[10px] text-gray-400">{synced ? '端末間で同期' : 'このブラウザに保存・ログインで同期'}</span>
               </div>
               {sites.length === 0 && <p className="text-[11px] text-gray-500">地点や求積した敷地を保存すると、ここに並びます。</p>}
@@ -438,7 +482,7 @@ const MapView: React.FC = () => {
               <NorthArrow size={22} />
             </div>
             {mode !== 'none' && (
-              <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[500] bg-[#1565c0] text-white text-[11px] px-2 py-1">
+              <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[500] bg-[#141414] text-white text-[11px] px-2 py-1 border-b border-[#52AA96]">
                 {mode === 'distance' ? '距離・方位を測っています' : '面積を測っています'} — クリックで点を追加
               </div>
             )}

@@ -1201,9 +1201,13 @@ nav {
 }
 /* 狭い画面では右端の補助を下の段へ落とす（タイトルが 1 文字ずつ縦に潰れないように） */
 @media (max-width: 639px) {
-  .yy-head__row { flex-wrap: wrap; align-items: flex-start; }
+  .yy-head .yy-head__row { flex-wrap: wrap; align-items: flex-start; }
   .yy-head__row > .min-w-0 { flex: 1 1 100%; }
   .yy-head__aside { flex-shrink: 1; max-width: 100%; }
+  /* 「できること」は折り返すと帯が 4 段にふくらむので、1 行のまま横に送る */
+  .yy-head .yy-head__features { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .yy-head .yy-head__features::-webkit-scrollbar { display: none; }
+  .yy-head .yy-head__lead { font-size: 10.5px; }
 }
 .yy-head__features {
   display: flex;

@@ -5,6 +5,7 @@
  */
 import React, { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { FiX } from 'react-icons/fi';
 import { useTaskContext } from '@/components/providers/TaskProvider';
 import { extractHomework, projectOfMemo, taskContent, type Homework } from '@/lib/memoTasks';
 
@@ -28,8 +29,8 @@ export default function HomeworkToTasks({ text, folder, onClose }: { text: strin
     <div className="fixed inset-x-0 bottom-0 z-[10000] bg-black/40 flex items-start justify-center p-4 pt-12" style={{ top: 'var(--nav-height, 35px)' }} onClick={onClose}>
       <div className="bg-white border border-[#3b3b3b] w-full max-w-xl p-4 space-y-2 text-xs" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-center">
-          <span className="font-bold text-[13px]">宿題を Myタスクへ</span>
-          <button type="button" onClick={onClose} aria-label="閉じる">✕</button>
+          <span className="font-bold text-[12px]">宿題を Myタスクへ</span>
+          <button type="button" onClick={onClose} aria-label="閉じる" className="text-gray-500 hover:text-gray-900"><FiX className="w-3.5 h-3.5" /></button>
         </div>
         {items.length === 0 ? (
           <p className="text-gray-500 py-4 leading-relaxed">
@@ -62,7 +63,7 @@ export default function HomeworkToTasks({ text, folder, onClose }: { text: strin
               ))}
             </ul>
             <div className="flex items-center justify-end gap-2">
-              {done && <span className="mr-auto text-green-700">{done}</span>}
+              {done && <span className="mr-auto text-gray-700">{done}</span>}
               <button type="button" onClick={onClose} className="px-3 py-1 border border-gray-300">閉じる</button>
               <button type="button" disabled={!items.some((x) => x.on) || !!done} onClick={() => void save()} className="px-3 py-1 bg-[#3b3b3b] text-white disabled:opacity-40">
                 {items.filter((x) => x.on).length} 件を追加

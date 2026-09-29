@@ -6,7 +6,8 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import ToolHeader from './ToolHeader';
+import ToolHeader, { type ToolFeature } from './ToolHeader';
+import { FiCamera, FiX } from 'react-icons/fi';
 import { createPortal } from 'react-dom';
 import { useAuth } from '@/lib/AuthContext';
 import { ChatMessage, ChatRoom } from '@/types/chat';
@@ -73,7 +74,7 @@ const LinkifiedText = ({ text, isMe }: { text: string, isMe: boolean }) => {
               href={part} 
               target="_blank" 
               rel="noopener noreferrer" 
-              className={`underline break-all hover:opacity-80 ${isMe ? 'text-blue-100' : 'text-blue-600'}`}
+              className={`underline break-all hover:opacity-80 ${isMe ? 'text-white' : 'text-gray-900'}`}
               onClick={(e) => e.stopPropagation()}
             >
               {part}
@@ -199,6 +200,9 @@ const YyChat: React.FC = () => {
   const [taskTarget, setTaskTarget] = useState('');
   const [taskBoards, setTaskBoards] = useState<BoardDoc[]>([]);
   const [taskDone, setTaskDone] = useState('');
+  // 見出し帯の「できること」用。使い方が分からない機能を押したときの一言と、検索欄へのフォーカス
+  const [chatNotice, setChatNotice] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
     
   // --- Effects ---
 
@@ -804,40 +808,112 @@ const YyChat: React.FC = () => {
     return userAvatars[uid];
   };
 
+  // 見出し帯の「できること」。部屋の右上メニューや発言のホバーの奥にあって見つからなかった機能の入口。
+  // 部屋を開いていないと使えないものは、押すと「どうすれば使えるか」を一言出す。
+  const needRoom = (run: () => void, how: string) => {
+    if (!isLoggedIn || !currentUser) return setChatNotice('ログイン（無料の会員登録）すると使えます。');
+    if (!selectedRoom) return setChatNotice(how);
+    setChatNotice('');
+    run();
+  };
+  const chatFeatures: ToolFeature[] = [
+    {
+      label: '物件ルーム',
+      login: true,
+      hint: '同じ相手でも物件ごとに部屋を分ける。一覧は物件名で絞り込める',
+      onClick: () => needRoom(() => setShowRoomMenu(true), '相手との部屋を開き、右上の︙ →「物件ルーム」で物件名を付けると、物件ごとに部屋が分かれます。'),
+    },
+    {
+      label: '横断検索',
+      login: true,
+      hint: '全ルームの発言をまとめて検索する',
+      active: !!searchHits,
+      onClick: () => {
+        if (!isLoggedIn || !currentUser) return setChatNotice('ログイン（無料の会員登録）すると使えます。');
+        setChatNotice('');
+        setShowUserSelect(false);
+        // 狭い画面では部屋を開いていると一覧（検索欄）が隠れるので、一覧へ戻す
+        if (typeof window !== 'undefined' && window.innerWidth < 768) setSelectedRoom(null);
+        setTimeout(() => searchInputRef.current?.focus(), 0);
+      },
+    },
+    {
+      label: '発言 → タスク',
+      login: true,
+      hint: '発言から @名前 と期限を読み取り、Myタスク・Teamタスクに入れる（発言の下の「タスク」からも）',
+      onClick: () => needRoom(() => {
+        const last = [...messages].reverse().find((m) => !m.id.startsWith('temp-'));
+        if (last) openTask(last);
+        else setChatNotice('まだ発言がありません。発言の下の「タスク」から、その発言をタスクにできます。');
+      }, '部屋を開くと、発言の下の「タスク」からその発言をタスクにできます。'),
+    },
+    {
+      label: '議事録（発言を選んでメモへ）',
+      login: true,
+      hint: '発言を選び、決定事項に印を付けてメモの議事録にする',
+      active: selectMode,
+      onClick: () => needRoom(() => { setSelectMode(true); setMinutesDone(''); }, '部屋を開くと、発言を選んでメモの議事録にできます。'),
+    },
+    {
+      label: 'グループ',
+      login: true,
+      hint: '3 人以上（20 人まで）の部屋を作る',
+      active: showUserSelect && userSelectMode === 'group',
+      onClick: () => {
+        if (!isLoggedIn || !currentUser) return setChatNotice('ログイン（無料の会員登録）すると使えます。');
+        setChatNotice('');
+        setUserSelectMode('group'); setGroupPicks(new Set()); setGroupName(''); setShowUserSelect(true); void loadUsers();
+        if (typeof window !== 'undefined' && window.innerWidth < 768) setSelectedRoom(null);
+      },
+    },
+    {
+      label: '写真（撮影日時つき）',
+      login: true,
+      hint: '現場写真を送ると、写真の撮影日時が一緒に残る',
+      onClick: () => needRoom(() => fileInputRef.current?.click(), '部屋を開くと、写真を撮影日時つきで送れます。'),
+    },
+  ];
+  const chatHeader = (
+    <>
+      <ToolHeader
+        no="A2"
+        code="CHAT"
+        title="yychat"
+        description="現場チャット。物件ごとに部屋を分け、全ルームを横断して検索する。発言はそのままタスクや議事録（メモ）にできる。"
+        features={chatFeatures}
+      />
+      {chatNotice && <p className="mx-4 mt-2 text-[11px] text-gray-600" role="status">{chatNotice}</p>}
+    </>
+  );
+
   // 未ログインでも帯は出す。帯が無いとツール名が画面から消えてしまう。
   if (!isLoggedIn || !currentUser) {
     return (
       <div>
-        <ToolHeader
-          title="yychat"
-          description="現場チャット。物件ごとに部屋を分け、全ルームを横断して検索。写真には撮影日時が付き、発言はそのままタスクや議事録（メモ）にできます"
-        />
-        <div className="p-4">ログインしてください</div>
+        {chatHeader}
+        <p className="p-4 text-[11px] text-gray-500">ログイン（無料の会員登録）すると使えます。</p>
       </div>
     );
   }
 
   return (
     <div className="pt-0 pb-4">
-      <ToolHeader
-        title="yychat"
-        description="現場チャット。物件ごとに部屋を分け、全ルームを横断して検索。写真には撮影日時が付き、発言はそのままタスクや議事録（メモ）にできます"
-      />
+      {chatHeader}
       <div className="flex h-[600px] bg-white border border-[#3b3b3b] overflow-hidden font-sans mx-4 mt-3">
       <div className={`${selectedRoom ? 'hidden md:flex' : 'flex'} w-full md:w-72 flex-col border-r bg-gray-50`}>
-        <div className="px-4 py-3 bg-white border-b flex items-center justify-between shadow-sm z-10">
+        <div className="px-4 py-3 bg-white border-b flex items-center justify-between z-10">
           <div 
-             className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded-lg -ml-1 transition"
+             className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 -ml-1 transition"
              onClick={() => setShowIconSettings(true)}
              title="自分のプロフィール設定"
           >
-             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold shadow-sm overflow-hidden border-2 border-white">
+             <div className="w-9 h-9 rounded-full bg-[#141414] flex items-center justify-center text-white font-bold overflow-hidden">
                 {userAvatars[currentUser.uid] ? (
                   <img src={userAvatars[currentUser.uid]} className="w-full h-full object-cover" />
                 ) : currentUser.username[0]}
              </div>
              <div className="flex flex-col">
-               <span className="text-sm font-bold text-gray-800 leading-tight">{currentUser.username}</span>
+               <span className="text-[12px] font-bold text-gray-800 leading-tight">{currentUser.username}</span>
                <span className="text-[10px] text-gray-400">マイページ</span>
              </div>
           </div>
@@ -851,7 +927,7 @@ const YyChat: React.FC = () => {
             </button>
             <button 
               onClick={() => { setUserSelectMode('dm'); setGroupPicks(new Set()); setGroupName(''); setShowUserSelect(true); loadUsers(); }}
-              className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center hover:bg-blue-700 transition shadow-sm"
+              className="w-8 h-8 border border-[#3b3b3b] text-gray-800 flex items-center justify-center hover:bg-gray-100 transition"
               title="新規チャット"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg>
@@ -862,6 +938,7 @@ const YyChat: React.FC = () => {
         {!showUserSelect && (
           <div className="px-2 py-2 border-b bg-white space-y-1.5">
             <input
+              ref={searchInputRef}
               value={searchQ}
               onChange={(e) => { setSearchQ(e.target.value); if (!e.target.value.trim()) setSearchHits(null); }}
               onKeyDown={(e) => { if (e.key === 'Enter') void runSearch(); }}
@@ -906,7 +983,7 @@ const YyChat: React.FC = () => {
                       <span className="shrink-0 ml-1">{formatMessageDate(h.at)}</span>
                     </div>
                     <div className="text-xs text-gray-700 break-words">
-                      {splitHits(snippet(h.text, terms), terms).map(([t, hit], i) => (hit ? <mark key={i} className="bg-yellow-200">{t}</mark> : <span key={i}>{t}</span>))}
+                      {splitHits(snippet(h.text, terms), terms).map(([t, hit], i) => (hit ? <mark key={i} className="bg-[#52AA96]/25 text-gray-900">{t}</mark> : <span key={i}>{t}</span>))}
                     </div>
                   </button>
                 );
@@ -926,7 +1003,7 @@ const YyChat: React.FC = () => {
                   </button>
                 )}
                 <input 
-                  className="flex-1 text-xs border rounded px-2 py-1.5 focus:outline-none focus:border-blue-500" 
+                  className="flex-1 text-xs border px-2 py-1.5 focus:outline-none" 
                   placeholder="ユーザー検索..." 
                   value={userSearchTerm}
                   onChange={e => setUserSearchTerm(e.target.value)}
@@ -977,14 +1054,14 @@ const YyChat: React.FC = () => {
                           }
                           setShowUserSelect(false);
                         }}
-                        className="p-2 hover:bg-white rounded-lg cursor-pointer flex items-center gap-2 transition"
+                        className="p-2 hover:bg-white cursor-pointer flex items-center gap-2 transition"
                       >
                         {userSelectMode !== 'dm' && <input type="checkbox" readOnly checked={groupPicks.has(u.uid)} className="pointer-events-none" />}
                         <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-white text-[10px] overflow-hidden">
                           {getAvatarUrl(u.uid) ? <img src={getAvatarUrl(u.uid)!} className="w-full h-full object-cover"/> : u.username[0]}
                         </div>
                         <div>
-                          <div className="text-sm font-medium text-gray-700">{u.username}</div>
+                          <div className="text-[12px] text-gray-800">{u.username}</div>
                           <div className="text-[10px] text-gray-400">{u.email}</div>
                         </div>
                       </div>
@@ -994,7 +1071,12 @@ const YyChat: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-0">
-              {visibleRooms.length === 0 && <div className="p-8 text-xs text-center text-gray-400">チャットルームがありません</div>}
+              {visibleRooms.length === 0 && (
+                <p className="p-4 text-[11px] text-gray-500">
+                  まだ部屋がありません。{' '}
+                  <button type="button" className="underline underline-offset-2 text-gray-800" onClick={() => { setUserSelectMode('dm'); setGroupPicks(new Set()); setGroupName(''); setShowUserSelect(true); void loadUsers(); }}>相手を選んで始める</button>
+                </p>
+              )}
               {visibleRooms.map(room => {
                 const otherUid = room.participants.find(u => u !== currentUser.uid);
                 const isActive = selectedRoom?.id === room.id;
@@ -1004,7 +1086,7 @@ const YyChat: React.FC = () => {
                 return (
                   <div key={room.id}
                     onClick={() => { setHighlightId(null); setSelectedRoom(room); }}
-                    className={`px-3 py-2.5 cursor-pointer transition flex gap-3 items-center border-b border-transparent hover:bg-white ${isActive ? 'bg-white border-l-4 border-l-blue-500 shadow-sm' : 'hover:bg-opacity-60 border-l-4 border-l-transparent'}`}
+                    className={`px-3 py-2.5 cursor-pointer transition flex gap-3 items-center border-b border-transparent hover:bg-white ${isActive ? 'bg-white border-l border-l-[#52AA96]' : 'hover:bg-opacity-60 border-l border-l-transparent'}`}
                   >
                     <div className="w-9 h-9 rounded-full bg-gray-200 flex-shrink-0 flex items-center justify-center text-gray-500 font-bold overflow-hidden border border-gray-100">
                       {otherUid && getAvatarUrl(otherUid, room.id) ? (
@@ -1013,11 +1095,11 @@ const YyChat: React.FC = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-baseline">
-                        <span className={`text-sm font-medium truncate ${isActive ? 'text-gray-900' : 'text-gray-700'}`}>
+                        <span className={`text-[12px] truncate ${isActive ? 'text-gray-900 font-bold' : 'text-gray-700'}`}>
                           {getOtherParticipantName(room)}
                           {room.project && <span className="ml-1 text-[10px] font-normal px-1 border border-gray-300 text-gray-500">{room.project}</span>}
                         </span>
-                        <span className="text-[10px] text-gray-400 flex-shrink-0 ml-1">
+                        <span className="yy-mono text-[10px] text-gray-400 flex-shrink-0 ml-1">
                           {room.lastActivityAt ? formatMessageDate(room.lastActivityAt) : ''}
                         </span>
                       </div>
@@ -1025,7 +1107,7 @@ const YyChat: React.FC = () => {
                         <span className="text-xs text-gray-500 truncate max-w-[140px] h-4 leading-4 block">
                             {lastMsg || <span className="text-gray-300 italic">No messages</span>}
                         </span>
-                        {unread > 0 && <span className="bg-blue-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center leading-none">{unread}</span>}
+                        {unread > 0 && <span className="yy-mono text-[#52AA96] text-[10px] font-bold min-w-[18px] text-right leading-none" title="未読">{unread}</span>}
                       </div>
                     </div>
                   </div>
@@ -1038,15 +1120,10 @@ const YyChat: React.FC = () => {
 
       <div className={`${!selectedRoom ? 'hidden md:flex' : 'flex'} flex-1 flex-col bg-[#F3F4F6] relative`}>
         {!selectedRoom ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
-            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-              <svg className="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
-            </div>
-            <p className="text-sm font-medium">チャットを選択してください</p>
-          </div>
+          <p className="p-4 text-[11px] text-gray-500">左の一覧から部屋を選んでください。</p>
         ) : (
           <>
-            <div className="h-14 px-4 bg-white/90 backdrop-blur-sm border-b flex items-center justify-between shadow-sm z-10 sticky top-0">
+            <div className="h-14 px-4 bg-white border-b flex items-center justify-between z-10 sticky top-0">
               <div className="flex items-center gap-3 min-w-0">
                 <button onClick={() => setSelectedRoom(null)} className="md:hidden text-gray-500 hover:text-gray-800">←</button>
                 <div className="flex items-center gap-2 min-w-0">
@@ -1062,7 +1139,7 @@ const YyChat: React.FC = () => {
                     <div className="flex items-center gap-1">
                         <input 
                             autoFocus
-                            className="text-sm border-b border-blue-500 px-1 py-0.5 focus:outline-none min-w-[120px]"
+                            className="text-[12px] border-b border-[#3b3b3b] px-1 py-0.5 focus:outline-none min-w-[120px]"
                             value={editingNameValue}
                             onChange={(e) => setEditingNameValue(e.target.value)}
                             onKeyDown={(e) => {
@@ -1071,7 +1148,7 @@ const YyChat: React.FC = () => {
                             }}
                             placeholder="表示名を入力..."
                         />
-                        <button onClick={handleSaveNickname} className="text-blue-600 text-xs hover:bg-blue-50 p-1 rounded">完了</button>
+                        <button onClick={handleSaveNickname} className="text-gray-800 text-xs underline p-1">完了</button>
                     </div>
                   ) : (
                     <div className="flex items-center gap-2 group cursor-pointer" onClick={() => {
@@ -1079,7 +1156,7 @@ const YyChat: React.FC = () => {
                         setEditingNameValue(currentName === '不明' ? '' : currentName);
                         setIsEditingName(true);
                     }}>
-                        <h2 className="font-bold text-gray-800 text-sm truncate">{getOtherParticipantName(selectedRoom)}</h2>
+                        <h2 className="font-bold text-gray-800 text-[12px] truncate">{getOtherParticipantName(selectedRoom)}</h2>
                         {selectedRoom.project && <span className="text-[10px] px-1 border border-gray-400 text-gray-600 shrink-0">{selectedRoom.project}</span>}
                         <svg className="w-3 h-3 text-gray-300 group-hover:text-gray-500 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                     </div>
@@ -1088,15 +1165,15 @@ const YyChat: React.FC = () => {
               </div>
 
               <div className="relative shrink-0" ref={roomMenuRef}>
-                <button onClick={() => setShowRoomMenu(!showRoomMenu)} className="p-1.5 hover:bg-gray-100 rounded text-gray-500">
+                <button onClick={() => setShowRoomMenu(!showRoomMenu)} className="p-1.5 hover:bg-gray-100 text-gray-500" title="物件ルーム・議事録・アイコン表示">
                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/></svg>
                 </button>
                 {showRoomMenu && (
-                  <div className="absolute right-0 top-full mt-1 w-64 bg-white rounded-lg shadow-xl border border-gray-100 overflow-hidden z-20 py-1 max-h-[70vh] overflow-y-auto">
+                  <div className="absolute right-0 top-full mt-1 w-64 bg-white border border-[#3b3b3b] overflow-hidden z-20 py-1 max-h-[70vh] overflow-y-auto">
                      {selectedRoom.isGroup && (
                        <>
                          <div className="px-3 py-2 space-y-1">
-                           <div className="text-[11px] font-medium text-gray-700 flex justify-between">
+                           <div className="text-[11px] font-bold text-gray-700 flex justify-between">
                              <span>メンバー {selectedRoom.participants.length}人</span>
                              {selectedRoom.ownerUid === currentUser.uid && (
                                <button type="button" className="text-[10px] underline text-gray-500" onClick={() => { setUserSelectMode('add'); setGroupPicks(new Set()); setShowUserSelect(true); setShowRoomMenu(false); loadUsers(); }}>
@@ -1109,7 +1186,7 @@ const YyChat: React.FC = () => {
                                <li key={u} className="flex items-center justify-between">
                                  <span className="truncate">{memberName(selectedRoom, u)}{u === selectedRoom.ownerUid ? '（作成）' : ''}</span>
                                  {selectedRoom.ownerUid === currentUser.uid && u !== currentUser.uid && (
-                                   <button type="button" className="text-gray-300 hover:text-red-600" onClick={() => void removeMember(u)} aria-label="外す">✕</button>
+                                   <button type="button" className="text-gray-300 hover:text-red-600" onClick={() => void removeMember(u)} aria-label="外す"><FiX className="w-3 h-3" /></button>
                                  )}
                                </li>
                              ))}
@@ -1119,7 +1196,7 @@ const YyChat: React.FC = () => {
                        </>
                      )}
                      <div className="px-3 py-2 space-y-1.5">
-                       <div className="text-[11px] font-medium text-gray-700">物件ルーム</div>
+                       <div className="text-[11px] font-bold text-gray-700">物件ルーム</div>
                        <input
                          value={projectName}
                          onChange={(e) => setProjectName(e.target.value)}
@@ -1137,7 +1214,7 @@ const YyChat: React.FC = () => {
                         onClick={() => { setSelectMode(true); setShowRoomMenu(false); setMinutesDone(''); }}
                         className="w-full text-left px-3 py-2.5 text-xs text-gray-700 hover:bg-gray-50"
                       >
-                        <div className="font-medium">発言を選んで議事録にする</div>
+                        <div className="font-bold">発言を選んで議事録にする</div>
                         <div className="text-[10px] text-gray-400">メモに保存。決定事項はチェック項目になります</div>
                       </button>
                      <div className="border-t border-gray-100 my-1"></div>
@@ -1146,10 +1223,10 @@ const YyChat: React.FC = () => {
                         className="w-full text-left px-3 py-2.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center justify-between"
                       >
                         <div>
-                          <div className="font-medium">自分のアイコンを表示</div>
+                          <div className="font-bold">自分のアイコンを表示</div>
                           <div className="text-[10px] text-gray-400">OFFでイニシャル表示</div>
                         </div>
-                        <div className={`w-8 h-4 rounded-full relative transition-colors ${!selectedRoom.hiddenAvatarUserIds?.includes(currentUser.uid) ? 'bg-blue-500' : 'bg-gray-300'}`}>
+                        <div className={`w-8 h-4 rounded-full relative transition-colors ${!selectedRoom.hiddenAvatarUserIds?.includes(currentUser.uid) ? 'bg-[#52AA96]' : 'bg-gray-300'}`}>
                           <div className={`w-3 h-3 bg-white rounded-full absolute top-0.5 transition-all ${!selectedRoom.hiddenAvatarUserIds?.includes(currentUser.uid) ? 'left-[18px]' : 'left-0.5'}`} />
                         </div>
                       </button>
@@ -1175,7 +1252,7 @@ const YyChat: React.FC = () => {
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
-                        <span className="font-medium">チャットを削除</span>
+                        <span className="font-bold">チャットを削除</span>
                       </button>
                   </div>
                 )}
@@ -1191,7 +1268,7 @@ const YyChat: React.FC = () => {
                 const isSequence = prev && prev.senderId === m.senderId && (m.createdAt.getTime() - prev.createdAt.getTime() < 60000);
 
                 return (
-                  <div key={m.id} id={`msg-${m.id}`} className={`flex gap-1.5 ${isMe ? 'justify-end' : 'justify-start'} ${isSequence ? 'mt-0.5' : 'mt-2'} ${highlightId === m.id ? 'bg-yellow-100/70 -mx-2 px-2 py-1' : ''}`}>
+                  <div key={m.id} id={`msg-${m.id}`} className={`flex gap-1.5 ${isMe ? 'justify-end' : 'justify-start'} ${isSequence ? 'mt-0.5' : 'mt-2'} ${highlightId === m.id ? 'bg-[#52AA96]/10 outline outline-1 outline-[#52AA96] -mx-2 px-2 py-1' : ''}`}>
                     {selectMode && (
                       <div className="flex flex-col items-center justify-center gap-0.5 order-first shrink-0">
                         <input type="checkbox" checked={selectedIds.has(m.id)} onChange={() => setSelectedIds((p) => toggleIn(p, m.id))} aria-label="議事録に入れる" />
@@ -1211,28 +1288,28 @@ const YyChat: React.FC = () => {
                     )}
                     {isMe && !isSequence && (
                       <div className="flex flex-col justify-end">
-                         <div className="w-6 h-6 rounded-full bg-blue-500 flex-shrink-0 flex items-center justify-center overflow-hidden text-[9px] text-white">
+                         <div className="w-6 h-6 rounded-full bg-[#141414] flex-shrink-0 flex items-center justify-center overflow-hidden text-[9px] text-white">
                            {avatarUrl ? <img src={avatarUrl} className="w-full h-full object-cover" /> : name[0]}
                          </div>
                       </div>
                     )}
                     <div className={`max-w-[75%] group relative`}>
                       {!isMe && !isSequence && <div className="text-[9px] text-gray-400 mb-0.5 ml-1">{name}</div>}
-                      <div className={`px-3 py-1.5 text-sm shadow-sm break-words whitespace-pre-wrap ${
+                      <div className={`px-3 py-1.5 text-[12px] break-words whitespace-pre-wrap ${
                         isMe 
-                          ? 'bg-blue-600 text-white rounded-2xl rounded-tr-sm' 
-                          : 'bg-white text-gray-800 rounded-2xl rounded-tl-sm border border-gray-100'
+                          ? 'bg-[#3b3b3b] text-white' 
+                          : 'bg-white text-gray-800 border border-gray-200'
                       }`}>
                         {m.imageUrl && (
-                          <div className="mb-1 rounded-lg overflow-hidden border border-black/10">
+                          <div className="mb-1 overflow-hidden border border-black/10">
                             <img src={m.imageUrl} alt="添付画像" className="max-w-full h-auto object-cover" />
                             {m.photoTakenAt && (
-                              <div className={`text-[9px] px-1.5 py-0.5 ${isMe ? 'bg-blue-700 text-blue-100' : 'bg-gray-50 text-gray-500'}`}>撮影 {m.photoTakenAt}</div>
+                              <div className={`yy-mono text-[10px] px-1.5 py-0.5 ${isMe ? 'bg-[#141414] text-gray-300' : 'bg-gray-50 text-gray-500'}`}>撮影 {m.photoTakenAt}</div>
                             )}
                           </div>
                         )}
                         {terms.length > 0 && searchHits ? (
-                          splitHits(m.content, terms).map(([t, hit], i) => (hit ? <mark key={i} className="bg-yellow-200 text-gray-900">{t}</mark> : <React.Fragment key={i}>{t}</React.Fragment>))
+                          splitHits(m.content, terms).map(([t, hit], i) => (hit ? <mark key={i} className="bg-[#52AA96]/25 text-inherit">{t}</mark> : <React.Fragment key={i}>{t}</React.Fragment>))
                         ) : (
                           <LinkifiedText text={m.content} isMe={isMe} />
                         )}
@@ -1304,7 +1381,7 @@ const YyChat: React.FC = () => {
             </div>
 
             {minutesDone && !selectMode && (
-              <div className="px-3 py-1 text-[11px] bg-green-50 text-green-800 border-t flex justify-between">
+              <div className="px-3 py-1 text-[11px] bg-white text-gray-700 border-t flex justify-between">
                 <span>{minutesDone}</span>
                 <button type="button" className="underline" onClick={() => setMinutesDone('')}>閉じる</button>
               </div>
@@ -1322,21 +1399,22 @@ const YyChat: React.FC = () => {
               {inputImage && (
                 <div className="px-2 pb-2 flex items-center">
                    <div className="relative group">
-                      <img src={inputImage} className="h-16 rounded border border-gray-200" alt="preview" />
+                      <img src={inputImage} className="h-16 border border-gray-200" alt="preview" />
                       <button 
                         onClick={() => setInputImage(null)}
-                        className="absolute -top-1 -right-1 w-4 h-4 bg-gray-600 text-white rounded-full flex items-center justify-center text-[10px] hover:bg-gray-800"
-                      >✕</button>
+                        className="absolute -top-1 -right-1 w-4 h-4 bg-[#141414] text-white flex items-center justify-center hover:bg-black"
+                        aria-label="画像を外す"
+                      ><FiX className="w-2.5 h-2.5" /></button>
                    </div>
                    <div className="ml-2 text-xs text-gray-400">画像を送信します{inputPhotoTaken ? `（撮影 ${inputPhotoTaken}）` : ''}</div>
                 </div>
               )}
 
-              <div className="flex gap-2 items-end bg-gray-50 p-1.5 rounded-xl border border-gray-200 focus-within:border-blue-400 focus-within:bg-white focus-within:shadow-sm transition-all">
+              <div className="flex gap-2 items-end bg-white p-1.5 border border-gray-300 focus-within:border-[#3b3b3b] transition-colors">
                 <button 
                   onClick={() => fileInputRef.current?.click()}
-                  className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition"
-                  title="画像を添付"
+                  className="p-1.5 text-gray-400 hover:text-gray-800 hover:bg-gray-100 transition"
+                  title="写真を添付（撮影日時が一緒に残ります）"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                 </button>
@@ -1361,13 +1439,14 @@ const YyChat: React.FC = () => {
                   }}
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
                   placeholder="メッセージを入力..."
-                  className="flex-1 bg-transparent border-none focus:ring-0 text-sm resize-none max-h-[100px] py-1 px-1"
+                  className="flex-1 bg-transparent !border-none !outline-none focus:ring-0 text-[12px] resize-none max-h-[100px] py-1 px-1"
                   rows={1}
                 />
                 <button 
                   onClick={handleSendMessage}
                   disabled={!inputValue.trim() && !inputImage}
-                  className="p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition mb-0.5 shadow-sm"
+                  className="p-1.5 bg-[#3b3b3b] text-white hover:bg-black disabled:bg-gray-300 disabled:cursor-not-allowed transition mb-0.5"
+                  title="送信（Enter）"
                 >
                   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
                 </button>
@@ -1383,8 +1462,8 @@ const YyChat: React.FC = () => {
           <div className="fixed inset-x-0 bottom-0 bg-black/40 z-[9999] flex items-start justify-center p-4 pt-16" style={{ top: 'var(--nav-height, 35px)' }} onClick={() => setTaskFor(null)}>
             <div className="bg-white w-full max-w-md border border-[#3b3b3b] p-4 space-y-2 text-xs" onClick={(e) => e.stopPropagation()}>
               <div className="flex justify-between items-center">
-                <span className="font-bold text-[13px]">発言をタスクにする</span>
-                <button type="button" onClick={() => setTaskFor(null)} aria-label="閉じる">✕</button>
+                <span className="font-bold text-[12px]">発言をタスクにする</span>
+                <button type="button" onClick={() => setTaskFor(null)} aria-label="閉じる" className="text-gray-500 hover:text-gray-900"><FiX className="w-3.5 h-3.5" /></button>
               </div>
               <div className="text-[11px] text-gray-500 border-l-2 border-gray-300 pl-2 whitespace-pre-wrap break-words max-h-24 overflow-y-auto">
                 {getDisplayName(taskFor.senderId)}: {taskFor.content || '（写真）'}
@@ -1416,7 +1495,7 @@ const YyChat: React.FC = () => {
                 <p className="text-[10px] text-gray-500">@{mentionsIn(taskFor.content).join(' @')} — 相手がこのボードのメンバーなら担当に入ります</p>
               )}
               <div className="flex items-center justify-end gap-2 pt-1">
-                {taskDone && <span className="text-[11px] text-green-700 mr-auto">{taskDone}</span>}
+                {taskDone && <span className="text-[11px] text-gray-700 mr-auto">{taskDone}</span>}
                 <button type="button" onClick={() => setTaskFor(null)} className="px-3 py-1 border border-gray-300">閉じる</button>
                 <button type="button" disabled={!taskText.trim()} onClick={() => void saveTask()} className="px-3 py-1 bg-[#3b3b3b] text-white disabled:opacity-40">追加</button>
               </div>
@@ -1424,40 +1503,40 @@ const YyChat: React.FC = () => {
           </div>
         )}
         {showIconSettings && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-            <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl p-6 animate-in zoom-in-95 duration-200">
+          <div className="fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-sm border border-[#3b3b3b] p-6">
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-lg font-bold text-gray-800">プロフィール設定</h3>
-                <button onClick={() => { setShowIconSettings(false); setIconImageSrc(''); }} className="text-gray-400 hover:text-gray-600">✕</button>
+                <h3 className="text-[12px] font-bold text-gray-800">プロフィール設定</h3>
+                <button onClick={() => { setShowIconSettings(false); setIconImageSrc(''); }} className="text-gray-400 hover:text-gray-600" aria-label="閉じる"><FiX className="w-4 h-4" /></button>
               </div>
 
               {!iconImageSrc ? (
                 <div className="space-y-6">
                   <div className="flex flex-col items-center gap-3">
-                    <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden shadow-inner text-3xl text-gray-400 relative group">
+                    <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden text-3xl text-gray-400 relative group">
                       {userAvatars[currentUser.uid] ? (
                         <img src={userAvatars[currentUser.uid]} className="w-full h-full object-cover" />
                       ) : currentUser.username[0]}
                       <div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition" />
                     </div>
                     {userAvatars[currentUser.uid] && (
-                      <button onClick={handleRemoveIcon} className="text-sm text-red-500 hover:underline">
+                      <button onClick={handleRemoveIcon} className="text-[11px] text-red-600 underline">
                         写真を削除
                       </button>
                     )}
                   </div>
                   
-                  <label className="block w-full border-2 border-dashed border-gray-300 rounded-xl p-6 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition group">
+                  <label className="block w-full border border-dashed border-gray-400 p-6 text-center cursor-pointer hover:border-[#3b3b3b] hover:bg-gray-50 transition group">
                     <input type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && handleImageSelect(e.target.files[0])} />
-                    <div className="text-xl mb-1 group-hover:scale-110 transition">📷</div>
-                    <span className="text-sm font-bold text-gray-500 group-hover:text-blue-600">画像をアップロード</span>
+                    <FiCamera className="w-4 h-4 mx-auto mb-1 text-gray-500" />
+                    <span className="text-[11px] text-gray-600 group-hover:text-gray-900">画像をアップロード</span>
                   </label>
                 </div>
               ) : (
                 <div className="space-y-4">
                   <div 
                     ref={previewContainerRef}
-                    className="relative w-full aspect-square bg-gray-100 rounded-xl overflow-hidden cursor-move border shadow-inner"
+                    className="relative w-full aspect-square bg-gray-100 overflow-hidden cursor-move border"
                     onMouseDown={e => { setIsDragging(true); setDragStart({x: e.clientX-iconPosition.x, y: e.clientY-iconPosition.y}); }}
                     onMouseMove={e => { if(isDragging) setIconPosition({x: e.clientX-dragStart.x, y: e.clientY-dragStart.y}); }}
                     onMouseUp={() => setIsDragging(false)}
@@ -1477,13 +1556,13 @@ const YyChat: React.FC = () => {
                   
                   <div className="flex items-center gap-3 px-2">
                     <span className="text-xs text-gray-500">－</span>
-                    <input type="range" min="0.5" max="3" step="0.1" value={iconScale} onChange={e => setIconScale(parseFloat(e.target.value))} className="flex-1 accent-blue-600 h-1 bg-gray-200 rounded-lg appearance-none" />
+                    <input type="range" min="0.5" max="3" step="0.1" value={iconScale} onChange={e => setIconScale(parseFloat(e.target.value))} className="flex-1 accent-[#3b3b3b] h-1 bg-gray-200 appearance-none" />
                     <span className="text-xs text-gray-500">＋</span>
                   </div>
 
                   <div className="flex gap-2 pt-2">
-                    <button onClick={() => setIconImageSrc('')} className="flex-1 py-2.5 text-sm text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 font-medium">キャンセル</button>
-                    <button onClick={handleSaveIcon} className="flex-1 py-2.5 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 font-bold shadow-md">保存して適用</button>
+                    <button onClick={() => setIconImageSrc('')} className="flex-1 py-2 text-[12px] text-gray-700 border border-gray-300 hover:bg-gray-100">キャンセル</button>
+                    <button onClick={handleSaveIcon} className="flex-1 py-2 text-[12px] text-white bg-[#3b3b3b] hover:bg-black font-bold">保存して適用</button>
                   </div>
                 </div>
               )}

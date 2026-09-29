@@ -63,6 +63,11 @@ const TeamTasks: React.FC = () => {
   const [view, setView] = useState<'cards' | 'gantt'>('cards');
   const [filter, setFilter] = useState<TaskFilter>({ assignee: '', state: 'open', role: '' });
   const [sortBy, setSortBy] = useState<'due' | 'priority'>('due');
+  // 見出し帯の「できること」用
+  const [teamNotice, setTeamNotice] = useState('');
+  const roleSelectRef = useRef<HTMLSelectElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const createInputRef = useRef<HTMLInputElement>(null);
   const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
   // 遅れの波及（プロジェクトごと。前のタスクは同じプロジェクトの中から選ぶ）
   const slips = new Map(Object.values(tasksByProject).flatMap((list) => [...cascadeDelays(list, today)]));
@@ -377,19 +382,69 @@ const TeamTasks: React.FC = () => {
     // 帯は左右いっぱい、その下の本文だけ他ツールと同じ左右余白を付ける。
     <div className="pt-0 pb-4 [&>*:not(:first-child)]:mx-4 [&>*:nth-child(2)]:mt-3">
       <ToolHeader
+        no="A5"
+        code="TEAM TASKS"
         title="Teamタスク"
-        description="チームで共有するプロジェクトをボード形式で管理。タスクの追加・担当者設定・進捗更新をリアルタイムに連携。ボードは最大4枚まで"
+        description="物件ごとのボードをチームで共有し、担当・役割・期限を付けて工程表で見る。前の遅れは後ろへ伝わる。ボードは 4 枚まで。"
+        features={[
+          {
+            label: '工程表',
+            hint: '期限の付いたタスクを日付の帯で並べる',
+            active: view === 'gantt',
+            onClick: () => { setView('gantt'); setTeamNotice(''); },
+          },
+          {
+            label: '遅れの波及',
+            hint: '前のタスクが遅れると、後ろのタスクのずれを工程表に点線で出し、まとめてずらせる',
+            onClick: () => {
+              setView('gantt');
+              setTeamNotice(pendingShifts.length
+                ? `前のタスクの遅れで、後ろの ${pendingShifts.length} 件がずれます。工程表の上の案内からまとめてずらせます。`
+                : '今は遅れの波及はありません。前のタスクが期限を過ぎると、後ろのタスクのずれが工程表に赤い点線で出ます。');
+            },
+          },
+          {
+            label: '役割で絞る',
+            hint: '設計・構造・設備・施工・施主などの役割でタスクを絞り込む',
+            active: !!filter.role,
+            onClick: () => { setTeamNotice(''); roleSelectRef.current?.focus(); roleSelectRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }); },
+          },
+          {
+            label: 'メンバー招待',
+            login: true,
+            hint: 'ボードにメンバーをメールアドレスで追加する',
+            onClick: () => {
+              if (!isLoggedIn) return setTeamNotice('ログイン（無料の会員登録）すると、ボードを作ってメンバーを招待できます。');
+              if (!projects.length) { setTeamNotice('先にボード（プロジェクト）を作ると、メンバーをメールで追加できます。'); createInputRef.current?.focus(); return; }
+              setTeamNotice('');
+              setView('cards');
+              gridRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              gridRef.current?.querySelector<HTMLInputElement>('input[data-member-input]')?.focus();
+            },
+          },
+          {
+            label: '担当の通知',
+            login: true,
+            hint: 'ほかの人が担当に付けると、その人の上部のベルに通知が届く。期限の前日と当日も知らせる',
+            onClick: () => setTeamNotice(
+              isLoggedIn
+                ? 'タスクの担当にほかのメンバーを付けると、その人の上部のベル（通知）に届きます。期限の前日と当日の朝 8 時にも担当者へ知らせます。'
+                : 'ログイン（無料の会員登録）すると、担当に付けられたときと期限の前日・当日に、上部のベルへ通知が届きます。',
+            ),
+          },
+        ]}
       />
+      {teamNotice && <p className="text-[11px] text-gray-600" role="status">{teamNotice}</p>}
       <div className="flex items-center gap-2 mb-3 flex-wrap">
-        <span className="text-[11px] text-gray-600">表示列数</span>
+        <span className="yy-mono text-[10px] tracking-[0.12em] uppercase text-gray-500">Columns</span>
         {[2, 3, 4].map(cols => (
           <button
             key={cols}
             type="button"
             onClick={() => setColumnMode(cols as 2 | 3 | 4)}
-            className={`px-3 py-1 text-[12px] rounded border transition-colors ${
+            className={`px-2.5 py-1 text-[11px] border transition-colors ${
               columnMode === cols
-                ? 'bg-gray-700 text-white border-gray-700'
+                ? 'bg-[#3b3b3b] text-white border-[#3b3b3b]'
                 : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
             }`}
           >
@@ -401,13 +456,14 @@ const TeamTasks: React.FC = () => {
       <div className="mb-3 flex gap-2 items-center flex-wrap">
         <label className="text-xs text-gray-700">プロジェクト名称</label>
         <input
-          className="border rounded px-2 py-1 h-7 text-[12px]"
+          ref={createInputRef}
+          className="border px-2 py-1 h-7 text-[12px]"
           placeholder="新規プロジェクト名"
           value={newProjectName}
           onChange={e => setNewProjectName(e.target.value)}
         />
         <button
-          className="px-2 py-1 text-[12px] bg-gray-700 text-white rounded hover:bg-gray-800"
+          className="yy-btn yy-btn--primary !px-2 !py-1"
           onClick={handleCreateProject}
         >
           作成
@@ -416,7 +472,7 @@ const TeamTasks: React.FC = () => {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              className="px-2 py-1 text-[12px] rounded bg-gray-200 hover:bg-red-600 hover:text-white"
+              className="px-2 py-1 text-[12px] border border-gray-300 bg-white hover:text-red-600 hover:border-red-600"
               onClick={async () => {
                 if (!deleteTargetId) return;
                 const target = projects.find(p => p.id === deleteTargetId);
@@ -428,7 +484,7 @@ const TeamTasks: React.FC = () => {
               － ボード削除
             </button>
             <select
-              className="text-xs border rounded px-2 py-1"
+              className="text-xs border px-2 py-1"
               value={deleteTargetId}
               onChange={e => setDeleteTargetId(e.target.value)}
             >
@@ -440,7 +496,10 @@ const TeamTasks: React.FC = () => {
         )}
       </div>
       {projects.length === 0 && (
-        <div className="text-gray-500 mb-4">プロジェクトがありません。新規作成してください。</div>
+        <p className="text-[11px] text-gray-500 mb-4">
+          まだボードがありません。{' '}
+          <button type="button" className="underline underline-offset-2 text-gray-800" onClick={() => createInputRef.current?.focus()}>名前を入れて作る</button>
+        </p>
       )}
       {/* 表示の切り替えと絞り込み */}
       <div className="mb-2 flex flex-wrap items-center gap-2 text-[11px]">
@@ -449,7 +508,7 @@ const TeamTasks: React.FC = () => {
             key={id}
             type="button"
             onClick={() => setView(id)}
-            className={`px-3 py-1 border ${view === id ? 'bg-[#3b3b3b] text-white border-[#3b3b3b]' : 'bg-white border-[#3b3b3b] hover:bg-gray-100'}`}
+            className={`px-3 py-1 border-b ${view === id ? 'border-[#52AA96] text-gray-900 font-bold' : 'border-transparent text-gray-500 hover:text-gray-900'}`}
           >
             {label}
           </button>
@@ -467,7 +526,7 @@ const TeamTasks: React.FC = () => {
             .filter((m) => m.uid !== currentUser?.uid)
             .map((m) => <option key={m.uid} value={m.uid}>担当: {m.label}</option>)}
         </select>
-        <select value={filter.role} onChange={(e) => setFilter({ ...filter, role: e.target.value })} className="px-2 py-1 border border-gray-300">
+        <select ref={roleSelectRef} value={filter.role} onChange={(e) => setFilter({ ...filter, role: e.target.value })} className="px-2 py-1 border border-gray-300">
           <option value="">役割: すべて</option>
           {ROLES.map((ro) => <option key={ro} value={ro}>役割: {ro}</option>)}
         </select>
@@ -499,7 +558,7 @@ const TeamTasks: React.FC = () => {
         />
       )}
 
-      <div className={`team-task-grid border border-[#3b3b3b] p-3 ${view === 'gantt' ? 'hidden' : ''}`}>
+      <div ref={gridRef} className={`team-task-grid border border-[#3b3b3b] p-3 scroll-mt-3 ${view === 'gantt' ? 'hidden' : ''}`}>
         {projects.map((project, idx) => {
           const flexBasis = `calc((100% - ${(columnMode - 1)} * 0.75rem) / ${columnMode})`;
           const cardStyle: React.CSSProperties = {
@@ -528,11 +587,11 @@ const TeamTasks: React.FC = () => {
                       value={tempProjectName}
                       onChange={(e) => setTempProjectName(e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); saveProjectName(project, (e.target as HTMLInputElement).value) } }}
-                      className="flex-1 text-[12px] bg-white/90 text-gray-800 border border-black/10 rounded px-2 py-1 h-7"
+                      className="flex-1 text-[12px] bg-white/90 text-gray-800 border border-black/10 px-2 py-1 h-7"
                       autoFocus
                     />
                     <button
-                      className={`${isDarkColor(project.color || '') ? 'bg-white/90 text-gray-800' : 'bg-white text-gray-800'} text-xs px-2 py-1 h-7 border rounded`}
+                      className={`${isDarkColor(project.color || '') ? 'bg-white/90 text-gray-800' : 'bg-white text-gray-800'} text-xs px-2 py-1 h-7 border`}
                       onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); saveProjectName(project, tempProjectName) }}
                       onClick={(e) => { e.preventDefault(); e.stopPropagation(); saveProjectName(project, tempProjectName) }}
                     >決定</button>
@@ -541,7 +600,7 @@ const TeamTasks: React.FC = () => {
                   <div className="flex-1">
                     <span className={`block text-[11px] leading-none mb-1 ${isDarkColor(project.color || '') ? 'text-white/80' : 'text-gray-600'}`}>プロジェクト</span>
                     <div className="flex items-center gap-2">
-                      <h3 className={`text-sm font-medium ${isDarkColor(project.color || '') ? 'text-white' : 'text-gray-800'}`}>{project.name}</h3>
+                      <h3 className={`text-[12px] font-bold ${isDarkColor(project.color || '') ? 'text-white' : 'text-gray-800'}`}>{project.name}</h3>
                       <button
                         onClick={() => startEditingProject(project)}
                         className={`${isDarkColor(project.color || '') ? 'text-white/70 hover:text-white' : 'text-black/40 hover:text-black/60'}`}
@@ -573,7 +632,7 @@ const TeamTasks: React.FC = () => {
                   <span className={`text-xs ${isDarkColor(project.color || '') ? 'text-white/70' : 'text-black/40'}`}>{tasksByProject[project.id]?.length || 0}</span>
                   <button
                     onClick={() => clearAllTasks(project.id)}
-                    className={`text-[10px] font-medium ${isDarkColor(project.color || '') ? 'text-white/70 hover:text-white' : 'text-black/40 hover:text-black/60'}`}
+                    className={`text-[10px] font-bold ${isDarkColor(project.color || '') ? 'text-white/70 hover:text-white' : 'text-black/40 hover:text-black/60'}`}
                   >
                     AC
                   </button>
@@ -585,14 +644,15 @@ const TeamTasks: React.FC = () => {
             <div className="px-3 py-2 border-b border-black/5" style={project.color?.startsWith('#') ? { backgroundColor: project.color } : {}}>
               <div className="flex items-center gap-2">
                 <input
-                  className={`text-xs border rounded px-2 py-1 flex-1 ${isDarkColor(project.color || '') ? 'bg-white/90 text-gray-800' : ''}`}
+                  data-member-input
+                  className={`text-xs border px-2 py-1 flex-1 ${isDarkColor(project.color || '') ? 'bg-white/90 text-gray-800' : ''}`}
                   placeholder={membersLoading[project.id] ? 'メンバー情報取得中...' : 'メンバーのメールを追加'}
                   value={memberEmailInput[project.id] || ''}
                   onChange={e => setMemberEmailInput(prev => ({ ...prev, [project.id]: e.target.value }))}
                   disabled={!!membersLoading[project.id]}
                 />
                 <button
-                  className={`text-xs px-2 py-1 rounded ${isDarkColor(project.color || '') ? 'bg-white/90 text-gray-800' : 'bg-white text-gray-800'} border`}
+                  className={`text-xs px-2 py-1 ${isDarkColor(project.color || '') ? 'bg-white/90 text-gray-800' : 'bg-white text-gray-800'} border`}
                   onClick={async () => {
                     const email = (memberEmailInput[project.id] || '').trim()
                     if (!email) return
@@ -612,10 +672,10 @@ const TeamTasks: React.FC = () => {
               </div>
               <div className="mt-1 flex flex-wrap gap-1">
                 {membersLoading[project.id] && (
-                  <span className={`text-[10px] px-2 py-0.5 rounded ${isDarkColor(project.color || '') ? 'bg-white/80 text-gray-800' : 'bg-white text-gray-800'} border`}>読込中...</span>
+                  <span className={`text-[10px] px-2 py-0.5 ${isDarkColor(project.color || '') ? 'bg-white/80 text-gray-800' : 'bg-white text-gray-800'} border`}>読込中...</span>
                 )}
                 {(membersByProject[project.id] || []).map(m => (
-                  <span key={m.uid} className={`text-[10px] px-2 py-0.5 rounded inline-flex items-center gap-1 ${isDarkColor(project.color || '') ? 'bg-white/80 text-gray-800' : 'bg-white text-gray-800'} border`}>
+                  <span key={m.uid} className={`text-[10px] px-2 py-0.5 inline-flex items-center gap-1 ${isDarkColor(project.color || '') ? 'bg-white/80 text-gray-800' : 'bg-white text-gray-800'} border`}>
                     {m.label}
                     {projects.find(p => p.id === project.id)?.ownerUid === currentUser?.uid && (
                       <button className="text-[10px] opacity-60 hover:opacity-100" onClick={async () => {
@@ -646,7 +706,7 @@ const TeamTasks: React.FC = () => {
                   value={newTaskContents[project.id]?.title || ''}
                   onChange={e => setNewTaskContents(prev => ({ ...prev, [project.id]: { ...prev[project.id], title: e.target.value } }))}
                   onKeyPress={e => { if (e.key === 'Enter') handleAddTask(project.id) }}
-                  className={`flex-1 text-[12px] bg-white/90 rounded px-2 py-1 h-7 ${isDarkColor(project.color || '') ? 'text-gray-800 placeholder-gray-500' : 'text-gray-800 placeholder-gray-500'}`}
+                  className={`flex-1 text-[12px] bg-white/90 px-2 py-1 h-7 ${isDarkColor(project.color || '') ? 'text-gray-800 placeholder-gray-500' : 'text-gray-800 placeholder-gray-500'}`}
                 />
                 {/* 期限カレンダーマーク */}
                 <div className="flex items-center gap-0">
@@ -676,7 +736,7 @@ const TeamTasks: React.FC = () => {
               <div className="flex items-center gap-2 flex-wrap">
                 {/* 担当者セレクト */}
                 <select
-                  className={`text-xs rounded px-1 py-0.5 w-[96px] ${isDarkColor(project.color || '') ? 'bg-white/90 text-gray-800' : 'bg-white text-gray-800'}`}
+                  className={`text-xs px-1 py-0.5 w-[96px] ${isDarkColor(project.color || '') ? 'bg-white/90 text-gray-800' : 'bg-white text-gray-800'}`}
                   value={newTaskContents[project.id]?.assigneeId || ''}
                   onChange={e => setNewTaskContents(prev => ({ ...prev, [project.id]: { ...prev[project.id], assigneeId: e.target.value } }))}
                   disabled={!!membersLoading[project.id]}
@@ -688,7 +748,7 @@ const TeamTasks: React.FC = () => {
                 </select>
                 {/* 重要度 */}
                 <select
-                  className={`text-xs rounded px-1 py-0.5 w-[72px] ${isDarkColor(project.color || '') ? 'bg-white/90 text-gray-800' : 'bg-white text-gray-800'}`}
+                  className={`text-xs px-1 py-0.5 w-[72px] ${isDarkColor(project.color || '') ? 'bg-white/90 text-gray-800' : 'bg-white text-gray-800'}`}
                   value={(newTaskContents as any)[project.id]?.priority || ''}
                   onChange={e => setNewTaskContents(prev => ({ ...prev, [project.id]: { ...prev[project.id], priority: e.target.value as any } }))}
                 >
@@ -718,7 +778,7 @@ const TeamTasks: React.FC = () => {
                 {/* 追加ボタン（一番右） */}
                 <button
                   type="button"
-                  className={`text-xs px-2 py-1 rounded ml-auto ${isDarkColor(project.color || '') ? 'bg-white/90 text-gray-800' : 'bg-white text-gray-800'} border`}
+                  className={`text-xs px-2 py-1 ml-auto ${isDarkColor(project.color || '') ? 'bg-white/90 text-gray-800' : 'bg-white text-gray-800'} border`}
                   aria-label="タスクを登録"
                   onClick={() => handleAddTask(project.id)}
                 >
@@ -741,7 +801,7 @@ const TeamTasks: React.FC = () => {
                     type="checkbox"
                     checked={task.completed}
                     onChange={() => toggleTaskComplete(project.id, task.id)}
-                    className="w-4 h-4 rounded border-black/20 accent-emerald-500 cursor-pointer"
+                    className="w-4 h-4 border-black/20 accent-[#3b3b3b] cursor-pointer"
                   />
                   {/* タスク名 */}
                   {editingTaskId === task.id ? (
@@ -751,7 +811,7 @@ const TeamTasks: React.FC = () => {
                       onChange={(e) => setTempTaskTitle(e.target.value)}
                       onBlur={() => saveTaskEdit(project.id, task.id)}
                       onKeyPress={(e) => e.key === 'Enter' && saveTaskEdit(project.id, task.id)}
-                      className="flex-1 text-sm bg-transparent border-b border-black/10 focus:outline-none"
+                      className="flex-1 text-[12px] bg-transparent border-b border-black/10 focus:outline-none"
                       autoFocus
                     />
                   ) : (
@@ -765,7 +825,7 @@ const TeamTasks: React.FC = () => {
                   {editingTaskId === task.id ? (
                     <>
                       <select
-                        className="text-[10px] rounded px-1 py-0.5 bg-white text-gray-800"
+                        className="text-[10px] px-1 py-0.5 bg-white text-gray-800"
                         value={task.role || ''}
                         onChange={async (e) => {
                           const ro = e.target.value;
@@ -779,7 +839,7 @@ const TeamTasks: React.FC = () => {
                       </select>
                       <input
                         type="date"
-                        className="text-[10px] rounded px-1 py-0.5 bg-white text-gray-800"
+                        className="text-[10px] px-1 py-0.5 bg-white text-gray-800"
                         value={task.startDate || ''}
                         title="開始日（工程表に出す）"
                         onChange={async (e) => {
@@ -789,7 +849,7 @@ const TeamTasks: React.FC = () => {
                         }}
                       />
                       <select
-                        className="text-[10px] rounded px-1 py-0.5 bg-white text-gray-800 max-w-[110px]"
+                        className="text-[10px] px-1 py-0.5 bg-white text-gray-800 max-w-[110px]"
                         value={task.after || ''}
                         title="前のタスク（これが終わってから始める。遅れると後ろへ波及）"
                         onChange={async (e) => {
@@ -809,7 +869,7 @@ const TeamTasks: React.FC = () => {
                   {/* 担当者名 or セレクト（編集時） */}
                   {editingTaskId === task.id ? (
                     <select
-                      className={`text-[10px] rounded px-1 py-0.5 ${isDarkColor(project.color || '') ? 'bg-white/90 text-gray-800' : 'bg-white text-gray-800'}`}
+                      className={`text-[10px] px-1 py-0.5 ${isDarkColor(project.color || '') ? 'bg-white/90 text-gray-800' : 'bg-white text-gray-800'}`}
                       value={task.assigneeId || ''}
                       onChange={async (e) => {
                         const uid = e.target.value
@@ -835,7 +895,7 @@ const TeamTasks: React.FC = () => {
                   {/* 重要度 or セレクト（編集時） */}
                   {editingTaskId === task.id ? (
                     <select
-                      className={`text-[10px] rounded px-1 py-0.5 ${isDarkColor(project.color || '') ? 'bg-white/90 text-gray-800' : 'bg-white text-gray-800'}`}
+                      className={`text-[10px] px-1 py-0.5 ${isDarkColor(project.color || '') ? 'bg-white/90 text-gray-800' : 'bg-white text-gray-800'}`}
                       value={task.priority || 'medium'}
                       onChange={async (e) => {
                         const pr = e.target.value as any

@@ -5,6 +5,9 @@ import React from 'react';
  *
  * 左カラム Ⅲ（一般ツール・業務アプリ）の見出しはすべてこれを使う。直書きの帯を置かない。
  *
+ * header / nav タグは使わない。globals.css がサイト全体の header を高さ 40px・#3b3b3b、
+ * nav を緑に !important で固定していて、ここも巻き込まれる。
+ *
  * 見た目の決まり（globals.css の .yy-head）
  * - 墨の帯に、等幅の小さな大文字（番号・コード）と、細いウェイトのタイトル。中間の大きさを作らない
  * - 差し色（#52AA96）は光として 1 点だけ: 「できること」の選択中・フォーカスの細線
@@ -38,7 +41,7 @@ type ToolHeaderProps = {
 };
 
 const ToolHeader: React.FC<ToolHeaderProps> = ({ title, description, aside, code, no, features }) => (
-  <header className="yy-head shrink-0">
+  <div className="yy-head shrink-0">
     <div className="yy-head__row">
       <div className="min-w-0">
         {(code || no) && (
@@ -53,7 +56,7 @@ const ToolHeader: React.FC<ToolHeaderProps> = ({ title, description, aside, code
       {aside ? <div className="yy-head__aside">{aside}</div> : null}
     </div>
     {features && features.length > 0 && (
-      <nav className="yy-head__features" aria-label={`${title}でできること`}>
+      <div role="navigation" className="yy-head__features" aria-label={`${title}でできること`}>
         {features.map((f, i) => {
           const body = (
             <>
@@ -78,9 +81,9 @@ const ToolHeader: React.FC<ToolHeaderProps> = ({ title, description, aside, code
             </span>
           );
         })}
-      </nav>
+      </div>
     )}
-  </header>
+  </div>
 );
 
 export default ToolHeader;

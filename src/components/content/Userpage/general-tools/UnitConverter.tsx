@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/AuthContext';
+import ToolHeader from '../ToolHeader';
 import { FiSettings, FiDollarSign, FiCopy, FiCheck, FiCpu, FiRefreshCw, FiCrop, FiArrowRight, FiGrid, FiEdit2, FiTrash2, FiPlus, FiX } from 'react-icons/fi';
 
 // 単位変換の定義データ
@@ -210,6 +211,17 @@ const UnitConverter: React.FC = () => {
    * ここに退避しておいて初期化のときに優先させる。
    */
   const pendingUnitRef = useRef<string | null>(null);
+
+  // 見出し帯の「できること」から各機能へ飛ぶための足場。
+  // 単価・縮尺・数量はトグルの奥にあり、オンにしないと中身が見えなかった。
+  const presetsRef = useRef<HTMLDivElement>(null);
+  const priceRef = useRef<HTMLDivElement>(null);
+  const scaleRef = useRef<HTMLDivElement>(null);
+  const qtyRef = useRef<HTMLDivElement>(null);
+  const valueInputRef = useRef<HTMLInputElement>(null);
+  const [unitNotice, setUnitNotice] = useState('');
+  const scrollToUnitRef = (r: React.RefObject<HTMLElement | null>) =>
+    r.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   // 登録した品目の読み込み。保存が読めなくても初期値で動く。
   useEffect(() => {
@@ -459,12 +471,12 @@ const UnitConverter: React.FC = () => {
             value={draft.name}
             onChange={(e) => setDraft({ ...draft, name: e.target.value })}
             placeholder="品目名（例: 板材 910×1820）"
-            className="flex-1 text-[12px] font-bold p-1.5 border border-gray-200 rounded bg-white outline-none focus:ring-1 focus:ring-indigo-300"
+            className="flex-1 text-[12px] font-bold p-1.5 border border-gray-200 bg-white outline-none"
           />
           <select
             value={draft.kind}
             onChange={(e) => setDraft({ ...draft, kind: e.target.value as QtyKind })}
-            className="text-[11px] p-1.5 border border-gray-200 rounded bg-gray-50 outline-none cursor-pointer"
+            className="text-[11px] p-1.5 border border-gray-200 bg-gray-50 outline-none cursor-pointer"
           >
             {(Object.keys(QTY_KIND_LABEL) as QtyKind[]).map((k) => (
               <option key={k} value={k}>{QTY_KIND_LABEL[k].name}</option>
@@ -473,14 +485,14 @@ const UnitConverter: React.FC = () => {
         </div>
 
         {draft.kind === 'area' && (
-          <div className="flex items-center gap-1.5 bg-gray-50 rounded p-2">
+          <div className="flex items-center gap-1.5 bg-gray-50 p-2">
             <span className="text-[10px] text-gray-400 shrink-0">寸法から</span>
             <input
               type="number"
               value={dimW}
               onChange={(e) => applyDimensions(e.target.value, dimH)}
               placeholder="910"
-              className="w-16 text-right text-[11px] p-1 border border-gray-200 rounded bg-white outline-none"
+              className="w-16 text-right text-[11px] p-1 border border-gray-200 bg-white outline-none"
             />
             <span className="text-[10px] text-gray-400">×</span>
             <input
@@ -488,7 +500,7 @@ const UnitConverter: React.FC = () => {
               value={dimH}
               onChange={(e) => applyDimensions(dimW, e.target.value)}
               placeholder="1820"
-              className="w-16 text-right text-[11px] p-1 border border-gray-200 rounded bg-white outline-none"
+              className="w-16 text-right text-[11px] p-1 border border-gray-200 bg-white outline-none"
             />
             <span className="text-[10px] text-gray-400">mm</span>
           </div>
@@ -504,7 +516,7 @@ const UnitConverter: React.FC = () => {
               value={draft.per || ''}
               onChange={(e) => setDraft({ ...draft, per: parseFloat(e.target.value) || 0 })}
               placeholder="1.6562"
-              className="w-full text-right text-[12px] font-bold p-1.5 border border-gray-200 rounded bg-white outline-none focus:ring-1 focus:ring-indigo-300"
+              className="w-full text-right text-[12px] font-bold p-1.5 border border-gray-200 bg-white outline-none"
             />
           </div>
           <div className="w-16">
@@ -514,7 +526,7 @@ const UnitConverter: React.FC = () => {
               value={draft.unitLabel}
               onChange={(e) => setDraft({ ...draft, unitLabel: e.target.value })}
               placeholder="枚"
-              className="w-full text-center text-[12px] font-bold p-1.5 border border-gray-200 rounded bg-white outline-none focus:ring-1 focus:ring-indigo-300"
+              className="w-full text-center text-[12px] font-bold p-1.5 border border-gray-200 bg-white outline-none"
             />
           </div>
           <div className="w-20">
@@ -523,7 +535,7 @@ const UnitConverter: React.FC = () => {
               type="number"
               value={draft.loss}
               onChange={(e) => setDraft({ ...draft, loss: parseFloat(e.target.value) || 0 })}
-              className="w-full text-right text-[12px] font-bold p-1.5 border border-gray-200 rounded bg-white outline-none focus:ring-1 focus:ring-indigo-300"
+              className="w-full text-right text-[12px] font-bold p-1.5 border border-gray-200 bg-white outline-none"
             />
           </div>
         </div>
@@ -532,7 +544,7 @@ const UnitConverter: React.FC = () => {
           <button
             type="button"
             onClick={cancelEdit}
-            className="flex items-center gap-1 text-[11px] text-gray-500 px-2 py-1 rounded hover:bg-gray-100"
+            className="flex items-center gap-1 text-[11px] text-gray-500 px-2 py-1 hover:bg-gray-100"
           >
             <FiX className="w-3 h-3" /> 取消
           </button>
@@ -540,7 +552,7 @@ const UnitConverter: React.FC = () => {
             type="button"
             onClick={commitDraft}
             disabled={!canSave}
-            className="flex items-center gap-1 text-[11px] font-bold text-white bg-indigo-500 px-3 py-1 rounded hover:bg-indigo-600 disabled:bg-gray-200 disabled:cursor-not-allowed transition-colors"
+            className="yy-btn yy-btn--primary !px-3 !py-1 flex items-center gap-1"
           >
             <FiCheck className="w-3 h-3" /> 保存
           </button>
@@ -552,22 +564,58 @@ const UnitConverter: React.FC = () => {
   return (
     // 親（GeneralTools のラッパー）が高さを持たないので h-full が効かない。
     // 結果が並ぶと画面外へはみ出すため、PC では実寸で高さを止めて中だけスクロールさせる。
-    <div className="w-full bg-white rounded-b-lg shadow-sm border-b border-gray-100 flex flex-col h-full lg:h-[calc(100vh-var(--nav-height))] overflow-hidden">
-      {/* ヘッダー (変更なし) */}
-      <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
-        <div>
-          <h3 className="text-[13px] font-medium">単位・単価コンバーター</h3>
-          <p className="text-[11px] mt-0.5">長さ・面積・体積・重さ・圧力・温度など様々な単位を変換。建築実務でよく使う単位にも対応</p>
-        </div>
-      </div>
+    <div className="w-full bg-white border-b border-gray-100 flex flex-col h-full lg:h-[calc(100vh-var(--nav-height))] overflow-hidden">
+      <ToolHeader
+        no="04"
+        code="UNIT"
+        title="単位変換"
+        description="寸・尺・間・坪・畳とメートル法を行き来し、単価・縮尺読み・必要枚数までその場で出す。"
+        features={[
+          {
+            label: 'よく使う換算',
+            hint: '坪⇔㎡・尺⇔mm などをワンタッチで選ぶ',
+            onClick: () => scrollToUnitRef(presetsRef),
+          },
+          {
+            label: '単価計算',
+            hint: '1 単位あたりの単価から、全単位の金額を並べる',
+            active: isPriceMode,
+            onClick: () => { setIsPriceMode((v) => !v); scrollToUnitRef(priceRef); },
+          },
+          {
+            label: '縮尺読み（1/100 等）',
+            hint: '図面上の寸法と実寸を縮尺で相互に換算し、変換へ送る',
+            active: isScaleMode,
+            onClick: () => { setIsScaleMode((v) => !v); scrollToUnitRef(scaleRef); },
+          },
+          {
+            label: '数量換算（定尺・ロス率）',
+            hint: '登録した品目の定尺とロス率から、必要な枚数・本数・袋数を出す',
+            active: isQtyMode,
+            onClick: () => { setIsQtyMode((v) => !v); scrollToUnitRef(qtyRef); },
+          },
+          {
+            label: '式で入力（1.8*2）',
+            login: true,
+            hint: 'ログインすると、四則演算の式のまま入力して換算できます',
+            onClick: () => {
+              if (!isLoggedIn) { setUnitNotice('ログイン（無料の会員登録）すると入力できます。'); return; }
+              valueInputRef.current?.focus();
+            },
+          },
+        ]}
+      />
+      {unitNotice && (
+        <p className="px-4 py-1.5 text-[11px] text-gray-600 border-b border-gray-200 shrink-0" role="status">{unitNotice}</p>
+      )}
 
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden m-4 border border-[#3b3b3b]">
-        
+
         {/* --- 左カラム：入力・設定 --- */}
-        <div className="w-full lg:w-[340px] bg-white border-r border-[#3b3b3b] p-5 overflow-y-auto flex flex-col gap-6 z-10 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
-            
+        <div className="w-full lg:w-[340px] bg-white lg:border-r border-b lg:border-b-0 border-[#3b3b3b] p-5 overflow-y-auto flex flex-col gap-6 z-10">
+
             {/* 1. カテゴリ設定 */}
-            <div>
+            <div ref={presetsRef} className="scroll-mt-4">
                 <div className="flex items-center gap-2 mb-3 pb-1 border-b border-gray-100">
                     <FiSettings className="w-3.5 h-3.5 text-gray-400" />
                     <label className="block text-[11px] font-bold text-gray-600">変換設定</label>
@@ -582,10 +630,10 @@ const UnitConverter: React.FC = () => {
                                     key={p.label}
                                     type="button"
                                     onClick={() => applyPreset(p)}
-                                    className={`text-[10px] px-2 py-1 rounded border transition-colors ${
+                                    className={`text-[10px] px-2 py-1 border transition-colors ${
                                         selectedCategory === p.category && fromUnit === p.from
-                                            ? 'bg-blue-50 border-blue-300 text-blue-700 font-bold'
-                                            : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-blue-300'
+                                            ? 'bg-[#3b3b3b] border-[#3b3b3b] text-white font-bold'
+                                            : 'bg-white border-gray-300 text-gray-600 hover:border-[#3b3b3b]'
                                     }`}
                                 >
                                     {p.label}
@@ -599,7 +647,7 @@ const UnitConverter: React.FC = () => {
                         <select
                             value={selectedCategory}
                             onChange={(e) => setSelectedCategory(e.target.value as UnitCategory)}
-                            className="w-full p-2 text-xs border border-gray-200 rounded-lg bg-gray-50 font-medium cursor-pointer hover:border-blue-300 transition-colors outline-none focus:ring-2 focus:ring-blue-100"
+                            className="w-full p-2 text-xs border border-gray-200 bg-gray-50 cursor-pointer hover:border-[#3b3b3b] transition-colors outline-none"
                         >
                             {Object.entries(UNIT_CONVERSIONS).map(([key, { name }]) => (
                                 <option key={key} value={key}>{name}</option>
@@ -613,15 +661,16 @@ const UnitConverter: React.FC = () => {
                             {/* 未ログイン時はキー入力ごとの alert ではなく入力自体を無効化する */}
                             <input
                                 type="text"
+                                ref={valueInputRef}
                                 value={inputValue}
                                 onChange={handleInputChange}
                                 disabled={!isLoggedIn}
                                 placeholder={isLoggedIn ? '例: 100, 1.8*2' : '会員登録（無料）で利用できます'}
-                                className="w-full p-2.5 text-sm font-bold border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all placeholder-gray-300 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                                className="w-full p-2.5 text-sm font-bold border border-gray-200 bg-white focus:border-gray-500 outline-none transition-all placeholder-gray-300 disabled:bg-gray-50 disabled:cursor-not-allowed"
                             />
                             {/* 計算結果プレビュー */}
                             {calculatedValue !== null && inputValue !== String(calculatedValue) && (
-                                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-blue-500 font-mono">
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 font-mono">
                                     = {formatNumber(calculatedValue)}
                                 </div>
                             )}
@@ -633,7 +682,7 @@ const UnitConverter: React.FC = () => {
                         <select
                             value={fromUnit}
                             onChange={(e) => setFromUnit(e.target.value)}
-                            className="w-full p-2 text-xs border border-gray-200 rounded-lg bg-gray-50 font-medium cursor-pointer hover:border-blue-300 transition-colors outline-none focus:ring-2 focus:ring-blue-100"
+                            className="w-full p-2 text-xs border border-gray-200 bg-gray-50 cursor-pointer hover:border-[#3b3b3b] transition-colors outline-none"
                         >
                             {UNIT_CONVERSIONS[selectedCategory].units.map(({ unit, label }) => (
                                 <option key={unit} value={unit}>{label}</option>
@@ -644,9 +693,9 @@ const UnitConverter: React.FC = () => {
             </div>
 
             {/* 2. 単価設定エリア */}
-            <div className="pt-3 border-t border-gray-100">
+            <div ref={priceRef} className="pt-3 border-t border-gray-100 scroll-mt-4">
                 <div className="flex justify-between items-center mb-2">
-                    <label className="block text-[11px] font-bold text-yellow-700 flex items-center gap-1.5">
+                    <label className="block text-[11px] font-bold text-gray-800 flex items-center gap-1.5">
                        <FiDollarSign className="w-3 h-3" /> 単価計算
                     </label>
                     <label className="relative inline-flex items-center cursor-pointer">
@@ -656,13 +705,13 @@ const UnitConverter: React.FC = () => {
                             onChange={(e) => setIsPriceMode(e.target.checked)} 
                             className="sr-only peer" 
                         />
-                        <div className="w-7 h-4 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-yellow-400"></div>
+                        <div className="w-7 h-4 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-[#52AA96]"></div>
                     </label>
                 </div>
                 
                 {isPriceMode && (
-                    <div className="bg-yellow-50/50 p-3 rounded-lg border border-yellow-100 animate-fadeIn">
-                        <label className="block text-[10px] font-bold text-yellow-800 mb-1">
+                    <div className="bg-gray-50 p-3 border border-gray-200 animate-fadeIn">
+                        <label className="block text-[10px] font-bold text-gray-800 mb-1">
                             1 {UNIT_CONVERSIONS[selectedCategory].units.find(u => u.unit === fromUnit)?.unit} あたりの単価
                         </label>
                         <div className="flex items-center gap-2">
@@ -672,18 +721,18 @@ const UnitConverter: React.FC = () => {
                                 onChange={(e) => setInputPrice(e.target.value)}
                                 disabled={!isLoggedIn}
                                 placeholder="0"
-                                className="w-full text-right font-bold text-sm p-1.5 border border-yellow-200 rounded bg-white focus:ring-1 focus:ring-yellow-400 outline-none text-gray-800 placeholder-yellow-200 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                                className="w-full text-right font-bold text-sm p-1.5 border border-gray-200 bg-white outline-none text-gray-800 placeholder-gray-300 disabled:bg-gray-50 disabled:cursor-not-allowed"
                             />
-                            <span className="text-xs text-yellow-700 font-bold shrink-0">円</span>
+                            <span className="text-xs text-gray-800 font-bold shrink-0">円</span>
                         </div>
                     </div>
                 )}
             </div>
             
             {/* 3. 縮尺読み */}
-            <div className="pt-3 border-t border-gray-100">
+            <div ref={scaleRef} className="pt-3 border-t border-gray-100 scroll-mt-4">
                 <div className="flex justify-between items-center mb-2">
-                    <label className="block text-[11px] font-bold text-teal-700 flex items-center gap-1.5">
+                    <label className="block text-[11px] font-bold text-gray-800 flex items-center gap-1.5">
                        <FiCrop className="w-3 h-3" /> 縮尺読み
                     </label>
                     <label className="relative inline-flex items-center cursor-pointer">
@@ -693,22 +742,22 @@ const UnitConverter: React.FC = () => {
                             onChange={(e) => setIsScaleMode(e.target.checked)}
                             className="sr-only peer"
                         />
-                        <div className="w-7 h-4 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-teal-400"></div>
+                        <div className="w-7 h-4 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-[#52AA96]"></div>
                     </label>
                 </div>
 
                 {isScaleMode && (
-                    <div className="bg-teal-50/50 p-3 rounded-lg border border-teal-100 animate-fadeIn space-y-2.5">
+                    <div className="bg-gray-50 p-3 border border-gray-200 animate-fadeIn space-y-2.5">
                         <div className="flex flex-wrap gap-1">
                             {SCALES.map((s) => (
                                 <button
                                     key={s}
                                     type="button"
                                     onClick={() => handleScaleChange(s)}
-                                    className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                                    className={`text-[10px] px-1.5 py-0.5 border transition-colors ${
                                         scale === s
-                                            ? 'bg-teal-500 border-teal-500 text-white font-bold'
-                                            : 'bg-white border-teal-200 text-teal-700 hover:border-teal-400'
+                                            ? 'bg-[#3b3b3b] border-[#3b3b3b] text-white font-bold'
+                                            : 'bg-white border-gray-300 text-gray-600 hover:border-[#3b3b3b]'
                                     }`}
                                 >
                                     1/{s}
@@ -718,39 +767,39 @@ const UnitConverter: React.FC = () => {
 
                         <div className="flex items-center gap-2">
                             <div className="flex-1">
-                                <label className="block text-[10px] font-bold text-teal-800 mb-0.5">図面上 (mm)</label>
+                                <label className="block text-[10px] font-bold text-gray-800 mb-0.5">図面上 (mm)</label>
                                 <input
                                     type="number"
                                     value={drawingMm}
                                     onChange={(e) => handleDrawingChange(e.target.value)}
                                     disabled={!isLoggedIn}
                                     placeholder="0"
-                                    className="w-full text-right font-bold text-sm p-1.5 border border-teal-200 rounded bg-white focus:ring-1 focus:ring-teal-400 outline-none text-gray-800 placeholder-teal-200 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                                    className="w-full text-right font-bold text-sm p-1.5 border border-gray-200 bg-white outline-none text-gray-800 placeholder-gray-300 disabled:bg-gray-50 disabled:cursor-not-allowed"
                                 />
                             </div>
-                            <FiArrowRight className="w-3 h-3 text-teal-400 shrink-0 mt-4" />
+                            <FiArrowRight className="w-3 h-3 text-gray-400 shrink-0 mt-4" />
                             <div className="flex-1">
-                                <label className="block text-[10px] font-bold text-teal-800 mb-0.5">実寸法 (mm)</label>
+                                <label className="block text-[10px] font-bold text-gray-800 mb-0.5">実寸法 (mm)</label>
                                 <input
                                     type="number"
                                     value={actualMm}
                                     onChange={(e) => handleActualChange(e.target.value)}
                                     disabled={!isLoggedIn}
                                     placeholder="0"
-                                    className="w-full text-right font-bold text-sm p-1.5 border border-teal-200 rounded bg-white focus:ring-1 focus:ring-teal-400 outline-none text-gray-800 placeholder-teal-200 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                                    className="w-full text-right font-bold text-sm p-1.5 border border-gray-200 bg-white outline-none text-gray-800 placeholder-gray-300 disabled:bg-gray-50 disabled:cursor-not-allowed"
                                 />
                             </div>
                         </div>
 
                         {parseFloat(actualMm) > 0 && (
                             <div className="flex items-center justify-between gap-2">
-                                <span className="text-[11px] font-bold text-teal-700">
+                                <span className="text-[11px] font-bold text-gray-800">
                                     = {formatNumber(parseFloat(actualMm) / 1000, 3)} m
                                 </span>
                                 <button
                                     type="button"
                                     onClick={sendActualToConverter}
-                                    className="text-[10px] px-2 py-1 rounded bg-white border border-teal-300 text-teal-700 font-bold hover:bg-teal-100 transition-colors"
+                                    className="text-[10px] px-2 py-1 bg-white border border-[#3b3b3b] text-gray-800 font-bold hover:bg-gray-100 transition-colors"
                                 >
                                     上の変換へ送る
                                 </button>
@@ -761,9 +810,9 @@ const UnitConverter: React.FC = () => {
             </div>
 
             {/* 4. 数量換算 */}
-            <div className="pt-3 border-t border-gray-100">
+            <div ref={qtyRef} className="pt-3 border-t border-gray-100 scroll-mt-4">
                 <div className="flex justify-between items-center">
-                    <label className="block text-[11px] font-bold text-indigo-700 flex items-center gap-1.5">
+                    <label className="block text-[11px] font-bold text-gray-800 flex items-center gap-1.5">
                        <FiGrid className="w-3 h-3" /> 数量換算
                     </label>
                     <label className="relative inline-flex items-center cursor-pointer">
@@ -773,7 +822,7 @@ const UnitConverter: React.FC = () => {
                             onChange={(e) => setIsQtyMode(e.target.checked)}
                             className="sr-only peer"
                         />
-                        <div className="w-7 h-4 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-indigo-400"></div>
+                        <div className="w-7 h-4 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-[#52AA96]"></div>
                     </label>
                 </div>
                 <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
@@ -784,10 +833,10 @@ const UnitConverter: React.FC = () => {
             </div>
 
             {/* 情報エリア */}
-            <div className="mt-auto bg-blue-50/50 p-3 rounded-lg border border-blue-100">
+            <div className="mt-auto pt-3 border-t border-gray-200">
                 <div className="flex items-start gap-2">
-                    <FiRefreshCw className="w-3.5 h-3.5 text-blue-500 mt-0.5 shrink-0" />
-                    <p className="text-[10px] text-blue-600 leading-relaxed">
+                    <FiRefreshCw className="w-3 h-3 text-gray-400 mt-0.5 shrink-0" />
+                    <p className="text-[10px] text-gray-500 leading-relaxed">
                         {isLoggedIn
                           ? '数値を入力すると、同じカテゴリー内の全ての単位に自動変換されます。'
                           : 'このツールを使うには会員登録（無料）が必要です。'}
@@ -800,11 +849,11 @@ const UnitConverter: React.FC = () => {
         <div className="flex-1 bg-gray-50 overflow-y-auto p-4 lg:p-6">
             <div className="max-w-4xl mx-auto flex flex-col h-full">
                 <div className="flex justify-between items-end mb-4 px-1">
-                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                    <h4 className="yy-mono text-[10px] tracking-[0.12em] uppercase text-gray-500">
                         {isQtyMode ? 'Quantity' : 'Results'}
                     </h4>
                     {isQtyMode && qtyKind && baseQuantity !== null && (
-                        <span className="text-[11px] font-bold text-indigo-600">
+                        <span className="text-[11px] font-bold text-gray-800">
                             基準数量 {formatQuantity(baseQuantity)} {QTY_KIND_LABEL[qtyKind].unit}
                         </span>
                     )}
@@ -813,19 +862,19 @@ const UnitConverter: React.FC = () => {
                 {isQtyMode ? (
                     <div className="flex-1 overflow-y-auto pr-1 custom-scrollbar pb-10 space-y-2">
                         {!qtyKind && (
-                            <div className="text-[11px] text-gray-500 bg-white border border-gray-200 rounded-lg p-3">
+                            <div className="text-[11px] text-gray-500 bg-white border border-gray-200 p-3">
                                 数量換算は「長さ」「面積」「体積」のカテゴリーで使えます。
                             </div>
                         )}
 
                         {qtyKind && baseQuantity === null && (
-                            <div className="text-[11px] text-gray-500 bg-white border border-gray-200 rounded-lg p-3">
+                            <div className="text-[11px] text-gray-500 bg-white border border-gray-200 p-3">
                                 左側に数量を入力すると、登録した品目ごとの必要数が出ます。
                             </div>
                         )}
 
                         {qtyKind && qtyItems.filter((i) => i.kind === qtyKind).length === 0 && (
-                            <div className="text-[11px] text-gray-500 bg-white border border-gray-200 rounded-lg p-3">
+                            <div className="text-[11px] text-gray-500 bg-white border border-gray-200 p-3">
                                 {QTY_KIND_LABEL[qtyKind].name}の品目がまだありません。下の「品目を追加」から登録してください。
                             </div>
                         )}
@@ -836,14 +885,14 @@ const UnitConverter: React.FC = () => {
 
                             if (isEditing && draft) {
                                 return (
-                                    <div key={item.id} className="bg-white border border-indigo-300 rounded-lg p-3">
+                                    <div key={item.id} className="bg-white border border-[#3b3b3b] p-3">
                                         {renderDraftForm()}
                                     </div>
                                 );
                             }
 
                             return (
-                                <div key={item.id} className="bg-white border border-gray-200 rounded-lg p-3 flex items-center gap-3 group hover:border-indigo-200 transition-colors">
+                                <div key={item.id} className="bg-white border border-gray-200 p-3 flex items-center gap-3 group hover:border-gray-200 transition-colors">
                                     <div className="flex-1 min-w-0">
                                         <div className="text-[12px] font-bold text-gray-700 truncate">{item.name}</div>
                                         <div className="text-[10px] text-gray-400 mt-0.5">
@@ -856,7 +905,7 @@ const UnitConverter: React.FC = () => {
                                     <div className="text-right shrink-0">
                                         {result ? (
                                             <>
-                                                <div className="text-sm font-bold text-indigo-700 tracking-tight">
+                                                <div className="text-sm font-bold text-gray-800 tracking-tight">
                                                     {result.count.toLocaleString()} <span className="text-[11px]">{item.unitLabel}</span>
                                                 </div>
                                                 <div className="text-[10px] text-gray-400">
@@ -872,7 +921,7 @@ const UnitConverter: React.FC = () => {
                                         <button
                                             type="button"
                                             onClick={() => startEdit(item)}
-                                            className="p-1.5 rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                                            className="p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
                                             title="編集"
                                         >
                                             <FiEdit2 className="w-3.5 h-3.5" />
@@ -880,7 +929,7 @@ const UnitConverter: React.FC = () => {
                                         <button
                                             type="button"
                                             onClick={() => removeItem(item.id)}
-                                            className="p-1.5 rounded text-gray-400 hover:bg-red-50 hover:text-red-600"
+                                            className="p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600"
                                             title="削除"
                                         >
                                             <FiTrash2 className="w-3.5 h-3.5" />
@@ -891,24 +940,24 @@ const UnitConverter: React.FC = () => {
                         })}
 
                         {editingId === 'new' && draft ? (
-                            <div className="bg-white border border-indigo-300 rounded-lg p-3">
+                            <div className="bg-white border border-[#3b3b3b] p-3">
                                 {renderDraftForm()}
                             </div>
                         ) : (
                             <button
                                 type="button"
                                 onClick={startAdd}
-                                className="w-full flex items-center justify-center gap-1.5 text-[11px] font-bold text-indigo-600 border border-dashed border-indigo-300 rounded-lg py-2 hover:bg-indigo-50 transition-colors"
+                                className="w-full flex items-center justify-center gap-1.5 text-[11px] text-gray-700 border border-dashed border-gray-400 py-2 hover:bg-gray-50 transition-colors"
                             >
                                 <FiPlus className="w-3.5 h-3.5" /> 品目を追加
                             </button>
                         )}
                     </div>
                 ) : Object.keys(conversionResults).length === 0 ? (
-                    <div className="flex-1 flex flex-col items-center justify-center text-gray-300 border-2 border-dashed border-gray-300 min-h-[300px]">
-                        <span className="text-4xl mb-3 opacity-30">⌨️</span>
-                        <p className="text-xs font-medium">数値を入力して変換を開始してください</p>
-                    </div>
+                    <p className="text-[11px] text-gray-500 px-1">
+                        数値を入力すると、同じカテゴリーの全単位に換算して並べます。{' '}
+                        <button type="button" onClick={() => scrollToUnitRef(presetsRef)} className="underline underline-offset-2 text-gray-800">よく使う換算から選ぶ</button>
+                    </p>
                 ) : (
                     <div className="flex-1 overflow-y-auto pr-1 custom-scrollbar pb-10">
                         <div className="grid grid-cols-1 gap-3">
@@ -920,28 +969,28 @@ const UnitConverter: React.FC = () => {
                                 return (
                                     <div 
                                         key={unit} 
-                                        className={`p-3.5 rounded-xl border shadow-sm flex flex-col sm:flex-row gap-3 sm:items-center transition-all duration-200 group ${
+                                        className={`p-3.5 border flex flex-col sm:flex-row gap-3 sm:items-center transition-all duration-200 group ${
                                             isSelected 
-                                            ? 'bg-white border-blue-300 ring-1 ring-blue-100 shadow-blue-50' 
-                                            : 'bg-white border-gray-200 hover:border-blue-200'
+                                            ? 'bg-white border-[#3b3b3b] border-l-[#52AA96]' 
+                                            : 'bg-white border-gray-200 hover:border-gray-400'
                                         }`}
                                     >
                                         {/* アイコン & 単位名 */}
                                         <div className="flex items-center gap-3 flex-1 min-w-0">
-                                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 font-bold text-xs ${
+                                            <div className={`yy-mono w-10 h-10 flex items-center justify-center shrink-0 text-[11px] border ${
                                                 isSelected 
-                                                ? 'bg-blue-50 text-blue-600' 
-                                                : 'bg-gray-100 text-gray-500'
+                                                ? 'border-[#3b3b3b] text-gray-900' 
+                                                : 'border-gray-200 text-gray-500'
                                             }`}>
                                                 {unit}
                                             </div>
                                             <div>
                                                 <div className="flex items-center gap-2">
-                                                    <div className={`text-[12px] font-bold ${isSelected ? 'text-blue-700' : 'text-gray-700'}`}>
+                                                    <div className={`text-[12px] font-bold ${isSelected ? 'text-gray-800' : 'text-gray-700'}`}>
                                                         {label}
                                                     </div>
                                                     {isSelected && (
-                                                        <span className="px-1.5 py-0.5 bg-blue-100 text-blue-600 rounded text-[9px] font-bold">Base</span>
+                                                        <span className="yy-mono text-[9px] tracking-[0.12em] uppercase text-[#52AA96]">Base</span>
                                                     )}
                                                 </div>
                                             </div>
@@ -950,11 +999,11 @@ const UnitConverter: React.FC = () => {
                                         {/* 値 & アクション */}
                                         <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto mt-1 sm:mt-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-50">
                                             <div className="text-right">
-                                                <div className={`text-sm font-bold tracking-tight ${isSelected ? 'text-blue-700' : 'text-gray-800'}`}>
+                                                <div className={`text-sm font-bold tracking-tight ${isSelected ? 'text-gray-800' : 'text-gray-800'}`}>
                                                     {data.value}
                                                 </div>
                                                 {isPriceMode && (
-                                                    <div className="text-[11px] font-mono font-bold text-yellow-600 flex items-center justify-end gap-0.5">
+                                                    <div className="text-[11px] font-mono font-bold text-gray-800 flex items-center justify-end gap-0.5">
                                                         <span className="opacity-60 text-[9px]">¥</span>
                                                         {data.price}
                                                     </div>
@@ -963,10 +1012,10 @@ const UnitConverter: React.FC = () => {
 
                                             <button 
                                                 onClick={() => handleCopy(data.value, unit)}
-                                                className={`p-2 rounded-lg transition-all flex items-center gap-1.5 text-[10px] font-bold ${
+                                                className={`p-2 transition-all flex items-center gap-1.5 text-[10px] font-bold ${
                                                     isCopied
-                                                    ? 'bg-green-50 text-green-600'
-                                                    : 'bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-gray-700 opacity-0 group-hover:opacity-100'
+                                                    ? 'text-gray-900'
+                                                    : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700 opacity-0 group-hover:opacity-100'
                                                 }`}
                                                 title="値をコピー"
                                             >

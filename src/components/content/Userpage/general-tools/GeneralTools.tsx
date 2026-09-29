@@ -18,7 +18,6 @@ import AlarmTool from './AlarmTool';
 import MemoTool from './Memo';
 import Calculator from './Calculator';
 import Olmt from './olmt/Olmt';
-import ToolHeader from '../ToolHeader';
 import {
   GENERAL_TOOL_MENU,
   consumeGeneralTool,
@@ -66,24 +65,34 @@ const GeneralTools: React.FC = () => {
           lg 以上では左カラムの Ⅲ が同じ並びを出すので畳む。
           左カラムは hidden lg:block なので、狭い画面ではここが唯一のナビになる。
           並びとラベルは src/lib/generalToolsMenu.ts が唯一の定義。 */}
-      <div className="bg-[#3b3b3b] w-full overflow-x-auto lg:hidden">
+      <div role="navigation"
+        aria-label="一般ツール"
+        className="bg-[#141414] w-full overflow-x-auto lg:hidden border-b border-black"
+      >
+        {/* 墨の帯に等幅の小さな番号と 11px のラベル。選択中は塗らずに差し色の
+            細い下線 1 本で示す（見出し帯と同じ「差し色は光として 1 点だけ」）。
+            並びが画面幅を超えるので横スクロールのまま、ページ自体ははみ出させない。 */}
         <div className="flex">
-          {GENERAL_TOOL_MENU.map((tool) => (
-            <button
-              key={tool.id}
-              onClick={() => setActiveTab(tool.id)}
-              className={`flex-1 px-2 py-2 text-xs font-medium focus:outline-none transition whitespace-nowrap ${
-                activeTab === tool.id
-                  ? 'bg-[#1dad95] text-white'
-                  : 'bg-[#3b3b3b] text-white hover:bg-[#0f6b5a]'
-              }`}
-            >
-              {tool.label}
-            </button>
-          ))}
+          {GENERAL_TOOL_MENU.map((tool, i) => {
+            const on = activeTab === tool.id;
+            return (
+              <button
+                key={tool.id}
+                type="button"
+                onClick={() => setActiveTab(tool.id)}
+                aria-current={on ? 'page' : undefined}
+                className={`shrink-0 flex items-baseline gap-1.5 px-3 pt-2 pb-[7px] text-[11px] whitespace-nowrap border-b transition-colors focus:outline-none focus-visible:outline focus-visible:outline-1 focus-visible:outline-[#52AA96] ${
+                  on ? 'text-white border-[#52AA96]' : 'text-[#aaa69d] border-transparent hover:text-white'
+                }`}
+              >
+                <span className={`yy-mono text-[9px] tracking-[0.08em] ${on ? 'text-[#52AA96]' : 'text-[#6f6b63]'}`}>
+                  {String(i + 1).padStart(2, '0')}
+                </span>
+                <span>{tool.label}</span>
+              </button>
+            );
+          })}
         </div>
-        
-        {/* アクティブタブの説明文 */}
       </div>
 
       {/* ツールコンテンツ */}

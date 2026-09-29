@@ -2,6 +2,8 @@
 
 import React, { DragEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/lib/AuthContext';
+import { FiImage, FiCheckCircle, FiDownload, FiAlertCircle } from 'react-icons/fi';
+import ToolHeader from '../ToolHeader';
 import {
   resizeToLongSide,
   hasGpsData,
@@ -436,6 +438,17 @@ const ImageConverter: React.FC = () => {
   const [targetSizeMB, setTargetSizeMB] = useState<number | ''>('');
   const [useTargetSize, setUseTargetSize] = useState<boolean>(false);
 
+  // 見出し帯の「できること」から各設定へ飛ぶための足場。
+  // リサイズや目標サイズ・Exif 削除が設定欄の下のほうにあり、気づかれていなかった。
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const settingsRef = useRef<HTMLDivElement>(null);
+  const targetSizeRef = useRef<HTMLDivElement>(null);
+  const exifRef = useRef<HTMLDivElement>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
+  const [imageNotice, setImageNotice] = useState('');
+  const scrollToImageRef = (r: React.RefObject<HTMLElement | null>) =>
+    r.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
   const optionsRef = useRef<ConversionOptions>({
     targetFormat,
     quality,
@@ -731,14 +744,14 @@ const ImageConverter: React.FC = () => {
         {FORMAT_DESCRIPTIONS.map(info => (
           <div
             key={info.key}
-            className="flex flex-col sm:flex-row sm:items-start sm:gap-3 border border-gray-100 bg-gray-50 rounded px-3 py-2"
+            className="flex flex-col sm:flex-row sm:items-start sm:gap-3 border border-gray-200 bg-white px-3 py-2"
           >
             <div className="flex flex-col flex-1 sm:flex-row sm:items-start sm:gap-3">
               <strong className="text-gray-800 sm:w-32">{info.title}</strong>
               <div className="flex-1 sm:flex sm:flex-col sm:space-y-1 sm:items-start text-left sm:text-left">
               <div>{info.summary}</div>
-              <div><span className="font-semibold text-gray-700">向いている:</span> {info.suitedFor}</div>
-              <div><span className="font-semibold text-gray-700">注意点:</span> {info.caution}</div>
+              <div><span className="font-bold text-gray-700">向いている:</span> {info.suitedFor}</div>
+              <div><span className="font-bold text-gray-700">注意点:</span> {info.caution}</div>
             </div>
             </div>
           </div>
@@ -768,12 +781,48 @@ const ImageConverter: React.FC = () => {
 
   return (
     <div className="w-full bg-white flex flex-col h-full lg:h-[calc(100vh-var(--nav-height))] overflow-hidden">
-      <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
-        <div>
-          <h3 className="text-[13px] font-medium">画像変換・画像圧縮</h3>
-          <p className="text-[11px] mt-0.5">JPEG/PNG/WebP/GIF/SVG/HEIC/RAWなど様々な形式に対応。一括変換・圧縮・リサイズが可能</p>
-        </div>
-      </div>
+      <ToolHeader
+        no="06"
+        code="IMAGE"
+        title="画像変換"
+        description="現場写真を納品サイズに縮め、HEIC を JPEG にし、位置情報を消してからまとめて渡す。"
+        features={[
+          {
+            label: '一括変換（HEIC → JPEG ほか）',
+            login: true,
+            hint: `PNG / JPEG / WebP / GIF / SVG / HEIC を最大 ${MAX_FILES} 枚まとめて JPEG・PNG・WebP に`,
+            onClick: () => {
+              if (!isLoggedIn) { setImageNotice('ログイン（無料の会員登録）すると画像を取り込めます。変換はブラウザの中だけで行い、送信しません。'); return; }
+              fileInputRef.current?.click();
+            },
+          },
+          {
+            label: '長辺リサイズ（1920px 等）',
+            hint: '長辺を指定して縮小。短辺は比率を保つ',
+            active: resizeMode !== 'original',
+            onClick: () => scrollToImageRef(settingsRef),
+          },
+          {
+            label: '目標ファイルサイズ',
+            hint: '上限 MB を決めると、その下に収まるよう品質を自動で調整する',
+            active: useTargetSize,
+            onClick: () => { setUseTargetSize(true); scrollToImageRef(targetSizeRef); },
+          },
+          {
+            label: '位置情報（Exif）削除',
+            hint: '変換後のファイルから撮影場所・日時・機種を消す。向きだけは補正する',
+            onClick: () => scrollToImageRef(exifRef),
+          },
+          {
+            label: 'ZIP でまとめて保存',
+            hint: '変換が済んだファイルを 1 つの ZIP で保存する',
+            onClick: () => scrollToImageRef(resultsRef),
+          },
+        ]}
+      />
+      {imageNotice && (
+        <p className="px-4 py-1.5 text-[11px] text-gray-600 border-b border-gray-200 shrink-0" role="status">{imageNotice}</p>
+      )}
 
       <div className="p-3 flex-1 min-h-0 overflow-hidden">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 h-full">
@@ -783,8 +832,8 @@ const ImageConverter: React.FC = () => {
             {/* 1. ファイル選択エリア */}
             <div>
               <div
-                className={`border-2 border-dashed rounded-lg p-3 text-center transition-colors ${
-                  isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
+                className={`border border-dashed p-3 text-center transition-colors ${
+                  isDragging ? 'border-[#52AA96] bg-gray-50' : 'border-gray-400 hover:border-[#3b3b3b]'
                 }`}
                 onDragOver={e => {
                   e.preventDefault();
@@ -797,7 +846,7 @@ const ImageConverter: React.FC = () => {
                   {/* incompleteTasks（未完了タスク）がない場合は初期表示に戻す */}
                   {incompleteTasks.length === 0 ? (
                     <>
-                      <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                      <FiImage className="w-4 h-4 text-gray-400" />
                       <p className="text-[12px] text-gray-600">画像ファイルをドラッグ＆ドロップ</p>
                       <label
                         htmlFor="image-converter-input"
@@ -807,7 +856,7 @@ const ImageConverter: React.FC = () => {
                             e.preventDefault();
                           }
                         }}
-                        className="mt-2 bg-gray-200 text-gray-700 px-4 py-1.5 rounded text-[11px] hover:bg-gray-300 cursor-pointer"
+                        className="yy-btn mt-2 cursor-pointer"
                       >
                         ファイルを選択
                       </label>
@@ -815,7 +864,7 @@ const ImageConverter: React.FC = () => {
                   ) : (
                     <>
                       {/* 預かり中（未完了）のファイルがある場合のみ表示 */}
-                      <svg className="w-10 h-10 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      <FiCheckCircle className="w-4 h-4 text-[#52AA96]" />
                       <p className="text-[12px] font-bold text-gray-700">
                         {incompleteTasks.length}件のファイルを預かり中
                       </p>
@@ -830,7 +879,7 @@ const ImageConverter: React.FC = () => {
                             e.preventDefault();
                           }
                         }}
-                        className="mt-2 text-[11px] text-blue-600 hover:underline cursor-pointer"
+                        className="mt-2 text-[11px] text-gray-800 underline underline-offset-2 cursor-pointer"
                       >
                         さらに追加
                       </label>
@@ -839,6 +888,7 @@ const ImageConverter: React.FC = () => {
                 </div>
                 <input
                   id="image-converter-input"
+                  ref={fileInputRef}
                   type="file"
                   multiple
                   accept={ACCEPTED_EXTENSIONS.map(ext => `.${ext}`).join(',')}
@@ -852,7 +902,7 @@ const ImageConverter: React.FC = () => {
             </div>
 
             {processingError && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded text-[11px] text-red-600">
+              <div className="p-3 border border-red-600 text-[11px] text-red-600">
                 {processingError.split('\n').map((msg, idx) => (
                   <div key={idx}>{msg}</div>
                 ))}
@@ -860,16 +910,16 @@ const ImageConverter: React.FC = () => {
             )}
 
             {/* 2. 設定エリア */}
-            <div className="bg-gray-50 p-4 border border-[#3b3b3b]">
-              <label className="block text-[12px] font-bold mb-3 text-gray-700 border-b border-gray-200 pb-1">変換設定</label>
+            <div ref={settingsRef} className="bg-gray-50 p-4 border border-[#3b3b3b] scroll-mt-3">
+              <label className="yy-label border-b border-gray-200 pb-1 !mb-3">変換設定</label>
               
               <div className="space-y-3">
                 <div>
-                  <label className="block text-[11px] font-medium mb-1 text-gray-600">出力形式</label>
+                  <label className="block text-[11px] mb-1 text-gray-600">出力形式</label>
                   <select
                     value={targetFormat}
                     onChange={e => setTargetFormat(e.target.value as SupportedFormat)}
-                    className="w-full p-1.5 border rounded text-[11px] border-gray-300 bg-white"
+                    className="w-full p-1.5 border text-[11px] border-gray-300 bg-white"
                   >
                     <option value="jpeg">JPEG（.jpg）</option>
                     <option value="png">PNG（.png）</option>
@@ -879,8 +929,8 @@ const ImageConverter: React.FC = () => {
 
                 <div>
                   <div className="flex justify-between items-end mb-1">
-                    <label className="block text-[11px] font-medium text-gray-600">品質（JPEG/WebPのみ）</label>
-                    <span className="text-[11px] font-mono text-blue-600">{quality}%</span>
+                    <label className="block text-[11px] text-gray-600">品質（JPEG/WebPのみ）</label>
+                    <span className="yy-mono text-[11px] text-gray-800">{quality}%</span>
                   </div>
                   <input
                     type="range"
@@ -889,7 +939,7 @@ const ImageConverter: React.FC = () => {
                     step={10}
                     value={quality}
                     onChange={e => setQuality(Number(e.target.value))}
-                    className="w-full h-1.5 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                    className="w-full h-1.5 bg-gray-300 appearance-none cursor-pointer accent-[#3b3b3b]"
                   />
                   <div className="flex justify-between text-[9px] text-gray-400 mt-0.5">
                     <span>低画質(小)</span>
@@ -898,11 +948,11 @@ const ImageConverter: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-medium mb-1 text-gray-600">リサイズ設定</label>
+                  <label className="block text-[11px] mb-1 text-gray-600">リサイズ設定</label>
                   <select
                     value={resizeMode}
                     onChange={e => setResizeMode(e.target.value as ResizeOption)}
-                    className="w-full p-1.5 border rounded text-[11px] border-gray-300 bg-white"
+                    className="w-full p-1.5 border text-[11px] border-gray-300 bg-white"
                   >
                     <option value="original">原寸維持</option>
                     <option value="2048">2048px</option>
@@ -924,7 +974,7 @@ const ImageConverter: React.FC = () => {
 
                 {/* Exif の扱い。現場写真をそのまま渡すと座標が付いて回るので、
                     黙って落とすのではなく落とすことを書く。 */}
-                <div className="border border-[#3b3b3b] bg-white p-2">
+                <div ref={exifRef} className="border border-[#3b3b3b] bg-white p-2 scroll-mt-3">
                   <p className="text-[10px] text-gray-700 leading-relaxed">
                     変換後のファイルからは <strong>Exif（位置情報・撮影日時・機種）が削除されます</strong>。
                     画像の向きだけは元の情報どおりに補正して書き出します。
@@ -938,12 +988,12 @@ const ImageConverter: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-medium mb-1 text-gray-600">背景色（透過 → JPEG/WebP 変換時）</label>
+                  <label className="block text-[11px] mb-1 text-gray-600">背景色（透過 → JPEG/WebP 変換時）</label>
                   <input
                     type="color"
                     value={backgroundColor}
                     onChange={e => setBackgroundColor(e.target.value)}
-                    className="w-full h-10 border rounded border-gray-300"
+                    className="w-full h-10 border border-gray-300"
                   />
                   <p className="mt-1 text-[10px] text-gray-500">
                     JPEG など透過を扱えない形式ではここで指定した色で塗ります。
@@ -951,10 +1001,9 @@ const ImageConverter: React.FC = () => {
                 </div>
 
                 {/* 目標ファイルサイズ設定 */}
-                <div className="pt-2 border-t border-gray-200">
+                <div ref={targetSizeRef} className="pt-2 border-t border-gray-200 scroll-mt-3">
                   <div className="flex justify-between items-center mb-1">
-                    <label className="block text-[11px] font-medium text-gray-600 flex items-center gap-1.5">
-                      <span className="w-1 h-4 bg-green-500 rounded-full"></span>
+                    <label className="block text-[11px] text-gray-600 flex items-center gap-1.5">
                       目標ファイルサイズ
                     </label>
                     <label className="flex items-center gap-1.5 cursor-pointer group">
@@ -962,14 +1011,14 @@ const ImageConverter: React.FC = () => {
                         type="checkbox"
                         checked={useTargetSize}
                         onChange={e => setUseTargetSize(e.target.checked)}
-                        className="w-3.5 h-3.5 text-green-500 border-gray-300 rounded focus:ring-green-500"
+                        className="w-3.5 h-3.5 accent-[#3b3b3b]"
                       />
                       <span className="text-[10px] text-gray-600 group-hover:text-gray-800 transition-colors">有効にする</span>
                     </label>
                   </div>
                   {useTargetSize && (
-                    <div className="bg-green-50 p-3 rounded-md border border-green-100">
-                      <label className="block text-xs font-bold text-green-800 mb-1">上限サイズ (MB)</label>
+                    <div className="bg-white p-3 border border-gray-300">
+                      <label className="yy-label">上限サイズ (MB)</label>
                       <div className="flex items-center gap-2">
                         <input
                           type="number"
@@ -978,11 +1027,11 @@ const ImageConverter: React.FC = () => {
                           value={targetSizeMB}
                           onChange={e => setTargetSizeMB(e.target.value ? Number(e.target.value) : '')}
                           placeholder="2.0"
-                          className="w-full text-[11px] px-2.5 py-1.5 border border-green-300 rounded-md focus:ring-1 focus:ring-green-500 focus:border-green-500 outline-none"
+                          className="w-full text-[11px] px-2.5 py-1.5 border outline-none"
                         />
-                        <span className="text-xs text-green-700 font-medium">MB以下</span>
+                        <span className="text-[11px] text-gray-700">MB以下</span>
                       </div>
-                      <p className="text-[10px] text-green-700 mt-1.5 leading-tight">
+                      <p className="text-[10px] text-gray-500 mt-1.5 leading-tight">
                         ※確実に下回るよう、約95%のサイズを目指して調整します。
                       </p>
                     </div>
@@ -997,26 +1046,22 @@ const ImageConverter: React.FC = () => {
               type="button"
               onClick={startConversion}
               disabled={incompleteTasks.length === 0 || tasks.some(task => task.status === 'processing')}
-              className={`w-full py-3 rounded-lg text-sm font-bold shadow-sm transition-all ${
-                incompleteTasks.length === 0 || tasks.some(task => task.status === 'processing')
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md'
-              }`}
+              className="yy-btn yy-btn--primary w-full !py-3 !text-[12px]"
             >
               {tasks.some(task => task.status === 'processing') ? '処理中...' : '画像変換・圧縮を開始する'}
             </button>
           </div>
 
           {/* --- 右カラム：結果・出力 --- */}
-          <div className="bg-gray-50 border border-[#3b3b3b] p-4 flex flex-col h-full min-h-[300px]">
-            <label className="block text-[12px] font-bold mb-3 text-gray-700 border-b border-gray-200 pb-1">処理結果</label>
+          <div ref={resultsRef} className="bg-gray-50 border border-[#3b3b3b] p-4 flex flex-col h-full min-h-[300px] scroll-mt-3">
+            <label className="yy-label border-b border-gray-200 pb-1 !mb-3">処理結果</label>
 
             {/* 初期状態 */}
             {tasks.length === 0 ? (
-              <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
-                <svg className="w-12 h-12 mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                <p className="text-[11px]">画像ファイルを追加するとここに結果が表示されます</p>
-              </div>
+              <p className="text-[11px] text-gray-500">
+                画像を追加すると、ここに変換後のサイズと保存ボタンが並びます。{' '}
+                <button type="button" onClick={() => { if (!isLoggedIn) { setImageNotice('ログイン（無料の会員登録）すると画像を取り込めます。'); return; } fileInputRef.current?.click(); }} className="underline underline-offset-2 text-gray-800">ファイルを選ぶ</button>
+              </p>
             ) : (
               <div className="flex-1 flex flex-col space-y-2">
                 <div className="overflow-y-auto max-h-[400px] space-y-2 pr-1 custom-scrollbar">
@@ -1047,25 +1092,25 @@ const ImageConverter: React.FC = () => {
                               <span className="text-gray-400">→</span>
                               
                               {/* 予測 or 実測サイズ */}
-                              <span className={`font-bold text-[11px] ${isCompleted ? 'text-blue-600' : 'text-gray-600'}`}>
+                              <span className={`yy-mono font-bold text-[11px] ${isCompleted ? 'text-gray-900' : 'text-gray-600'}`}>
                                 {sizeDisplay}
                               </span>
 
                               {/* 予測ラベル（未完了時のみ） */}
                               {!isCompleted && (
-                                <span className="text-[9px] text-gray-400 border border-gray-200 px-1 rounded">
+                                <span className="text-[9px] text-gray-400 border border-gray-200 px-1">
                                   予測
                                 </span>
                               )}
 
                               {/* 完了後のバッジ */}
                               {isCompleted && compressionRate > 0 && (
-                                <span className="bg-blue-100 text-blue-700 px-1 py-0.5 rounded text-[9px] font-bold">
+                                <span className="yy-mono text-[#52AA96] px-1 py-0.5 text-[10px] font-bold">
                                   -{compressionRate}%
                                 </span>
                               )}
                               {isCompleted && compressionRate < 0 && (
-                                <span className="bg-red-100 text-red-700 px-1 py-0.5 rounded text-[9px]">
+                                <span className="yy-mono text-red-700 px-1 py-0.5 text-[10px]">
                                   +{Math.abs(compressionRate)}%
                                 </span>
                               )}
@@ -1073,14 +1118,14 @@ const ImageConverter: React.FC = () => {
                           </div>
 
                           <span
-                            className={`inline-flex items-center px-2 py-1 rounded text-[10px] font-medium ml-2 ${
+                            className={`yy-mono inline-flex items-center px-1.5 py-0.5 border text-[10px] tracking-[0.08em] ml-2 ${
                               task.status === 'completed'
-                                ? 'bg-green-100 text-green-700'
+                                ? 'border-[#3b3b3b] text-gray-900'
                                 : task.status === 'error'
-                                  ? 'bg-red-100 text-red-600'
+                                  ? 'border-red-600 text-red-600'
                                   : task.status === 'processing'
-                                    ? 'bg-blue-100 text-blue-700'
-                                    : 'bg-gray-100 text-gray-600'
+                                    ? 'border-[#52AA96] text-gray-800'
+                                    : 'border-gray-300 text-gray-500'
                             }`}
                           >
                             {task.status === 'pending' && '待機'}
@@ -1094,10 +1139,10 @@ const ImageConverter: React.FC = () => {
                         {/* プログレスバー */}
                         {(task.status === 'processing' || task.status === 'queued') && (
                           <div className="mb-2">
-                            <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div className="w-full h-px bg-gray-200 overflow-hidden">
                               <div
-                                className={`h-1.5 rounded-full transition-all duration-300 ${
-                                  task.status === 'queued' ? 'bg-yellow-400 w-full animate-pulse' : 'bg-blue-600'
+                                className={`h-px transition-all duration-300 ${
+                                  task.status === 'queued' ? 'bg-gray-400 w-full animate-pulse' : 'bg-[#52AA96]'
                                 }`}
                                 style={{ width: task.status === 'queued' ? '100%' : `${Math.min(100, task.progress)}%` }}
                               />
@@ -1116,10 +1161,10 @@ const ImageConverter: React.FC = () => {
                              </div>
                             <button
                               type="button"
-                              className="px-3 py-1.5 rounded bg-blue-600 text-white text-[10px] font-bold hover:bg-blue-700 transition flex items-center gap-1 shrink-0"
+                              className="yy-btn !px-3 !py-1 flex items-center gap-1 shrink-0"
                               onClick={() => task.converted && downloadFile(task.converted)}
                             >
-                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                              <FiDownload className="w-3 h-3" />
                               保存
                             </button>
                           </div>
@@ -1127,15 +1172,15 @@ const ImageConverter: React.FC = () => {
 
                         {task.status === 'error' && (
                           <div className="mt-2 pt-2 border-t border-gray-100">
-                            <p className="text-[10px] text-red-600 font-medium flex items-center gap-1">
-                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            <p className="text-[10px] text-red-600 flex items-center gap-1">
+                              <FiAlertCircle className="w-3 h-3" />
                               {task.error}
                             </p>
                           </div>
                         )}
 
                         {task.fallback && (
-                          <p className="text-[9px] text-purple-600 mt-1">HEIC展開</p>
+                          <p className="yy-mono text-[10px] text-gray-500 mt-1">HEIC展開</p>
                         )}
                       </div>
                     );
@@ -1147,10 +1192,10 @@ const ImageConverter: React.FC = () => {
                   {completedCount > 0 && (
                     <button
                       type="button"
-                      className="w-full px-4 py-3 rounded-lg bg-green-600 text-white text-[12px] font-bold hover:bg-green-700 hover:shadow-md transition-all flex items-center justify-center gap-2"
+                      className="yy-btn yy-btn--primary w-full !py-2.5 flex items-center justify-center gap-2"
                       onClick={downloadAllAsZip}
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                      <FiDownload className="w-3.5 h-3.5" />
                       まとめてZIPでダウンロード ({completedCount}件)
                     </button>
                   )}
@@ -1158,7 +1203,7 @@ const ImageConverter: React.FC = () => {
                   <div className="flex gap-2">
                     <button
                       type="button"
-                      className="flex-1 px-3 py-2 rounded border border-gray-300 hover:bg-gray-100 text-[11px] text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="yy-btn flex-1"
                       onClick={clearCompleted}
                       disabled={completedCount === 0}
                     >
@@ -1166,7 +1211,7 @@ const ImageConverter: React.FC = () => {
                     </button>
                     <button
                       type="button"
-                      className="flex-1 px-3 py-2 rounded border border-gray-300 hover:bg-gray-100 text-[11px] text-gray-700"
+                      className="yy-btn flex-1"
                       onClick={clearAll}
                       disabled={tasks.length === 0}
                     >

@@ -184,7 +184,7 @@ export const Transmittal: React.FC<{
         </div>
       </div>
 
-      <div className="bg-white shrink-0 shadow" style={{ width: '210mm', minHeight: '297mm' }}>
+      <div className="bg-white shrink-0 outline outline-1 outline-gray-300" style={{ width: '210mm', minHeight: '297mm' }}>
         <div id="print-target-container" className="bg-white text-[12px] leading-relaxed" style={{ width: '210mm', minHeight: '297mm', padding: '18mm 16mm', boxSizing: 'border-box' }}>
           <div className="text-right">{today}</div>
           <div className="mt-4 text-[14px] border-b border-black inline-block min-w-[60%]">{to || '　'}</div>

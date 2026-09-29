@@ -23,6 +23,7 @@ import Grid from './spreadsheet/Grid';
 import HistoryManager, { HistorySnapshot } from './spreadsheet/HistoryManager';
 import FormulaEngine from './spreadsheet/FormulaEngine';
 import { PENDING_TEMPLATE_KEY, SHEET_TEMPLATES, type SheetTemplate } from './spreadsheet/templates';
+import ToolHeader from '../ToolHeader';
 
 type CellBorder = { top?: boolean; right?: boolean; bottom?: boolean; left?: boolean };
 type CellFormat = {
@@ -1446,6 +1447,22 @@ const Spreadsheet: React.FC = () => {
     }
   }, [sheet.cols, colWidths.length])
 
+  // --- 見出し帯の「できること」から各機能へ飛ぶための足場。
+  // テンプレートや建築関数がツールバーと右端に埋もれて気づかれなかったので、帯から呼べるようにする。
+  const toolbarRef = useRef<HTMLDivElement>(null)
+  const funcsRef = useRef<HTMLDivElement>(null)
+  const ioRef = useRef<HTMLButtonElement>(null)
+  const [sheetNotice, setSheetNotice] = useState('')
+  const sheetNoticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const flashSheetNotice = (text: string) => {
+    setSheetNotice(text)
+    if (sheetNoticeTimer.current) clearTimeout(sheetNoticeTimer.current)
+    sheetNoticeTimer.current = setTimeout(() => setSheetNotice(''), 5000)
+  }
+  useEffect(() => () => { if (sheetNoticeTimer.current) clearTimeout(sheetNoticeTimer.current) }, [])
+  const scrollToSheetRef = (r: React.RefObject<HTMLElement | null>) =>
+    r.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+
   // よく使う関数テンプレ（右エリア）
   const commonFuncs = [
     { name: 'SUM', tpl: '=SUM(A1:A10)', hint: '合計' },
@@ -1697,14 +1714,54 @@ const Spreadsheet: React.FC = () => {
   };
 
   return (
-    <div className="bg-white rounded-b-lg shadow-sm border-b border-gray-100 flex flex-col h-full lg:h-[calc(100vh-var(--nav-height))]">
-      {/* ヘッダーエリア */}
-      <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
-        <div>
-          <h3 className="text-[13px] font-medium">表計算</h3>
-          <p className="text-[11px] mt-0.5">Excelライクな表計算ツール。数式・関数計算、セル書式設定、Excel形式でのエクスポートに対応</p>
-        </div>
-      </div>
+    <div className="bg-white border-b border-gray-100 flex flex-col h-full lg:h-[calc(100vh-var(--nav-height))]">
+      <ToolHeader
+        no="02"
+        code="SHEET"
+        title="表計算"
+        description="面積表・仕上表・数量拾いを式つきで作り、坪・枚数・勾配を関数で出して Excel でやりとりする。"
+        features={[
+          {
+            label: '建築テンプレート',
+            hint: '面積表・仕上表・建具表・数量拾い・工事費内訳を式つきで作る',
+            active: showTemplates,
+            onClick: () => { setShowTemplates(true); scrollToSheetRef(toolbarRef); },
+          },
+          {
+            label: '建築関数（坪・必要数・勾配）',
+            hint: '=坪(A1) / =必要数(…) / =勾配角度(4) などを右の一覧から入れる',
+            onClick: () => scrollToSheetRef(funcsRef),
+          },
+          {
+            label: 'Excel・CSV 入出力',
+            hint: '.xlsx / .xls / .csv を数式ごと取り込み、Excel・CSV で書き出す',
+            onClick: () => scrollToSheetRef(ioRef),
+          },
+          {
+            label: '共有リンク（閲覧専用）',
+            login: true,
+            hint: 'ログインすると、相手にアカウント不要の閲覧専用リンクを作れます',
+            onClick: () => {
+              if (!currentUser) { flashSheetNotice('ログイン（無料の会員登録）すると、閲覧専用の共有リンクを作れます。'); return; }
+              scrollToSheetRef(ioRef);
+            },
+          },
+          {
+            label: '条件付き書式',
+            hint: '選択範囲の値に応じて背景・文字色・太字を変える',
+            active: condOpen,
+            onClick: () => setCondOpen((v) => !v),
+          },
+          {
+            label: '検索・置換',
+            active: findOpen,
+            onClick: () => setFindOpen((v) => !v),
+          },
+        ]}
+      />
+      {sheetNotice && (
+        <p className="px-4 py-1.5 text-[11px] text-gray-600 border-b border-gray-200 shrink-0" role="status">{sheetNotice}</p>
+      )}
       {/* 帯は左右いっぱい、その下の本文だけ他ツールと同じ左右余白を付ける。 */}
       <div className="flex-1 min-h-0 overflow-hidden px-4 pt-3" onMouseUp={handleMouseUp} onClick={() => setContextMenu(null)}>
       {/* フォーミュラバー */}
@@ -1987,16 +2044,16 @@ const Spreadsheet: React.FC = () => {
         }}
       />
 
-      <div className="mb-2 flex items-center gap-2 flex-wrap">
+      <div ref={toolbarRef} className="mb-2 flex items-center gap-2 flex-wrap scroll-mt-2">
         {/* シートタブUI */}
         <div className="flex items-center gap-1 border-b border-gray-300">
           {sheetList.map(s => (
             <button
               key={s.id}
               type="button"
-              className={`px-4 py-1.5 text-xs rounded-t border-t border-l border-r transition-colors ${
+              className={`px-4 py-1.5 text-xs border-t border-l border-r transition-colors ${
                 currentSheetId === s.id
-                  ? 'bg-white border-gray-300 font-semibold text-green-700 relative -bottom-px pb-2'
+                  ? 'bg-white border-[#3b3b3b] border-t-[#52AA96] font-bold text-gray-900 relative -bottom-px pb-2'
                   : 'bg-gray-100 border-transparent text-gray-600 hover:bg-gray-200'
               }`}
               onClick={() => setCurrentSheetId(s.id)}
@@ -2006,7 +2063,7 @@ const Spreadsheet: React.FC = () => {
           ))}
           <button 
             type="button" 
-            className="px-2 py-1.5 text-xs rounded-t border-t border-l border-r border-transparent bg-gray-100 hover:bg-gray-200 text-gray-600" 
+            className="px-2 py-1.5 text-xs border-t border-l border-r border-transparent bg-gray-100 hover:bg-gray-200 text-gray-600" 
             onClick={createNewSheet}
             title="新しいシートを追加"
           >
@@ -2016,14 +2073,14 @@ const Spreadsheet: React.FC = () => {
         <div className="relative">
           <button
             type="button"
-            className="px-2 py-1 text-xs rounded bg-gray-700 text-white hover:bg-gray-800"
+            className="px-2 py-1 text-xs bg-gray-700 text-white hover:bg-gray-800"
             onClick={() => setShowTemplates(v => !v)}
             title="面積表・仕上表・建具表・数量拾い・工事費内訳を式つきで作る"
           >
             テンプレートから作成
           </button>
           {showTemplates && (
-            <div className="absolute left-0 top-full mt-1 z-30 w-[320px] bg-white border border-[#3b3b3b] shadow-lg">
+            <div className="absolute left-0 top-full mt-1 z-30 w-[320px] bg-white border border-[#3b3b3b]">
               {SHEET_TEMPLATES.map(t => (
                 <button key={t.id} type="button" onClick={() => void createFromTemplate(t)} className="block w-full text-left px-3 py-2 hover:bg-gray-100 border-b last:border-b-0">
                   <span className="block text-[12px] font-bold text-gray-800">{t.name}</span>
@@ -2034,13 +2091,13 @@ const Spreadsheet: React.FC = () => {
             </div>
           )}
         </div>
-        <button type="button" className="px-2 py-1 text-xs rounded bg-gray-200 hover:bg-gray-700 hover:text-white" onClick={renameCurrentSheet}>名称変更</button>
-        <button type="button" className="px-2 py-1 text-xs rounded bg-gray-200 hover:bg-red-600 hover:text-white" onClick={deleteCurrentSheet}>削除</button>
-        <button type="button" className="px-2 py-1 text-xs rounded bg-gray-200 hover:bg-gray-700 hover:text-white" onClick={addRow}>行を追加</button>
-        <button type="button" className="px-2 py-1 text-xs rounded bg-gray-200 hover:bg-gray-700 hover:text-white" onClick={addCol}>列を追加</button>
+        <button type="button" className="px-2 py-1 text-xs border border-gray-300 bg-white hover:bg-gray-100" onClick={renameCurrentSheet}>名称変更</button>
+        <button type="button" className="px-2 py-1 text-xs border border-gray-300 bg-white hover:text-red-600 hover:border-red-600" onClick={deleteCurrentSheet}>削除</button>
+        <button type="button" className="px-2 py-1 text-xs border border-gray-300 bg-white hover:bg-gray-100" onClick={addRow}>行を追加</button>
+        <button type="button" className="px-2 py-1 text-xs border border-gray-300 bg-white hover:bg-gray-100" onClick={addCol}>列を追加</button>
         <button
           type="button"
-          className="px-2 py-1 text-xs rounded bg-gray-200 hover:bg-red-600 hover:text-white"
+          className="px-2 py-1 text-xs border border-gray-300 bg-white hover:text-red-600 hover:border-red-600"
           onClick={() => {
             if (sheet.rows <= 1) return
             const target = sheet.rows - 1
@@ -2063,7 +2120,7 @@ const Spreadsheet: React.FC = () => {
         >行を削除</button>
         <button
           type="button"
-          className="px-2 py-1 text-xs rounded bg-gray-200 hover:bg-red-600 hover:text-white"
+          className="px-2 py-1 text-xs border border-gray-300 bg-white hover:text-red-600 hover:border-red-600"
           onClick={() => {
             if (sheet.cols <= 1) return
             const target = sheet.cols - 1
@@ -2089,9 +2146,9 @@ const Spreadsheet: React.FC = () => {
         <div className="ml-4 flex items-center gap-2">
           <button 
             type="button" 
-            className={`px-2 py-1 text-xs rounded border flex items-center gap-1 ${
+            className={`px-2 py-1 text-xs border flex items-center gap-1 ${
               sheet.formats?.[activeCellKey || '']?.bold 
-                ? 'bg-green-100 text-green-700 border-green-300' 
+                ? 'bg-[#3b3b3b] text-white border-[#3b3b3b]' 
                 : 'bg-white hover:bg-gray-50'
             }`}
             onClick={() => applyFormat({ bold: !(sheet.formats?.[activeCellKey || '']?.bold) })}
@@ -2102,9 +2159,9 @@ const Spreadsheet: React.FC = () => {
           <div className="w-px h-5 bg-gray-300"></div>
           <button 
             type="button" 
-            className={`px-2 py-1 text-xs rounded border flex items-center ${
+            className={`px-2 py-1 text-xs border flex items-center ${
               sheet.formats?.[activeCellKey || '']?.align === 'left' 
-                ? 'bg-green-100 text-green-700 border-green-300' 
+                ? 'bg-[#3b3b3b] text-white border-[#3b3b3b]' 
                 : 'bg-white hover:bg-gray-50'
             }`}
             onClick={() => applyFormat({ align: 'left' })}
@@ -2114,9 +2171,9 @@ const Spreadsheet: React.FC = () => {
           </button>
           <button 
             type="button" 
-            className={`px-2 py-1 text-xs rounded border flex items-center ${
+            className={`px-2 py-1 text-xs border flex items-center ${
               sheet.formats?.[activeCellKey || '']?.align === 'center' 
-                ? 'bg-green-100 text-green-700 border-green-300' 
+                ? 'bg-[#3b3b3b] text-white border-[#3b3b3b]' 
                 : 'bg-white hover:bg-gray-50'
             }`}
             onClick={() => applyFormat({ align: 'center' })}
@@ -2126,9 +2183,9 @@ const Spreadsheet: React.FC = () => {
           </button>
           <button 
             type="button" 
-            className={`px-2 py-1 text-xs rounded border flex items-center ${
+            className={`px-2 py-1 text-xs border flex items-center ${
               sheet.formats?.[activeCellKey || '']?.align === 'right' 
-                ? 'bg-green-100 text-green-700 border-green-300' 
+                ? 'bg-[#3b3b3b] text-white border-[#3b3b3b]' 
                 : 'bg-white hover:bg-gray-50'
             }`}
             onClick={() => applyFormat({ align: 'right' })}
@@ -2139,9 +2196,9 @@ const Spreadsheet: React.FC = () => {
           <div className="w-px h-5 bg-gray-300"></div>
           <button 
             type="button" 
-            className={`px-2 py-1 text-xs rounded border flex items-center ${
+            className={`px-2 py-1 text-xs border flex items-center ${
               sheet.formats?.[activeCellKey || '']?.type === 'currency' 
-                ? 'bg-green-100 text-green-700 border-green-300' 
+                ? 'bg-[#3b3b3b] text-white border-[#3b3b3b]' 
                 : 'bg-white hover:bg-gray-50'
             }`}
             onClick={() => applyFormat({ type: 'currency' })}
@@ -2151,9 +2208,9 @@ const Spreadsheet: React.FC = () => {
           </button>
           <button 
             type="button" 
-            className={`px-2 py-1 text-xs rounded border flex items-center font-semibold ${
+            className={`px-2 py-1 text-xs border flex items-center font-bold ${
               sheet.formats?.[activeCellKey || '']?.type === 'percent' 
-                ? 'bg-green-100 text-green-700 border-green-300' 
+                ? 'bg-[#3b3b3b] text-white border-[#3b3b3b]' 
                 : 'bg-white hover:bg-gray-50'
             }`}
             onClick={() => applyFormat({ type: 'percent' })}
@@ -2161,21 +2218,21 @@ const Spreadsheet: React.FC = () => {
           >
             <span>%</span>
           </button>
-          <select className="text-xs border rounded px-2 py-1" value={sheet.formats?.[activeCellKey || '']?.type || 'text'} onChange={(e) => applyFormat({ type: e.target.value as any })}>
+          <select className="text-xs border px-2 py-1" value={sheet.formats?.[activeCellKey || '']?.type || 'text'} onChange={(e) => applyFormat({ type: e.target.value as any })}>
             <option value="text">文字列</option>
             <option value="number">数値</option>
             <option value="percent">百分率</option>
             <option value="currency">通貨</option>
           </select>
-          <button type="button" className="px-2 py-1 text-xs rounded border bg-white hover:bg-gray-50" onClick={() => adjustDecimals(1)}>小数+ </button>
-          <button type="button" className="px-2 py-1 text-xs rounded border bg-white hover:bg-gray-50" onClick={() => adjustDecimals(-1)}>小数- </button>
+          <button type="button" className="px-2 py-1 text-xs border bg-white hover:bg-gray-50" onClick={() => adjustDecimals(1)}>小数+ </button>
+          <button type="button" className="px-2 py-1 text-xs border bg-white hover:bg-gray-50" onClick={() => adjustDecimals(-1)}>小数- </button>
 
           {/* 列幅調整（アクティブセルの列） */}
-          <button type="button" className="px-2 py-1 text-xs rounded border bg-white hover:bg-gray-50" onClick={() => {
+          <button type="button" className="px-2 py-1 text-xs border bg-white hover:bg-gray-50" onClick={() => {
             if (!activeCellKey) return; const c = Number(activeCellKey.split('C')[1] || '0');
             setColWidths(prev => prev.map((w, i) => i === c ? Math.max(48, w - 8) : w))
           }}>列幅-</button>
-          <button type="button" className="px-2 py-1 text-xs rounded border bg-white hover:bg-gray-50" onClick={() => {
+          <button type="button" className="px-2 py-1 text-xs border bg-white hover:bg-gray-50" onClick={() => {
             if (!activeCellKey) return; const c = Number(activeCellKey.split('C')[1] || '0');
             setColWidths(prev => prev.map((w, i) => i === c ? Math.min(320, w + 8) : w))
           }}>列幅+</button>
@@ -2183,7 +2240,7 @@ const Spreadsheet: React.FC = () => {
           {/* Undo / Redo */}
           <button 
             type="button" 
-            className="px-2 py-1 text-xs rounded border bg-white hover:bg-gray-50 flex items-center gap-1" 
+            className="px-2 py-1 text-xs border bg-white hover:bg-gray-50 flex items-center gap-1" 
             onClick={handleUndo}
             title="元に戻す (Ctrl+Z)"
           >
@@ -2192,7 +2249,7 @@ const Spreadsheet: React.FC = () => {
           </button>
           <button 
             type="button" 
-            className="px-2 py-1 text-xs rounded border bg-white hover:bg-gray-50 flex items-center gap-1" 
+            className="px-2 py-1 text-xs border bg-white hover:bg-gray-50 flex items-center gap-1" 
             onClick={handleRedo}
             title="やり直し (Ctrl+Y)"
           >
@@ -2201,11 +2258,11 @@ const Spreadsheet: React.FC = () => {
           </button>
 
           {/* CSV/Excel 入出力 */}
-          <button type="button" className="px-2 py-1 text-xs rounded border bg-white hover:bg-gray-50" onClick={exportCsv}>CSV出力</button>
-          <button type="button" className="px-2 py-1 text-xs rounded border bg-white hover:bg-gray-50" onClick={exportExcel}>Excel出力</button>
+          <button ref={ioRef} type="button" className="px-2 py-1 text-xs border bg-white hover:bg-gray-50 scroll-mt-2" onClick={exportCsv}>CSV出力</button>
+          <button type="button" className="px-2 py-1 text-xs border bg-white hover:bg-gray-50" onClick={exportExcel}>Excel出力</button>
           <button
             type="button"
-            className="px-2 py-1 text-xs rounded border bg-white hover:bg-gray-50"
+            className="px-2 py-1 text-xs border bg-white hover:bg-gray-50"
             onClick={() => importInputRef.current?.click()}
           >Excel/CSV取込</button>
           <input
@@ -2219,11 +2276,11 @@ const Spreadsheet: React.FC = () => {
               if (file) await importFile(file)
             }}
           />
-          <button type="button" className="px-2 py-1 text-xs rounded border bg-white hover:bg-gray-50" onClick={() => window.print()}>印刷</button>
+          <button type="button" className="px-2 py-1 text-xs border bg-white hover:bg-gray-50" onClick={() => window.print()}>印刷</button>
           <button
             type="button"
             disabled={sharing}
-            className="px-2 py-1 text-xs rounded border bg-white hover:bg-gray-50 disabled:opacity-50"
+            className="px-2 py-1 text-xs border bg-white hover:bg-gray-50 disabled:opacity-50"
             title="閲覧専用リンクを作る。相手にアカウントもExcelも要りません"
             onClick={publishSheet}
           >{sharing ? '公開中...' : shareCode ? '公開を更新' : '共有リンク'}</button>
@@ -2233,9 +2290,9 @@ const Spreadsheet: React.FC = () => {
                 href={`/sheet/${shareCode}/`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-2 py-1 text-xs rounded border bg-white hover:bg-gray-50 text-blue-600"
+                className="px-2 py-1 text-xs border bg-white hover:bg-gray-50 text-gray-900 underline underline-offset-2"
               >公開ページを開く</a>
-              <button type="button" className="px-2 py-1 text-xs rounded border bg-white hover:bg-gray-50 text-red-600" onClick={unpublishSheet}>公開停止</button>
+              <button type="button" className="px-2 py-1 text-xs border bg-white hover:bg-gray-50 text-red-600" onClick={unpublishSheet}>公開停止</button>
             </>
           )}
         </div>
@@ -2244,54 +2301,54 @@ const Spreadsheet: React.FC = () => {
       {/* 書式ツールバー（罫線・色・サイズ・折り返し） */}
       <div className="flex items-center gap-1 flex-wrap mb-2 text-xs">
         <span className="text-gray-500 mr-1">罫線</span>
-        <button type="button" title="外枠" className="px-2 py-1 rounded border bg-white hover:bg-gray-50" onClick={applyOuterBorder}>外枠</button>
-        <button type="button" title="格子（すべての辺）" className="px-2 py-1 rounded border bg-white hover:bg-gray-50"
+        <button type="button" title="外枠" className="px-2 py-1 border bg-white hover:bg-gray-50" onClick={applyOuterBorder}>外枠</button>
+        <button type="button" title="格子（すべての辺）" className="px-2 py-1 border bg-white hover:bg-gray-50"
           onClick={() => applyFormat({ border: { top: true, right: true, bottom: true, left: true } })}>格子</button>
-        <button type="button" title="下罫線" className="px-2 py-1 rounded border bg-white hover:bg-gray-50"
+        <button type="button" title="下罫線" className="px-2 py-1 border bg-white hover:bg-gray-50"
           onClick={() => applyFormat({ border: { bottom: true } })}>下線</button>
-        <button type="button" title="罫線を消す" className="px-2 py-1 rounded border bg-white hover:bg-gray-50"
+        <button type="button" title="罫線を消す" className="px-2 py-1 border bg-white hover:bg-gray-50"
           onClick={() => applyFormat({ border: { top: false, right: false, bottom: false, left: false } })}>なし</button>
 
         <span className="text-gray-500 ml-3 mr-1">色</span>
-        <label className="flex items-center gap-1 px-1 py-0.5 rounded border bg-white" title="背景色">
+        <label className="flex items-center gap-1 px-1 py-0.5 border bg-white" title="背景色">
           <span className="text-[10px] text-gray-500">背景</span>
           <input type="color" className="w-6 h-5 cursor-pointer" defaultValue="#fff7cc"
             onChange={(e) => applyFormat({ bg: e.target.value })} />
         </label>
-        <label className="flex items-center gap-1 px-1 py-0.5 rounded border bg-white" title="文字色">
+        <label className="flex items-center gap-1 px-1 py-0.5 border bg-white" title="文字色">
           <span className="text-[10px] text-gray-500">文字</span>
           <input type="color" className="w-6 h-5 cursor-pointer" defaultValue="#c00000"
             onChange={(e) => applyFormat({ color: e.target.value })} />
         </label>
 
         <span className="text-gray-500 ml-3 mr-1">文字</span>
-        <button type="button" title="斜体" className="px-2 py-1 rounded border bg-white hover:bg-gray-50 italic"
+        <button type="button" title="斜体" className="px-2 py-1 border bg-white hover:bg-gray-50 italic"
           onClick={() => applyFormat({ italic: true })}>I</button>
-        <select className="px-1 py-1 rounded border bg-white" defaultValue="" title="文字サイズ"
+        <select className="px-1 py-1 border bg-white" defaultValue="" title="文字サイズ"
           onChange={(e) => { if (e.target.value) applyFormat({ fontSize: Number(e.target.value) }) }}>
           <option value="">サイズ</option>
           {[10, 11, 12, 14, 16, 18, 24].map(s => <option key={s} value={s}>{s}px</option>)}
         </select>
-        <button type="button" title="折り返して全体を表示" className="px-2 py-1 rounded border bg-white hover:bg-gray-50"
+        <button type="button" title="折り返して全体を表示" className="px-2 py-1 border bg-white hover:bg-gray-50"
           onClick={() => applyFormat({ wrap: true })}>折返</button>
-        <button type="button" title="書式をすべて消す" className="px-2 py-1 rounded border bg-white hover:bg-gray-50"
+        <button type="button" title="書式をすべて消す" className="px-2 py-1 border bg-white hover:bg-gray-50"
           onClick={clearFormat}>書式解除</button>
 
         <span className="text-gray-500 ml-3 mr-1">結合</span>
-        <button type="button" title="選択範囲を1つのセルに結合する" className="px-2 py-1 rounded border bg-white hover:bg-gray-50"
+        <button type="button" title="選択範囲を1つのセルに結合する" className="px-2 py-1 border bg-white hover:bg-gray-50"
           onClick={mergeSelection}>セル結合</button>
-        <button type="button" title="結合を解除する" className="px-2 py-1 rounded border bg-white hover:bg-gray-50"
+        <button type="button" title="結合を解除する" className="px-2 py-1 border bg-white hover:bg-gray-50"
           onClick={unmergeSelection}>結合解除</button>
-        <button type="button" title="選択範囲に条件付き書式を設定する" className="px-2 py-1 rounded border bg-white hover:bg-gray-50 ml-3"
+        <button type="button" title="選択範囲に条件付き書式を設定する" className="px-2 py-1 border bg-white hover:bg-gray-50 ml-3"
           onClick={() => setCondOpen(v => !v)}>条件付き書式</button>
 
         <span className="text-gray-500 ml-3 mr-1">並べ替え</span>
-        <button type="button" title="選択範囲を1列目の昇順で並べ替え" className="px-2 py-1 rounded border bg-white hover:bg-gray-50"
+        <button type="button" title="選択範囲を1列目の昇順で並べ替え" className="px-2 py-1 border bg-white hover:bg-gray-50"
           onClick={() => sortSelection(false)}>昇順</button>
-        <button type="button" title="選択範囲を1列目の降順で並べ替え" className="px-2 py-1 rounded border bg-white hover:bg-gray-50"
+        <button type="button" title="選択範囲を1列目の降順で並べ替え" className="px-2 py-1 border bg-white hover:bg-gray-50"
           onClick={() => sortSelection(true)}>降順</button>
 
-        <button type="button" className="px-2 py-1 rounded border bg-white hover:bg-gray-50 ml-3"
+        <button type="button" className="px-2 py-1 border bg-white hover:bg-gray-50 ml-3"
           onClick={() => setFindOpen(v => !v)}>検索・置換</button>
 
         {/* 保存状態。以前はここが無く、保存に失敗しても気づけなかった */}
@@ -2303,15 +2360,15 @@ const Spreadsheet: React.FC = () => {
           )}
           {saveState === 'saving' && <span className="text-gray-400">保存中...</span>}
           {saveState === 'saved' && <span className="text-gray-400">保存しました</span>}
-          {saveState === 'error' && <span className="text-red-600 font-semibold">{saveError}</span>}
+          {saveState === 'error' && <span className="text-red-600 font-bold">{saveError}</span>}
         </span>
       </div>
 
       {condOpen && (
-        <div className="mb-2 text-xs bg-gray-50 border rounded p-2 space-y-2">
+        <div className="mb-2 text-xs bg-gray-50 border p-2 space-y-2">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-gray-600">選択範囲が</span>
-            <select value={condOp} onChange={(e) => setCondOp(e.target.value as CondOp)} className="px-2 py-1 border rounded">
+            <select value={condOp} onChange={(e) => setCondOp(e.target.value as CondOp)} className="px-2 py-1 border">
               <option value="gt">より大きい</option>
               <option value="ge">以上</option>
               <option value="lt">より小さい</option>
@@ -2322,35 +2379,35 @@ const Spreadsheet: React.FC = () => {
               <option value="contains">文字を含む</option>
             </select>
             <input value={condValue} onChange={(e) => setCondValue(e.target.value)} placeholder="値"
-              className="px-2 py-1 border rounded w-24" />
+              className="px-2 py-1 border w-24" />
             {condOp === 'between' && (
               <input value={condValue2} onChange={(e) => setCondValue2(e.target.value)} placeholder="〜"
-                className="px-2 py-1 border rounded w-24" />
+                className="px-2 py-1 border w-24" />
             )}
             <span className="text-gray-600">とき</span>
-            <label className="flex items-center gap-1 px-1 py-0.5 rounded border bg-white">
+            <label className="flex items-center gap-1 px-1 py-0.5 border bg-white">
               <span className="text-[10px] text-gray-500">背景</span>
               <input type="color" value={condBg} onChange={(e) => setCondBg(e.target.value)} className="w-6 h-5" />
             </label>
-            <label className="flex items-center gap-1 px-1 py-0.5 rounded border bg-white">
+            <label className="flex items-center gap-1 px-1 py-0.5 border bg-white">
               <span className="text-[10px] text-gray-500">文字</span>
               <input type="color" value={condColor} onChange={(e) => setCondColor(e.target.value)} className="w-6 h-5" />
             </label>
             <label className="flex items-center gap-1 text-gray-600">
               <input type="checkbox" checked={condBold} onChange={(e) => setCondBold(e.target.checked)} />太字
             </label>
-            <button type="button" className="px-2 py-1 rounded border bg-white hover:bg-gray-50"
+            <button type="button" className="px-2 py-1 border bg-white hover:bg-gray-50"
               onClick={() => addCondRule(condOp, condValue, condValue2, { bg: condBg, color: condColor, bold: condBold || undefined })}>
               追加
             </button>
-            <button type="button" className="px-2 py-1 rounded border bg-white hover:bg-gray-50 ml-auto"
+            <button type="button" className="px-2 py-1 border bg-white hover:bg-gray-50 ml-auto"
               onClick={() => setCondOpen(false)}>閉じる</button>
           </div>
           {(sheet.condRules || []).length > 0 && (
             <ul className="space-y-1">
               {(sheet.condRules || []).map(rule => (
                 <li key={rule.id} className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded border" style={{ backgroundColor: rule.style.bg, color: rule.style.color, fontWeight: rule.style.bold ? 700 : undefined }}>
+                  <span className="px-2 py-0.5 border" style={{ backgroundColor: rule.style.bg, color: rule.style.color, fontWeight: rule.style.bold ? 700 : undefined }}>
                     {rcToAddress(Math.min(rule.r1, rule.r2), Math.min(rule.c1, rule.c2))}:
                     {rcToAddress(Math.max(rule.r1, rule.r2), Math.max(rule.c1, rule.c2))}
                   </span>
@@ -2366,14 +2423,14 @@ const Spreadsheet: React.FC = () => {
       )}
 
       {findOpen && (
-        <div className="flex items-center gap-2 mb-2 text-xs bg-gray-50 border rounded p-2">
+        <div className="flex items-center gap-2 mb-2 text-xs bg-gray-50 border p-2">
           <input value={findText} onChange={(e) => setFindText(e.target.value)} placeholder="検索する文字列"
-            className="px-2 py-1 border rounded" />
+            className="px-2 py-1 border" />
           <input value={replaceText} onChange={(e) => setReplaceText(e.target.value)} placeholder="置換後"
-            className="px-2 py-1 border rounded" />
-          <button type="button" className="px-2 py-1 rounded border bg-white hover:bg-gray-50" onClick={() => findNext()}>次を検索</button>
-          <button type="button" className="px-2 py-1 rounded border bg-white hover:bg-gray-50" onClick={() => replaceAll()}>すべて置換</button>
-          <button type="button" className="px-2 py-1 rounded border bg-white hover:bg-gray-50 ml-auto" onClick={() => setFindOpen(false)}>閉じる</button>
+            className="px-2 py-1 border" />
+          <button type="button" className="px-2 py-1 border bg-white hover:bg-gray-50" onClick={() => findNext()}>次を検索</button>
+          <button type="button" className="px-2 py-1 border bg-white hover:bg-gray-50" onClick={() => replaceAll()}>すべて置換</button>
+          <button type="button" className="px-2 py-1 border bg-white hover:bg-gray-50 ml-auto" onClick={() => setFindOpen(false)}>閉じる</button>
         </div>
       )}
       <div className="grid grid-cols-[1fr_210px] gap-4 items-start">
@@ -2882,11 +2939,11 @@ const Spreadsheet: React.FC = () => {
         {/* 右クリックメニュー */}
         {contextMenu && (
           <div 
-            className="fixed bg-white border border-gray-200 shadow-lg rounded py-1 z-50 w-48"
+            className="fixed bg-white border border-gray-200 py-1 z-50 w-48"
             style={{ top: contextMenu.y, left: contextMenu.x }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-3 py-1 text-xs text-gray-400 font-semibold border-b mb-1">メニュー</div>
+            <div className="px-3 py-1 text-xs text-gray-400 font-bold border-b mb-1">メニュー</div>
             <button
               onClick={() => executeContextAction('insert')}
               className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center space-x-2 text-gray-700"
@@ -2904,11 +2961,11 @@ const Spreadsheet: React.FC = () => {
           </div>
         )}
         {/* 右サイド: よく使う関数（幅を約半分に縮小） */}
-        <div className="sticky top-4 space-y-2 w-[210px]">
-          <div className="text-sm font-semibold">よく使う関数</div>
+        <div ref={funcsRef} className="sticky top-4 space-y-2 w-[210px] scroll-mt-2">
+          <div className="yy-mono text-[10px] tracking-[0.12em] uppercase text-gray-500">よく使う関数 / 建築関数</div>
           <div className="space-y-1">
             {commonFuncs.map(fn => (
-              <button key={fn.name} type="button" onClick={() => insertTemplate(fn.tpl)} className="w-full text-left text-[11px] px-2 py-1 rounded border bg-white hover:bg-gray-50" title={fn.hint}>
+              <button key={fn.name} type="button" onClick={() => insertTemplate(fn.tpl)} className="w-full text-left text-[11px] px-2 py-1 border bg-white hover:bg-gray-50" title={fn.hint}>
                 <span className="font-mono text-[11px]">{fn.tpl}</span>
                 <span className="ml-2 text-gray-500">{fn.hint}</span>
               </button>

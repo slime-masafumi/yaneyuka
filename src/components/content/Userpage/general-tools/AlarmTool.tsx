@@ -3,12 +3,13 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   FiPlay, FiSquare, FiBell, FiBellOff, FiVolume2, FiVolumeX, 
-  FiClock, FiActivity, FiClipboard, FiPlus, FiTrash2, FiSave, 
+  FiClock, FiPlus, FiTrash2, FiSave, 
   FiPieChart, FiCalendar, FiSettings, FiEdit2, FiCheck, FiX, FiDownload, FiList 
 } from 'react-icons/fi';
 import { useAuth } from '@/lib/AuthContext';
 import { PHASES, NO_PHASE, periodPreset, projectStats, toCsv, yen, type WorkEntry, type WorkProject } from '@/lib/workLog';
 import { useWorkLogSync } from './useWorkLogSync';
+import ToolHeader from '../ToolHeader';
 
 // --- 型定義 ---
 type Mode = 'timer' | 'alarm' | 'tracker';
@@ -223,6 +224,7 @@ const AlarmTool: React.FC = () => {
   // 目標とする時間単価（円/h）。設計料 ÷ これ ＝ その物件にかけてよい時間
   const [targetRate, setTargetRate] = useState<number>(10000);
   const { isLoggedIn, currentUser } = useAuth();
+  const [workNotice, setWorkNotice] = useState('');
   const trackerSettings = useMemo(() => ({ projects, targetRate }), [projects, targetRate]);
   const syncStatus = useWorkLogSync(
     isLoggedIn ? currentUser?.uid : undefined,
@@ -443,39 +445,64 @@ const AlarmTool: React.FC = () => {
   //  Render
   // ==========================================
   return (
-    <div className="w-full bg-white rounded-b-lg shadow-sm border-b border-gray-100 flex flex-col h-full overflow-hidden">
-      
-      {/* 帯は他のツールと同じ高さ・同じ書式にする（タブは帯の外へ出した） */}
-      <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
-        <div>
-          <h3 className="text-[13px] font-medium">業務管理・アラーム</h3>
-          <p className="text-[11px] mt-0.5">案件ごとの作業時間を記録して業務日報にまとめるツール。タイマーとアラームも同じ画面から使えます</p>
-        </div>
-      </div>
-
-      {/* 帯に食い込むタブではなく、本文側のボタンとして並べる。
-          並びは使う頻度の順（業務管理 → タイマー → アラーム）。 */}
-      <div className="px-4 pt-3 shrink-0">
-        <div className="flex gap-2">
-          {([
-            { id: 'tracker', label: '業務管理', icon: <FiClipboard /> },
-            { id: 'timer', label: 'タイマー', icon: <FiActivity /> },
-            { id: 'alarm', label: 'アラーム', icon: <FiClock /> },
-          ] as const).map((t) => (
-            <button
-              key={t.id}
-              onClick={() => { setMode(t.id); stopTimer(); }}
-              className={`px-4 py-1.5 text-xs border transition-colors flex items-center gap-1.5 ${
-                mode === t.id
-                  ? 'bg-[#3b3b3b] text-white border-[#3b3b3b] font-bold'
-                  : 'bg-white text-gray-700 border-[#3b3b3b] hover:bg-gray-100'
-              }`}
-            >
-              {t.icon} {t.label}
-            </button>
-          ))}
-        </div>
-      </div>
+    <div className="w-full bg-white border-b border-gray-100 flex flex-col h-full overflow-hidden">
+      {/* 以前は帯の下に 業務管理 / タイマー / アラーム の切替ボタンを並べていたが、
+          見出し帯の「できること」が同じ切替を兼ねるので 1 か所にまとめた。
+          集計や設計料の設定は業務管理の中のタブの奥にあり気づかれなかったので、帯から直接開く。 */}
+      <ToolHeader
+        no="15"
+        code="WORKLOG"
+        title="業務管理・アラーム"
+        description="案件ごとの作業時間を日報に残し、設計料と突き合わせて時間単価を見る。タイマーとアラームも同じ画面で。"
+        aside={
+          <span className={`yy-mono text-[10px] tracking-[0.08em] ${syncStatus === 'error' ? 'text-red-400' : 'text-[#8c887f]'}`}>
+            {syncStatus === 'synced' ? 'SYNCED' : syncStatus === 'syncing' ? 'SYNCING…' : syncStatus === 'error' ? 'SYNC ERROR' : 'LOCAL'}
+          </span>
+        }
+        features={[
+          {
+            label: '日報入力',
+            active: mode === 'tracker' && trackerTab === 'daily',
+            onClick: () => { setMode('tracker'); setTrackerTab('daily'); stopTimer(); },
+          },
+          {
+            label: '集計・CSV',
+            hint: '期間（今月・先月・今年度）ごとの日別・案件別の時間と工種の内訳。CSV で書き出す',
+            active: mode === 'tracker' && trackerTab === 'summary',
+            onClick: () => { setMode('tracker'); setTrackerTab('summary'); stopTimer(); },
+          },
+          {
+            label: '設計料と時間単価',
+            hint: '案件に設計料を入れると、時間単価と予算時間の消化率が集計に出る',
+            active: mode === 'tracker' && trackerTab === 'settings',
+            onClick: () => { setMode('tracker'); setTrackerTab('settings'); stopTimer(); },
+          },
+          {
+            label: 'タイマー',
+            active: mode === 'timer',
+            onClick: () => { setMode('timer'); stopTimer(); },
+          },
+          {
+            label: 'アラーム',
+            hint: '時刻を決めて音とデスクトップ通知で知らせる',
+            active: mode === 'alarm',
+            onClick: () => { setMode('alarm'); stopTimer(); },
+          },
+          {
+            label: '端末間で同期',
+            login: true,
+            hint: 'ログインすると日報と案件の設定が職場と自宅の端末で揃います',
+            onClick: () => setWorkNotice(
+              isLoggedIn
+                ? (syncStatus === 'error' ? '同期できませんでした。通信状態を確かめてください。記録はこのブラウザにも残っています。' : '日報と案件の設定はアカウントに保存され、ほかの端末でも同じ内容になります。')
+                : 'ログイン（無料の会員登録）すると、日報がアカウントに保存され端末間で揃います。今はこのブラウザにだけ保存しています。',
+            ),
+          },
+        ]}
+      />
+      {workNotice && (
+        <p className="px-4 py-1.5 text-[11px] text-gray-600 border-b border-gray-200 shrink-0" role="status">{workNotice}</p>
+      )}
 
       {/* Main Content Area */}
       <div className="flex-1 p-4 overflow-y-auto text-[12px] text-gray-700 [&>*]:border [&>*]:border-[#3b3b3b] [&>*]:p-3">
@@ -491,23 +518,23 @@ const AlarmTool: React.FC = () => {
             {mode === 'timer' ? (
                 <div className="flex items-center gap-3 justify-center">
                 <div className="flex flex-col items-center">
-                    <input type="number" min="0" max="23" value={hours} onChange={(e) => setHours(Math.max(0, Math.min(23, parseInt(e.target.value) || 0)))} disabled={isRunning} className="w-16 text-xl font-bold text-center border border-gray-300 rounded-lg px-1 py-2 outline-none focus:border-blue-500 disabled:bg-gray-50 text-gray-800"/>
+                    <input type="number" min="0" max="23" value={hours} onChange={(e) => setHours(Math.max(0, Math.min(23, parseInt(e.target.value) || 0)))} disabled={isRunning} className="w-16 text-xl font-bold text-center border border-gray-300 px-1 py-2 outline-none focus:border-gray-500 disabled:bg-gray-50 text-gray-800"/>
                     <span className="text-[10px] text-gray-400 mt-1">時間</span>
                 </div>
                   <span className="text-xl font-bold text-gray-300 -mt-4">:</span>
                 <div className="flex flex-col items-center">
-                    <input type="number" min="0" max="59" value={minutes} onChange={(e) => setMinutes(Math.max(0, Math.min(59, parseInt(e.target.value) || 0)))} disabled={isRunning} className="w-16 text-xl font-bold text-center border border-gray-300 rounded-lg px-1 py-2 outline-none focus:border-blue-500 disabled:bg-gray-50 text-gray-800"/>
+                    <input type="number" min="0" max="59" value={minutes} onChange={(e) => setMinutes(Math.max(0, Math.min(59, parseInt(e.target.value) || 0)))} disabled={isRunning} className="w-16 text-xl font-bold text-center border border-gray-300 px-1 py-2 outline-none focus:border-gray-500 disabled:bg-gray-50 text-gray-800"/>
                     <span className="text-[10px] text-gray-400 mt-1">分</span>
                 </div>
                   <span className="text-xl font-bold text-gray-300 -mt-4">:</span>
                 <div className="flex flex-col items-center">
-                    <input type="number" min="0" max="59" value={seconds} onChange={(e) => setSeconds(Math.max(0, Math.min(59, parseInt(e.target.value) || 0)))} disabled={isRunning} className="w-16 text-xl font-bold text-center border border-gray-300 rounded-lg px-1 py-2 outline-none focus:border-blue-500 disabled:bg-gray-50 text-gray-800"/>
+                    <input type="number" min="0" max="59" value={seconds} onChange={(e) => setSeconds(Math.max(0, Math.min(59, parseInt(e.target.value) || 0)))} disabled={isRunning} className="w-16 text-xl font-bold text-center border border-gray-300 px-1 py-2 outline-none focus:border-gray-500 disabled:bg-gray-50 text-gray-800"/>
                     <span className="text-[10px] text-gray-400 mt-1">秒</span>
                 </div>
               </div>
             ) : (
               <div className="flex justify-center">
-                  <input type="time" value={alarmTimeStr} onChange={(e) => setAlarmTimeStr(e.target.value)} disabled={isRunning} className="text-3xl font-bold text-center border border-gray-300 rounded-lg px-6 py-2 outline-none focus:border-blue-500 disabled:bg-gray-50 text-gray-800"/>
+                  <input type="time" value={alarmTimeStr} onChange={(e) => setAlarmTimeStr(e.target.value)} disabled={isRunning} className="text-3xl font-bold text-center border border-gray-300 px-6 py-2 outline-none focus:border-gray-500 disabled:bg-gray-50 text-gray-800"/>
               </div>
             )}
           </div>
@@ -515,43 +542,43 @@ const AlarmTool: React.FC = () => {
             {/* Display */}
           {isRunning && remainingTime !== null && (
               <div className="text-center animate-pulse">
-                <div className="text-4xl font-bold text-blue-600 mb-1 font-mono tracking-tight">{formatRemainingTime(remainingTime)}</div>
+                <div className="text-4xl font-light text-gray-900 mb-1 font-mono tracking-tight">{formatRemainingTime(remainingTime)}</div>
                 <p className="text-[10px] text-gray-400">残り時間</p>
-                {mode === 'alarm' && <p className="text-[10px] text-blue-400 mt-0.5 font-bold">設定時刻: {alarmTimeStr}</p>}
+                {mode === 'alarm' && <p className="yy-mono text-[10px] text-gray-500 mt-0.5">設定時刻: {alarmTimeStr}</p>}
               </div>
             )}
 
             {/* Controls */}
             <div className="flex gap-3 justify-center">
               {!isRunning ? (
-                <button onClick={startTimer} className="flex items-center gap-2 px-8 py-2.5 bg-blue-600 text-white rounded shadow hover:bg-blue-700 transition-colors text-[13px] font-bold"><FiPlay className="w-4 h-4" /> 開始</button>
+                <button onClick={startTimer} className="yy-btn yy-btn--primary flex items-center gap-2 !px-8 !py-2"><FiPlay className="w-4 h-4" /> 開始</button>
               ) : (
-                <button onClick={stopTimer} className="flex items-center gap-2 px-8 py-2.5 bg-red-600 text-white rounded shadow hover:bg-red-700 transition-colors text-[13px] font-bold"><FiSquare className="w-4 h-4" /> 停止</button>
+                <button onClick={stopTimer} className="yy-btn yy-btn--danger flex items-center gap-2 !px-8 !py-2"><FiSquare className="w-4 h-4" /> 停止</button>
               )}
             </div>
 
             <hr className="border-gray-100" />
 
             {/* Settings */}
-            <div className="bg-gray-50 p-3 rounded border border-gray-200 space-y-3">
+            <div className="bg-gray-50 p-3 border border-gray-200 space-y-3">
               <p className="text-[11px] font-bold text-gray-700">通知・サウンド設定</p>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   {soundEnabled ? <FiVolume2 className="text-gray-600"/> : <FiVolumeX className="text-gray-400"/>}
-                  <span className="text-[11px] font-medium text-gray-600">アラーム音</span>
+                  <span className="text-[11px] font-bold text-gray-600">アラーム音</span>
                 </div>
-                <button onClick={() => setSoundEnabled(!soundEnabled)} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${soundEnabled ? 'bg-blue-600' : 'bg-gray-300'}`}>
+                <button onClick={() => setSoundEnabled(!soundEnabled)} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${soundEnabled ? 'bg-[#52AA96]' : 'bg-gray-300'}`}>
                   <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${soundEnabled ? 'translate-x-4' : 'translate-x-1'}`} />
                 </button>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   {notificationEnabled ? <FiBell className="text-gray-600"/> : <FiBellOff className="text-gray-400"/>}
-                  <span className="text-[11px] font-medium text-gray-600">デスクトップ通知</span>
+                  <span className="text-[11px] font-bold text-gray-600">デスクトップ通知</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  {notificationPermission === 'default' && <button onClick={requestNotificationPermission} className="text-[9px] px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded border border-yellow-200 hover:bg-yellow-200 transition">許可する</button>}
-                  <button onClick={() => setNotificationEnabled(!notificationEnabled)} disabled={notificationPermission !== 'granted'} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${notificationEnabled && notificationPermission === 'granted' ? 'bg-blue-600' : 'bg-gray-300'} ${notificationPermission !== 'granted' ? 'opacity-50' : ''}`}>
+                  {notificationPermission === 'default' && <button onClick={requestNotificationPermission} className="text-[10px] px-2 py-0.5 border border-[#3b3b3b] text-gray-800 hover:bg-gray-100 transition">許可する</button>}
+                  <button onClick={() => setNotificationEnabled(!notificationEnabled)} disabled={notificationPermission !== 'granted'} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${notificationEnabled && notificationPermission === 'granted' ? 'bg-[#52AA96]' : 'bg-gray-300'} ${notificationPermission !== 'granted' ? 'opacity-50' : ''}`}>
                     <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${notificationEnabled && notificationPermission === 'granted' ? 'translate-x-4' : 'translate-x-1'}`} />
                   </button>
                 </div>
@@ -565,32 +592,32 @@ const AlarmTool: React.FC = () => {
           <div className="animate-fadeIn space-y-4 h-full flex flex-col">
             
             {/* Sub Navigation for Tracker */}
-            <div className="flex justify-between items-center bg-gray-50 p-2 rounded border border-gray-200 mb-2 shrink-0">
+            <div className="flex justify-between items-center bg-gray-50 p-2 border border-gray-200 mb-2 shrink-0">
               <div className="flex gap-2">
                 <button 
                   onClick={() => setTrackerTab('daily')} 
-                  className={`px-3 py-1.5 text-[11px] rounded transition-colors flex items-center gap-1 ${trackerTab==='daily' ? 'bg-white text-blue-600 shadow-sm font-bold' : 'text-gray-500 hover:bg-gray-200'}`}
+                  className={`px-3 py-1.5 text-[11px] transition-colors flex items-center gap-1 ${trackerTab==='daily' ? 'bg-white text-gray-900 font-bold border border-[#3b3b3b]' : 'text-gray-500 hover:bg-gray-200'}`}
                 >
                   <FiClock className="w-3 h-3"/> 日報入力
                 </button>
               <button
                   onClick={() => setTrackerTab('summary')} 
-                  className={`px-3 py-1.5 text-[11px] rounded transition-colors flex items-center gap-1 ${trackerTab==='summary' ? 'bg-white text-blue-600 shadow-sm font-bold' : 'text-gray-500 hover:bg-gray-200'}`}
+                  className={`px-3 py-1.5 text-[11px] transition-colors flex items-center gap-1 ${trackerTab==='summary' ? 'bg-white text-gray-900 font-bold border border-[#3b3b3b]' : 'text-gray-500 hover:bg-gray-200'}`}
               >
                   <FiPieChart className="w-3 h-3"/> 集計
               </button>
               <button
                   onClick={() => setTrackerTab('settings')} 
-                  className={`px-3 py-1.5 text-[11px] rounded transition-colors flex items-center gap-1 ${trackerTab==='settings' ? 'bg-white text-blue-600 shadow-sm font-bold' : 'text-gray-500 hover:bg-gray-200'}`}
+                  className={`px-3 py-1.5 text-[11px] transition-colors flex items-center gap-1 ${trackerTab==='settings' ? 'bg-white text-gray-900 font-bold border border-[#3b3b3b]' : 'text-gray-500 hover:bg-gray-200'}`}
               >
                   <FiSettings className="w-3 h-3"/> 設定
               </button>
               </div>
-              <span className={`text-[10px] ml-auto mr-2 ${syncStatus === 'error' ? 'text-red-600' : 'text-gray-400'}`}>
+              <span className={`hidden sm:inline text-[10px] ml-auto mr-2 ${syncStatus === 'error' ? 'text-red-600' : 'text-gray-400'}`}>
                 {syncStatus === 'synced' ? '端末間で同期' : syncStatus === 'syncing' ? '同期中…' : syncStatus === 'error' ? '同期できませんでした' : 'このブラウザに保存（ログインで同期）'}
               </span>
               {trackerTab === 'daily' && (
-                <div className="flex items-center gap-2 bg-white px-2 py-1 rounded border border-gray-300">
+                <div className="flex items-center gap-2 bg-white px-2 py-1 border border-gray-300">
                   <FiCalendar className="text-gray-400 w-3 h-3" />
                   <input 
                     type="date" 
@@ -606,7 +633,7 @@ const AlarmTool: React.FC = () => {
             {trackerTab === 'daily' && (
               // --- 日報入力 UI ---
               <div className="space-y-4">
-                <div className="border border-gray-200 rounded overflow-hidden shadow-sm">
+                <div className="border border-gray-200 overflow-hidden">
                   <div className="grid grid-cols-12 bg-gray-50 border-b border-gray-200 text-[10px] font-bold text-gray-500">
                     <div className="col-span-3 p-2 border-r border-gray-200">プロジェクト名</div>
                     <div className="col-span-2 p-2 border-r border-gray-200">工種</div>
@@ -615,37 +642,37 @@ const AlarmTool: React.FC = () => {
                   </div>
                   <div className="divide-y divide-gray-100 bg-white">
                     {entries.map((entry) => (
-                      <div key={entry.id} className="grid grid-cols-12 group hover:bg-blue-50/30 transition-colors relative">
+                      <div key={entry.id} className="grid grid-cols-12 group hover:bg-gray-50 transition-colors relative">
                         <div className="col-span-3 p-1 border-r border-gray-100">
-                          <select value={entry.projectId} onChange={(e) => updateEntry(entry.id, 'projectId', e.target.value)} className="w-full h-full p-1.5 bg-transparent outline-none text-[11px] text-gray-700 cursor-pointer rounded focus:bg-white focus:ring-1 focus:ring-blue-200">
+                          <select value={entry.projectId} onChange={(e) => updateEntry(entry.id, 'projectId', e.target.value)} className="w-full h-full p-1.5 bg-transparent outline-none text-[11px] text-gray-700 cursor-pointer focus:bg-white">
                             <option value="" className="text-gray-300">選択してください</option>
                             {projects.map(p => <option key={p.id} value={p.id}>{p.code} : {p.name}</option>)}
                           </select>
                         </div>
                         <div className="col-span-2 p-1 border-r border-gray-100">
-                          <select value={entry.phase ?? ''} onChange={(e) => updateEntry(entry.id, 'phase', e.target.value)} className="w-full h-full p-1.5 bg-transparent outline-none text-[11px] text-gray-700 cursor-pointer rounded focus:bg-white focus:ring-1 focus:ring-blue-200">
+                          <select value={entry.phase ?? ''} onChange={(e) => updateEntry(entry.id, 'phase', e.target.value)} className="w-full h-full p-1.5 bg-transparent outline-none text-[11px] text-gray-700 cursor-pointer focus:bg-white">
                             <option value="">{NO_PHASE}</option>
                             {PHASES.map((ph) => <option key={ph} value={ph}>{ph}</option>)}
                           </select>
                         </div>
                         <div className="col-span-5 p-1 border-r border-gray-100 relative">
-                          <input type="text" value={entry.description} onChange={(e) => updateEntry(entry.id, 'description', e.target.value)} placeholder="具体的な内容を入力" className="w-full h-full p-1.5 bg-transparent outline-none text-[11px] text-gray-700 placeholder-gray-300 rounded focus:bg-white focus:ring-1 focus:ring-blue-200"/>
-                          <button onClick={() => removeEntry(entry.id)} className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-all z-10" title="行を削除"><FiTrash2 className="w-3 h-3" /></button>
+                          <input type="text" value={entry.description} onChange={(e) => updateEntry(entry.id, 'description', e.target.value)} placeholder="具体的な内容を入力" className="w-full h-full p-1.5 bg-transparent outline-none text-[11px] text-gray-700 placeholder-gray-300 focus:bg-white"/>
+                          <button onClick={() => removeEntry(entry.id)} className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all z-10" title="行を削除"><FiTrash2 className="w-3 h-3" /></button>
                         </div>
                         <div className="col-span-2 p-1">
-                          <input type="number" min="0" step="0.5" value={entry.hours} onChange={(e) => updateEntry(entry.id, 'hours', e.target.value === '' ? '' : parseFloat(e.target.value))} className="w-full h-full p-1.5 bg-transparent outline-none text-[12px] text-center font-mono text-gray-700 rounded focus:bg-white focus:ring-1 focus:ring-blue-200" placeholder="0.0"/>
+                          <input type="number" min="0" step="0.5" value={entry.hours} onChange={(e) => updateEntry(entry.id, 'hours', e.target.value === '' ? '' : parseFloat(e.target.value))} className="w-full h-full p-1.5 bg-transparent outline-none text-[12px] text-center font-mono text-gray-700 focus:bg-white" placeholder="0.0"/>
                         </div>
                       </div>
                     ))}
                   </div>
                 </div>
                 <div className="flex justify-between items-center pt-2">
-                  <button onClick={addEntry} className="flex items-center gap-1 text-[11px] text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded transition-colors border border-dashed border-blue-200 hover:border-blue-300"><FiPlus className="w-3 h-3" /> 行を追加</button>
-                  <div className="flex items-center gap-4 bg-gray-50 px-4 py-2 rounded border border-gray-200">
-                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Total</span>
+                  <button onClick={addEntry} className="flex items-center gap-1 text-[11px] text-gray-700 hover:bg-gray-50 px-3 py-1.5 transition-colors border border-dashed border-gray-400 hover:border-[#3b3b3b]"><FiPlus className="w-3 h-3" /> 行を追加</button>
+                  <div className="flex items-center gap-4 bg-gray-50 px-4 py-2 border border-gray-200">
+                    <span className="yy-mono text-[10px] text-gray-500 uppercase tracking-[0.12em]">Total</span>
                     <span className="text-xl font-bold text-gray-800 font-mono leading-none">{totalHours.toFixed(1)} <span className="text-[10px] font-normal text-gray-500">h</span></span>
                     <div className="w-px h-5 bg-gray-300 mx-1"></div>
-                    <button className="flex items-center gap-1.5 bg-gray-100 text-gray-500 text-[11px] font-bold px-4 py-1.5 rounded shadow-sm cursor-default"><FiSave className="w-3.5 h-3.5" /> 自動保存済み</button>
+                    <span className="flex items-center gap-1.5 text-gray-500 text-[10px] px-2 py-1.5"><FiSave className="w-3 h-3" /> 自動保存</span>
                   </div>
                 </div>
               </div>
@@ -655,7 +682,7 @@ const AlarmTool: React.FC = () => {
               // --- 集計チャート UI ---
               <div className="flex flex-col h-full space-y-4">
                 {/* 期間設定 & CSVダウンロード */}
-                <div className="flex flex-col sm:flex-row justify-between items-end sm:items-center bg-gray-50 p-3 rounded border border-gray-200 gap-3 shrink-0">
+                <div className="flex flex-col sm:flex-row justify-between items-end sm:items-center bg-gray-50 p-3 border border-gray-200 gap-3 shrink-0">
                   <div className="flex items-center gap-3">
                     <div className="flex flex-col">
                       <label className="text-[10px] font-bold text-gray-500 mb-1">開始日</label>
@@ -663,7 +690,7 @@ const AlarmTool: React.FC = () => {
                         type="date" 
                         value={summaryStartDate} 
                         onChange={(e) => setSummaryStartDate(e.target.value)} 
-                        className="text-[11px] border border-gray-300 rounded p-1.5 focus:border-blue-500 outline-none"
+                        className="text-[11px] border border-gray-300 p-1.5 focus:border-gray-500 outline-none"
                       />
                     </div>
                     <span className="text-gray-400 mt-4">～</span>
@@ -673,7 +700,7 @@ const AlarmTool: React.FC = () => {
                         type="date" 
                         value={summaryEndDate} 
                         onChange={(e) => setSummaryEndDate(e.target.value)} 
-                        className="text-[11px] border border-gray-300 rounded p-1.5 focus:border-blue-500 outline-none"
+                        className="text-[11px] border border-gray-300 p-1.5 focus:border-gray-500 outline-none"
                       />
                     </div>
               </div>
@@ -700,17 +727,17 @@ const AlarmTool: React.FC = () => {
                   </div>
               <button
                     onClick={handleExportCSV}
-                    className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white text-[11px] font-bold px-3 py-1.5 rounded shadow-sm transition-colors"
+                    className="yy-btn flex items-center gap-1.5 !px-3 !py-1.5"
                   >
                     <FiDownload className="w-3.5 h-3.5" /> CSV出力
               </button>
             </div>
 
                 {/* 左右分割コンテンツ */}
-                <div className="flex-1 flex gap-4 min-h-0 overflow-hidden">
+                <div className="flex-1 flex flex-col md:flex-row gap-4 min-h-0 overflow-hidden">
                   
                   {/* 左カラム：日別・プロジェクト別詳細 */}
-                  <div className="flex-1 bg-white border border-gray-200 rounded-lg p-4 shadow-sm flex flex-col">
+                  <div className="flex-1 bg-white border border-gray-200 p-4 flex flex-col">
                     <h4 className="text-[11px] font-bold text-gray-600 mb-2 border-b border-gray-100 pb-2">
                       日別・プロジェクト別詳細
                     </h4>
@@ -721,17 +748,17 @@ const AlarmTool: React.FC = () => {
                         <div className="space-y-4">
                           {summaryData.dailySummaries.map((daySummary) => (
                             <div key={daySummary.date} className="border-b border-gray-100 pb-3 last:border-0 last:pb-0">
-                              <div className="text-[11px] font-bold text-gray-800 bg-gray-50 px-2 py-1 rounded inline-block mb-1.5 font-mono">
+                              <div className="text-[11px] font-bold text-gray-800 bg-gray-50 px-2 py-1 inline-block mb-1.5 font-mono">
                                 {daySummary.date}
                               </div>
                               <div className="pl-2 space-y-1">
                                 {daySummary.projectDetails.map((detail, idx) => {
                                   const project = projects.find(p => p.id === detail.projectId);
                                   return (
-                                    <div key={idx} className="flex justify-between items-center text-[11px] hover:bg-gray-50 p-1 rounded">
+                                    <div key={idx} className="flex justify-between items-center text-[11px] hover:bg-gray-50 p-1">
               <div className="flex items-center gap-2">
-                                        <span className="text-gray-500 text-[10px] min-w-[50px] font-mono bg-gray-100 px-1 rounded text-center">{project?.code}</span>
-                                        <span className="text-gray-700 font-medium">{project?.name}</span>
+                                        <span className="text-gray-500 text-[10px] min-w-[50px] font-mono bg-gray-100 px-1 text-center">{project?.code}</span>
+                                        <span className="text-gray-700 font-bold">{project?.name}</span>
                                       </div>
                                       <span className="font-mono font-bold text-gray-600">{detail.hours.toFixed(1)} h</span>
                                     </div>
@@ -746,15 +773,15 @@ const AlarmTool: React.FC = () => {
                   </div>
 
                   {/* 右カラム：合計時間 & プロジェクト別内訳 */}
-                  <div className="w-1/3 min-w-[250px] bg-white border border-gray-200 rounded-lg p-4 shadow-sm flex flex-col">
+                  <div className="md:w-1/3 md:min-w-[250px] bg-white border border-gray-200 p-4 flex flex-col">
                     {/* 総合計 */}
                     <div className="mb-6 text-center border-b border-gray-100 pb-6">
                       <h4 className="text-[11px] font-bold text-gray-500 mb-2">期間合計稼働時間</h4>
-                      <span className="text-5xl font-bold text-blue-600 font-mono tracking-tighter">
+                      <span className="text-5xl font-light text-gray-900 font-mono tracking-tighter">
                         {summaryData.grandTotal.toFixed(1)}
                       </span>
                       <span className="text-xl text-gray-500 ml-1">h</span>
-                      <p className="text-[10px] text-gray-400 mt-2 bg-gray-50 px-2 py-1 rounded inline-block">
+                      <p className="text-[10px] text-gray-400 mt-2 bg-gray-50 px-2 py-1 inline-block">
                         {summaryStartDate.replace(/-/g, '/')} ～ {summaryEndDate.replace(/-/g, '/')}
                       </p>
                     </div>
@@ -823,24 +850,24 @@ const AlarmTool: React.FC = () => {
 
             {trackerTab === 'settings' && (
               // --- プロジェクト設定 UI ---
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 flex flex-col h-full animate-fadeIn">
+              <div className="bg-gray-50 border border-gray-200 p-4 flex flex-col h-full animate-fadeIn">
                 <h4 className="text-[11px] font-bold text-gray-600 mb-3 border-b border-gray-200 pb-2 flex items-center gap-2"><FiSettings className="w-3 h-3" /> プロジェクト設定</h4>
                 
                 {/* 入力フォーム */}
-                <div className="mb-4 space-y-2 bg-white p-3 rounded border border-gray-200 shadow-sm">
+                <div className="mb-4 space-y-2 bg-white p-3 border border-gray-200">
                   <p className="text-[10px] text-gray-500 mb-1">プロジェクトの追加・編集</p>
                   <div className="flex gap-2">
                     <input 
                       type="text" 
                       placeholder="コード (例: 23-001)" 
-                      className="w-1/4 p-1.5 text-[11px] border border-gray-300 rounded outline-none focus:border-blue-500"
+                      className="w-1/4 p-1.5 text-[11px] border border-gray-300 outline-none focus:border-gray-500"
                       value={editProjCode}
                       onChange={(e)=>setEditProjCode(e.target.value)}
                     />
                     <input 
                       type="text" 
                       placeholder="プロジェクト名" 
-                      className="flex-1 p-1.5 text-[11px] border border-gray-300 rounded outline-none focus:border-blue-500"
+                      className="flex-1 p-1.5 text-[11px] border border-gray-300 outline-none focus:border-gray-500"
                       value={editProjName}
                       onChange={(e)=>setEditProjName(e.target.value)}
                     />
@@ -849,7 +876,7 @@ const AlarmTool: React.FC = () => {
                       min="0"
                       step="10000"
                       placeholder="設計料（円・任意）"
-                      className="w-1/4 p-1.5 text-[11px] border border-gray-300 rounded outline-none focus:border-blue-500"
+                      className="w-1/4 p-1.5 text-[11px] border border-gray-300 outline-none focus:border-gray-500"
                       value={editProjFee}
                       onChange={(e)=>setEditProjFee(e.target.value)}
                     />
@@ -859,21 +886,21 @@ const AlarmTool: React.FC = () => {
                     {editProjId && (
                   <button
                         onClick={handleCancelEdit}
-                        className="px-3 py-1 text-[10px] text-gray-600 bg-gray-100 hover:bg-gray-200 rounded flex items-center gap-1"
+                        className="px-3 py-1 text-[10px] text-gray-600 bg-gray-100 hover:bg-gray-200 flex items-center gap-1"
                   >
                         <FiX className="w-3 h-3" /> キャンセル
                   </button>
                 )}
                 <button
                       onClick={handleSaveProject}
-                      className={`px-4 py-1.5 text-[10px] text-white rounded flex items-center gap-1 shadow-sm transition-colors ${editProjId ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'}`}
+                      className="yy-btn yy-btn--primary !px-4 !py-1.5 flex items-center gap-1"
                 >
                       {editProjId ? <><FiCheck className="w-3 h-3" /> 更新</> : <><FiPlus className="w-3 h-3" /> 追加</>}
                 </button>
               </div>
             </div>
 
-                <div className="mb-4 bg-white p-3 rounded border border-gray-200 shadow-sm flex flex-wrap items-center gap-2 text-[11px]">
+                <div className="mb-4 bg-white p-3 border border-gray-200 flex flex-wrap items-center gap-2 text-[11px]">
                   <span className="text-gray-600">目標の時間単価</span>
                   <input
                     type="number"
@@ -881,7 +908,7 @@ const AlarmTool: React.FC = () => {
                     step="1000"
                     value={targetRate}
                     onChange={(e) => setTargetRate(Number(e.target.value) || 0)}
-                    className="w-28 p-1.5 text-[11px] border border-gray-300 rounded outline-none text-right"
+                    className="w-28 p-1.5 text-[11px] border border-gray-300 outline-none text-right"
                   />
                   <span className="text-gray-600">円/h</span>
                   <span className="text-[10px] text-gray-400 w-full">設計料 ÷ この単価 が、その物件にかけてよい時間（予算時間）になります。人件費と経費から逆算した値を入れてください。</span>
@@ -891,13 +918,13 @@ const AlarmTool: React.FC = () => {
                 <div className="flex-1 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
                   {projects.length === 0 && <p className="text-[10px] text-gray-400 text-center py-4">プロジェクトがありません</p>}
                   {projects.map(p => (
-                    <div key={p.id} className={`flex items-center gap-3 p-3 rounded border bg-white transition-colors ${editProjId === p.id ? 'bg-blue-50 border-blue-300' : 'border-gray-200'}`}>
-                      <span className="text-[10px] font-mono bg-gray-100 px-2 py-1 rounded text-gray-600 border border-gray-200 min-w-[60px] text-center">{p.code}</span>
+                    <div key={p.id} className={`flex items-center gap-3 p-3 border bg-white transition-colors ${editProjId === p.id ? 'border-[#3b3b3b] border-l-[#52AA96]' : 'border-gray-200'}`}>
+                      <span className="text-[10px] font-mono bg-gray-100 px-2 py-1 text-gray-600 border border-gray-200 min-w-[60px] text-center">{p.code}</span>
                       <span className="text-[11px] text-gray-700 truncate flex-1 font-bold">{p.name}</span>
                       {p.fee ? <span className="text-[10px] text-gray-500 font-mono">{yen(p.fee)}</span> : null}
                       <div className="flex items-center gap-1">
-                        <button onClick={()=>handleEditProject(p)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" title="編集"><FiEdit2 className="w-3.5 h-3.5" /></button>
-                        <button onClick={()=>handleDeleteProject(p.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="削除"><FiTrash2 className="w-3.5 h-3.5" /></button>
+                        <button onClick={()=>handleEditProject(p)} className="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-colors" title="編集"><FiEdit2 className="w-3.5 h-3.5" /></button>
+                        <button onClick={()=>handleDeleteProject(p.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors" title="削除"><FiTrash2 className="w-3.5 h-3.5" /></button>
                       </div>
                     </div>
                   ))}
@@ -911,11 +938,12 @@ const AlarmTool: React.FC = () => {
 
       {/* Overlay */}
       {showOverlay && (
-        <div className="fixed inset-0 bg-gradient-to-br from-red-500 to-orange-500 text-white flex flex-col items-center justify-center" style={{ display: 'flex', zIndex: 2147483647 }}>
+        <div className="fixed inset-0 bg-[#141414] text-white flex flex-col items-center justify-center" style={{ display: 'flex', zIndex: 2147483647 }}>
           <div className="text-center px-4">
-            <div className="text-6xl font-bold mb-6 animate-pulse">TIME&apos;S UP!</div>
-            <p className="text-xl mb-8 opacity-90">予定時刻になりました</p>
-            <button onClick={stopTimer} className="px-8 py-3 bg-white text-red-600 rounded-full font-bold text-lg hover:bg-gray-100 transition-colors shadow-lg">アラームを停止</button>
+            <p className="yy-mono text-[11px] tracking-[0.2em] uppercase text-[#52AA96] mb-4 animate-pulse">[ Alarm ]</p>
+            <div className="text-6xl font-light tracking-[-0.03em] mb-6">TIME&apos;S UP</div>
+            <p className="text-[12px] mb-10 text-[#aaa69d]">予定時刻になりました</p>
+            <button onClick={stopTimer} className="px-8 py-2.5 border border-white text-white text-[12px] hover:bg-white hover:text-[#141414] transition-colors">アラームを停止</button>
           </div>
         </div>
       )}

@@ -4,7 +4,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   FiPlus, FiStar, FiEdit2, FiType, FiDroplet, 
   FiList, FiAlignLeft, FiAlignCenter, FiAlignRight, 
-  FiCheckSquare, FiX, FiTrash2, FiFileText, FiChevronDown, FiCheck, FiFolder, FiImage, FiMic, FiSquare, FiTag 
+  FiCheckSquare, FiX, FiTrash2, FiFileText, FiChevronDown, FiCheck, FiFolder, FiImage, FiMic, FiSquare, FiTag,
+  FiSearch, FiDownload
 } from 'react-icons/fi';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { LockClosedIcon, LockOpenIcon } from '@heroicons/react/20/solid';
@@ -13,6 +14,7 @@ import { db, storage } from '@/lib/firebaseClient';
 import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, setDoc, writeBatch } from 'firebase/firestore';
 import HtmlDocx from 'html-docx-js/dist/html-docx';
 import HomeworkToTasks from './memo/HomeworkToTasks';
+import ToolHeader from '../ToolHeader';
 
 interface Memo {
   id: string;
@@ -626,6 +628,29 @@ const MemoTool: React.FC = () => {
   };
   useEffect(() => () => recognitionRef.current?.stop(), []);
 
+  // --- 見出し帯の「できること」から各機能へ飛ぶための足場。
+  // ツールバーの奥にあって気づかれなかった機能を、帯から直接呼べるようにする。
+  const templatesRef = useRef<HTMLDivElement>(null);
+  const exportRef = useRef<HTMLDivElement>(null);
+  const foldersRef = useRef<HTMLDivElement>(null);
+  const [headNotice, setHeadNotice] = useState('');
+  const headNoticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flashHeadNotice = (text: string) => {
+    setHeadNotice(text);
+    if (headNoticeTimer.current) clearTimeout(headNoticeTimer.current);
+    headNoticeTimer.current = setTimeout(() => setHeadNotice(''), 5000);
+  };
+  useEffect(() => () => { if (headNoticeTimer.current) clearTimeout(headNoticeTimer.current); }, []);
+  const scrollToRef = (r: React.RefObject<HTMLElement | null>) =>
+    r.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  /** メモに書き込む機能は、ログインしてメモを開いているときだけ動く。足りなければ理由を出す。 */
+  const needMemo = () => {
+    if (!isLoggedIn || !currentUser) { flashHeadNotice('ログイン（無料の会員登録）すると使えます。メモは自分のアカウントに保存されます。'); return false; }
+    if (!currentMemo) { flashHeadNotice('左の一覧からメモを開くか、「新規メモ」で作ってから使ってください。'); return false; }
+    if (currentMemo.isLocked) { flashHeadNotice('このメモはロック中です。一覧の鍵を外すと書き込めます。'); return false; }
+    return true;
+  };
+
   const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
     e.preventDefault();
     const text = e.clipboardData.getData('text/plain');
@@ -1015,12 +1040,59 @@ const MemoTool: React.FC = () => {
 
   return (
     <div className="bg-white h-full lg:h-[calc(100vh-var(--nav-height))] flex flex-col">
-      <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
-          <div>
-            <h3 className="text-[13px] font-medium">メモ</h3>
-          <p className="text-[11px] mt-0.5">テキストメモの作成・管理ができます。フォントや色の変更、カテゴリー・タグ分類に対応</p>
-        </div>
-      </div>
+      <ToolHeader
+        no="01"
+        code="MEMO"
+        title="メモ"
+        description="打合せ・現場巡回・電話の記録をその場で残し、宿題はタスクへ、清書は PDF・Word で渡す。"
+        features={[
+          {
+            label: 'テンプレート（議事録ほか）',
+            hint: '議事録・現場巡回記録・是正指示・電話メモ・施主要望のひな形から作る',
+            onClick: () => scrollToRef(templatesRef),
+          },
+          {
+            label: 'チェック項目',
+            hint: '行頭に ☐ を入れる。☐ を押すと ☑ に切り替わる',
+            onClick: () => { if (needMemo()) insertCheckItem(); },
+          },
+          {
+            label: '画像',
+            login: true,
+            hint: 'ログインすると、写真を縮めて保存しメモに貼れます',
+            onClick: () => { if (needMemo()) imageInputRef.current?.click(); },
+          },
+          {
+            label: '音声入力',
+            hint: speechSupported ? '話した言葉をカーソル位置に入れる' : 'このブラウザは音声入力に対応していません',
+            active: listening,
+            onClick: () => {
+              if (!speechSupported) { flashHeadNotice('このブラウザは音声入力に対応していません（Chrome・Edge・Safari で使えます）'); return; }
+              if (listening || needMemo()) toggleVoice();
+            },
+          },
+          {
+            label: '宿題→Myタスク',
+            login: true,
+            hint: 'ログインすると、宿題・指摘・☐ の行を担当・期限ごと Myタスクに入れられます',
+            active: homeworkText !== null,
+            onClick: () => { if (needMemo()) setHomeworkText(editorRef.current?.innerText ?? ''); },
+          },
+          {
+            label: 'PDF・Word書き出し',
+            hint: '開いているメモを A4 の PDF か Word（.docx）で書き出す',
+            onClick: () => scrollToRef(exportRef),
+          },
+          {
+            label: 'フォルダ・タグ',
+            hint: 'メモをフォルダへドラッグして仕分け、タグで絞り込む',
+            onClick: () => scrollToRef(foldersRef),
+          },
+        ]}
+      />
+      {headNotice && (
+        <p className="px-4 py-1.5 text-[11px] text-gray-600 border-b border-gray-200 shrink-0" role="status">{headNotice}</p>
+      )}
       <div className="p-4 flex-1 min-h-0 overflow-hidden [&>*]:border [&>*]:border-[#3b3b3b] [&>*]:p-3">
         <div className="flex gap-6 h-full">
           {/* 左サイド：メモ一覧 */}
@@ -1028,49 +1100,51 @@ const MemoTool: React.FC = () => {
             <div className="mb-3 shrink-0">
               <button
                 onClick={() => createNewMemo()}
-                className="w-full flex items-center justify-center gap-1 text-[11px] bg-[#1dad95] text-white px-3 py-1.5 rounded hover:bg-[#1a9a85] transition mb-1.5"
+                className="yy-btn yy-btn--primary w-full flex items-center justify-center gap-1 mb-1.5"
               >
                 <FiPlus className="w-3 h-3" />
                 新規メモ
               </button>
 
               {/* ひな形から作る。白紙だと「誰が・いつまでに」が毎回抜けるので。 */}
-              <div className="flex flex-wrap gap-1 mb-2">
-                {MEMO_TEMPLATES.map(t => (
-                  <button
-                    key={t.id}
-                    onClick={() => createNewMemo(t)}
-                    title={`${t.label}のひな形で新規作成`}
-                    className="text-[10px] px-1.5 py-1 rounded border border-gray-200 bg-gray-50 text-gray-600 hover:border-[#1dad95] hover:text-[#1dad95] transition-colors"
-                  >
-                    {t.label}
-                  </button>
-                ))}
+              <div ref={templatesRef} className="scroll-mt-2 mb-2">
+                <p className="yy-mono text-[10px] tracking-[0.12em] uppercase text-gray-500 mb-1">ひな形</p>
+                <div className="flex flex-wrap gap-1">
+                  {MEMO_TEMPLATES.map(t => (
+                    <button
+                      key={t.id}
+                      onClick={() => createNewMemo(t)}
+                      title={`${t.label}のひな形で新規作成`}
+                      className="text-[10px] px-1.5 py-1 border border-gray-300 bg-white text-gray-600 hover:border-[#3b3b3b] hover:text-gray-900 transition-colors"
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="relative">
-                <input 
-                  type="text" 
-                  placeholder="メモを検索..." 
+                <input
+                  type="text"
+                  placeholder="メモを検索..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-8 pr-2 py-1.5 text-[11px] border border-gray-200 rounded focus:outline-none focus:border-gray-400"
+                  className="w-full pl-8 pr-2 py-1.5 text-[11px] border border-gray-200 focus:outline-none focus:border-gray-400"
                 />
-                <svg className="w-4 h-4 text-gray-400 absolute left-2 top-1/2 transform -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                </svg>
+                <FiSearch className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
             </div>
             {/* フォルダ。行にメモをドラッグして放り込める。 */}
-            <div className="mb-3 shrink-0 border border-[#3b3b3b]">
+            <div ref={foldersRef} className="scroll-mt-2 mb-3 shrink-0 border border-[#3b3b3b]">
               <div className="flex items-center justify-between px-2 py-1 bg-gray-50 border-b border-[#3b3b3b]">
-                <span className="text-[10px] font-bold text-gray-600">フォルダ</span>
+                <span className="yy-mono text-[10px] tracking-[0.12em] uppercase text-gray-500">フォルダ</span>
                 <button
                   type="button"
                   onClick={() => setShowFolderInput(v => !v)}
-                  className="text-[10px] px-1.5 text-gray-600 hover:text-gray-900"
+                  className="px-1 text-gray-500 hover:text-gray-900"
                   title="フォルダを追加"
+                  aria-label="フォルダを追加"
                 >
-                  ＋
+                  <FiPlus className="w-3 h-3" />
                 </button>
               </div>
 
@@ -1085,7 +1159,7 @@ const MemoTool: React.FC = () => {
                     autoFocus
                     className="flex-1 text-[11px] px-2 py-1 border border-gray-200 focus:outline-none"
                   />
-                  <button type="button" onClick={addFolder} className="text-[10px] bg-gray-700 text-white px-2">追加</button>
+                  <button type="button" onClick={addFolder} className="yy-btn yy-btn--primary !px-2 !py-1 text-[10px]">追加</button>
                 </div>
               )}
 
@@ -1114,8 +1188,8 @@ const MemoTool: React.FC = () => {
                         onClick={() => setSelectedFolder(folder)}
                         className="flex-1 text-left truncate bg-transparent border-0 p-0"
                       >
-                        {isAll ? '' : '📂 '}{label}
-                        <span className="ml-1 text-gray-400">({countInFolder(folder)})</span>
+                        {!isAll && <FiFolder className="inline w-3 h-3 mr-1 -mt-px text-gray-400" />}{label}
+                        <span className="yy-mono ml-1 text-[10px] text-gray-400">{countInFolder(folder)}</span>
                       </button>
                       {!isAll && !isUnfiled && (
                         <span className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100">
@@ -1147,7 +1221,7 @@ const MemoTool: React.FC = () => {
               <select
                 value={tagFilter}
                 onChange={(e) => setTagFilter(e.target.value)}
-                className="flex-1 text-[11px] border border-gray-200 rounded px-2 py-1.5 focus:outline-none focus:border-gray-400"
+                className="flex-1 text-[11px] border border-gray-200 px-2 py-1.5 focus:outline-none focus:border-gray-400"
               >
                 <option value="">タグ</option>
                 {allTags.map(tag => (
@@ -1189,7 +1263,7 @@ const MemoTool: React.FC = () => {
                 return (
                   <React.Fragment key={memo.id}>
                     {/* 挿入ガイドバー (上) */}
-                    {showTopBar && <div className="h-1.5 w-full bg-[#1dad95] rounded-full my-1 animate-pulse" />}
+                    {showTopBar && <div className="h-px w-full bg-[#52AA96] my-1" />}
                     
                     <div 
                       draggable
@@ -1198,29 +1272,31 @@ const MemoTool: React.FC = () => {
                       onDragEnd={handleDragEnd}
                       onDrop={(e) => handleDrop(e, memo.id)}
                   onClick={() => selectMemo(memo)}
-                      className={`p-2 border rounded cursor-pointer hover:bg-gray-50 flex items-start gap-2 transition-all ${
-                    currentMemo?.id === memo.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+                      className={`p-2 border cursor-pointer hover:bg-gray-50 flex items-start gap-2 transition-colors ${
+                    currentMemo?.id === memo.id ? 'border-[#3b3b3b] border-l-[#52AA96] bg-gray-50' : 'border-gray-200'
                       } ${isDragging ? 'opacity-40' : ''}`}
                 >
                   <div className="flex-1 min-w-0">
-                  <div className="text-[11px] font-medium truncate">{memo.title}</div>
-                  <div className="text-[10px] text-gray-500 mt-1">
+                  <div className={`text-[11px] truncate ${currentMemo?.id === memo.id ? 'font-bold' : ''}`}>{memo.title}</div>
+                  <div className="yy-mono text-[10px] tracking-[0.08em] text-gray-500 mt-1">
                     {memo.updatedAt.toLocaleDateString()}
                     </div>
                   </div>
                   <div className="flex flex-col gap-0.5 items-center">
                     <button
                       onClick={(e) => toggleFavorite(memo.id, e)}
-                      className={`p-0.5 hover:bg-gray-200 rounded transition-colors ${
-                        memo.isFavorite ? 'text-yellow-500' : 'text-gray-400'
+                      title={memo.isFavorite ? 'ブックマークを外す' : 'ブックマーク（手動の並びで先頭に残す）'}
+                      className={`p-0.5 hover:bg-gray-200 transition-colors ${
+                        memo.isFavorite ? 'text-gray-900' : 'text-gray-400'
                       }`}
                     >
                       <FiStar className={`w-3 h-3 ${memo.isFavorite ? 'fill-current' : ''}`} />
                     </button>
                     <button
                       onClick={(e) => toggleMemoLock(memo.id, e)}
-                      className={`p-0.5 hover:bg-gray-200 rounded transition-colors ${
-                        memo.isLocked ? 'text-blue-500' : 'text-gray-400'
+                      title={memo.isLocked ? 'ロックを外す' : '書き換えられないようにロック'}
+                      className={`p-0.5 hover:bg-gray-200 transition-colors ${
+                        memo.isLocked ? 'text-gray-900' : 'text-gray-400'
                       }`}
                     >
                       {memo.isLocked ? <LockClosedIcon className="w-3 h-3" /> : <LockOpenIcon className="w-3 h-3" />}
@@ -1229,7 +1305,7 @@ const MemoTool: React.FC = () => {
                 </div>
 
                     {/* 挿入ガイドバー (下) */}
-                    {showBottomBar && <div className="h-1.5 w-full bg-[#1dad95] rounded-full my-1 animate-pulse" />}
+                    {showBottomBar && <div className="h-px w-full bg-[#52AA96] my-1" />}
                   </React.Fragment>
                 );
               })}
@@ -1272,26 +1348,27 @@ const MemoTool: React.FC = () => {
                       }, 1000);
                     }
                   }}
-                  className={`flex-1 text-[13px] font-medium border-b border-gray-200 px-2 py-1.5 focus:outline-none focus:border-gray-400 ${currentMemo?.isLocked ? 'bg-gray-100 cursor-not-allowed opacity-60' : ''}`}
+                  className={`flex-1 text-[12px] font-bold border-b border-gray-200 px-2 py-1.5 focus:outline-none focus:border-gray-400 ${currentMemo?.isLocked ? 'bg-gray-100 cursor-not-allowed opacity-60' : ''}`}
                 />
-                <div className="flex gap-2">
-                  <button 
+                <div ref={exportRef} className="flex gap-2 scroll-mt-2">
+                  <button
                     onClick={exportMemoToPDF}
-                    className="text-[11px] bg-gray-700 text-white px-3 py-1.5 transition flex items-center gap-1"
+                    className="yy-btn flex items-center gap-1"
                   >
                     <FiFileText className="w-3 h-3" />
                     PDF書き出し
                   </button>
-                  <button 
+                  <button
                     onClick={exportMemoToDocx}
-                    className="text-[11px] bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700 transition flex items-center gap-1"
+                    className="yy-btn flex items-center gap-1"
                   >
+                    <FiDownload className="w-3 h-3" />
                     Word書き出し
                   </button>
                   {currentMemo && (
-                    <button 
+                    <button
                       onClick={deleteCurrentMemo}
-                      className="text-[11px] bg-gray-500 text-white px-3 py-1.5 rounded hover:bg-gray-600 transition flex items-center gap-1"
+                      className="yy-btn flex items-center gap-1 hover:!text-red-600"
                     >
                       <FiTrash2 className="w-3 h-3"/> 削除
                     </button>
@@ -1335,7 +1412,7 @@ const MemoTool: React.FC = () => {
               </div>
 
               {/* エディタとステータスバー */}
-              <div className="border border-gray-200 rounded flex-1 flex flex-col min-h-0 relative">
+              <div className="border border-gray-200 flex-1 flex flex-col min-h-0 relative">
                 {/* ツールバー */}
                 <div className={`flex flex-wrap items-center gap-2 p-2 border-b border-gray-200 bg-gray-50 shrink-0 ${currentMemo?.isLocked ? 'opacity-50 pointer-events-none' : ''}`}>
                   
@@ -1343,7 +1420,7 @@ const MemoTool: React.FC = () => {
                   <select 
                     onChange={(e) => formatDoc('fontName', e.target.value)}
                     disabled={currentMemo?.isLocked || false}
-                    className="h-8 text-[11px] border border-gray-200 rounded px-2 focus:outline-none focus:border-gray-400 max-w-[80px]"
+                    className="h-8 text-[11px] border border-gray-200 px-2 focus:outline-none focus:border-gray-400 max-w-[80px]"
                   >
                     <option value="sans-serif">標準</option>
                     <option value="serif">明朝</option>
@@ -1354,7 +1431,7 @@ const MemoTool: React.FC = () => {
                   <select 
                     onChange={(e) => formatDoc('fontSize', e.target.value)}
                     disabled={currentMemo?.isLocked || false}
-                    className="h-8 text-[11px] border border-gray-200 rounded px-2 focus:outline-none focus:border-gray-400"
+                    className="h-8 text-[11px] border border-gray-200 px-2 focus:outline-none focus:border-gray-400"
                   >
                     <option value="1">8pt</option>
                     <option value="2">10pt</option>
@@ -1368,7 +1445,7 @@ const MemoTool: React.FC = () => {
                   <div className="w-px h-4 bg-gray-300 mx-1"></div>
 
                   {/* スタイル */}
-                  <div className="flex h-8 items-center bg-white border border-gray-200 rounded">
+                  <div className="flex h-8 items-center bg-white border border-gray-200">
                     <button onClick={() => formatDoc('bold')} disabled={currentMemo?.isLocked || false} className="h-full w-8 flex items-center justify-center hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed" title="太字"><strong>B</strong></button>
                     <button onClick={() => formatDoc('italic')} disabled={currentMemo?.isLocked || false} className="h-full w-8 flex items-center justify-center hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed italic" title="斜体"><em>I</em></button>
                     <button onClick={() => formatDoc('underline')} disabled={currentMemo?.isLocked || false} className="h-full w-8 flex items-center justify-center hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed underline" title="下線"><u>U</u></button>
@@ -1378,19 +1455,19 @@ const MemoTool: React.FC = () => {
                   <div className="w-px h-4 bg-gray-300 mx-1"></div>
 
                   {/* 配置・リスト */}
-                  <div className="flex h-8 items-center bg-white border border-gray-200 rounded">
+                  <div className="flex h-8 items-center bg-white border border-gray-200">
                     <button onClick={() => formatDoc('justifyLeft')} disabled={currentMemo?.isLocked || false} className="h-full w-8 flex items-center justify-center hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed" title="左揃え"><FiAlignLeft /></button>
                     <button onClick={() => formatDoc('justifyCenter')} disabled={currentMemo?.isLocked || false} className="h-full w-8 flex items-center justify-center hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed" title="中央揃え"><FiAlignCenter /></button>
                     <button onClick={() => formatDoc('justifyRight')} disabled={currentMemo?.isLocked || false} className="h-full w-8 flex items-center justify-center hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed" title="右揃え"><FiAlignRight /></button>
                   </div>
 
-                  <div className="flex h-8 items-center bg-white border border-gray-200 rounded">
+                  <div className="flex h-8 items-center bg-white border border-gray-200">
                     <button onClick={() => formatDoc('insertUnorderedList')} disabled={currentMemo?.isLocked || false} className="h-full w-8 flex items-center justify-center hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed" title="箇条書き"><FiList /></button>
                     <button onClick={() => formatDoc('insertOrderedList')} disabled={currentMemo?.isLocked || false} className="h-full w-8 flex items-center justify-center hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed" title="番号付きリスト"><span className="text-[10px] font-bold">1.</span></button>
                     <button onClick={insertCheckItem} disabled={currentMemo?.isLocked || false} className="h-full w-8 flex items-center justify-center hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed" title="チェック項目（☐ を押すと ☑ に）"><FiCheckSquare /></button>
                   </div>
 
-                  <div className="flex h-8 items-center bg-white border border-gray-200 rounded">
+                  <div className="flex h-8 items-center bg-white border border-gray-200">
                     <button onClick={() => imageInputRef.current?.click()} disabled={currentMemo?.isLocked || imageBusy || !currentUser} className="h-full px-2 flex items-center gap-1 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed text-[10px]" title="写真・画像を入れる">
                       <FiImage /> {imageBusy ? '…' : '画像'}
                     </button>
@@ -1405,7 +1482,7 @@ const MemoTool: React.FC = () => {
                     </button>
                   </div>
 
-                  <div className="flex h-8 items-center bg-white border border-gray-200 rounded">
+                  <div className="flex h-8 items-center bg-white border border-gray-200">
                     <button
                       onClick={() => setHomeworkText(editorRef.current?.innerText ?? '')}
                       disabled={!currentMemo || !currentUser}
@@ -1424,7 +1501,7 @@ const MemoTool: React.FC = () => {
                     <button 
                       onClick={() => setShowColorPalette(showColorPalette === 'fore' ? null : 'fore')}
                       disabled={currentMemo?.isLocked || false}
-                      className={`h-8 px-2 rounded flex items-center gap-1 ${showColorPalette === 'fore' ? 'bg-gray-200' : 'hover:bg-gray-200'} disabled:opacity-50 disabled:cursor-not-allowed`}
+                      className={`h-8 px-2 flex items-center gap-1 ${showColorPalette === 'fore' ? 'bg-gray-200' : 'hover:bg-gray-200'} disabled:opacity-50 disabled:cursor-not-allowed`}
                       title="文字色"
                     >
                       <FiType className="text-gray-700" /> <span className="text-[10px] hidden sm:inline">文字</span>
@@ -1433,7 +1510,7 @@ const MemoTool: React.FC = () => {
                     <button 
                       onClick={() => setShowColorPalette(showColorPalette === 'back' ? null : 'back')}
                       disabled={currentMemo?.isLocked || false}
-                      className={`h-8 px-2 rounded flex items-center gap-1 ${showColorPalette === 'back' ? 'bg-gray-200' : 'hover:bg-gray-200'} disabled:opacity-50 disabled:cursor-not-allowed`}
+                      className={`h-8 px-2 flex items-center gap-1 ${showColorPalette === 'back' ? 'bg-gray-200' : 'hover:bg-gray-200'} disabled:opacity-50 disabled:cursor-not-allowed`}
                       title="ハイライト（背景色）"
                     >
                       <FiDroplet className="text-gray-700" /> <span className="text-[10px] hidden sm:inline">背景</span>
@@ -1443,7 +1520,7 @@ const MemoTool: React.FC = () => {
                     {showColorPalette && (
                       <div 
                         ref={paletteRef}
-                        className="absolute top-full left-0 mt-1 bg-white border border-gray-200 shadow-lg rounded-lg p-2 z-50 w-48"
+                        className="absolute top-full left-0 mt-1 bg-white border border-[#3b3b3b] p-2 z-50 w-48"
                       >
                         <p className="text-[10px] text-gray-500 mb-2">
                           {showColorPalette === 'fore' ? '文字色を選択' : '背景色を選択'}
@@ -1453,7 +1530,7 @@ const MemoTool: React.FC = () => {
                             <button
                               key={color}
                               onClick={() => formatDoc(showColorPalette === 'fore' ? 'foreColor' : 'backColor', color)}
-                              className="w-6 h-6 rounded border border-gray-100 hover:scale-110 transition-transform"
+                              className="w-6 h-6 border border-gray-200 hover:outline hover:outline-1 hover:outline-[#3b3b3b]"
                               style={{ backgroundColor: color }}
                               title={color}
                             />
@@ -1474,7 +1551,7 @@ const MemoTool: React.FC = () => {
                    <button 
                     onClick={() => formatDoc('removeFormat')} 
                     disabled={currentMemo?.isLocked || false}
-                    className="h-8 w-8 flex items-center justify-center hover:bg-gray-200 rounded ml-auto text-gray-500 disabled:opacity-50 disabled:cursor-not-allowed" 
+                    className="h-8 w-8 flex items-center justify-center hover:bg-gray-200 ml-auto text-gray-500 disabled:opacity-50 disabled:cursor-not-allowed" 
                     title="書式クリア"
                   >
                     <FiX />
@@ -1537,7 +1614,7 @@ const MemoTool: React.FC = () => {
 
                 {/* ステータスバー */}
                 <div className="flex justify-between items-center p-1.5 border-t border-gray-200 bg-gray-50 shrink-0">
-                  <span className="text-[10px] text-gray-500">{charCount} 文字</span>
+                  <span className="yy-mono text-[10px] tracking-[0.08em] text-gray-500">{charCount} 文字</span>
                   <span className="text-[10px] text-gray-500">{saveStatus}</span>
                 </div>
               </div>
@@ -1636,7 +1713,7 @@ function FolderPicker({
         </button>
       </div>
       {open && !disabled && (
-        <ul className="absolute left-0 right-0 top-full mt-0.5 z-30 bg-white border border-[#3b3b3b] shadow-md max-h-60 overflow-y-auto text-[11px]">
+        <ul className="absolute left-0 right-0 top-full mt-0.5 z-30 bg-white border border-[#3b3b3b] max-h-60 overflow-y-auto text-[11px]">
           {isNew && (
             <li>
               <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => pick(typed)} className="w-full text-left px-3 py-1.5 hover:bg-gray-100 flex items-center gap-2">

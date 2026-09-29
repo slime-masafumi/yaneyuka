@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import ToolHeader from './ToolHeader';
 import { FiEdit2, FiTrash2, FiCheck, FiCalendar } from 'react-icons/fi';
 import { useTaskContext } from '../../providers/TaskProvider';
+import { useAuth } from '@/lib/AuthContext';
 import { ProjectView, DoneHistory } from './myTasks/MyTaskViews';
 
 interface Task {
@@ -103,6 +104,8 @@ export default function MyTasks() {
   const [tempTaskContent, setTempTaskContent] = useState<string>('');
   // 期日順に並べ替えるか。既定は登録順のまま（並びを覚えている人がいるので）。
   const [sortByDue, setSortByDue] = useState(false);
+  const { isLoggedIn } = useAuth();
+  const [taskNotice, setTaskNotice] = useState('');
   const [tempTitle, setTempTitle] = useState<string>('');
   const [editingColor, setEditingColor] = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string>('');
@@ -198,19 +201,58 @@ export default function MyTasks() {
     // 帯は左右いっぱい、その下の本文だけ他ツールと同じ左右余白を付ける。
     <div className="pt-0 pb-4 [&>*:not(:first-child)]:mx-4 [&>*:nth-child(2)]:mt-3">
       <ToolHeader
+        no="A4"
+        code="TASKS"
         title="Myタスク"
-        description="宿題管理。シートごとの整理に加え、【物件名】でまとめて見る・完了した日の履歴を見る。期限超過は赤で出し、Myカレンダーにも同期されます"
+        description="宿題管理。シートで整理し、【物件名】でまとめて見る。期限超過は赤で出し、前日と当日にはベルで知らせる。Myカレンダーにも出る。"
+        features={[
+          {
+            label: 'シート',
+            hint: '色分けしたシートに並べる。3〜5 列で表示',
+            active: view === 'sheets' && !sortByDue,
+            onClick: () => { setView('sheets'); setSortByDue(false); setTaskNotice(''); },
+          },
+          {
+            label: '物件別',
+            hint: 'タスクの頭の【物件名】でまとめて見る',
+            active: view === 'projects',
+            onClick: () => { setView('projects'); setTaskNotice(''); },
+          },
+          {
+            label: '完了の履歴',
+            hint: '完了した日ごとに振り返る',
+            active: view === 'done',
+            onClick: () => { setView('done'); setTaskNotice(''); },
+          },
+          {
+            label: '期日順・期限超過',
+            hint: '期日の早い順に並べ、超過と当日を目立たせる',
+            active: view === 'sheets' && sortByDue,
+            onClick: () => { setView('sheets'); setSortByDue(true); setTaskNotice(''); },
+          },
+          {
+            label: '期限の通知（前日・当日）',
+            login: true,
+            hint: 'ログインすると、期日の前日と当日の朝 8 時に上部のベルへ通知が届きます',
+            onClick: () => setTaskNotice(
+              isLoggedIn
+                ? '期日を入れたタスクは、前日と当日の朝 8 時に上部のベル（通知）でお知らせします。期日は各タスクの日付欄で入れます。'
+                : 'ログイン（無料の会員登録）すると、期日の前日と当日の朝 8 時に上部のベルへ通知が届きます。',
+            ),
+          },
+        ]}
       />
+      {taskNotice && <p className="text-[11px] text-gray-600" role="status">{taskNotice}</p>}
       <div className="flex items-center gap-2 mb-3 flex-wrap">
-        <span className="text-[11px] text-gray-600">表示列数</span>
+        <span className="yy-mono text-[10px] tracking-[0.12em] uppercase text-gray-500">Columns</span>
         {[3, 4, 5].map(cols => (
           <button
             key={cols}
             type="button"
             onClick={() => setColumnMode(cols as 3 | 4 | 5)}
-            className={`px-3 py-1 text-[12px] rounded border transition-colors ${
+            className={`px-2.5 py-1 text-[11px] border transition-colors ${
               columnMode === cols
-                ? 'bg-gray-700 text-white border-gray-700'
+                ? 'bg-[#3b3b3b] text-white border-[#3b3b3b]'
                 : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
             }`}
           >
@@ -222,7 +264,7 @@ export default function MyTasks() {
       <div className="mb-4 flex items-center gap-2 flex-wrap">
         <button
           type="button"
-          className="px-2 py-1 text-xs rounded bg-gray-200 hover:bg-gray-700 hover:text-white"
+          className="px-2 py-1 text-xs border border-gray-300 bg-white hover:bg-gray-100"
           onClick={async () => {
             const name = prompt('新しいタスクシート名を入力', `List ${(categories?.length || 0) + 1}`)?.trim() || undefined
             try { await addCategory(name) } catch {}
@@ -233,7 +275,7 @@ export default function MyTasks() {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            className="px-2 py-1 text-xs rounded bg-gray-200 hover:bg-red-600 hover:text-white"
+            className="px-2 py-1 text-xs border border-gray-300 bg-white hover:text-red-600 hover:border-red-600"
             onClick={async () => {
               if (!deleteTargetId) return
               const cat = categories.find(c => c.id === deleteTargetId)
@@ -245,7 +287,7 @@ export default function MyTasks() {
             － シート削除
           </button>
           <select
-            className="text-xs border rounded px-2 py-1"
+            className="text-xs border px-2 py-1"
             value={deleteTargetId}
             onChange={e => setDeleteTargetId(e.target.value)}
           >
@@ -290,7 +332,7 @@ export default function MyTasks() {
             key={k}
             type="button"
             onClick={() => setView(k)}
-            className={`px-3 py-1 text-xs -mb-px border-b-2 ${view === k ? 'border-gray-800 font-bold text-gray-900' : 'border-transparent text-gray-500'}`}
+            className={`px-3 py-1 text-xs -mb-px border-b ${view === k ? 'border-[#52AA96] font-bold text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-900'}`}
           >
             {label}
           </button>
@@ -336,12 +378,12 @@ export default function MyTasks() {
                     onChange={(e) => setTempTitle(e.target.value)}
                     onBlur={() => saveTitle(category.id)}
                     onKeyPress={(e) => e.key === 'Enter' && saveTitle(category.id)}
-                    className={`flex-1 text-sm bg-transparent border-b border-black/10 focus:outline-none px-1 ${isDarkColor(category.color) ? 'text-white placeholder-white/80' : 'text-gray-800 placeholder:text-black/30'}`}
+                    className={`flex-1 text-[12px] bg-transparent border-b border-black/10 focus:outline-none px-1 ${isDarkColor(category.color) ? 'text-white placeholder-white/80' : 'text-gray-800 placeholder:text-black/30'}`}
                     autoFocus
                   />
                 ) : (
                   <>
-                    <h3 className={`text-sm font-medium ${isDarkColor(category.color) ? 'text-white' : 'text-gray-800'}`}>{category.title}</h3>
+                    <h3 className={`text-[12px] font-bold ${isDarkColor(category.color) ? 'text-white' : 'text-gray-800'}`}>{category.title}</h3>
                     <button
                       onClick={() => startEditingTitle(category.id, category.title)}
                       className={`${isDarkColor(category.color) ? 'text-white/70 hover:text-white' : 'text-black/40 hover:text-black/60'}`}
@@ -369,17 +411,18 @@ export default function MyTasks() {
                   />
                 </div>
                 <div className="flex items-center gap-1">
-                  <span className={`text-xs ${isDarkColor(category.color) ? 'text-white/70' : 'text-black/40'}`}>{category.tasks.length}</span>
+                  <span className={`yy-mono text-[10px] ${isDarkColor(category.color) ? 'text-white/70' : 'text-black/40'}`}>{category.tasks.length}</span>
                   <button
                     onClick={() => clearAllTasks(category.id)}
-                    className={`text-[10px] font-medium ${isDarkColor(category.color) ? 'text-white/70 hover:text-white' : 'text-black/40 hover:text-black/60'}`}
+                    title="このシートのタスクをすべて消す"
+                    className={`yy-mono text-[10px] ${isDarkColor(category.color) ? 'text-white/70 hover:text-white' : 'text-black/40 hover:text-black/60'}`}
                   >
                     AC
                   </button>
                   {/* 追加ボタンをACの右に固定 */}
                   <button
                     type="button"
-                    className={`ml-1 px-1.5 py-0.5 text-[10px] rounded border-none bg-transparent ${isDarkColor(category.color) ? 'text-white/70 hover:text-white' : 'text-gray-400 hover:text-blue-500'}`}
+                    className={`ml-1 px-1.5 py-0.5 text-[10px] border-none bg-transparent ${isDarkColor(category.color) ? 'text-white/70 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}
                     aria-label="タスクを登録"
                     onClick={() => {
                       const content = newTaskContents[category.id]?.content || '';
@@ -419,7 +462,7 @@ export default function MyTasks() {
                       }
                     }
                   }}
-                  className={`flex-1 text-sm bg-transparent focus:outline-none min-w-0 ${isDarkColor(category.color) ? 'text-white placeholder-white/60' : 'text-gray-800 placeholder:text-black/30'}`}
+                  className={`flex-1 text-[12px] bg-transparent focus:outline-none min-w-0 ${isDarkColor(category.color) ? 'text-white placeholder-white/60' : 'text-gray-800 placeholder:text-black/30'}`}
                 />
                 <div className="flex items-center gap-0.5 flex-shrink-0">
                   <span className={`text-xs whitespace-nowrap ${isDarkColor(category.color) ? 'text-white/70' : 'text-gray-800/70'}`} style={{ display: newTaskContents[category.id]?.dueDate ? 'inline' : 'none' }}>
@@ -477,7 +520,7 @@ export default function MyTasks() {
                       onChange={(e) => setTempTaskContent(e.target.value)}
                       onBlur={() => saveTaskEdit(category.id, task.id)}
                       onKeyPress={(e) => e.key === 'Enter' && saveTaskEdit(category.id, task.id)}
-                      className={`flex-1 text-sm bg-transparent border-b border-black/10 focus:outline-none ${isDarkColor(category.color) ? 'text-white placeholder-white/80' : 'text-gray-800'}`}
+                      className={`flex-1 text-[12px] bg-transparent border-b border-black/10 focus:outline-none ${isDarkColor(category.color) ? 'text-white placeholder-white/80' : 'text-gray-800'}`}
                       autoFocus
                     />
                   ) : (

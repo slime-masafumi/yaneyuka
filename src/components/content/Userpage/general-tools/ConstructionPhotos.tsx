@@ -8,6 +8,7 @@ import {
   loadImageBitmap,
   applyOrientationTransform,
 } from '@/lib/imageOrientation';
+import ToolHeader from '../ToolHeader';
 
 /**
  * 工事写真の一括処理。
@@ -130,6 +131,12 @@ const ConstructionPhotos: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   // プレビュー用の URL は、破棄しないとページを開いている間ずっと残る
   const urlsRef = useRef<string[]>([]);
+  // 見出し帯の「できること」から各欄へ飛ぶための足場
+  const boardRef = useRef<HTMLDivElement>(null);
+  const imageRef = useRef<HTMLDivElement>(null);
+  const exportRef = useRef<HTMLDivElement>(null);
+  const scrollToPhotoRef = (r: React.RefObject<HTMLElement | null>) =>
+    r.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   useEffect(() => () => { urlsRef.current.forEach((u) => URL.revokeObjectURL(u)); }, []);
 
@@ -317,12 +324,40 @@ const ConstructionPhotos: React.FC = () => {
 
   return (
     <div className="w-full bg-white flex flex-col h-full lg:h-[calc(100vh-var(--nav-height))] overflow-hidden">
-      <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
-        <div>
-          <h3 className="text-[13px] font-medium">工事写真</h3>
-          <p className="text-[11px] mt-0.5">現場写真を一括で縮小・Exif削除・連番リネーム。黒板の焼き込みと、台紙に貼った写真帳PDFの出力に対応</p>
-        </div>
-      </div>
+      <ToolHeader
+        no="13"
+        code="SITE PHOTO"
+        title="工事写真"
+        description="撮った写真を撮影日順に並べ、黒板を焼き込み、連番で名前を付けて写真帳 PDF にする。ブラウザの中だけで処理する。"
+        features={[
+          {
+            label: '写真を取り込む',
+            hint: 'JPEG / PNG / HEIC。撮影日順に自動で並ぶ',
+            onClick: () => fileInputRef.current?.click(),
+          },
+          {
+            label: '黒板の焼き込み',
+            hint: '工事名・工種・撮影日・施工者を写真の隅に入れる',
+            active: boardPosition !== 'none',
+            onClick: () => scrollToPhotoRef(boardRef),
+          },
+          {
+            label: '連番リネーム',
+            hint: '撮影日_工種_001.jpg の形で名前を付け直す。開始番号も選べる',
+            onClick: () => scrollToPhotoRef(boardRef),
+          },
+          {
+            label: '縮小・Exif 削除',
+            hint: '長辺を納品サイズに縮め、位置情報を消す',
+            onClick: () => scrollToPhotoRef(imageRef),
+          },
+          {
+            label: '写真帳 PDF（A4・4 枚）',
+            hint: '台紙に 2 列 × 2 段で貼った写真帳を書き出す。ZIP でも書き出せる',
+            onClick: () => scrollToPhotoRef(exportRef),
+          },
+        ]}
+      />
 
       <div className="p-3 flex-1 min-h-0 overflow-hidden">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 h-full">
@@ -334,8 +369,8 @@ const ConstructionPhotos: React.FC = () => {
               onDragLeave={() => setIsDragging(false)}
               onDrop={(e) => { e.preventDefault(); setIsDragging(false); addFiles(e.dataTransfer.files); }}
               onClick={() => fileInputRef.current?.click()}
-              className={`border-2 border-dashed p-6 text-center cursor-pointer transition ${
-                isDragging ? 'border-[#3b3b3b] bg-gray-50' : 'border-gray-300 hover:border-gray-400'
+              className={`border border-dashed p-6 text-center cursor-pointer transition ${
+                isDragging ? 'border-[#52AA96] bg-gray-50' : 'border-gray-400 hover:border-[#3b3b3b]'
               }`}
             >
               <FiImage className="w-6 h-6 mx-auto text-gray-400" />
@@ -351,7 +386,7 @@ const ConstructionPhotos: React.FC = () => {
               />
             </div>
 
-            <div className="bg-gray-50 p-4 border border-[#3b3b3b] space-y-3">
+            <div ref={boardRef} className="bg-gray-50 p-4 border border-[#3b3b3b] space-y-3 scroll-mt-3">
               <div className="text-[11px] font-bold text-gray-600">黒板・ファイル名</div>
 
               <div>
@@ -397,7 +432,7 @@ const ConstructionPhotos: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-gray-50 p-4 border border-[#3b3b3b] space-y-3">
+            <div ref={imageRef} className="bg-gray-50 p-4 border border-[#3b3b3b] space-y-3 scroll-mt-3">
               <div className="text-[11px] font-bold text-gray-600">画像</div>
               <div className="flex gap-2">
                 <div className="flex-1">
@@ -421,18 +456,18 @@ const ConstructionPhotos: React.FC = () => {
               </p>
             </div>
 
-            <div className="flex gap-2">
+            <div ref={exportRef} className="flex gap-2 scroll-mt-3">
               <button onClick={exportZip} disabled={photos.length === 0 || !!busy}
-                className="flex-1 bg-gray-700 text-white py-2 text-[11px] font-bold flex items-center justify-center gap-1 disabled:opacity-40">
+                className="yy-btn flex-1 !py-2 flex items-center justify-center gap-1">
                 <FiDownload className="w-3.5 h-3.5" /> ZIPで書き出し
               </button>
               <button onClick={exportAlbum} disabled={photos.length === 0 || !!busy}
-                className="flex-1 bg-gray-700 text-white py-2 text-[11px] font-bold flex items-center justify-center gap-1 disabled:opacity-40">
+                className="yy-btn yy-btn--primary flex-1 !py-2 flex items-center justify-center gap-1">
                 <FiFileText className="w-3.5 h-3.5" /> 写真帳PDF
               </button>
             </div>
             {busy && (
-              <p className="text-[10px] text-gray-600">
+              <p className="yy-mono text-[10px] tracking-[0.08em] text-gray-600">
                 {busy}{progress.total > 0 ? ` ${progress.done}/${progress.total}` : ''}
               </p>
             )}
@@ -442,7 +477,7 @@ const ConstructionPhotos: React.FC = () => {
           <div className="bg-gray-50 border border-[#3b3b3b] p-4 flex flex-col h-full min-h-0">
             <div className="flex items-center justify-between mb-2 shrink-0">
               <span className="text-[11px] font-bold text-gray-600">
-                取り込んだ写真 {photos.length > 0 ? `(${photos.length}枚)` : ''}
+                取り込んだ写真 {photos.length > 0 && <span className="yy-mono font-normal text-gray-400 ml-1">{String(photos.length).padStart(3, '0')}</span>}
               </span>
               {photos.length > 0 && (
                 <button onClick={clearAll} className="text-[10px] text-gray-500 hover:text-red-600">すべて削除</button>
@@ -450,9 +485,10 @@ const ConstructionPhotos: React.FC = () => {
             </div>
 
             {photos.length === 0 ? (
-              <div className="flex-1 flex items-center justify-center text-gray-400 text-[11px]">
-                写真を追加するとここに並びます
-              </div>
+              <p className="text-[11px] text-gray-500">
+                写真を追加すると、撮影日順に付け直した名前で並びます。{' '}
+                <button type="button" onClick={() => fileInputRef.current?.click()} className="underline underline-offset-2 text-gray-800">写真を選ぶ</button>
+              </p>
             ) : (
               <div className="flex-1 overflow-y-auto space-y-2 pr-1">
                 {photos.map((photo, index) => (
@@ -461,7 +497,7 @@ const ConstructionPhotos: React.FC = () => {
                     <img src={photo.previewUrl} alt="" className="w-14 h-14 object-cover border border-gray-200 shrink-0" />
                     <div className="flex-1 min-w-0">
                       <div className="text-[11px] font-bold text-gray-700 truncate">{fileNameFor(photo, index)}</div>
-                      <div className="text-[10px] text-gray-400 mt-0.5">{ymdSlash(photo.shotAt)}</div>
+                      <div className="yy-mono text-[10px] tracking-[0.08em] text-gray-400 mt-0.5">{ymdSlash(photo.shotAt)}</div>
                       {/* 1枚だけ工種が違うことは普通にあるので、個別に上書きできるようにする */}
                       <input
                         type="text"

@@ -190,7 +190,10 @@ const FileTransferTool: React.FC = () => {
   };
 
   // Fetch config limits
+  // config/limits はログインしていないと読めない（ルール）。未ログインで読みに行くと
+  // 権限エラーが毎回出るだけなので、ログインしてから読む。
   useEffect(() => {
+    if (!currentUser) return;
     let mounted = true;
     const fetchLimits = async () => {
       try {
@@ -207,7 +210,7 @@ const FileTransferTool: React.FC = () => {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [currentUser]);
 
   useEffect(() => {
     try {

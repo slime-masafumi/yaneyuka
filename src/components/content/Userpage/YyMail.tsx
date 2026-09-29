@@ -50,6 +50,8 @@ export default function YyMail() {
   const [transmittal, setTransmittal] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const [headNotice, setHeadNotice] = useState('');
 
   const projects = useMemo(() => [...state.projects].sort((a, b) => a.createdAt - b.createdAt), [state.projects]);
   const inProject = useMemo(
@@ -214,12 +216,63 @@ export default function YyMail() {
         onDrop={onDrop}
       >
         <ToolHeader
+          no="A1"
+          code="MAIL"
           title="yymail"
-          description="物件メール台帳。メールのファイル（.eml / .msg）を落とすと物件ごとに仕分け、添付の図面を図番と版で積み上げます。送信はいつものメールソフトのまま"
-          aside={store?.kind === 'cloud' ? '端末間で同期' : 'このブラウザに保存（ログインで同期）'}
+          description="物件メール台帳。メールのファイル（.eml / .msg）を落とすと物件ごとに仕分け、添付の図面を図番と版で積み上げる。送信はいつものメールソフトのまま。"
+          aside={
+            <span className="yy-mono text-[10px] tracking-[0.08em] text-[#8c887f]" title={store?.kind === 'cloud' ? '端末間で同期' : 'このブラウザに保存（ログインで同期）'}>
+              {store?.kind === 'cloud' ? 'SYNCED' : 'LOCAL'}
+            </span>
+          }
+          features={[
+            {
+              label: 'メール取り込み（.eml / .msg）',
+              hint: 'Outlook・Gmail・Apple メールから落としたファイルを取り込む。ドラッグでも可',
+              onClick: () => fileInput.current?.click(),
+            },
+            {
+              label: '物件で自動仕分け',
+              hint: '物件名と仕分けの言葉（相手のドメイン・工事番号など）で、件名・宛先・本文から振り分ける',
+              onClick: () => setEditing('new'),
+            },
+            {
+              label: '図面の版管理・前版比較',
+              hint: '添付の名前から図番と版を読み、版の履歴と前の版を並べて見る',
+              active: tab === 'drawing',
+              onClick: () => { setTab('drawing'); setHeadNotice(''); },
+            },
+            {
+              label: '送付状',
+              hint: '図面の一覧から送付状を作る',
+              active: transmittal,
+              onClick: () => {
+                if (!drawings.length) { setTab('drawing'); setHeadNotice('図番（A-101 など）が付いた添付のあるメールを取り込むと、送付状を作れます。'); return; }
+                setHeadNotice('');
+                setTransmittal(true);
+              },
+            },
+            {
+              label: '依頼文 → Myタスク',
+              hint: '本文の「〜までにご送付ください」などを拾って Myタスクに入れる',
+              onClick: () => {
+                setTab('mail');
+                if (!mail) { setHeadNotice('メールを開くと、本文の「〜までに」を拾ってタスクの候補に出します。'); return; }
+                setHeadNotice('');
+                document.getElementById('yymail-task')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              },
+            },
+            {
+              label: '横断検索',
+              hint: '件名・本文・差出人・添付名で探す',
+              active: tab === 'mail' && !!query,
+              onClick: () => { setTab('mail'); setHeadNotice(''); setTimeout(() => searchRef.current?.focus(), 0); },
+            },
+          ]}
         />
+        {headNotice && <p className="mt-2 text-[11px] text-gray-600" role="status">{headNotice}</p>}
 
-        <div className={`mt-2 bg-white border overflow-hidden flex flex-1 min-h-0 ${dragging ? 'border-[#1565c0] border-2' : 'border-[#3b3b3b]'}`}>
+        <div className={`mt-2 bg-white border overflow-hidden flex flex-1 min-h-0 ${dragging ? 'border-[#52AA96] outline outline-1 outline-[#52AA96]' : 'border-[#3b3b3b]'}`}>
           {/* 左：取り込みと物件 */}
           <div className="w-56 shrink-0 border-r border-[#3b3b3b] flex flex-col min-h-0">
             <div className="p-2 border-b bg-gray-50 space-y-1">
@@ -227,7 +280,7 @@ export default function YyMail() {
                 type="button"
                 onClick={() => fileInput.current?.click()}
                 disabled={importing}
-                className="w-full py-2 text-[12px] bg-[#3b3b3b] text-white flex items-center justify-center gap-1 disabled:opacity-50"
+                className="yy-btn yy-btn--primary w-full flex items-center justify-center gap-1"
               >
                 <FiUpload /> {importing ? '取り込み中…' : 'メールを取り込む'}
               </button>
@@ -273,7 +326,7 @@ export default function YyMail() {
                   className={`w-full flex justify-between px-2 py-1.5 text-left ${projectId === p.id ? 'bg-gray-200 font-bold' : 'hover:bg-gray-100'}`}
                 >
                   <span className="truncate">{p.name}</span>
-                  <span className="text-gray-500">{count(p.id)}</span>
+                  <span className="yy-mono text-[10px] text-gray-500">{count(p.id)}</span>
                 </button>
               ))}
               <button type="button" onClick={() => setEditing('new')} className="w-full px-2 py-1.5 text-left text-gray-600 hover:bg-gray-100 flex items-center gap-1">
@@ -305,9 +358,9 @@ export default function YyMail() {
                   key={t}
                   type="button"
                   onClick={() => setTab(t)}
-                  className={`flex-1 py-2 flex items-center justify-center gap-1 ${tab === t ? 'bg-[#3b3b3b] text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                  className={`flex-1 py-2 flex items-center justify-center gap-1 border-b ${tab === t ? 'border-[#52AA96] text-gray-900 font-bold' : 'border-transparent text-gray-500 hover:text-gray-900'}`}
                 >
-                  {t === 'mail' ? <><FiInbox /> メール {inProject.length}</> : <><FiFileText /> 図面 {drawings.length}</>}
+                  {t === 'mail' ? <><FiInbox /> メール <span className="yy-mono text-[10px] font-normal">{inProject.length}</span></> : <><FiFileText /> 図面 <span className="yy-mono text-[10px] font-normal">{drawings.length}</span></>}
                 </button>
               ))}
             </div>
@@ -315,7 +368,7 @@ export default function YyMail() {
             {tab === 'mail' ? (
               <>
                 <div className="p-2 border-b">
-                  <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="件名・本文・差出人・添付名で探す" className="w-full px-2 py-1 text-[11px]" />
+                  <input ref={searchRef} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="件名・本文・差出人・添付名で探す" className="w-full px-2 py-1 text-[11px]" />
                 </div>
                 <div className="flex-1 overflow-y-auto divide-y">
                   {state.ready && visibleMails.length === 0 && (
@@ -334,7 +387,7 @@ export default function YyMail() {
                       >
                         <div className="flex justify-between text-[10px] text-gray-500">
                           <span className="truncate">{who(m.from)}</span>
-                          <span className="shrink-0 ml-2">{shortDate(m.date)}</span>
+                          <span className="yy-mono shrink-0 ml-2">{shortDate(m.date)}</span>
                         </div>
                         <div className="text-[12px] text-gray-800 truncate">
                           {m.subject || '（件名なし）'}
@@ -423,8 +476,8 @@ export default function YyMail() {
             )}
             {tab === 'drawing' && drawing && (
               <div className="p-4 space-y-3">
-                <h3 className="text-[15px] font-bold">
-                  {drawing.number} <span className="font-normal">{drawing.title}</span>
+                <h3 className="text-[12px] font-bold">
+                  <span className="yy-mono">{drawing.number}</span> <span className="font-normal">{drawing.title}</span>
                 </h3>
                 <table className="w-full text-[12px] border">
                   <thead className="bg-gray-100">
@@ -440,7 +493,7 @@ export default function YyMail() {
                       <tr key={v.att.path} className="border-t align-top">
                         <td className="px-2 py-1 whitespace-nowrap font-bold">
                           {revLabel(v.att.drawing!.rev)}
-                          {i === 0 && <span className="ml-1 text-[10px] text-white bg-[#3b3b3b] px-1">最新</span>}
+                          {i === 0 && <span className="yy-mono ml-1 text-[10px] font-normal text-[#52AA96] tracking-[0.08em]">LATEST</span>}
                         </td>
                         <td className="px-2 py-1 whitespace-nowrap">{shortDate(v.mail.date)}</td>
                         <td className="px-2 py-1">
@@ -464,7 +517,7 @@ export default function YyMail() {
               </div>
             )}
             {((tab === 'mail' && !mail) || (tab === 'drawing' && !drawing)) && (
-              <div className="h-full flex items-center justify-center text-[12px] text-gray-400 p-6 text-center">
+              <div className="p-4 text-[11px] text-gray-500">
                 {tab === 'mail' ? '左からメールを選んでください' : '左から図面を選ぶと、版の履歴が出ます'}
               </div>
             )}
@@ -536,7 +589,7 @@ function MailDetail({
   return (
     <div className="p-4 space-y-3 text-[12px]">
       <div className="flex items-start justify-between gap-2">
-        <h3 className="text-[15px] font-bold break-words">{mail.subject || '（件名なし）'}</h3>
+        <h3 className="text-[12px] font-bold break-words">{mail.subject || '（件名なし）'}</h3>
         <button type="button" onClick={onDelete} title="台帳から削除" className="p-1 text-red-600 shrink-0">
           <FiTrash2 />
         </button>
@@ -563,7 +616,7 @@ function MailDetail({
 
       {mail.attachments.length > 0 && (
         <div className="border">
-          <div className="px-2 py-1 bg-gray-100 text-[11px] font-bold">添付 {mail.attachments.length}</div>
+          <div className="px-2 py-1 bg-gray-50 border-b text-[11px] font-bold">添付 <span className="yy-mono font-normal text-gray-500">{mail.attachments.length}</span></div>
           <ul className="divide-y">
             {mail.attachments.map((a, i) => {
               const prev = previousOf(i);
@@ -591,9 +644,9 @@ function MailDetail({
         </div>
       )}
 
-      <div className="border bg-gray-50 p-2 space-y-1">
+      <div id="yymail-task" className="border bg-gray-50 p-2 space-y-1 scroll-mt-3">
         <div className="text-[11px] font-bold flex items-center gap-1">
-          <FiCheckSquare /> Myタスクにする
+          <FiCheckSquare className="text-gray-500" /> Myタスクにする
         </div>
         {todos.length > 0 && (
           <div className="flex flex-wrap gap-1">
@@ -614,7 +667,7 @@ function MailDetail({
           </select>
           <button
             type="button"
-            className="px-2 py-1 text-[11px] bg-[#3b3b3b] text-white"
+            className="yy-btn yy-btn--primary !px-2 !py-1"
             onClick={() => {
               if (!taskText.trim()) return;
               addTask(taskCat, taskText.trim(), taskDue || null);
@@ -624,7 +677,7 @@ function MailDetail({
             追加
           </button>
         </div>
-        {taskDone && <p className="text-[10px] text-green-700">{taskDone}</p>}
+        {taskDone && <p className="text-[10px] text-gray-700">{taskDone}</p>}
       </div>
 
       <div className="whitespace-pre-wrap break-words leading-relaxed border-t pt-3">{mail.text || '（本文なし）'}</div>
@@ -690,7 +743,7 @@ function ProjectEditor({ project, onSave, onCancel }: { project: Project | null;
         </label>
         <div className="flex justify-end gap-2">
           <button type="button" className="px-3 py-1 border" onClick={onCancel}>やめる</button>
-          <button type="submit" className="px-3 py-1 bg-[#3b3b3b] text-white">保存して仕分け直す</button>
+          <button type="submit" className="px-3 py-1 bg-[#3b3b3b] text-white font-bold">保存して仕分け直す</button>
         </div>
       </form>
     </div>,
