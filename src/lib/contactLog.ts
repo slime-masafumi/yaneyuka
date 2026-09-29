@@ -144,3 +144,21 @@ export function logCsv(contacts: ContactWithLog[]): string {
   }
   return '﻿' + rows.map((r) => r.map(cell).join(',')).join('\n') + '\n';
 }
+
+/** 建材ページのメーカー行で、押したら履歴に残すリンク */
+export const MAKER_LINK_SLOTS = ['contact', 'catalog', 'sample'] as const;
+export type MakerLinkSlot = (typeof MAKER_LINK_SLOTS)[number];
+export const isMakerLinkSlot = (s: unknown): s is MakerLinkSlot => (MAKER_LINK_SLOTS as readonly unknown[]).includes(s);
+
+/**
+ * 建材ページでメーカーの窓口を開いたときの履歴。
+ * 開いただけで依頼が済んだとは限らないので、サンプルも「依頼中」にはしない（台帳に載せない）。
+ * 実際に頼んだら、担当者連絡先で種類を「サンプル」にして記録してもらう。
+ */
+export function entryFromMakerLink(slot: MakerLinkSlot, page: string, date: string): ContactLogEntry {
+  const where = page ? `（${page}）` : '';
+  const base = { id: newLogId(), date, source: '建材ページ' };
+  if (slot === 'catalog') return { ...base, kind: 'カタログ', text: `カタログを開いた${where}` };
+  if (slot === 'sample') return { ...base, kind: '問合せ', text: `サンプル請求の窓口を開いた${where}` };
+  return { ...base, kind: '問合せ', text: `お問い合わせの窓口を開いた${where}` };
+}

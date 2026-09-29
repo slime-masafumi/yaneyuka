@@ -280,3 +280,26 @@ export function summarize(check: HoukiCheck | undefined): 'changed' | 'upcoming'
   if (all.some((a) => 'upcoming' in a && a.upcoming)) return 'upcoming';
   return 'ok';
 }
+
+// ---------------------------------------------------------------------------
+// まとめて連携
+// ---------------------------------------------------------------------------
+
+/** 法規名の比べ方: 全角半角・空白・括弧書き（「（抜粋）」など）の違いは無視する */
+const normLawName = (s: string) =>
+  s
+    .normalize('NFKC')
+    .replace(/[(（][^)）]*[)）]/g, '')
+    .replace(/[\s　・]/g, '');
+
+/**
+ * 「すべての法規を連携」で、法規名から e-Gov の法令を 1 つに決める。
+ * 名前が完全に一致するものだけを選ぶ。「建築基準法」で探すと施行令・施行規則も出てくるので、
+ * 近いものを当て推量で選ぶと別の法令を追うことになる。決められなければ null（手で選んでもらう）。
+ */
+export function matchLawByName<T extends { title: string }>(name: string, results: T[]): T | null {
+  const key = normLawName(name);
+  if (!key) return null;
+  const hits = results.filter((r) => normLawName(r.title) === key);
+  return hits.length === 1 ? hits[0] : null;
+}

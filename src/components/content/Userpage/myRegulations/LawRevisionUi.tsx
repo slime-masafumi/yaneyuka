@@ -22,7 +22,9 @@ export const LawLinkPicker: React.FC<{
   link?: LawLink;
   disabled?: boolean;
   onLink: (link: LawLink | null) => void;
-}> = ({ houkiName, link, disabled, onLink }) => {
+  /** 外から開く（「e-Gov と連携すると…」の一行や、見出しの「改正を追う」から）。値が変わるたびに開く */
+  openRequest?: number;
+}> = ({ houkiName, link, disabled, onLink, openRequest }) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<LawSummary[] | null>(null);
@@ -42,14 +44,21 @@ export const LawLinkPicker: React.FC<{
     }
   };
 
-  const toggle = () => {
-    if (open) return setOpen(false);
+  const openAndSearch = () => {
     setOpen(true);
     // 法規名（「建築基準法」など）でそのまま探しておく
     const q = link?.lawTitle || houkiName;
     setQuery(q);
     if (q.trim()) void run(q);
   };
+  const toggle = () => (open ? setOpen(false) : openAndSearch());
+
+  useEffect(() => {
+    if (!openRequest || disabled) return;
+    const t = setTimeout(openAndSearch, 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openRequest]);
 
   return (
     <div className="relative">
@@ -58,14 +67,14 @@ export const LawLinkPicker: React.FC<{
         onClick={toggle}
         disabled={disabled}
         title={disabled ? 'ロック中は変更できません' : 'e-Gov 法令検索の法令と紐付けると、改正を追えます'}
-        className={`flex items-center gap-1 px-3 py-1.5 text-xs whitespace-nowrap border ${
-          link ? 'bg-white border-[#3b3b3b] text-gray-800' : 'bg-gray-100 border-gray-300 text-gray-600 hover:bg-gray-200'
+        className={`flex items-center gap-1 px-3 py-1.5 text-[11px] whitespace-nowrap border bg-white ${
+          link ? 'border-[#3b3b3b] text-gray-800' : 'border-gray-300 text-gray-600 hover:border-[#3b3b3b]'
         } disabled:opacity-50`}
       >
-        <FiLink /> {link ? 'e-Gov 連携中' : 'e-Gov と連携'}
+        <FiLink className={link ? 'text-[#52AA96]' : 'text-gray-400'} /> {link ? 'e-Gov 連携中' : 'e-Gov と連携'}
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-30 w-[360px] bg-white border border-[#3b3b3b] shadow-lg p-3 text-xs">
+        <div className="absolute right-0 top-full mt-1 z-30 w-[min(360px,90vw)] bg-white border border-[#3b3b3b] p-3 text-[11px]">
           <p className="text-gray-600 mb-2 leading-relaxed">
             e-Gov 法令検索の法令と紐付けると、条文の取り込みと改正のお知らせができます。
             告示の多くは e-Gov に載っていないため、紐付けられません。
@@ -84,7 +93,7 @@ export const LawLinkPicker: React.FC<{
               className="flex-1 px-2 py-1 border"
               autoFocus
             />
-            <button type="submit" className="px-3 py-1 bg-[#3b3b3b] text-white">
+            <button type="submit" className="yy-btn yy-btn--primary !px-3 !py-1">
               検索
             </button>
           </form>
@@ -104,7 +113,7 @@ export const LawLinkPicker: React.FC<{
                     className={`w-full text-left p-2 hover:bg-gray-50 ${link?.lawId === r.lawId ? 'bg-gray-100 font-bold' : ''}`}
                   >
                     <span className="block text-gray-800">{r.title}</span>
-                    <span className="block text-[10px] text-gray-500">{r.lawNum}</span>
+                    <span className="block yy-mono text-[10px] tracking-[0.06em] text-gray-500">{r.lawNum}</span>
                   </button>
                 </li>
               ))}
@@ -161,7 +170,7 @@ export const LawCheckBar: React.FC<{
     <div className="px-6 py-1.5 border-b bg-gray-50 text-[11px] text-gray-600 flex flex-wrap items-center gap-x-4 gap-y-1 shrink-0">
       <span className="font-bold text-gray-800">
         {link.lawTitle}
-        <span className="font-normal text-gray-500">（{link.lawNum}）</span>
+        <span className="font-light text-gray-500">（{link.lawNum}）</span>
       </span>
       {check?.current && <span>現行: {toWareki(check.current.enforcementDate)}施行</span>}
       {next && (
@@ -175,7 +184,7 @@ export const LawCheckBar: React.FC<{
           {counts.upcoming > 0 && <b className="text-amber-700 mr-2">この先変わる {counts.upcoming}</b>}
           {counts.missing > 0 && <b className="text-gray-700 mr-2">見つからない {counts.missing}</b>}
           {counts.changed + counts.upcoming + counts.missing === 0 && counts.same > 0 && (
-            <span className="text-green-700">すべて現行と一致</span>
+            <span className="inline-flex items-center gap-1 text-gray-700"><FiCheck className="text-[#52AA96]" />すべて現行と一致</span>
           )}
         </span>
       )}
@@ -190,7 +199,7 @@ export const LawCheckBar: React.FC<{
         {checking ? '照合中…' : '改正チェック'}
       </button>
       {check && !checking && (
-        <span className="text-gray-400">
+        <span className="yy-mono text-[10px] tracking-[0.12em] uppercase text-gray-400">
           {new Date(check.checkedAt).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 照合
         </span>
       )}
@@ -237,9 +246,9 @@ export const ArticleLawStatus: React.FC<{
   switch (check.status) {
     case 'same':
       return (
-        <p className="text-[11px] text-green-700 mb-1 flex flex-wrap items-center">
+        <p className="text-[11px] text-gray-600 mb-1 flex flex-wrap items-center">
           <span className="inline-flex items-center gap-1">
-            <FiCheck /> e-Gov 現行（{toWareki(check.current.enforcementDate)}施行）と一致
+            <FiCheck className="text-[#52AA96]" /> e-Gov 現行（{toWareki(check.current.enforcementDate)}施行）と一致
           </span>
           {upcoming}
         </p>
@@ -421,7 +430,7 @@ export const RevisionModal: React.FC<{
         className="bg-white w-full max-w-[1100px] max-h-[calc(100vh-110px)] flex flex-col border border-[#3b3b3b]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-4 py-2 border-b bg-[#3b3b3b] text-white">
+        <div className="flex items-center justify-between px-4 py-2 border-b bg-[#141414] text-[#f4f2ec]">
           <h3 className="text-sm font-bold">
             {link.lawTitle} {articleTitle} — 新旧比較
           </h3>
@@ -498,7 +507,7 @@ export const RevisionModal: React.FC<{
                   const s = newSource(data.adoptText!);
                   if (s && preview) onAdopt(preview, s);
                 }}
-                className="px-3 py-1.5 text-xs bg-[#3b3b3b] text-white disabled:opacity-50"
+                className="yy-btn yy-btn--primary disabled:opacity-50"
               >
                 新しい条文に更新する
               </button>

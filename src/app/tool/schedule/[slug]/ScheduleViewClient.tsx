@@ -326,16 +326,24 @@ const ScheduleViewClient: React.FC<ScheduleViewClientProps> = ({ slug }) => {
   // 実際の受付停止は firestore.rules 側でも行う（画面の判定だけでは迂回できるため）。
   const deadlineDate = schedule.deadline?.toDate?.() ?? null;
   const isClosed = deadlineDate ? deadlineDate.getTime() < now : false;
+  // 主催者が付けた種別と役割。回答する人にも「何の打合せか」「誰が揃う必要があるか」を見せる
+  const roleMap = schedule.roles ?? {};
+  const requiredRoles = schedule.requiredRoles ?? [];
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="max-w-md w-full bg-white border border-gray-200 rounded-lg p-6 space-y-4 text-center">
+      <div className="max-w-md w-full bg-white border border-[#3b3b3b] p-6 space-y-4 text-center">
         {/* ヘッダー */}
         <div className="mb-4">
           <h1 className="text-4xl font-bold text-gray-800 mb-4">yaneyuka</h1>
           <p className="text-sm text-gray-600 font-semibold">建築・建設業界の業務支援ポータルサイト</p>
         </div>
         <div className="border-t border-gray-200 pt-4">
+          {schedule.kind && (
+            <p className="mb-1">
+              <span className="inline-block border border-gray-400 px-1.5 text-[10px] tracking-[0.08em] text-gray-600 font-mono">{schedule.kind}</span>
+            </p>
+          )}
           <h2 className="text-sm font-semibold text-gray-900 mb-2">{schedule.title}</h2>
           {schedule.description && (
             <p className="text-xs text-gray-600 mb-2">{schedule.description}</p>
@@ -351,10 +359,15 @@ const ScheduleViewClient: React.FC<ScheduleViewClientProps> = ({ slug }) => {
               {isClosed && '（締切済み）'}
             </p>
           )}
+          {requiredRoles.length > 0 && (
+            <p className="text-xs text-gray-500 mt-1">
+              {requiredRoles.join('・')} の出席が必要な日程です
+            </p>
+          )}
         </div>
 
         {isClosed && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded">
+          <div className="p-3 border border-red-300">
             <p className="text-xs text-red-700 font-medium">
               回答期限を過ぎているため、新しい回答は受け付けていません。
             </p>
@@ -371,7 +384,7 @@ const ScheduleViewClient: React.FC<ScheduleViewClientProps> = ({ slug }) => {
                 value={participantName}
                 onChange={(e) => setParticipantName(e.target.value)}
                 placeholder="名前を入力してください"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:border-gray-400"
+                className="w-full px-3 py-2 text-sm border border-gray-300 focus:outline-none focus:border-[#3b3b3b]"
               />
             </div>
             <div>
@@ -381,19 +394,18 @@ const ScheduleViewClient: React.FC<ScheduleViewClientProps> = ({ slug }) => {
                 value={participantComment}
                 onChange={(e) => setParticipantComment(e.target.value)}
                 placeholder="コメントを入力してください"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:border-gray-400"
+                className="w-full px-3 py-2 text-sm border border-gray-300 focus:outline-none focus:border-[#3b3b3b]"
               />
             </div>
             <button
               onClick={handleAddParticipant}
-              className="w-full px-6 py-3 rounded text-white text-sm font-semibold hover:opacity-90 transition-opacity"
-              style={{ backgroundColor: '#1DAD95' }}
+              className="w-full px-6 py-3 text-white text-sm font-semibold bg-[#141414] hover:bg-[#2a2a2a] transition-colors"
             >
               参加する
             </button>
           </div>
         ) : (
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded">
+          <div className="p-3 border border-gray-300">
             <p className="text-xs text-gray-700">
               <span className="font-semibold">{currentParticipant.name}</span> として参加中
             </p>
@@ -407,7 +419,7 @@ const ScheduleViewClient: React.FC<ScheduleViewClientProps> = ({ slug }) => {
         {currentParticipant && options.length > 0 && (
           <div>
             <h3 className="text-xs font-semibold text-gray-900 mb-3 text-left">候補日程</h3>
-            <div className="overflow-x-auto border border-gray-200 rounded">
+            <div className="overflow-x-auto border border-gray-200">
               <table className="w-full border-collapse text-xs">
                 <thead>
                   <tr className="bg-gray-50">
@@ -415,9 +427,14 @@ const ScheduleViewClient: React.FC<ScheduleViewClientProps> = ({ slug }) => {
                     {participants.map((participant) => (
                       <th key={participant.id} className="border border-gray-200 p-2 text-center min-w-[80px] font-medium text-gray-700">
                         {participant.name}
+                        {roleMap[participant.id] && (
+                          <span className={`block text-[10px] font-normal ${requiredRoles.includes(roleMap[participant.id]) ? 'text-gray-800' : 'text-gray-400'}`}>
+                            {roleMap[participant.id]}
+                          </span>
+                        )}
                       </th>
                     ))}
-                    <th className="border border-gray-200 p-2 text-center bg-yellow-50 font-medium text-gray-700">集計</th>
+                    <th className="border border-gray-200 p-2 text-center font-medium text-gray-700">集計</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -426,7 +443,7 @@ const ScheduleViewClient: React.FC<ScheduleViewClientProps> = ({ slug }) => {
                     const isHighlighted = summary && summary.yes === maxYes && maxYes > 0;
 
                     return (
-                      <tr key={option.id} className={isHighlighted ? 'bg-green-50' : ''}>
+                      <tr key={option.id} className={isHighlighted ? 'bg-gray-50 shadow-[inset_2px_0_0_#52AA96]' : ''}>
                         <td className="border border-gray-200 p-2 font-medium text-gray-900">{option.label}</td>
                         {participants.map((participant) => {
                           const response = responses.find(
@@ -447,10 +464,10 @@ const ScheduleViewClient: React.FC<ScheduleViewClientProps> = ({ slug }) => {
                                 <div className="flex justify-center gap-1">
                                   <button
                                     onClick={() => handleUpdateTempResponse(option.id, 'yes')}
-                                    className={`w-7 h-7 rounded flex items-center justify-center transition ${
+                                    className={`w-7 h-7 flex items-center justify-center transition border ${
                                       displayValue === 'yes'
-                                        ? 'bg-green-500 text-white'
-                                        : 'bg-gray-100 hover:bg-green-200'
+                                        ? 'bg-[#141414] text-white border-[#141414]'
+                                        : 'bg-white border-gray-300 hover:border-[#3b3b3b]'
                                     }`}
                                     title="○"
                                   >
@@ -458,10 +475,10 @@ const ScheduleViewClient: React.FC<ScheduleViewClientProps> = ({ slug }) => {
                                   </button>
                                   <button
                                     onClick={() => handleUpdateTempResponse(option.id, 'maybe')}
-                                    className={`w-7 h-7 rounded flex items-center justify-center transition ${
+                                    className={`w-7 h-7 flex items-center justify-center transition border ${
                                       displayValue === 'maybe'
-                                        ? 'bg-yellow-500 text-white'
-                                        : 'bg-gray-100 hover:bg-yellow-200'
+                                        ? 'bg-[#141414] text-white border-[#141414]'
+                                        : 'bg-white border-gray-300 hover:border-[#3b3b3b]'
                                     }`}
                                     title="△"
                                   >
@@ -469,10 +486,10 @@ const ScheduleViewClient: React.FC<ScheduleViewClientProps> = ({ slug }) => {
                                   </button>
                                   <button
                                     onClick={() => handleUpdateTempResponse(option.id, 'no')}
-                                    className={`w-7 h-7 rounded flex items-center justify-center transition ${
+                                    className={`w-7 h-7 flex items-center justify-center transition border ${
                                       displayValue === 'no'
-                                        ? 'bg-red-500 text-white'
-                                        : 'bg-gray-100 hover:bg-red-200'
+                                        ? 'bg-[#141414] text-white border-[#141414]'
+                                        : 'bg-white border-gray-300 hover:border-[#3b3b3b]'
                                     }`}
                                     title="×"
                                   >
@@ -495,7 +512,7 @@ const ScheduleViewClient: React.FC<ScheduleViewClientProps> = ({ slug }) => {
                             </td>
                           );
                         })}
-                        <td className="border border-gray-200 p-2 text-center bg-yellow-50">
+                        <td className="border border-gray-200 p-2 text-center">
                           {summary && (
                             <div className="text-xs">
                               <span className="text-green-600 font-medium">〇{summary.yes}</span>
@@ -514,7 +531,7 @@ const ScheduleViewClient: React.FC<ScheduleViewClientProps> = ({ slug }) => {
             </div>
             {maxYes > 0 && (
               <p className="text-xs text-gray-600 mt-2">
-                <span className="bg-green-50 px-2 py-1 rounded">緑色の行</span>は〇が最多の候補です
+                左に線の付いた行は〇が最多の候補です
               </p>
             )}
             {/* 送信ボタン（締切後は出さない） */}
@@ -522,8 +539,7 @@ const ScheduleViewClient: React.FC<ScheduleViewClientProps> = ({ slug }) => {
               <div className="mt-4">
                 <button
                   onClick={handleSubmitResponses}
-                  className="w-full px-6 py-3 rounded text-white text-sm font-semibold hover:opacity-90 transition-opacity"
-                  style={{ backgroundColor: '#1DAD95' }}
+                  className="w-full px-6 py-3 text-white text-sm font-semibold bg-[#141414] hover:bg-[#2a2a2a] transition-colors"
                 >
                   回答を送信
                 </button>
@@ -540,7 +556,7 @@ const ScheduleViewClient: React.FC<ScheduleViewClientProps> = ({ slug }) => {
               {participants
                 .filter((p) => p.comment)
                 .map((participant) => (
-                  <div key={participant.id} className="p-2 bg-gray-50 rounded border border-gray-200 text-left">
+                  <div key={participant.id} className="py-1.5 border-b border-gray-200 text-left">
                     <span className="text-xs font-medium text-gray-900">{participant.name}:</span>{' '}
                     <span className="text-xs text-gray-700">{participant.comment}</span>
                   </div>
@@ -555,7 +571,7 @@ const ScheduleViewClient: React.FC<ScheduleViewClientProps> = ({ slug }) => {
             href="https://yaneyuka.com"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs text-blue-600 hover:text-blue-800 underline"
+            className="text-xs text-gray-600 hover:text-black underline"
           >
             yaneyuka.com を開く
           </a>

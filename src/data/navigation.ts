@@ -82,7 +82,7 @@ export const sidebarItems = [
       { name: '画像リサイズ', href: '#image-resize' },
       { name: '画像変換', href: '#image-converter' },
       { name: 'PDF圧縮', href: '#pdf-compress' },
-      { name: 'ファイル転送', href: '#file-transfer' },
+      { name: '図面送付', href: '#file-transfer' },
     ]
   },
   {

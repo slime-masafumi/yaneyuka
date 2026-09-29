@@ -124,8 +124,8 @@ const RAIL_MODES: RailMode[] = [
       { label: 'OnlineMeetingTool', menu: 'general-tools', tool: 'olmt' },
       { label: 'スケジュール調整', menu: 'general-tools', tool: 'schedule' },
       { label: 'Teamタスク', menu: 'team-tasks' },
-      { label: '一時ファイル', menu: 'general-tools', tool: 'temp-storage' },
-      { label: 'ファイル転送', menu: 'general-tools', tool: 'file-transfer' },
+      { label: '端末間受け渡し', menu: 'general-tools', tool: 'temp-storage' },
+      { label: '図面送付', menu: 'general-tools', tool: 'file-transfer' },
       // 建築の仕事に紐づく道具
       { label: 'My法規', menu: 'my-regulations' },
       { label: '地図', menu: 'general-tools', tool: 'map' },

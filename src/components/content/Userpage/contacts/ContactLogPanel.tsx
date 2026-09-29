@@ -4,6 +4,7 @@
  * サンプルは状態（依頼中 → 到着 → 返却）をその場で切り替え、見積は金額を持たせる。
  */
 import React, { useState } from 'react';
+import { FiX } from 'react-icons/fi';
 import { LOG_KINDS, SAMPLE_STATES, newLogId, sortLog, todayYmd, daysBetween, RETURN_WARN_DAYS, type ContactLogEntry, type LogKind, type SampleState } from '@/lib/contactLog';
 
 const fmtDate = (s: string) => {
@@ -72,7 +73,7 @@ export default function ContactLogPanel({
             {kind === '見積' && (
               <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="金額" inputMode="numeric" className="border border-gray-300 px-1 py-0.5 w-20 text-right" />
             )}
-            <button type="button" onClick={add} className="px-2 py-0.5 bg-gray-800 text-white shrink-0">
+            <button type="button" onClick={add} className="yy-btn yy-btn--primary !px-2 !py-0.5 shrink-0">
               追加
             </button>
           </div>
@@ -80,14 +81,14 @@ export default function ContactLogPanel({
       )}
 
       {log.length === 0 ? (
-        <p className="text-gray-400">まだ記録がありません</p>
+        <p className="text-gray-500">まだ記録がありません。上の欄に書いて Enter で追加します。</p>
       ) : (
         <ul className="max-h-48 overflow-y-auto divide-y divide-gray-200">
           {sortLog(log).map((e) => {
             const late = e.kind === 'サンプル' && e.status === '到着' && daysBetween(e.date, today) >= RETURN_WARN_DAYS;
             return (
               <li key={e.id} className="py-1 flex gap-1.5 items-start group">
-                <span className="text-gray-500 shrink-0 w-9">{fmtDate(e.date)}</span>
+                <span className="yy-mono text-[10px] text-gray-500 shrink-0 w-9 pt-px">{fmtDate(e.date)}</span>
                 <span className="shrink-0 px-1 border border-gray-300 bg-white">{e.kind}</span>
                 <span className="flex-1 min-w-0 break-words">
                   {e.text}
@@ -109,7 +110,7 @@ export default function ContactLogPanel({
                 )}
                 {!disabled && (
                   <button type="button" onClick={() => remove(e.id)} className="shrink-0 text-gray-300 hover:text-red-600 opacity-0 group-hover:opacity-100" aria-label="記録を消す">
-                    ✕
+                    <FiX />
                   </button>
                 )}
               </li>

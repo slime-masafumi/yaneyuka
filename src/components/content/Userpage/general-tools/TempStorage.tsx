@@ -1,11 +1,22 @@
 'use client';
 
-import React, { useState, useEffect, DragEvent } from 'react';
+/**
+ * 端末間受け渡し（旧「一時ファイル」。id は temp-storage のまま）。
+ *
+ * 自分の端末どうしで、その場でファイルを渡すための置き場。
+ * 現場のスマホで撮った写真を事務所の PC で受け取る、PC のファイルをスマホへ渡す。
+ * QR を読むだけで開けて、24時間で自動で消える。
+ * 相手先へ記録つきで送る「図面送付」とは目的が違うので、名前で区別する。
+ */
+
+import React, { useState, useEffect, useRef, DragEvent } from 'react';
 import { db, storage } from '@/lib/firebaseClient';
-import { collection, addDoc, query, orderBy, onSnapshot, deleteDoc, doc, where, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, query, onSnapshot, deleteDoc, doc, where, Timestamp } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import { useAuth } from '@/lib/AuthContext';
-import { FiUpload, FiTrash2, FiDownload, FiClock, FiPackage, FiFile } from 'react-icons/fi';
+import { requestGeneralTool } from '@/lib/generalToolsMenu';
+import { FiTrash2, FiDownload, FiSmartphone, FiUploadCloud, FiX } from 'react-icons/fi';
+import ToolHeader from '../ToolHeader';
 import { QrImage, QrModal } from './QrCode';
 // JSZipは動的インポートで使用（SSR対応）
 
@@ -20,10 +31,44 @@ interface TempFile {
   size?: number; // ファイルサイズ（バイト）
 }
 
-// 容量制限設定（コスト抑制のため）
+// 容量制限設定（コスト抑制のため）。storage.rules の temp/ も 50MB で揃えている
 const MAX_FILE_SIZE_MB = 50; // 1ファイルあたりの最大サイズ（MB）
 const MAX_TOTAL_SIZE_MB = 200; // ユーザーごとの合計容量上限（MB）
 const MAX_FILES_COUNT = 10; // ユーザーごとのファイル数上限
+
+type DirFile = File & { webkitRelativePath?: string };
+const relPath = (f: File) => (f as DirFile).webkitRelativePath || '';
+
+const monoLabel = 'yy-mono text-[10px] tracking-[0.12em] uppercase text-gray-500';
+
+// ファイルサイズをフォーマット（FileTransfer.tsx と同じ形式）
+const formatBytes = (bytes: number, decimals = 1): string => {
+  if (!bytes) return '0 B';
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+};
+
+/** 各段の見出し（連番 + 名前）。線 1 本と小さな等幅で区切る */
+const SectionHead: React.FC<{ no: string; title: string; aside?: React.ReactNode }> = ({ no, title, aside }) => (
+  <div className="flex items-baseline justify-between gap-2 border-b border-[#3b3b3b] pb-1 mb-3">
+    <p className="flex items-baseline gap-2 min-w-0">
+      <span className={monoLabel}>{no}</span>
+      <span className="text-[12px] font-bold text-[#141414]">{title}</span>
+    </p>
+    {aside}
+  </div>
+);
+
+const bar = (pct: number) => (
+  <div className="w-full h-px bg-gray-300">
+    <div className="h-px bg-[#141414]" style={{ width: `${Math.min(100, Math.max(0, pct))}%` }} />
+  </div>
+);
+
+type FeatureKey = 'phone' | 'upload' | 'camera' | 'folder' | 'qr';
 
 const TempStorage: React.FC = () => {
   // QR を出しているファイル（スマホで受け取る）
@@ -35,6 +80,16 @@ const TempStorage: React.FC = () => {
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null); // ダウンロード中のファイルID
+  const [origin, setOrigin] = useState('');
+  const [notice, setNotice] = useState<string | null>(null);
+  const [activeFeature, setActiveFeature] = useState<FeatureKey | null>(null);
+  const phoneRef = useRef<HTMLDivElement>(null);
+  const dropRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
 
   // ファイル一覧を取得（期限切れでないものだけ表示、自分のファイルのみ）
   useEffect(() => {
@@ -45,10 +100,7 @@ const TempStorage: React.FC = () => {
 
     // 複合インデックスを避けるためクエリは userId のみ。
     // 期限切れの除外はクライアント側で行う（実体の削除は cleanupTempFiles 関数が担当）
-    const q = query(
-      collection(db, 'tempFiles'),
-      where('userId', '==', currentUser.uid)
-    );
+    const q = query(collection(db, 'tempFiles'), where('userId', '==', currentUser.uid));
 
     const unsubscribe = onSnapshot(
       q,
@@ -80,11 +132,11 @@ const TempStorage: React.FC = () => {
   // 複数のファイルを受け取り、必要なら圧縮してアップロードする
   const processAndUpload = async (inputFiles: File[]) => {
     if (!isLoggedIn || !currentUser?.uid) {
-      alert('ファイルをアップロードするには会員登録（無料）が必要です。');
+      setNotice('ファイルを上げるにはログイン（無料の会員登録）が必要です。');
       return;
     }
     if (inputFiles.length === 0) return;
-    
+
     if (typeof window === 'undefined' || !storage) {
       alert('ストレージ機能が利用できません。ブラウザを更新してください。');
       return;
@@ -95,7 +147,7 @@ const TempStorage: React.FC = () => {
     // 上限判定に到達する前にタブが落ちる。生サイズの段階で先に弾く。
     const rawTotalMB = inputFiles.reduce((sum, f) => sum + f.size, 0) / (1024 * 1024);
     if (rawTotalMB > MAX_FILE_SIZE_MB) {
-      alert(`選択されたファイルの合計サイズが上限（${MAX_FILE_SIZE_MB}MB）を超えています。\n選択サイズ: ${rawTotalMB.toFixed(2)}MB\n\n※圧縮後のサイズが上限内でも、圧縮処理自体がブラウザの負荷になるため事前に制限しています。`);
+      alert(`選択されたファイルの合計サイズが上限（${MAX_FILE_SIZE_MB}MB）を超えています。\n選択サイズ: ${rawTotalMB.toFixed(2)}MB\n\n相手先へ大きなファイルを送るときは「図面送付」を使ってください。`);
       return;
     }
 
@@ -105,7 +157,7 @@ const TempStorage: React.FC = () => {
       return;
     }
 
-    setStatus('準備中...');
+    setStatus('準備中');
     setCompressionProgress(null);
     setUploadProgress(null);
 
@@ -114,8 +166,8 @@ const TempStorage: React.FC = () => {
 
       // --- 1. 圧縮判定ロジック ---
       // フォルダアップロードかどうかを判定（webkitRelativePathが存在するかどうか）
-      const isFolderUpload = inputFiles.length > 0 && 'webkitRelativePath' in inputFiles[0] && (inputFiles[0] as any).webkitRelativePath;
-      
+      const isFolderUpload = inputFiles.length > 0 && !!relPath(inputFiles[0]);
+
       if (inputFiles.length === 1 && !isFolderUpload) {
         // 単一ファイルの場合はそのまま
         fileToUpload = inputFiles[0];
@@ -123,32 +175,24 @@ const TempStorage: React.FC = () => {
         // 複数ファイルまたはフォルダの場合はZIP圧縮
         const fileCount = inputFiles.length;
         const uploadType = isFolderUpload ? 'フォルダ' : 'ファイル';
-        setStatus(`${uploadType}を圧縮中 (${fileCount}個)...`);
+        setStatus(`${uploadType}を ZIP にまとめています（${fileCount}個）`);
         setCompressionProgress(0);
-        
-        // JSZipを動的インポート（SSR対応）
+
         const JSZip = (await import('jszip')).default;
         const zip = new JSZip();
         const nameMap = new Map<string, number>();
 
-        // ファイルをZIPに追加
         inputFiles.forEach((file, index) => {
           let filePath: string;
-          
-          if (isFolderUpload && 'webkitRelativePath' in file && (file as any).webkitRelativePath) {
-            // フォルダ構造を保持
-            filePath = (file as any).webkitRelativePath;
-            // 先頭のフォルダ名を削除（例: "folder/file.txt" -> "file.txt" または "folder/subfolder/file.txt" -> "subfolder/file.txt"）
-            const pathParts = filePath.split('/');
-            if (pathParts.length > 1) {
-              // 最初のフォルダ名を除いたパスを使用
-              filePath = pathParts.slice(1).join('/');
-            }
+
+          if (isFolderUpload && relPath(file)) {
+            // フォルダ構造を保持（先頭のフォルダ名は外す: "folder/sub/file.txt" -> "sub/file.txt"）
+            const pathParts = relPath(file).split('/');
+            filePath = pathParts.length > 1 ? pathParts.slice(1).join('/') : pathParts[0];
           } else {
-            // 通常のファイル名
             filePath = file.name;
           }
-          
+
           // 同名ファイル対策（パス全体でチェック）
           let finalPath = filePath;
           if (nameMap.has(finalPath)) {
@@ -157,92 +201,75 @@ const TempStorage: React.FC = () => {
             const dotIndex = finalPath.lastIndexOf('.');
             const slashIndex = finalPath.lastIndexOf('/');
             if (dotIndex !== -1 && dotIndex > slashIndex) {
-              // 拡張子がある場合
-              const basePath = finalPath.slice(0, dotIndex);
-              const ext = finalPath.slice(dotIndex);
-              finalPath = `${basePath} (${count})${ext}`;
+              finalPath = `${finalPath.slice(0, dotIndex)} (${count})${finalPath.slice(dotIndex)}`;
             } else {
-              // 拡張子がない場合
               finalPath = `${finalPath} (${count})`;
             }
           } else {
             nameMap.set(finalPath, 0);
           }
-          
+
           zip.file(finalPath, file);
           // ファイル追加の進行状況を更新（0%から50%まで）
-          const addProgress = Math.round(((index + 1) / inputFiles.length) * 50);
-          setCompressionProgress(addProgress);
+          setCompressionProgress(Math.round(((index + 1) / inputFiles.length) * 50));
         });
 
-        // ZIP生成
-        // ファイル追加完了（50%）
         setCompressionProgress(50);
-        
-        const zipBlob = await zip.generateAsync({
-          type: 'blob',
-          compression: 'DEFLATE',
-          compressionOptions: { level: 6 }
-        });
-        
-        // 圧縮完了（100%）
+        const zipBlob = await zip.generateAsync(
+          { type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } },
+          (meta) => setCompressionProgress(50 + Math.round(meta.percent / 2)),
+        );
         setCompressionProgress(100);
 
         // 日付入りファイル名
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-        const zipFileName = isFolderUpload 
-          ? `folder_${timestamp}.zip` 
-          : `archive_${timestamp}.zip`;
-        fileToUpload = new File([zipBlob], zipFileName, {
-          type: 'application/zip'
-        });
+        const zipFileName = isFolderUpload ? `folder_${timestamp}.zip` : `archive_${timestamp}.zip`;
+        fileToUpload = new File([zipBlob], zipFileName, { type: 'application/zip' });
       }
 
       // --- 2. 各種制限チェック（生成された fileToUpload に対して行う） ---
-      
-      // サイズチェック
       const fileSizeMB = fileToUpload.size / (1024 * 1024);
-    if (fileSizeMB > MAX_FILE_SIZE_MB) {
+      if (fileSizeMB > MAX_FILE_SIZE_MB) {
         alert(`ファイルサイズが上限（${MAX_FILE_SIZE_MB}MB）を超えています。\n送信サイズ: ${fileSizeMB.toFixed(2)}MB`);
         setStatus('');
-      return;
-    }
+        setCompressionProgress(null);
+        return;
+      }
 
       // ファイル数チェック (自分のアップロード済みファイル数)
-    const userFiles = files.filter(f => f.userId === currentUser.uid);
-    if (userFiles.length >= MAX_FILES_COUNT) {
-      alert(`ファイル数の上限（${MAX_FILES_COUNT}ファイル）に達しています。\n古いファイルを削除してから再度お試しください。`);
+      const userFiles = files.filter(f => f.userId === currentUser.uid);
+      if (userFiles.length >= MAX_FILES_COUNT) {
+        alert(`ファイル数の上限（${MAX_FILES_COUNT}ファイル）に達しています。\n古いファイルを削除してから再度お試しください。`);
         setStatus('');
-      return;
-    }
+        setCompressionProgress(null);
+        return;
+      }
 
       // 合計容量チェック
       const currentTotalMB = userFiles.reduce((sum, f) => sum + (f.size || 0) / (1024 * 1024), 0);
       if (currentTotalMB + fileSizeMB > MAX_TOTAL_SIZE_MB) {
         alert(`合計容量の上限（${MAX_TOTAL_SIZE_MB}MB）を超えます。\n現在の使用量: ${currentTotalMB.toFixed(2)}MB / ${MAX_TOTAL_SIZE_MB}MB`);
         setStatus('');
-      return;
-    }
+        setCompressionProgress(null);
+        return;
+      }
 
       // --- 3. アップロード処理 ---
-      // 圧縮が完了したら、アップロードを開始
       setCompressionProgress(null);
-      setStatus('アップロード中...');
-    setUploadProgress(0);
+      setStatus('アップロード中');
+      setUploadProgress(0);
 
       const timestamp = Date.now();
       const storagePath = `temp/${currentUser.uid}/${timestamp}_${fileToUpload.name}`;
       const storageRef = ref(storage, storagePath);
-      
+
       // 実際の転送量から進捗を出す（uploadBytes では進捗が取れず固定値になっていた）
       const task = uploadBytesResumable(storageRef, fileToUpload);
       await new Promise<void>((resolve, reject) => {
         task.on(
           'state_changed',
           (snapshot) => {
-            const percent = snapshot.totalBytes > 0
-              ? Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100)
-              : 0;
+            const percent = snapshot.totalBytes > 0 ? Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100) : 0;
             setUploadProgress(percent);
           },
           reject,
@@ -267,15 +294,14 @@ const TempStorage: React.FC = () => {
       });
 
       setUploadProgress(100);
-      setStatus('完了！');
-      
+      setStatus('完了。右の一覧に出ています');
+
       // 少し待ってからステータスをリセット
       setTimeout(() => {
         setStatus('');
         setCompressionProgress(null);
         setUploadProgress(null);
       }, 2000);
-
     } catch (error) {
       console.error('処理エラー:', error);
       alert('処理に失敗しました');
@@ -288,25 +314,25 @@ const TempStorage: React.FC = () => {
   // 複数ファイル対応のハンドラー
   const handleFileInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
-    // FileList -> File[] 変換して渡す
-    await processAndUpload(Array.from(e.target.files));
+    const picked = Array.from(e.target.files);
     e.target.value = '';
+    await processAndUpload(picked);
   };
 
   // ドラッグ&ドロップ処理
-  const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
+  const handleDragOver = (e: DragEvent<HTMLElement>) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(true);
   };
 
-  const handleDragLeave = (e: DragEvent<HTMLDivElement>) => {
+  const handleDragLeave = (e: DragEvent<HTMLElement>) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
   };
 
-  const handleDrop = async (e: DragEvent<HTMLDivElement>) => {
+  const handleDrop = async (e: DragEvent<HTMLElement>) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
@@ -317,18 +343,9 @@ const TempStorage: React.FC = () => {
 
   // ファイルダウンロード処理
   const handleFileClick = async (file: TempFile) => {
-    if (typeof window === 'undefined' || typeof document === 'undefined') {
-      return;
-    }
-    
-    // 既にダウンロード中の場合は処理しない
-    if (downloadingFileId === file.id) {
-      return;
-    }
-    
-    // ダウンロード開始
+    if (downloadingFileId === file.id) return;
     setDownloadingFileId(file.id);
-    
+
     try {
       const response = await fetch(file.url);
       const blob = await response.blob();
@@ -340,16 +357,12 @@ const TempStorage: React.FC = () => {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(downloadUrl);
-      
-      // ダウンロード完了
-      setDownloadingFileId(null);
     } catch (error) {
       console.error('ダウンロードエラー:', error);
-      setDownloadingFileId(null);
       // フォールバック: 新しいタブで開く
-      if (typeof window !== 'undefined') {
       window.open(file.url, '_blank');
-      }
+    } finally {
+      setDownloadingFileId(null);
     }
   };
 
@@ -357,21 +370,17 @@ const TempStorage: React.FC = () => {
   const handleDelete = async (file: TempFile) => {
     if (!confirm(`「${file.name}」を削除しますか？`)) return;
 
-
     if (!storage) {
       alert('ストレージ機能が利用できません。');
       return;
     }
 
     try {
-      // Storageからファイルを削除
       try {
         await deleteObject(ref(storage, file.storagePath));
       } catch (error) {
         console.warn('Storageファイルの削除エラー（既に削除されている可能性があります）:', error);
       }
-
-      // Firestoreからデータを削除
       await deleteDoc(doc(db, 'tempFiles', file.id));
     } catch (err) {
       console.error('削除エラー:', err);
@@ -379,57 +388,109 @@ const TempStorage: React.FC = () => {
     }
   };
 
-  // 残り時間を計算
-  const getRemainingTime = (expiresAt: Timestamp): string => {
-    try {
-    const now = new Date();
-      let expires: Date;
-      try {
-        expires = expiresAt.toDate();
-      } catch (dateError) {
-        console.error('[TempStorage] toDate()エラー:', dateError);
-        // フォールバック: タイムスタンプから直接作成
-        const expiresMs = expiresAt.toMillis();
-        expires = new Date(expiresMs);
-      }
-    const diff = expires.getTime() - now.getTime();
-    
-    if (diff <= 0) return '期限切れ';
-    
+  // 残り時間（等幅の短い表記）
+  const remaining = (expiresAt?: Timestamp): string => {
+    const ms = expiresAt?.toMillis?.();
+    if (typeof ms !== 'number') return '—';
+    const diff = ms - Date.now();
+    if (diff <= 0) return 'EXPIRED';
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    
-    if (hours > 0) {
-      return `残り${hours}時間${minutes}分`;
-    } else {
-      return `残り${minutes}分`;
-      }
-    } catch (error) {
-      console.error('[TempStorage] 残り時間計算エラー:', error);
-      return '期限不明';
-    }
+    return hours > 0 ? `${hours}H ${String(minutes).padStart(2, '0')}M LEFT` : `${minutes}M LEFT`;
+  };
+  const createdLabel = (t?: Timestamp) => {
+    const ms = t?.toMillis?.();
+    return typeof ms === 'number'
+      ? new Date(ms).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+      : '—';
   };
 
-  // ファイルサイズをフォーマット（FileTransfer.tsxと同じ形式）
-  const formatBytes = (bytes: number, decimals = 1): string => {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const dm = decimals < 0 ? 0 : decimals;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+  const busy = compressionProgress !== null || uploadProgress !== null || !!status;
+  const screenUrl = origin ? `${origin}/?m=general-tools&t=temp-storage` : '';
+
+  // --- 帯の「できること」 ---
+  const jump = (el: HTMLElement | null) => el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const needLogin = () => {
+    if (isLoggedIn) return false;
+    setNotice('端末間受け渡しはログイン（無料の会員登録）して使います。スマホと PC で同じアカウントにログインすると、片方で上げたファイルがもう片方の一覧にすぐ出ます。');
+    return true;
   };
+  const pick = (key: FeatureKey, run: () => void, msg?: string) => {
+    setActiveFeature(key);
+    if (needLogin()) return;
+    setNotice(msg ?? null);
+    run();
+  };
+  const clickInput = (id: string) => (document.getElementById(id) as HTMLInputElement | null)?.click();
+  const features = [
+    {
+      label: 'スマホで開く QR',
+      login: true,
+      hint: 'PC に出した QR をスマホのカメラで読むと、この画面がスマホで開きます',
+      active: activeFeature === 'phone',
+      onClick: () => pick('phone', () => jump(phoneRef.current)),
+    },
+    {
+      label: '写真を撮って上げる',
+      login: true,
+      hint: 'スマホではカメラが開きます',
+      active: activeFeature === 'camera',
+      onClick: () => pick('camera', () => { jump(dropRef.current); clickInput('camera-upload'); }),
+    },
+    {
+      label: 'フォルダごと ZIP',
+      login: true,
+      hint: 'フォルダを選ぶと中身を ZIP にまとめて上げます',
+      active: activeFeature === 'folder',
+      onClick: () => pick('folder', () => { jump(dropRef.current); clickInput('folder-upload'); }),
+    },
+    {
+      label: 'QR で受け取る',
+      login: true,
+      hint: '一覧の各ファイルの QR をスマホで読むと、そのままダウンロードできます',
+      active: activeFeature === 'qr',
+      onClick: () =>
+        pick('qr', () => jump(listRef.current), files.length ? '一覧の「QR」をスマホのカメラで読むと、ログインせずにそのファイルを落とせます。' : 'ファイルを上げると、一覧の各行に「QR」が出ます。スマホで読むとそのまま落とせます。'),
+    },
+    { label: '24時間で自動削除', hint: '上げてから24時間で消えます。残したいものは落としておいてください' },
+  ];
+
+  const header = (
+    <ToolHeader
+      no="10"
+      code="HANDOFF"
+      title="端末間受け渡し"
+      description="自分の端末どうしでファイルを渡す。現場のスマホで撮った写真を事務所の PC で受け取る、PC のファイルをスマホへ。QR を読むだけで開けて、24時間で自動で消えます"
+      features={features}
+      aside={<span className="yy-mono text-[9.5px] tracking-[0.14em] uppercase text-[#8c887f]">旧 一時ファイル</span>}
+    />
+  );
+
+  const noticeLine = notice && (
+    <div className="mb-4 flex items-start justify-between gap-3 border-l border-[#52AA96] pl-3 py-0.5 text-[11px] text-gray-700">
+      <span>{notice}</span>
+      <button type="button" onClick={() => setNotice(null)} aria-label="閉じる" className="text-gray-400 hover:text-gray-800 shrink-0">
+        <FiX size={12} />
+      </button>
+    </div>
+  );
+
+  const toTransmittal = (
+    <button type="button" onClick={() => requestGeneralTool({ toolId: 'file-transfer' })} className="underline underline-offset-2 text-gray-700 hover:text-black">
+      図面送付
+    </button>
+  );
 
   if (!isLoggedIn) {
     return (
-      <div className="w-full bg-white rounded-b-lg shadow-sm border-b border-gray-100">
-        <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white">
-          <h3 className="text-[13px] font-medium">一時ファイル — 端末間の受け渡し</h3>
-        </div>
+      <div className="w-full bg-white border-b border-gray-100">
+        {header}
         <div className="p-4">
-          <p className="text-red-500 font-semibold text-[12px]">
-          この機能を使用するには会員登録（無料）が必要です。
-        </p>
+          {noticeLine}
+          <p className="text-[11px] text-gray-600 leading-relaxed">
+            この機能はログイン（無料の会員登録）して使います。スマホと PC で同じアカウントにログインすると、片方で上げたファイルがもう片方にすぐ出ます。
+          </p>
+          <p className="text-[11px] text-gray-500 mt-2">相手先へ図面を送るときは {toTransmittal}（送付状・送付台帳つき）。</p>
         </div>
       </div>
     );
@@ -438,278 +499,154 @@ const TempStorage: React.FC = () => {
   const currentTotalMB = files.reduce((sum, f) => sum + (f.size || 0) / (1024 * 1024), 0);
 
   return (
-    <div className="w-full bg-white rounded-b-lg shadow-sm border-b border-gray-100">
-      <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white">
-        <h3 className="text-[13px] font-medium">一時ファイル — 端末間の受け渡し</h3>
-        <p className="text-[11px] mt-0.5">現場のスマホで撮った写真を事務所の PC で受け取る、PC のファイルをスマホへ渡す。QR を読むだけで開けて、24時間で自動で消えます</p>
-      </div>
+    <div className="w-full bg-white border-b border-gray-100">
+      {header}
 
       <div className="p-4">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 border border-[#3b3b3b] p-3">
-          {/* --- 左カラム：入力・設定 --- */}
-          <div className="space-y-6">
-            {/* スマホとの受け渡し */}
-            <div className="flex gap-3 items-center border border-gray-200 p-3">
-              <QrImage text={typeof window !== 'undefined' ? `${window.location.origin}/?m=general-tools&t=temp-storage` : ''} size={96} />
-              <div className="text-[11px] text-gray-600 leading-relaxed">
-                <p className="font-bold text-gray-800 mb-1">スマホで開く</p>
-                スマホのカメラでこの QR を読むと、この画面が開きます。同じアカウントでログインしていれば、
-                スマホで上げた写真はこの一覧にすぐ出ます。PC から渡したいファイルは、一覧の「QR」をスマホで読んでください。
+        {noticeLine}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* --- 左：上げる --- */}
+          <div className="space-y-8 min-w-0">
+            {/* 001 スマホで開く */}
+            <div ref={phoneRef} className="scroll-mt-4">
+              <SectionHead no="001" title="スマホで開く" aside={<span className={monoLabel}>SCAN</span>} />
+              <div className="flex gap-4 items-start">
+                {screenUrl ? <QrImage text={screenUrl} size={96} /> : <div className="w-24 h-24 bg-gray-100" />}
+                <p className="text-[11px] text-gray-600 leading-relaxed">
+                  スマホのカメラでこの QR を読むと、この画面がスマホで開きます。同じアカウントでログインしていれば、スマホで上げた写真は右の一覧にすぐ出ます。
+                  PC から渡したいファイルは、一覧の「QR」をスマホで読んでください。
+                </p>
               </div>
             </div>
-            {/* 1. ファイル選択エリア */}
-            <div>
+
+            {/* 002 上げる */}
+            <div ref={dropRef} className="scroll-mt-4">
+              <SectionHead no="002" title="上げる" aside={<span className={monoLabel}>MAX {MAX_FILE_SIZE_MB}MB</span>} />
               <section
-                className={`border-2 border-dashed rounded-lg p-6 text-center transition ${
-                  isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
-            }`}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-          >
-                {compressionProgress !== null || uploadProgress !== null || status ? (
-                  // 処理中・アップロード中の表示
-                  <div className="w-full max-w-xs mx-auto">
-                    <div className="animate-bounce mb-4 text-blue-500 text-3xl flex justify-center">
-                      <FiPackage />
-                    </div>
-                    <p className="text-sm font-bold text-blue-600 mb-2">{status || '処理中...'}</p>
+                className={`border border-dashed p-6 text-center transition-colors ${isDragging ? 'border-[#52AA96]' : 'border-gray-400 hover:border-[#3b3b3b]'}`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
+                {busy ? (
+                  <div className="w-full max-w-xs mx-auto text-left space-y-3">
+                    <p className="text-[11px] text-[#141414]">{status || '処理中'}</p>
                     {compressionProgress !== null && (
-                      <div className="mb-2">
-                        <p className="text-[10px] text-gray-600 mb-1">圧縮中: {compressionProgress}%</p>
-                        <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
-                          <div
-                            className="bg-blue-500 h-2.5 rounded-full transition-all duration-300 ease-out"
-                            style={{ width: `${compressionProgress}%` }}
-                          ></div>
-                        </div>
+                      <div>
+                        <p className={`mb-1 ${monoLabel}`}>ZIP {compressionProgress}%</p>
+                        {bar(compressionProgress)}
                       </div>
                     )}
                     {uploadProgress !== null && (
                       <div>
-                        <p className="text-[10px] text-gray-600 mb-1">アップロード中: {uploadProgress}%</p>
-                        <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
-                  <div
-                            className="bg-blue-600 h-2.5 rounded-full transition-all duration-300 ease-out"
-                    style={{ width: `${uploadProgress}%` }}
-                  ></div>
-                </div>
-              </div>
-            )}
-          </div>
+                        <p className={`mb-1 ${monoLabel}`}>UPLOAD {uploadProgress}%</p>
+                        {bar(uploadProgress)}
+                      </div>
+                    )}
+                  </div>
                 ) : (
-                  // 通常時の表示
                   <>
-                    <svg className="w-10 h-10 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    <p className="text-[12px] text-gray-600 mb-2">ファイルをドラッグ＆ドロップ（複数可・フォルダ可）</p>
-                    <div className="flex flex-row gap-2 items-center justify-center">
-                      <label
-                        htmlFor="file-upload"
-                        className="inline-flex items-center px-4 py-2 rounded bg-gray-200 text-gray-700 text-[11px] hover:bg-gray-300 cursor-pointer"
-                      >
+                    <FiUploadCloud className="mx-auto mb-2 text-gray-400" size={14} />
+                    <p className="text-[11px] text-gray-600 mb-3">ここへドラッグ＆ドロップ（複数可・フォルダ可）</p>
+                    <div className="flex flex-wrap gap-2 items-center justify-center">
+                      <label htmlFor="file-upload" className="yy-btn cursor-pointer">
                         ファイルを選択
                       </label>
-                      <label
-                        htmlFor="camera-upload"
-                        className="inline-flex items-center px-4 py-2 rounded bg-gray-200 text-gray-700 text-[11px] hover:bg-gray-300 cursor-pointer lg:hidden"
-                      >
+                      <label htmlFor="camera-upload" className="yy-btn cursor-pointer lg:hidden">
                         写真を撮る
                       </label>
-                      <label
-                        htmlFor="folder-upload"
-                        className="inline-flex items-center px-4 py-2 rounded bg-blue-100 text-blue-700 text-[11px] hover:bg-blue-200 cursor-pointer"
-                      >
+                      <label htmlFor="folder-upload" className="yy-btn cursor-pointer">
                         フォルダを選択
                       </label>
                     </div>
-                    <input
-                      id="camera-upload"
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      onChange={handleFileInput}
-                      disabled={compressionProgress !== null || uploadProgress !== null || !!status}
-                      className="hidden"
-                    />
-                    <input
-                      id="file-upload"
-                      type="file"
-                      onChange={handleFileInput}
-                      disabled={compressionProgress !== null || uploadProgress !== null || !!status}
-                      className="hidden"
-                      multiple
-                    />
-                    <input
-                      id="folder-upload"
-                      type="file"
-                      onChange={handleFileInput}
-                      disabled={compressionProgress !== null || uploadProgress !== null || !!status}
-                      className="hidden"
-                      webkitdirectory=""
-                      multiple
-                    />
-                    <p className="text-[10px] text-gray-500 mt-2">複数選択可・フォルダ選択可・自動圧縮対応</p>
+                    <p className={`mt-3 ${monoLabel}`}>複数・フォルダは ZIP にまとめて上げます</p>
                   </>
                 )}
+                <input id="camera-upload" type="file" accept="image/*" capture="environment" onChange={handleFileInput} disabled={busy} className="hidden" />
+                <input id="file-upload" type="file" onChange={handleFileInput} disabled={busy} className="hidden" multiple />
+                <input id="folder-upload" type="file" onChange={handleFileInput} disabled={busy} className="hidden" webkitdirectory="" multiple />
               </section>
-        </div>
+            </div>
 
-            {/* 2. 使用量表示 */}
-            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-              <label className="block text-[12px] font-bold mb-3 text-gray-700 border-b border-gray-200 pb-1">使用量</label>
-              <div className="space-y-4">
+            {/* 003 使用量 */}
+            <div>
+              <SectionHead no="003" title="使用量" />
+              <div className="space-y-3">
                 <div>
-                  <div className="flex justify-between items-center mb-1">
+                  <div className="flex justify-between items-baseline mb-1">
                     <span className="text-[11px] text-gray-600">合計容量</span>
-                    <span className="text-[11px] font-mono text-gray-700">
+                    <span className="yy-mono text-[10px] text-gray-600">
                       {currentTotalMB.toFixed(1)}MB / {MAX_TOTAL_SIZE_MB}MB
                     </span>
-              </div>
-                  <div className="w-full h-2 bg-gray-200 rounded">
-                  <div 
-                      className="h-2 bg-blue-500 rounded"
-                      style={{
-                        width: `${Math.min(100, (currentTotalMB / MAX_TOTAL_SIZE_MB) * 100)}%`,
-                      }}
-                    />
                   </div>
+                  {bar((currentTotalMB / MAX_TOTAL_SIZE_MB) * 100)}
                 </div>
                 <div>
-                  <div className="flex justify-between items-center mb-1">
+                  <div className="flex justify-between items-baseline mb-1">
                     <span className="text-[11px] text-gray-600">ファイル数</span>
-                    <span className="text-[11px] font-mono text-gray-700">
-                      {files.length} / {MAX_FILES_COUNT} ファイル
-                      </span>
-                    </div>
+                    <span className="yy-mono text-[10px] text-gray-600">
+                      {files.length} / {MAX_FILES_COUNT}
+                    </span>
                   </div>
-                <div className="text-[10px] text-gray-500 space-y-1">
-                  <p>• 1ファイル最大{MAX_FILE_SIZE_MB}MBまで</p>
-                  <p className="text-blue-600 font-semibold">• 複数ファイルをドロップすると自動でZIP圧縮されます</p>
+                  {bar((files.length / MAX_FILES_COUNT) * 100)}
                 </div>
+                <p className="text-[10px] text-gray-500">
+                  1ファイル最大 {MAX_FILE_SIZE_MB}MB・24時間で自動削除。相手先へ大きな図面を送るときは {toTransmittal}（最大 2GB・送付状つき）。
+                </p>
               </div>
             </div>
-
-            {/* 3. ステータス表示 */}
-            {status && (
-              <p className="text-[11px] text-gray-700 bg-gray-50 p-2 rounded border border-gray-200">{status}</p>
-            )}
           </div>
 
-          {/* --- 右カラム：結果・出力 --- */}
-          <div className="bg-gray-50 rounded-lg border border-gray-200 p-4 flex flex-col h-full min-h-[300px]">
-            <label className="block text-[12px] font-bold mb-3 text-gray-700 border-b border-gray-200 pb-1">アップロード済みファイル</label>
-
-            <div className="space-y-3 max-h-[500px] overflow-y-auto">
-              {files.length === 0 ? (
-                <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
-                  <svg className="w-12 h-12 mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  <p className="text-[11px]">まだアップロードされたファイルはありません</p>
-                </div>
-              ) : (
-                files.map((file) => {
-                  const remainingHours = file.expiresAt
-                    ? Math.ceil((file.expiresAt.toMillis() - Date.now()) / (1000 * 60 * 60))
-                    : null;
-                  const isExpired = file.expiresAt ? file.expiresAt.toMillis() < Date.now() : false;
-                  return (
-                    <div key={file.id} className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[12px] font-bold text-gray-800 truncate">{file.name}</p>
-                          <p className="text-[11px] text-gray-500">{file.size && formatBytes(file.size)}</p>
-                          <p className="text-[10px] text-gray-400 mt-1">
-                            {file.createdAt ? (() => {
-                              try {
-                                return file.createdAt.toDate().toLocaleString();
-                              } catch (e) {
-                                try {
-                                  return new Date(file.createdAt.toMillis()).toLocaleString();
-                                } catch (e2) {
-                                  return '-';
-                                }
-                              }
-                            })() : '-'}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          className="px-2 py-1 rounded text-[10px] font-semibold bg-red-500 text-white hover:bg-red-600 ml-2"
-                          onClick={() => handleDelete(file)}
-                        >
-                          削除
-                        </button>
-                      </div>
-                      <div className="mt-2 pt-2 border-t border-gray-100">
-                        <p className={`text-[10px] mb-1 ${isExpired ? 'text-red-600 font-medium' : 'text-gray-600'}`}>
-                          削除予定: {file.expiresAt
-                            ? isExpired
-                              ? '削除済み'
-                              : remainingHours !== null && remainingHours > 0
-                              ? `あと${remainingHours}時間`
-                              : 'まもなく削除予定'
-                            : '-'}
-                        </p>
-                        <div className="flex items-center gap-2 mt-2">
-                  <button
-                    type="button"
-                    className="px-2 py-0.5 border rounded text-[10px] hover:bg-gray-100"
-                    onClick={() => setQrFile({ name: file.name, url: file.url })}
-                    title="スマホで読むとダウンロードできます"
-                  >
-                    QR
-                  </button>
-                  <button
-                            type="button"
-                            className={`px-2 py-0.5 border rounded text-[10px] flex items-center gap-1 ${
-                              downloadingFileId === file.id 
-                                ? 'bg-gray-100 cursor-wait opacity-70' 
-                                : 'hover:bg-gray-100'
-                            }`}
-                            onClick={() => handleFileClick(file)}
-                            disabled={downloadingFileId === file.id}
-                          >
-                            {downloadingFileId === file.id ? (
-                              <>
-                                <svg 
-                                  className="animate-spin h-3 w-3" 
-                                  xmlns="http://www.w3.org/2000/svg" 
-                                  fill="none" 
-                                  viewBox="0 0 24 24"
-                                >
-                                  <circle 
-                                    className="opacity-25" 
-                                    cx="12" 
-                                    cy="12" 
-                                    r="10" 
-                                    stroke="currentColor" 
-                                    strokeWidth="4"
-                                  />
-                                  <path 
-                                    className="opacity-75" 
-                                    fill="currentColor" 
-                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                  />
-                                </svg>
-                                ダウンロード中...
-                              </>
-                            ) : (
-                              <>
-                                <FiDownload className="w-3 h-3 inline" />
-                                ダウンロード
-                              </>
-                            )}
-                  </button>
-                </div>
-                      </div>
+          {/* --- 右：受け取る --- */}
+          <div ref={listRef} className="scroll-mt-4 min-w-0">
+            <SectionHead no="004" title="受け取る" aside={<span className={monoLabel}>{files.length} FILES</span>} />
+            {files.length === 0 ? (
+              <p className="text-[11px] text-gray-500 py-2 leading-relaxed">
+                まだ何もありません。上げたファイルはここに出て、各行の QR をスマホで読むとそのまま落とせます。{' '}
+                <label htmlFor="file-upload" className="underline underline-offset-2 text-gray-700 hover:text-black cursor-pointer">
+                  ファイルを選ぶ
+                </label>
+              </p>
+            ) : (
+              <ol className="border-t border-[#3b3b3b] max-h-[560px] overflow-y-auto">
+                {files.map((file, idx) => (
+                  <li key={file.id} className="py-3 border-b border-gray-300">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className={monoLabel}>
+                        {String(files.length - idx).padStart(3, '0')} · {createdLabel(file.createdAt)}
+                      </span>
+                      <span className="yy-mono text-[10px] tracking-[0.08em] text-gray-500">{remaining(file.expiresAt)}</span>
                     </div>
-                  );
-                })
+                    <div className="flex items-start justify-between gap-2 mt-1">
+                      <p className="text-[12px] font-bold text-[#141414] truncate min-w-0">{file.name}</p>
+                      <button type="button" className="text-gray-400 hover:text-red-600 shrink-0 mt-0.5" onClick={() => void handleDelete(file)} aria-label="削除" title="削除">
+                        <FiTrash2 size={12} />
+                      </button>
+                    </div>
+                    <p className="yy-mono text-[10px] text-gray-500">{file.size ? formatBytes(file.size) : '—'}</p>
+                    <div className="flex items-center gap-4 mt-2 text-[11px]">
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 underline underline-offset-2 text-[#141414] hover:text-black"
+                        onClick={() => setQrFile({ name: file.name, url: file.url })}
+                        title="スマホで読むとダウンロードできます"
+                      >
+                        <FiSmartphone size={12} className="text-gray-500" /> QR
+                      </button>
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 underline underline-offset-2 text-gray-700 hover:text-black disabled:opacity-50 disabled:cursor-wait"
+                        onClick={() => void handleFileClick(file)}
+                        disabled={downloadingFileId === file.id}
+                      >
+                        <FiDownload size={12} className="text-gray-500" />
+                        {downloadingFileId === file.id ? 'ダウンロード中' : 'ダウンロード'}
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ol>
             )}
-            </div>
           </div>
         </div>
       </div>
@@ -726,4 +663,3 @@ const TempStorage: React.FC = () => {
 };
 
 export default TempStorage;
-

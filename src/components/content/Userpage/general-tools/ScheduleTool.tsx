@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import ToolHeader from '../ToolHeader';
 import {
   collection,
   doc,
@@ -31,9 +32,9 @@ import {
 import { buildIcs } from '@/lib/ics';
 import { candidateLabel, generateCandidates, responsesCsv, timeRangeOf, WEEKDAYS, type Slot } from '@/lib/scheduleBatch';
 import { MEETING_KINDS, PARTY_ROLES, roleCoverage, bestOption } from '@/lib/scheduleRoles';
-import { 
-  FiPlus, FiTrash2, FiCopy, FiCalendar, FiEdit2, FiCheck, 
-  FiX, FiMinus, FiCircle, FiEye, FiShare2, FiList, FiUsers, FiMessageSquare, FiClock, FiRefreshCw 
+import {
+  FiPlus, FiTrash2, FiCopy, FiCalendar, FiEdit2, FiCheck,
+  FiX, FiMinus, FiCircle, FiEye, FiShare2, FiList, FiUsers, FiMessageSquare, FiClock, FiRefreshCw
 } from 'react-icons/fi';
 
 // 共有URL用のランダム文字列を生成。
@@ -104,6 +105,21 @@ const ScheduleTool: React.FC = () => {
   // 確定・書き出しで選んでいる候補
   const [fixOptionId, setFixOptionId] = useState('');
   const [fixMsg, setFixMsg] = useState('');
+  // 作成時の種別と、必ず出てほしい役割（作ってからでないと付けられなかったので、作成フォームにも出す）
+  const [kind, setKind] = useState('');
+  const [createRoles, setCreateRoles] = useState<string[]>([]);
+  // 見出しの「できること」を押したときの一言（ログインが要る・スケジュールを選ぶ必要がある等）
+  const [headNotice, setHeadNotice] = useState('');
+  const batchRef = useRef<HTMLDivElement>(null);
+  const deadlineRef = useRef<HTMLDivElement>(null);
+  const fixRef = useRef<HTMLDivElement>(null);
+  const rolesRef = useRef<HTMLDivElement>(null);
+  const createRolesRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!headNotice) return;
+    const t = setTimeout(() => setHeadNotice(''), 7000);
+    return () => clearTimeout(t);
+  }, [headNotice]);
 
   // 参加者入力・回答入力
   const [participantName, setParticipantName] = useState('');
@@ -152,7 +168,7 @@ const ScheduleTool: React.FC = () => {
         where('ownerUid', '==', currentUser.uid),
         orderBy('createdAt', 'desc')
       );
-      
+
       let snapshot;
       try {
         snapshot = await getDocs(q);
@@ -163,7 +179,7 @@ const ScheduleTool: React.FC = () => {
         );
         snapshot = await getDocs(qWithoutOrderBy);
       }
-      
+
       const data = snapshot.docs.map((doc) => {
         const docData = doc.data();
         return {
@@ -171,7 +187,7 @@ const ScheduleTool: React.FC = () => {
           ...docData,
         };
       }) as Schedule[];
-      
+
       setSchedules(prev => {
         const merged = new Map<string, Schedule>();
         prev.forEach(s => {
@@ -188,7 +204,7 @@ const ScheduleTool: React.FC = () => {
           return bTime - aTime;
         });
       });
-      
+
       data.forEach(schedule => {
         loadScheduleStats(schedule.id);
       });
@@ -275,7 +291,7 @@ const ScheduleTool: React.FC = () => {
             return bTime - aTime;
           });
         });
-        
+
         updatedData.forEach(schedule => {
           loadScheduleStats(schedule.id);
         });
@@ -362,7 +378,9 @@ const ScheduleTool: React.FC = () => {
         // アプリ内でこの値を読んでいる箇所も無い。
         mode,
         isPublic,
-        deadline: deadlineDate 
+        ...(kind ? { kind } : {}),
+        ...(createRoles.length ? { requiredRoles: createRoles } : {}),
+        deadline: deadlineDate
           ? (() => {
               const dateStr = deadlineDate.replace(/-/g, '/');
               let dateTimeStr: string;
@@ -383,8 +401,8 @@ const ScheduleTool: React.FC = () => {
       await setDoc(doc(db, 'schedules', slug), scheduleData);
 
       const validOptions = optionLabels
-        .map((label, index) => ({ 
-          label: label.trim(), 
+        .map((label, index) => ({
+          label: label.trim(),
           date: optionDates[index]?.trim(),
           time: optionTimes[index] || { startHour: '18', startMinute: '00', endHour: '19', endMinute: '00' }
         }))
@@ -393,14 +411,14 @@ const ScheduleTool: React.FC = () => {
       for (let i = 0; i < validOptions.length; i++) {
         const opt = validOptions[i];
         let dateTime: Timestamp | undefined;
-        
+
         if (opt.date && mode === 'date') {
           const timeRange = getTimeRange(opt.time?.timeType || 'am', opt.time?.startHour, opt.time?.startMinute, opt.time?.endHour, opt.time?.endMinute);
           const dateStr = opt.date.replace(/-/g, '/');
           const dateTimeStr = `${dateStr} ${timeRange.startHour}:${timeRange.startMinute}:00`;
           dateTime = Timestamp.fromDate(new Date(dateTimeStr));
         }
-        
+
         await addDoc(collection(db, 'schedules', slug, 'options'), {
           label: opt.label,
           dateTime: dateTime,
@@ -509,7 +527,7 @@ const ScheduleTool: React.FC = () => {
       setEditingParticipantId(participant.id);
       setParticipantName(participant.name);
       setParticipantComment(participant.comment || '');
-      
+
       const userResponses: Record<string, ResponseValue> = {};
       options.forEach(opt => {
           const resp = responses.find(r => r.participantId === participant.id && r.optionId === opt.id);
@@ -562,14 +580,14 @@ const ScheduleTool: React.FC = () => {
   };
 
   const resetForm = () => {
-    setTitle(''); setDescription(''); setMode('date'); setIsPublic(true);
+    setTitle(''); setDescription(''); setMode('date'); setIsPublic(true); setKind(''); setCreateRoles([]);
     setDeadlineDate(''); setDeadlineTime({ timeType: 'am', startHour: '09', startMinute: '00' });
     setOptionLabels(['']); setOptionDates(['']); setOptionTimes([{ timeType: 'am', startHour: '09', startMinute: '00', endHour: '12', endMinute: '00' }]);
   };
 
   const generateHours = () => Array.from({length: 24}, (_, i) => i.toString().padStart(2, '0'));
   const generateMinutes = () => ['00', '15', '30', '45'];
-  
+
   const getTimeRange = (timeType: string, startHour?: string, startMinute?: string, endHour?: string, endMinute?: string) => {
     if (timeType === 'am') return { startHour: '09', startMinute: '00', endHour: '12', endMinute: '00' };
     if (timeType === 'pm') return { startHour: '13', startMinute: '00', endHour: '17', endMinute: '00' };
@@ -651,7 +669,7 @@ const ScheduleTool: React.FC = () => {
   const requiredRoles = currentSchedule?.requiredRoles ?? [];
   const coverage = roleCoverage(options, participants, responses, roleMap, requiredRoles);
   const isScheduleOwner = !!currentUser && currentSchedule?.ownerUid === currentUser.uid;
-  const patchSchedule = async (patch: Record<string, string | string[] | Record<string, string> | null>, local: Partial<Schedule>) => {
+  const patchSchedule = async (patch: Record<string, string | string[] | Record<string, string> | Timestamp | null>, local: Partial<Schedule>) => {
     if (!currentSchedule) return;
     setCurrentSchedule({ ...currentSchedule, ...local });
     setSchedules((prev) => prev.map((s) => (s.id === currentSchedule.id ? { ...s, ...local } : s)));
@@ -686,30 +704,148 @@ const ScheduleTool: React.FC = () => {
 
   // --- UIコンポーネント (Render Functions) ---
 
+  /** 締切の日時（作成フォームの「日付 + 午前中 / その日中 / 時刻」と同じ決め方） */
+  const deadlineOf = (date: string, t: { timeType: 'am' | 'pm' | 'custom'; startHour: string; startMinute: string }) => {
+    const d = date.replace(/-/g, '/');
+    const hm = t.timeType === 'custom' ? `${t.startHour}:${t.startMinute}:00` : t.timeType === 'am' ? '11:59:59' : '23:59:59';
+    return Timestamp.fromDate(new Date(`${d} ${hm}`));
+  };
+  const scrollToRef = (r: React.RefObject<HTMLDivElement | null>) =>
+    setTimeout(() => r.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+  /** 作成画面を開いてから、その場所へ移る */
+  const openCreateAt = (r: React.RefObject<HTMLDivElement | null>) => {
+    if (view !== 'create') { resetForm(); setView('create'); }
+    scrollToRef(r);
+  };
+  const needLogin = () => {
+    if (currentUser) return false;
+    setHeadNotice('スケジュール調整を作るにはログイン（無料の会員登録）が必要です。回答だけなら、共有URLからログインなしでできます');
+    return true;
+  };
+  const inList = view === 'list' && !!currentSchedule;
+
+  const header = (
+    <>
+      <ToolHeader
+        no="09"
+        code="SCHEDULE"
+        title="スケジュール調整"
+        description="現場定例・検査・施主打合せの日程を、施主・設計・施工など必要な人が揃う日に決める"
+        aside={<span className="yy-mono text-[10px] tracking-[0.12em] uppercase">{schedules.length} SCHEDULES</span>}
+        features={[
+          {
+            label: 'まとめて候補を作る',
+            login: true,
+            active: view === 'create' && showBatch,
+            hint: '期間・曜日・午前午後から候補を一度に並べます（例: 来週の平日の午後）',
+            onClick: () => { if (needLogin()) return; setMode('date'); setShowBatch(true); openCreateAt(batchRef); },
+          },
+          {
+            label: '締切',
+            login: true,
+            hint: '回答の締切。締切の 24 時間前にベルでお知らせし、過ぎると回答を締め切ります',
+            onClick: () => {
+              if (needLogin()) return;
+              if (inList && isScheduleOwner) scrollToRef(deadlineRef);
+              else openCreateAt(deadlineRef);
+            },
+          },
+          {
+            label: '確定・.ics',
+            login: true,
+            hint: '決めた日を .ics（Google・Outlook・iPhone）で保存、または Myカレンダーに入れます',
+            onClick: () => {
+              if (needLogin()) return;
+              if (inList) scrollToRef(fixRef);
+              else setHeadNotice('右の一覧（スマホでは下）からスケジュールを選ぶと、確定と .ics の書き出しができます');
+            },
+          },
+          {
+            label: '回答CSV',
+            login: true,
+            hint: '全員の回答を表計算ソフトで開ける CSV に',
+            onClick: () => {
+              if (needLogin()) return;
+              if (inList) scrollToRef(fixRef);
+              else setHeadNotice('スケジュールを選ぶと、回答を CSV で保存できます');
+            },
+          },
+          {
+            label: '役割',
+            login: true,
+            hint: '施主・設計・施工など、必ず出てほしい役割が揃う日を探します',
+            onClick: () => {
+              if (needLogin()) return;
+              if (inList && isScheduleOwner) scrollToRef(rolesRef);
+              else openCreateAt(createRolesRef);
+            },
+          },
+        ]}
+      />
+      {headNotice && (
+        <p className="px-4 py-1.5 text-[11px] text-gray-600 border-b border-gray-200 bg-white shrink-0">
+          {headNotice}
+          <button type="button" onClick={() => setHeadNotice('')} className="ml-2 underline text-gray-500">閉じる</button>
+        </p>
+      )}
+    </>
+  );
+
+  /** 締切の入力（作成フォームと、作成後の主催者の設定で共通） */
+  const deadlineFields = (
+    date: string,
+    t: { timeType: 'am' | 'pm' | 'custom'; startHour: string; startMinute: string },
+    onDate: (v: string) => void,
+    onTime: (v: { timeType: 'am' | 'pm' | 'custom'; startHour: string; startMinute: string }) => void,
+  ) => (
+    <div className="flex flex-wrap items-center gap-2 text-[11px]">
+      <input type="date" value={date} onChange={(e) => onDate(e.target.value)} className="px-2 py-1 border border-gray-300" />
+      <select
+        value={t.timeType}
+        onChange={(e) => onTime({ ...t, timeType: e.target.value as 'am' | 'pm' | 'custom' })}
+        className="px-2 py-1 border border-gray-300"
+        disabled={!date}
+      >
+        <option value="am">午前中（11:59）</option>
+        <option value="pm">その日中（23:59）</option>
+        <option value="custom">時刻を指定</option>
+      </select>
+      {t.timeType === 'custom' && (
+        <span className="flex items-center gap-1">
+          <select value={t.startHour} onChange={(e) => onTime({ ...t, startHour: e.target.value })} className="px-1 py-1 border border-gray-300">
+            {generateHours().map((h) => <option key={h} value={h}>{h}</option>)}
+          </select>
+          :
+          <select value={t.startMinute} onChange={(e) => onTime({ ...t, startMinute: e.target.value })} className="px-1 py-1 border border-gray-300">
+            {generateMinutes().map((m) => <option key={m} value={m}>{m}</option>)}
+          </select>
+        </span>
+      )}
+    </div>
+  );
+
   // 右サイドバー：依頼中のスケジュールリスト
   // 【修正】数字を「回答数」から「参加人数」に変更
   const renderScheduleList = () => (
     <div className="bg-white border border-[#3b3b3b] h-full flex flex-col overflow-hidden">
-      <div className="px-3 py-2.5 border-b border-gray-100 bg-gray-50 flex justify-between items-center shrink-0">
-        <h3 className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+      <div className="px-3 py-2.5 border-b border-gray-200 flex justify-between items-center shrink-0">
+        <h3 className="yy-mono text-[10px] tracking-[0.12em] uppercase text-gray-500 flex items-center gap-1.5">
           <FiList className="w-3.5 h-3.5" /> 履歴一覧
         </h3>
         <div className="flex items-center gap-2">
-            <span className="text-[10px] bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full font-mono">{schedules.length}</span>
-            <button 
-                onClick={() => { resetForm(); setView('create'); }}
-                className="flex items-center gap-1 bg-blue-600 text-white px-2 py-1 rounded text-[10px] hover:bg-blue-500 transition-colors shadow-sm font-bold"
+            <span className="yy-mono text-[10px] text-gray-400">{schedules.length}</span>
+            <button
+                onClick={() => { if (needLogin()) return; resetForm(); setView('create'); }}
+                className="yy-btn yy-btn--primary flex items-center gap-1 !px-2 !py-1 !text-[10px]"
                 title="新規作成"
             >
                 <FiPlus className="w-3 h-3" /> 新規
             </button>
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto p-2 space-y-2 bg-gray-50/30">
+      <div className="flex-1 overflow-y-auto">
         {schedules.length === 0 ? (
-          <div className="text-center text-gray-400 py-8">
-            <p className="text-[10px]">スケジュールはありません</p>
-          </div>
+          <p className="text-[11px] text-gray-500 px-3 py-4">スケジュールはありません。</p>
         ) : (
           schedules.map((schedule) => {
             const stats = scheduleStats.get(schedule.id);
@@ -718,14 +854,15 @@ const ScheduleTool: React.FC = () => {
               <div
                 key={schedule.id}
                 onClick={() => { setView('list'); loadSchedule(schedule.id); }}
-                className={`group relative p-2.5 rounded border cursor-pointer transition-all duration-200 ${
-                  isSelected 
-                    ? 'bg-blue-50 border-blue-300 shadow-sm z-10' 
-                    : 'bg-white border-gray-200 hover:border-blue-200 hover:shadow-sm'
+                className={`group relative px-3 py-2.5 border-b border-gray-200 border-l cursor-pointer ${
+                  isSelected
+                    ? 'bg-gray-50 border-l-[#52AA96]'
+                    : 'bg-white border-l-transparent hover:bg-gray-50'
                 }`}
               >
                 <div className="flex justify-between items-start gap-2 mb-1">
-                  <h4 className={`text-xs font-bold line-clamp-2 leading-tight ${isSelected ? 'text-blue-800' : 'text-gray-700'}`}>
+                  <h4 className={`text-[11px] font-bold line-clamp-2 leading-tight ${isSelected ? 'text-[#141414]' : 'text-gray-700'}`}>
+                    {schedule.kind && <span className="font-light text-gray-500 mr-1">{schedule.kind}</span>}
                     {schedule.title}
                   </h4>
                   <button
@@ -736,10 +873,10 @@ const ScheduleTool: React.FC = () => {
                     <FiTrash2 className="w-3 h-3" />
                   </button>
                 </div>
-                
+
                 <div className="flex items-center justify-between mt-2">
                   <div className="flex items-center gap-2">
-                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium border ${schedule.mode === 'date' ? 'bg-indigo-50 text-indigo-600 border-indigo-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>
+                    <span className="yy-mono px-1 text-[9px] tracking-[0.08em] border border-gray-300 text-gray-500">
                         {schedule.mode === 'date' ? '日程' : '投票'}
                     </span>
                     <div className="flex items-center gap-1 text-[10px] text-gray-500">
@@ -764,18 +901,12 @@ const ScheduleTool: React.FC = () => {
   // リスト表示
   if (view === 'list') {
     const maxYes = currentSchedule ? Math.max(...summaries.map((s) => s.yes), 0) : 0;
-    
+
     return (
-      <div className="flex flex-col h-full bg-gray-50/50">
-        {/* 黒帯ヘッダー（維持） */}
-        <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
-          <div>
-            <h3 className="text-[13px] font-medium">スケジュール調整</h3>
-            <p className="text-[11px] mt-0.5">現場定例・検査・施主打合せの日程調整。候補をまとめて作り、施主・設計・施工など必要な役割が揃う日を探して、確定したらカレンダーへ</p>
-          </div>
-        </div>
-        
-        <div className="flex-1 flex overflow-hidden p-3 gap-3">
+      <div className="flex flex-col h-full bg-white">
+        {header}
+
+        <div className="flex-1 flex flex-col md:flex-row md:overflow-hidden p-3 gap-3">
           {/* 左カラム：メインコンテンツ */}
           <div className="flex-1 flex flex-col min-h-0 bg-white border border-[#3b3b3b] overflow-hidden">
             {currentSchedule ? (
@@ -784,26 +915,31 @@ const ScheduleTool: React.FC = () => {
                   {/* タイトルセクション */}
                   <div className="flex justify-between items-start mb-5 pb-4 border-b border-gray-100">
                     <div>
-                      <h2 className="text-lg font-bold text-gray-800 leading-tight mb-2">
-                        {currentSchedule.kind && <span className="text-[11px] font-normal border border-gray-400 px-1 mr-2 align-middle">{currentSchedule.kind}</span>}
+                      <h2 className="text-[12px] font-bold text-[#141414] leading-tight mb-2">
+                        {currentSchedule.kind && <span className="yy-mono text-[10px] tracking-[0.08em] font-normal border border-gray-400 px-1 mr-2 align-middle">{currentSchedule.kind}</span>}
                         {currentSchedule.title}
                       </h2>
                       {currentSchedule.description && (
-                        <p className="text-xs text-gray-600 whitespace-pre-wrap leading-relaxed bg-gray-50 p-2 rounded border border-gray-100 inline-block max-w-2xl">
+                        <p className="text-[11px] text-gray-600 whitespace-pre-wrap leading-relaxed pl-2 border-l border-gray-300 inline-block max-w-2xl">
                             {currentSchedule.description}
                         </p>
                       )}
                     </div>
                     <div className="text-right shrink-0 ml-4">
-                       <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-600 rounded text-[10px] font-medium border border-gray-200">
+                       <span className="yy-mono text-[10px] tracking-[0.08em] text-gray-500">
                         主催: {currentSchedule.ownerName}
                       </span>
+                      {currentSchedule.deadline && (
+                        <span className="block yy-mono text-[10px] tracking-[0.08em] text-gray-500 mt-1">
+                          〆 {currentSchedule.deadline.toDate().toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
                     </div>
                   </div>
 
                   {/* 共有エリア */}
-                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 mb-6 flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                    <div className="flex items-center gap-2 text-slate-700 font-bold text-xs shrink-0">
+                  <div className="border-y border-gray-200 py-3 mb-6 flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                    <div className="flex items-center gap-2 text-gray-700 font-bold text-[11px] shrink-0">
                       <FiShare2 className="w-3.5 h-3.5" />
                       共有URL
                     </div>
@@ -812,18 +948,19 @@ const ScheduleTool: React.FC = () => {
                         type="text"
                         readOnly
                         value={typeof window !== 'undefined' ? `${window.location.origin}/tool/schedule/${currentSchedule.slug}` : ''}
-                        className="flex-1 px-2.5 py-1.5 text-[11px] border border-gray-300 rounded bg-white text-gray-600 select-all focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none font-mono"
+                        className="flex-1 min-w-0 px-2.5 py-1.5 text-[11px] border border-gray-300 bg-white text-gray-600 select-all outline-none yy-mono"
                         onClick={(e) => (e.target as HTMLInputElement).select()}
                       />
                       <button
                         onClick={handleCopyUrl}
-                        className="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 rounded text-[11px] hover:bg-gray-50 font-bold transition-colors shadow-sm whitespace-nowrap"
+                        className="yy-btn whitespace-nowrap"
                       >
                         コピー
                       </button>
                       <button
                         onClick={handleLineShare}
-                        className="px-3 py-1.5 bg-[#06C755] text-white border border-[#06C755] rounded text-[11px] hover:bg-[#05b34c] font-bold transition-colors shadow-sm whitespace-nowrap"
+                        className="yy-btn whitespace-nowrap"
+                        title="LINE で共有URLを送る"
                       >
                         LINE
                       </button>
@@ -831,8 +968,8 @@ const ScheduleTool: React.FC = () => {
                   </div>
 
                   {/* 確定・書き出し */}
-                  <div className="border border-[#3b3b3b] p-3 mb-6 flex flex-wrap items-center gap-2 text-[11px]">
-                    <span className="font-bold text-gray-700 mr-1">確定・書き出し</span>
+                  <div ref={fixRef} className="border border-[#3b3b3b] p-3 mb-6 flex flex-wrap items-center gap-2 text-[11px] scroll-mt-2">
+                    <span className="yy-mono text-[10px] tracking-[0.12em] uppercase text-gray-500 mr-1">確定・書き出し</span>
                     <select
                       value={fixOptionId || bestOptionId()}
                       onChange={(e) => { setFixOptionId(e.target.value); setFixMsg(''); }}
@@ -869,13 +1006,14 @@ const ScheduleTool: React.FC = () => {
                     >
                       回答を CSV で保存
                     </button>
-                    {fixMsg && <span className="text-green-700">{fixMsg}</span>}
+                    {fixMsg && <span className="text-gray-700"><FiCheck className="inline text-[#52AA96] mr-1" />{fixMsg}</span>}
                     {!fixedEvent() && options.length > 0 && <span className="text-gray-400">日付の無い候補（アンケート）はカレンダーに入れられません</span>}
                   </div>
 
                   {/* 種別と役割（主催者だけ）。回答者には役割を聞かず、主催者が付ける */}
                   {isScheduleOwner && (
-                    <div className="border border-gray-300 p-3 mb-6 text-[11px] space-y-2">
+                    <div ref={rolesRef} className="border border-gray-300 p-3 mb-6 text-[11px] space-y-2 scroll-mt-2">
+                      <p className="yy-mono text-[10px] tracking-[0.12em] uppercase text-gray-500">種別・役割・締切（主催者だけに見えます）</p>
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-bold text-gray-700">種別</span>
                         <select
@@ -901,6 +1039,12 @@ const ScheduleTool: React.FC = () => {
                           </label>
                         ))}
                       </div>
+                      {participants.length === 0 && (
+                        <p className="flex flex-wrap items-center gap-x-2 text-gray-400">
+                          <span className="font-bold text-gray-400">回答者の役割</span>
+                          回答が届くと、ここで一人ずつ役割（{PARTY_ROLES.filter((r) => r !== 'その他').join('・')}）を付けられます。必ず出てほしい役割が揃う日を探して、確定の候補にします。
+                        </p>
+                      )}
                       {participants.length > 0 && (
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                           <span className="font-bold text-gray-700">回答者の役割</span>
@@ -930,7 +1074,7 @@ const ScheduleTool: React.FC = () => {
                             const o = options.find((x) => x.id === c.optionId);
                             return (
                               <li key={c.optionId} className="flex gap-2">
-                                <span className={`w-4 ${c.allOk ? 'text-green-700 font-bold' : 'text-gray-300'}`}>{c.allOk ? '◎' : '・'}</span>
+                                <span className={`w-4 ${c.allOk ? 'text-[#52AA96] font-bold' : 'text-gray-300'}`}>{c.allOk ? '◎' : '・'}</span>
                                 <span className="min-w-[160px]">{o?.label}</span>
                                 <span className="text-gray-500">
                                   {c.allOk ? '必要な役割が全員 ○' : [c.missing.length ? `出られない: ${c.missing.join('・')}` : '', c.weak.length ? `△のみ: ${c.weak.join('・')}` : ''].filter(Boolean).join('　')}
@@ -941,19 +1085,47 @@ const ScheduleTool: React.FC = () => {
                           <li className="text-gray-400 pt-0.5">確定・書き出しの候補は、必要な役割が全員 ○ の日を先に選びます。役割を付けていない回答者は数に入りません。</li>
                         </ul>
                       )}
+                      <div ref={deadlineRef} className="flex flex-wrap items-center gap-2 border-t border-gray-200 pt-2 scroll-mt-2">
+                        <span className="font-bold text-gray-700">締切</span>
+                        {deadlineFields(
+                          currentSchedule.deadline ? isoLocal(currentSchedule.deadline.toDate()) : '',
+                          (() => {
+                            const d = currentSchedule.deadline?.toDate();
+                            if (!d) return { timeType: 'pm' as const, startHour: '18', startMinute: '00' };
+                            const hm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                            if (hm === '11:59') return { timeType: 'am' as const, startHour: '11', startMinute: '59' };
+                            if (hm === '23:59') return { timeType: 'pm' as const, startHour: '23', startMinute: '59' };
+                            return { timeType: 'custom' as const, startHour: String(d.getHours()).padStart(2, '0'), startMinute: String(d.getMinutes()).padStart(2, '0') };
+                          })(),
+                          (date) => {
+                            if (!date) {
+                              void patchSchedule({ deadline: null }, { deadline: undefined });
+                              return;
+                            }
+                            const ts = deadlineOf(date, { timeType: 'pm', startHour: '23', startMinute: '59' });
+                            void patchSchedule({ deadline: ts }, { deadline: ts });
+                          },
+                          (t) => {
+                            if (!currentSchedule.deadline) return;
+                            const ts = deadlineOf(isoLocal(currentSchedule.deadline.toDate()), t);
+                            void patchSchedule({ deadline: ts }, { deadline: ts });
+                          },
+                        )}
+                        <span className="text-gray-400">締切の 24 時間前にベルでお知らせします。過ぎると回答を受け付けません</span>
+                      </div>
                     </div>
                   )}
 
                   {/* 入力フォームと集計表のレイアウト */}
                   <div className="flex flex-col lg:flex-row gap-5">
-                    
+
                     {/* 左側：入力フォーム（回答入力機能を追加） */}
                     <div className="lg:w-1/3 order-2 lg:order-1">
-                      <div className="bg-white border border-blue-100 rounded-lg shadow-sm flex flex-col max-h-[calc(100vh-250px)] sticky top-0 ring-1 ring-blue-50">
-                        <div className="p-4 border-b border-gray-100 shrink-0">
+                      <div className="bg-white border border-gray-300 flex flex-col max-h-[calc(100vh-250px)] sticky top-0">
+                        <div className="p-4 border-b border-gray-200 shrink-0">
                           <div className="flex items-center gap-2 mb-3">
-                            <FiEdit2 className="w-3.5 h-3.5 text-blue-600" />
-                            <h3 className="text-xs font-bold text-gray-800">
+                            <FiEdit2 className="w-3.5 h-3.5 text-gray-500" />
+                            <h3 className="text-[11px] font-bold text-gray-800">
                                 {editingParticipantId ? '回答を修正' : 'あなたの回答を入力'}
                             </h3>
                             {editingParticipantId && (
@@ -968,37 +1140,37 @@ const ScheduleTool: React.FC = () => {
                                 value={participantName}
                                 onChange={(e) => setParticipantName(e.target.value)}
                                 placeholder="例: 山田 太郎"
-                                className="w-full px-3 py-2 text-[12px] border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
+                                className="w-full px-3 py-2 text-[12px] border border-gray-300 focus:outline-none"
                               />
                             </div>
                           </div>
                         </div>
 
                         {/* 回答リスト（スクロール可能） */}
-                        <div className="flex-1 overflow-y-auto p-4 bg-gray-50/30">
+                        <div className="flex-1 overflow-y-auto p-4">
                             <label className="block text-[11px] font-bold text-gray-600 mb-2">日程・候補の回答</label>
                             <div className="space-y-2">
                                 {options.map(option => {
                                     const val = pendingResponses[option.id] || 'maybe';
                                     return (
-                                        <div key={option.id} className="bg-white p-2.5 rounded border border-gray-200 shadow-sm">
+                                        <div key={option.id} className="bg-white py-2 border-b border-gray-200">
                                             <div className="text-[11px] font-bold text-gray-700 mb-2">{option.label}</div>
-                                            <div className="flex bg-gray-100 rounded p-0.5">
+                                            <div className="flex border border-gray-300">
                                                 <button
                                                     onClick={() => handleResponseChange(option.id, 'yes')}
-                                                    className={`flex-1 py-1 flex items-center justify-center gap-1 text-[10px] font-bold rounded-sm transition-all ${val === 'yes' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                                    className={`flex-1 py-1 flex items-center justify-center gap-1 text-[10px] font-bold ${val === 'yes' ? 'bg-[#141414] text-white' : 'text-gray-400 hover:text-gray-700'}`}
                                                 >
                                                     <FiCircle className="w-3 h-3" /> OK
                                                 </button>
                                                 <button
                                                     onClick={() => handleResponseChange(option.id, 'maybe')}
-                                                    className={`flex-1 py-1 flex items-center justify-center gap-1 text-[10px] font-bold rounded-sm transition-all ${val === 'maybe' ? 'bg-white text-yellow-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                                    className={`flex-1 py-1 flex items-center justify-center gap-1 text-[10px] font-bold ${val === 'maybe' ? 'bg-[#141414] text-white' : 'text-gray-400 hover:text-gray-700'}`}
                                                 >
                                                     △
                                                 </button>
                                                 <button
                                                     onClick={() => handleResponseChange(option.id, 'no')}
-                                                    className={`flex-1 py-1 flex items-center justify-center gap-1 text-[10px] font-bold rounded-sm transition-all ${val === 'no' ? 'bg-white text-red-500 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                                    className={`flex-1 py-1 flex items-center justify-center gap-1 text-[10px] font-bold ${val === 'no' ? 'bg-[#141414] text-white' : 'text-gray-400 hover:text-gray-700'}`}
                                                 >
                                                     <FiX className="w-3 h-3" /> NG
                                                 </button>
@@ -1009,7 +1181,7 @@ const ScheduleTool: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="p-4 border-t border-gray-100 shrink-0 bg-white rounded-b-lg">
+                        <div className="p-4 border-t border-gray-200 shrink-0 bg-white">
                            <div className="mb-3">
                               <label className="block text-[11px] font-bold text-gray-600 mb-1">コメント（任意）</label>
                               <input
@@ -1017,20 +1189,20 @@ const ScheduleTool: React.FC = () => {
                                 value={participantComment}
                                 onChange={(e) => setParticipantComment(e.target.value)}
                                 placeholder="例: 13時以降なら空いています"
-                                className="w-full px-3 py-2 text-[12px] border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
+                                className="w-full px-3 py-2 text-[12px] border border-gray-300 focus:outline-none"
                               />
                             </div>
                             {editingParticipantId ? (
                                 <button
                                     onClick={handleUpdateParticipant}
-                                    className="w-full py-2.5 bg-green-600 text-white rounded text-xs font-bold hover:bg-green-500 shadow hover:shadow-md transition-all flex items-center justify-center gap-2"
+                                    className="yy-btn yy-btn--primary w-full !py-2.5 flex items-center justify-center gap-2"
                                 >
                                     <FiRefreshCw className="w-3 h-3" /> 回答を更新する
                                 </button>
                             ) : (
                                 <button
                                     onClick={handleAddParticipant}
-                                    className="w-full py-2.5 bg-blue-600 text-white rounded text-xs font-bold hover:bg-blue-500 shadow hover:shadow-md transition-all flex items-center justify-center gap-2"
+                                    className="yy-btn yy-btn--primary w-full !py-2.5 flex items-center justify-center gap-2"
                                 >
                                     <FiPlus className="w-3 h-3" /> 回答を追加する
                                 </button>
@@ -1042,20 +1214,20 @@ const ScheduleTool: React.FC = () => {
                     {/* 右側：集計表（Read-onlyに変更、編集ボタン追加） */}
                     <div className="lg:w-2/3 order-1 lg:order-2">
                       <div className="flex justify-between items-end mb-2">
-                        <h3 className="text-xs font-bold text-gray-800 flex items-center gap-2">
-                           <FiList className="w-3.5 h-3.5 text-gray-500" /> 
+                        <h3 className="text-[11px] font-bold text-gray-800 flex items-center gap-2">
+                           <FiList className="w-3.5 h-3.5 text-gray-500" />
                            回答一覧 <span className="text-gray-400 font-normal">({participants.length}名)</span>
                         </h3>
-                        <button 
+                        <button
                             onClick={() => setShowAllAnswers(!showAllAnswers)}
-                            className="text-[10px] text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 font-medium"
+                            className="text-[10px] text-gray-600 hover:text-black underline flex items-center gap-1"
                         >
                             <FiEye className="w-3 h-3" />
                             {showAllAnswers ? '詳細を隠す' : '全員の回答を見る'}
                         </button>
                       </div>
 
-                      <div className="overflow-hidden border border-gray-200 rounded-lg shadow-sm">
+                      <div className="overflow-hidden border border-gray-300">
                         <div className="overflow-x-auto">
                           <table className="w-full border-collapse">
                             <thead>
@@ -1066,19 +1238,20 @@ const ScheduleTool: React.FC = () => {
                                 {showAllAnswers && participants.map((p) => (
                                   <th key={p.id} className="p-2 text-center font-medium border-r border-gray-100 min-w-[70px] relative group">
                                     <div className="flex flex-col items-center">
-                                      <span className="text-gray-900 font-bold text-xs truncate max-w-[80px]">{p.name}</span>
+                                      <span className="text-gray-900 font-bold text-[11px] truncate max-w-[80px]">{p.name}</span>
+                                      {roleMap[p.id] && <span className="yy-mono text-[9px] text-gray-500 normal-case">{roleMap[p.id]}</span>}
                                       {p.comment && (
                                         <div className="group relative">
                                             <FiMessageSquare className="w-3 h-3 text-gray-400 mt-0.5" />
-                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800 text-white text-[10px] rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-20">
+                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-[#141414] text-white text-[10px] whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-20">
                                                 {p.comment}
                                             </div>
                                         </div>
                                       )}
                                       {/* 編集ボタン */}
-                                      <button 
+                                      <button
                                         onClick={() => startEditing(p)}
-                                        className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-all"
+                                        className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-[#141414]"
                                         title="修正する"
                                       >
                                           <FiEdit2 className="w-3 h-3" />
@@ -1086,7 +1259,7 @@ const ScheduleTool: React.FC = () => {
                                     </div>
                                   </th>
                                 ))}
-                                <th className="p-2 text-center font-bold text-gray-700 bg-blue-50/50 min-w-[80px]">
+                                <th className="p-2 text-center font-bold text-gray-700 min-w-[80px]">
                                   集計
                                 </th>
                               </tr>
@@ -1097,15 +1270,15 @@ const ScheduleTool: React.FC = () => {
                                 const isTopCandidate = summary && summary.yes === maxYes && maxYes > 0;
 
                                 return (
-                                  <tr key={option.id} className={`group transition-colors ${isTopCandidate ? 'bg-green-50/50' : 'hover:bg-gray-50'}`}>
+                                  <tr key={option.id} className={`group ${isTopCandidate ? 'bg-gray-50' : 'hover:bg-gray-50'}`}>
                                     {/* 候補名 */}
-                                    <td className={`p-2.5 font-bold text-gray-700 sticky left-0 z-10 border-r border-gray-100 ${isTopCandidate ? 'bg-[#f0fdf4]' : 'bg-white group-hover:bg-gray-50'}`}>
+                                    <td className={`p-2.5 font-bold text-gray-700 sticky left-0 z-10 border-r border-gray-100 ${isTopCandidate ? 'bg-gray-50 shadow-[inset_2px_0_0_#52AA96]' : 'bg-white group-hover:bg-gray-50'}`}>
                                       <div className="flex items-center gap-2">
-                                        {isTopCandidate && <FiCheck className="text-green-600 w-3.5 h-3.5 shrink-0" />}
-                                        <span className={isTopCandidate ? 'text-green-800' : ''}>{option.label}</span>
+                                        {isTopCandidate && <FiCheck className="text-[#52AA96] w-3.5 h-3.5 shrink-0" />}
+                                        <span className={isTopCandidate ? 'text-[#141414]' : ''}>{option.label}</span>
                                       </div>
                                     </td>
-                                    
+
                                     {/* 各参加者の回答（クリック無効化・Read Only） */}
                                     {showAllAnswers && participants.map((participant) => {
                                       const response = responses.find((r) => r.participantId === participant.id && r.optionId === option.id);
@@ -1113,10 +1286,10 @@ const ScheduleTool: React.FC = () => {
                                       return (
                                         <td key={participant.id} className="p-1.5 text-center border-r border-gray-50">
                                           <div
-                                            className={`w-6 h-6 rounded flex items-center justify-center mx-auto transition-all text-[10px] font-bold shadow-sm ${
-                                                value === 'yes' ? 'bg-green-100 text-green-700 border border-green-200' :
-                                                value === 'maybe' ? 'bg-yellow-50 text-yellow-600 border border-yellow-200' :
-                                                'bg-red-50 text-red-400 border border-red-100 opacity-60'
+                                            className={`w-6 h-6 flex items-center justify-center mx-auto text-[10px] font-bold ${
+                                                value === 'yes' ? 'text-[#141414]' :
+                                                value === 'maybe' ? 'text-gray-500' :
+                                                'text-gray-300'
                                             }`}
                                           >
                                             {value === 'yes' && <FiCircle className="w-3.5 h-3.5" />}
@@ -1126,21 +1299,21 @@ const ScheduleTool: React.FC = () => {
                                         </td>
                                       );
                                     })}
-                                    
+
                                     {/* 集計セル */}
-                                    <td className={`p-2 text-center ${isTopCandidate ? 'bg-green-100/20' : 'bg-blue-50/20'}`}>
+                                    <td className="p-2 text-center yy-mono">
                                         {summary && (
                                             <div className="flex justify-center items-center gap-1.5">
                                                 <div className="flex flex-col items-center">
-                                                    <span className="font-bold text-green-600">{summary.yes}</span>
+                                                    <span className="font-bold text-[#141414]">{summary.yes}</span>
                                                 </div>
                                                 <span className="text-gray-300 text-[10px]">/</span>
                                                 <div className="flex flex-col items-center">
-                                                    <span className="font-bold text-yellow-600">{summary.maybe}</span>
+                                                    <span className="text-gray-500">{summary.maybe}</span>
                                                 </div>
                                                 <span className="text-gray-300 text-[10px]">/</span>
                                                 <div className="flex flex-col items-center">
-                                                    <span className="font-bold text-red-400 opacity-70">{summary.no}</span>
+                                                    <span className="text-gray-300">{summary.no}</span>
                                                 </div>
                                             </div>
                                         )}
@@ -1166,22 +1339,22 @@ const ScheduleTool: React.FC = () => {
                             </tbody>
                           </table>
                           {!showAllAnswers && options.length > 0 && (
-                            <div className="p-6 text-center bg-gray-50 text-gray-400 text-xs border-t border-gray-100">
-                                <p className="mb-2">個別の回答は非表示になっています</p>
-                                <button 
+                            <p className="px-3 py-3 text-[11px] text-gray-500 border-t border-gray-200">
+                                個別の回答は隠しています。
+                                <button
                                     onClick={() => setShowAllAnswers(true)}
-                                    className="text-blue-600 hover:underline font-medium"
+                                    className="ml-1 underline text-gray-700 hover:text-black"
                                 >
-                                    詳細を表示する
+                                    全員の回答を表示する
                                 </button>
-                            </div>
+                            </p>
                           )}
                         </div>
                       </div>
                       {maxYes > 0 && (
                          <div className="mt-2 flex items-center gap-2 text-[10px] text-gray-500 justify-end">
-                            <span className="w-2.5 h-2.5 bg-[#f0fdf4] border border-green-100 rounded-sm inline-block"></span>
-                            <span>緑色の行は「○」が最多の候補です</span>
+                            <FiCheck className="text-[#52AA96]" />
+                            <span>印の行は「○」が最多の候補です</span>
                          </div>
                       )}
                     </div>
@@ -1190,26 +1363,24 @@ const ScheduleTool: React.FC = () => {
               </div>
             ) : (
               // スケジュール未選択時
-              <div className="flex-1 flex flex-col items-center justify-center bg-gray-50/50 p-8">
-                <div className="max-w-md w-full text-center">
-                  <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm border border-gray-100">
-                    <FiCalendar className="w-8 h-8 text-blue-300" />
-                  </div>
-                  <h3 className="text-sm font-bold text-gray-800 mb-2">スケジュールを選択してください</h3>
-                  <p className="text-xs text-gray-500 mb-6">右側のリストから履歴を選択するか、履歴一覧の「新規」から新しく作成してください。</p>
-                  <button 
-                    onClick={() => { resetForm(); setView('create'); }}
-                    className="inline-flex items-center gap-2 bg-white text-blue-600 border border-blue-200 px-4 py-2 rounded-md text-xs font-bold hover:bg-blue-50 transition shadow-sm"
+              <div className="flex-1 p-6">
+                <p className="text-[12px] text-gray-500">
+                  <FiCalendar className="inline mr-1 text-gray-400" />
+                  一覧からスケジュールを選ぶか、
+                  <button
+                    onClick={() => { if (needLogin()) return; resetForm(); setView('create'); }}
+                    className="ml-1 underline text-gray-700 hover:text-black"
                   >
-                    <FiPlus /> 新規スケジュール作成
+                    新しく作成
                   </button>
-                </div>
+                  してください。
+                </p>
               </div>
             )}
           </div>
 
-          {/* 右カラム：リスト（20%幅、最小200px） */}
-          <div className="w-64 shrink-0 hidden md:block">
+          {/* 右カラム：リスト（スマホでは本文の下） */}
+          <div className="w-full md:w-64 shrink-0 max-h-[50vh] md:max-h-none">
             {renderScheduleList()}
           </div>
         </div>
@@ -1220,24 +1391,18 @@ const ScheduleTool: React.FC = () => {
   // 作成画面
   if (view === 'create') {
     return (
-      <div className="flex flex-col h-full bg-gray-50/50">
-        {/* 黒帯ヘッダー（維持） */}
-        <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
-          <div>
-            <h3 className="text-[13px] font-medium">スケジュール調整</h3>
-            <p className="text-[11px] mt-0.5">現場定例・検査・施主打合せの日程調整。候補をまとめて作り、施主・設計・施工など必要な役割が揃う日を探して、確定したらカレンダーへ</p>
-          </div>
-        </div>
-        
-        <div className="flex-1 flex overflow-hidden p-3 gap-3">
+      <div className="flex flex-col h-full bg-white">
+        {header}
+
+        <div className="flex-1 flex flex-col md:flex-row md:overflow-hidden p-3 gap-3">
           {/* メインフォーム */}
           <div className="flex-1 min-h-0 bg-white border border-[#3b3b3b] overflow-hidden flex flex-col">
-            <div className="flex-1 overflow-y-auto p-6 max-w-3xl mx-auto w-full">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 max-w-3xl mx-auto w-full">
                 {/* 戻るボタンをフォームタイトル横に移動（黒帯には置かない） */}
-                <div className="mb-6 border-b border-gray-100 pb-2 flex justify-between items-end">
+                <div className="mb-6 border-b border-gray-200 pb-2 flex justify-between items-end gap-2">
                     <div>
-                        <h2 className="text-base font-bold text-gray-800">新しいスケジュールを作成</h2>
-                        <p className="text-xs text-gray-500 mt-1">基本情報と候補日程を入力してください</p>
+                        <h2 className="text-[12px] font-bold text-[#141414]">新しいスケジュールを作成</h2>
+                        <p className="text-[11px] text-gray-500 mt-1">基本情報と候補日程を入力してください</p>
                     </div>
                     <button
                         onClick={() => { setView('list'); resetForm(); }}
@@ -1249,104 +1414,135 @@ const ScheduleTool: React.FC = () => {
 
                 <div className="space-y-6">
                     {/* 基本情報セクション */}
-                    <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
+                    <div className="p-4 bg-white border border-gray-300">
                         <div className="grid gap-4">
                             <div>
-                                <label className="block text-xs font-bold text-gray-700 mb-1.5">タイトル <span className="text-red-500">*</span></label>
+                                <label className="block text-[11px] font-bold text-gray-700 mb-1.5">タイトル <span className="text-red-500">*</span></label>
                                 <input
                                     type="text"
                                     value={title}
                                     onChange={(e) => setTitle(e.target.value)}
-                                    className="w-full px-3 py-2 text-[12px] border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                    className="w-full px-3 py-2 text-[12px] border border-gray-300 focus:outline-none"
                                     placeholder="例: 第3回 企画会議の日程調整"
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-gray-700 mb-1.5">説明（任意）</label>
+                                <label className="block text-[11px] font-bold text-gray-700 mb-1.5">説明（任意）</label>
                                 <textarea
                                     value={description}
                                     onChange={(e) => setDescription(e.target.value)}
-                                    className="w-full px-3 py-2 text-[12px] border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                    className="w-full px-3 py-2 text-[12px] border border-gray-300 focus:outline-none"
                                     rows={2}
                                     placeholder="場所や議題などの詳細..."
                                 />
+                            </div>
+                            <div ref={createRolesRef} className="grid gap-3 sm:grid-cols-[160px_1fr] scroll-mt-2">
+                                <div>
+                                    <label className="block text-[11px] font-bold text-gray-700 mb-1.5">種別</label>
+                                    <select value={kind} onChange={(e) => setKind(e.target.value)} className="w-full px-2 py-2 text-[12px] border border-gray-300">
+                                        <option value="">なし</option>
+                                        {MEETING_KINDS.map((k) => <option key={k}>{k}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-[11px] font-bold text-gray-700 mb-1.5">必ず出てほしい役割（任意）</label>
+                                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] pt-1">
+                                        {PARTY_ROLES.filter((r) => r !== 'その他').map((r) => (
+                                            <label key={r} className="flex items-center gap-1">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={createRoles.includes(r)}
+                                                    onChange={(e) => setCreateRoles((v) => (e.target.checked ? [...v, r] : v.filter((x) => x !== r)))}
+                                                    className="accent-[#141414]"
+                                                />
+                                                {r}
+                                            </label>
+                                        ))}
+                                    </div>
+                                    <p className="text-[10px] text-gray-400 mt-1">回答が届いたら、回答者ごとに役割を付けると、この役割が揃う日を確定の候補にします。</p>
+                                </div>
+                            </div>
+                            <div ref={deadlineRef} className="scroll-mt-2">
+                                <label className="block text-[11px] font-bold text-gray-700 mb-1.5">回答の締切（任意）</label>
+                                {deadlineFields(deadlineDate, deadlineTime, setDeadlineDate, setDeadlineTime)}
+                                <p className="text-[10px] text-gray-400 mt-1">締切の 24 時間前にベルでお知らせします。過ぎると回答を受け付けません。締切から 1 週間で自動で片付きます。</p>
                             </div>
                         </div>
                     </div>
 
                     {/* 設定セクション（2カラム） */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                            <label className="block text-xs font-bold text-gray-700 mb-2">回答方式</label>
+                        <div className="p-4 bg-white border border-gray-300">
+                            <label className="block text-[11px] font-bold text-gray-700 mb-2">回答方式</label>
                             <div className="flex gap-3">
-                                <label className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded cursor-pointer hover:border-blue-300 transition-colors flex-1">
+                                <label className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 cursor-pointer hover:border-[#3b3b3b] flex-1">
                                     <input
                                         type="radio"
                                         value="date"
                                         checked={mode === 'date'}
                                         onChange={(e) => setMode(e.target.value as ScheduleMode)}
-                                        className="text-blue-600 focus:ring-blue-500"
+                                        className="accent-[#141414]"
                                     />
-                                    <span className="text-xs font-medium">日程調整</span>
+                                    <span className="text-[11px]">日程調整</span>
                                 </label>
-                                <label className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded cursor-pointer hover:border-blue-300 transition-colors flex-1">
+                                <label className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 cursor-pointer hover:border-[#3b3b3b] flex-1">
                                     <input
                                         type="radio"
                                         value="question"
                                         checked={mode === 'question'}
                                         onChange={(e) => setMode(e.target.value as ScheduleMode)}
-                                        className="text-blue-600 focus:ring-blue-500"
+                                        className="accent-[#141414]"
                                     />
-                                    <span className="text-xs font-medium">一般投票</span>
+                                    <span className="text-[11px]">一般投票</span>
                                 </label>
                             </div>
                         </div>
 
-                        <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                            <label className="block text-xs font-bold text-gray-700 mb-2">公開設定</label>
+                        <div className="p-4 bg-white border border-gray-300">
+                            <label className="block text-[11px] font-bold text-gray-700 mb-2">公開設定</label>
                             <div className="flex gap-3">
-                                <label className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded cursor-pointer hover:border-blue-300 transition-colors flex-1">
+                                <label className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 cursor-pointer hover:border-[#3b3b3b] flex-1">
                                     <input
                                         type="radio"
                                         checked={isPublic}
                                         onChange={() => setIsPublic(true)}
-                                        className="text-blue-600 focus:ring-blue-500"
+                                        className="accent-[#141414]"
                                     />
-                                    <span className="text-xs font-medium">URL公開</span>
+                                    <span className="text-[11px]">URL公開</span>
                                 </label>
-                                <label className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded cursor-pointer hover:border-blue-300 transition-colors flex-1">
+                                <label className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 cursor-pointer hover:border-[#3b3b3b] flex-1">
                                     <input
                                         type="radio"
                                         checked={!isPublic}
                                         onChange={() => setIsPublic(false)}
-                                        className="text-blue-600 focus:ring-blue-500"
+                                        className="accent-[#141414]"
                                     />
-                                    <span className="text-xs font-medium">会員限定</span>
+                                    <span className="text-[11px]">会員限定</span>
                                 </label>
                             </div>
                         </div>
                     </div>
 
                     {/* 候補入力セクション */}
-                    <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
+                    <div className="p-4 bg-white border border-gray-300">
                         <div className="flex justify-between items-center mb-3">
-                            <label className="block text-xs font-bold text-gray-700">
+                            <label className="block text-[11px] font-bold text-gray-700">
                                 候補 {mode === 'date' ? '日程' : '項目'} <span className="text-red-500">*</span>
                             </label>
                             <button
                                 onClick={addOption}
-                                className="px-3 py-1.5 text-[10px] bg-blue-50 text-blue-600 border border-blue-100 rounded hover:bg-blue-100 flex items-center gap-1 transition font-bold"
+                                className="yy-btn flex items-center gap-1 !px-3 !py-1.5 !text-[10px]"
                             >
                                 <FiPlus className="w-3 h-3" /> 候補を追加
                             </button>
                         </div>
                         {mode === 'date' && (
-                          <div className="mb-3">
+                          <div ref={batchRef} className="mb-3 scroll-mt-2">
                             <button type="button" onClick={() => setShowBatch((v) => !v)} className="text-[11px] underline text-gray-600">
                               {showBatch ? 'まとめて作るのをやめる' : '期間と曜日からまとめて作る（例: 来週の平日の午後、毎週火曜）'}
                             </button>
                             {showBatch && (
-                              <div className="mt-2 p-3 border border-gray-300 bg-gray-50 space-y-2 text-[11px]">
+                              <div className="mt-2 p-3 border border-gray-300 space-y-2 text-[11px]">
                                 <div className="flex flex-wrap items-center gap-2">
                                   <input type="date" value={batchFrom} onChange={(e) => setBatchFrom(e.target.value)} className="px-2 py-1 border border-gray-300" />
                                   <span>〜</span>
@@ -1358,7 +1554,7 @@ const ScheduleTool: React.FC = () => {
                                       key={w}
                                       type="button"
                                       onClick={() => setBatchDays((d) => (d.includes(i) ? d.filter((x) => x !== i) : [...d, i]))}
-                                      className={`w-7 py-1 border ${batchDays.includes(i) ? 'bg-[#3b3b3b] text-white border-[#3b3b3b]' : 'bg-white border-gray-300'}`}
+                                      className={`w-7 py-1 border ${batchDays.includes(i) ? 'bg-[#141414] text-white border-[#141414]' : 'bg-white border-gray-300'}`}
                                     >
                                       {w}
                                     </button>
@@ -1376,7 +1572,7 @@ const ScheduleTool: React.FC = () => {
                                   ))}
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <button type="button" onClick={applyBatch} className="px-3 py-1 bg-[#3b3b3b] text-white">
+                                  <button type="button" onClick={applyBatch} className="yy-btn yy-btn--primary !px-3 !py-1">
                                     候補に入れる（{generateCandidates(batchFrom, batchTo, batchDays, batchSlots).length} 件）
                                   </button>
                                   <span className="text-gray-500">最大 40 件。回答する人の負担を考えて絞ってください</span>
@@ -1387,7 +1583,7 @@ const ScheduleTool: React.FC = () => {
                         )}
                         <div className="space-y-3">
                             {optionLabels.map((label, index) => (
-                                <div key={index} className="p-3 bg-gray-50/50 border border-gray-200 rounded-lg group hover:border-blue-200 transition-colors">
+                                <div key={index} className="py-3 border-b border-gray-200 group">
                                     {mode === 'date' ? (
                                         <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
                                             {/* 日付選択 */}
@@ -1397,14 +1593,14 @@ const ScheduleTool: React.FC = () => {
                                                     id={`date-input-${index}`}
                                                     value={optionDates[index] || ''}
                                                     onChange={(e) => handleDateSelect(index, e.target.value)}
-                                                    className="w-full sm:w-40 px-3 py-1.5 text-[12px] border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                    className="w-full sm:w-40 px-3 py-1.5 text-[12px] border border-gray-300 focus:outline-none"
                                                 />
                                             </div>
                                             {/* 時間選択 */}
                                             <div className="flex-1 flex flex-wrap gap-2 items-center w-full">
-                                                 <div className="flex bg-white rounded border border-gray-200 overflow-hidden shrink-0">
+                                                 <div className="flex bg-white border border-gray-300 overflow-hidden shrink-0">
                                                     {['am', 'pm', 'custom'].map((tType) => (
-                                                        <label key={tType} className={`px-2 py-1.5 cursor-pointer text-[10px] font-medium transition-colors ${optionTimes[index]?.timeType === tType ? 'bg-blue-600 text-white' : 'hover:bg-gray-50 text-gray-600'}`}>
+                                                        <label key={tType} className={`px-2 py-1.5 cursor-pointer text-[10px] font-medium transition-colors ${optionTimes[index]?.timeType === tType ? 'bg-[#141414] text-white' : 'hover:bg-gray-50 text-gray-600'}`}>
                                                             <input
                                                                 type="radio"
                                                                 name={`timeType-${index}`}
@@ -1435,7 +1631,7 @@ const ScheduleTool: React.FC = () => {
                                                         </label>
                                                     ))}
                                                  </div>
-                                                 
+
                                                  {optionTimes[index]?.timeType === 'custom' && (
                                                     <div className="flex items-center gap-1 text-[11px]">
                                                         <select
@@ -1448,7 +1644,7 @@ const ScheduleTool: React.FC = () => {
                                                                 setOptionTimes(newTimes);
                                                                 updateLabelWithTime(index, optionDates[index], undefined, updatedTime);
                                                             }}
-                                                            className="px-1 py-1 border border-gray-300 rounded bg-white"
+                                                            className="px-1 py-1 border border-gray-300 bg-white"
                                                         >
                                                             {generateHours().map(h => <option key={h} value={h}>{h}</option>)}
                                                         </select>
@@ -1463,7 +1659,7 @@ const ScheduleTool: React.FC = () => {
                                                                 setOptionTimes(newTimes);
                                                                 updateLabelWithTime(index, optionDates[index], undefined, updatedTime);
                                                             }}
-                                                            className="px-1 py-1 border border-gray-300 rounded bg-white"
+                                                            className="px-1 py-1 border border-gray-300 bg-white"
                                                         >
                                                              {generateMinutes().map(m => <option key={m} value={m}>{m}</option>)}
                                                         </select>
@@ -1478,7 +1674,7 @@ const ScheduleTool: React.FC = () => {
                                                                 setOptionTimes(newTimes);
                                                                 updateLabelWithTime(index, optionDates[index], undefined, updatedTime);
                                                             }}
-                                                            className="px-1 py-1 border border-gray-300 rounded bg-white"
+                                                            className="px-1 py-1 border border-gray-300 bg-white"
                                                         >
                                                             {generateHours().map(h => <option key={h} value={h}>{h}</option>)}
                                                         </select>
@@ -1493,27 +1689,27 @@ const ScheduleTool: React.FC = () => {
                                                                 setOptionTimes(newTimes);
                                                                 updateLabelWithTime(index, optionDates[index], undefined, updatedTime);
                                                             }}
-                                                            className="px-1 py-1 border border-gray-300 rounded bg-white"
+                                                            className="px-1 py-1 border border-gray-300 bg-white"
                                                         >
                                                              {generateMinutes().map(m => <option key={m} value={m}>{m}</option>)}
                                                         </select>
                                                     </div>
                                                  )}
                                             </div>
-                                            
+
                                             {/* 自動生成ラベル（確認用） */}
                                             <input
                                                 type="text"
                                                 value={label}
                                                 readOnly
-                                                className="w-full sm:w-1/3 px-3 py-1.5 text-[11px] border border-gray-200 bg-gray-100 text-gray-500 rounded focus:outline-none"
+                                                className="w-full sm:w-1/3 px-3 py-1.5 text-[11px] !border-0 !border-b !border-gray-200 bg-transparent text-gray-500 focus:outline-none"
                                                 placeholder="自動生成されます"
                                             />
-                                            
+
                                             {optionLabels.length > 1 && (
                                                 <button
                                                     onClick={() => removeOption(index)}
-                                                    className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition"
+                                                    className="p-1.5 text-gray-400 hover:text-red-600"
                                                 >
                                                     <FiTrash2 className="w-4 h-4" />
                                                 </button>
@@ -1529,13 +1725,13 @@ const ScheduleTool: React.FC = () => {
                                                     newLabels[index] = e.target.value;
                                                     setOptionLabels(newLabels);
                                                 }}
-                                                className="flex-1 px-3 py-2 text-[12px] border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                className="flex-1 px-3 py-2 text-[12px] border border-gray-300 focus:outline-none"
                                                 placeholder="選択肢を入力 (例: A案、中華料理、など)"
                                             />
                                             {optionLabels.length > 1 && (
                                                 <button
                                                     onClick={() => removeOption(index)}
-                                                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition"
+                                                    className="p-2 text-gray-400 hover:text-red-600"
                                                 >
                                                     <FiTrash2 className="w-4 h-4" />
                                                 </button>
@@ -1551,16 +1747,16 @@ const ScheduleTool: React.FC = () => {
                 <div className="mt-8 flex justify-center pb-6">
                     <button
                         onClick={handleCreateSchedule}
-                        className="w-full max-w-sm py-3 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-500 shadow-md transform transition hover:-translate-y-0.5"
+                        className="yy-btn yy-btn--primary w-full max-w-sm !py-3"
                     >
                         スケジュールを作成する
                     </button>
                 </div>
             </div>
           </div>
-          
+
            {/* 右カラム：リスト（作成画面でも表示しておくと便利） */}
-           <div className="w-64 shrink-0 hidden md:block">
+           <div className="w-full md:w-64 shrink-0 max-h-[50vh] md:max-h-none">
             {renderScheduleList()}
           </div>
         </div>

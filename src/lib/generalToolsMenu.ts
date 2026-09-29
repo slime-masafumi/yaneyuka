@@ -38,8 +38,9 @@ export const GENERAL_TOOL_MENU: GeneralToolEntry[] = [
   { id: 'pdf-compressor', label: 'PDF圧縮' },
   { id: 'olmt', label: 'OnlineMeetingTool' },
   { id: 'schedule', label: 'スケジュール調整' },
-  { id: 'temp-storage', label: '一時ファイル' },
-  { id: 'file-transfer', label: 'ファイル転送' },
+  // 旧「一時ファイル」「ファイル転送」。名前が似ていて違いが伝わらなかったので目的で呼び分ける（id は URL に使うので変えない）
+  { id: 'temp-storage', label: '端末間受け渡し' },
+  { id: 'file-transfer', label: '図面送付' },
   { id: 'map', label: '地図' },
   { id: 'construction-photos', label: '工事写真' },
   { id: 'drawing-pdf', label: '図面PDF' },

@@ -210,8 +210,8 @@ export async function POST(req: NextRequest) {
                   typeof upload.note === 'string' && upload.note ? `件名: ${upload.note}` : '',
                   `日時: ${now.toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}`,
                   '',
-                  '送付台帳（マイページ → ファイル転送）で開封の記録を確認できます。',
-                  'このお知らせは、ファイル転送で「開いたらメールで知らせる」にしたファイルにだけ届きます。',
+                  '送付台帳（マイページ → 図面送付）で開封の記録を確認できます。',
+                  'このお知らせは、図面送付で「開いたらメールで知らせる」にしたファイルにだけ届きます。',
                 ].filter((l, i, a) => l !== '' || a[i - 1] !== '').join('\n'),
               });
             }

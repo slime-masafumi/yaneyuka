@@ -1,11 +1,29 @@
 'use client';
 
+/**
+ * 図面送付（旧「ファイル転送」。id は file-transfer のまま）。
+ *
+ * 相手先（施主・施工者・協力事務所）へ図面やデータを送るための道具。
+ * 「端末間受け渡し」（自分の端末どうし・24時間）と違い、こちらは
+ *   - 送付状（図面番号・図面名・版・縮尺・枚数）を付けて送る
+ *   - いつ誰に何を送り、相手が開いたかを台帳に残す
+ *   - 合言葉・開封メールで受け渡しを確かめる
+ * ことが目的。名前が同じ「ファイル」だったので違いが伝わらず、機能を足しても
+ * 「何も変わっていない」と見られていた。
+ */
+
 import React, { DragEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { collection, doc, getDoc, onSnapshot, orderBy, query, Timestamp, where, serverTimestamp, setDoc, deleteDoc, increment, updateDoc, deleteField } from 'firebase/firestore';
-import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
+import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject, type UploadTask } from 'firebase/storage';
+import { FiUploadCloud, FiTrash2, FiPrinter, FiCopy, FiLink, FiPause, FiPlay, FiX, FiLock, FiMail, FiDownload } from 'react-icons/fi';
 import { db, app, auth } from '@/lib/firebaseClient';
 import { useAuth } from '@/lib/AuthContext';
 import { hashSharePassword } from '@/lib/sharePassword';
+import { requestGeneralTool } from '@/lib/generalToolsMenu';
+import ToolHeader from '../ToolHeader';
+import DrawingListEditor from './transfer/DrawingListEditor';
+import { countPdfPages, fromStored, parseDrawingFileName, toStored, totalSheets, type DrawingRow, type StoredDrawing } from './transfer/drawingList';
+import { openTransmittal, transmittalNumber, transmittalText, TRANSMITTAL_PURPOSES, type TransmittalData } from './transfer/transmittal';
 // JSZipは動的インポートで使用（SSR対応）
 
 const storage = typeof window !== 'undefined' ? getStorage(app) : undefined;
@@ -35,9 +53,14 @@ type UploadRecord = {
   downloadUrl?: string;
   shortCode?: string;
   retentionDays?: number;
-  /** 送付台帳: 送り先と件名（作成後にオーナーが書き足す） */
+  /** 送付台帳: 送り先と件名（送るときに入れるか、後からオーナーが書き足す） */
   recipient?: string;
   note?: string;
+  /** 送付状: 図面リスト・送付目的・差出人・備考 */
+  drawings?: StoredDrawing[];
+  purpose?: string;
+  sender?: string;
+  remarks?: string;
   /** 送付台帳: 相手が開いた記録（/api/share/download が書く。同じ送信元は1時間に1回） */
   downloadCount?: number;
   firstDownloadedAt?: Timestamp;
@@ -54,7 +77,7 @@ type UsageDoc = {
 };
 
 function formatBytes(bytes: number, decimals = 1) {
-  if (bytes === 0) return '0 B';
+  if (!bytes) return '0 B';
   const k = 1024;
   const dm = decimals < 0 ? 0 : decimals;
   const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
@@ -62,15 +85,44 @@ function formatBytes(bytes: number, decimals = 1) {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
 }
 
+const formatMB = (mb: number) => (mb >= 1024 ? `${parseFloat((mb / 1024).toFixed(1))}GB` : `${mb}MB`);
+
 function getMonthKey(date = new Date()) {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
   return `${y}-${m}`;
 }
 
-const MAX_FILE_MB = 100;
-const MONTHLY_LIMIT_MB = 1024;
+/**
+ * 1ファイルの上限の既定値（config/limits.maxFileMB が読めないとき）。
+ * 図面一式・BIM・点群は数百MB〜GB になるので 2GB。実際の上限は config/limits と
+ * storage.rules（userUploads は 2GB）とサーバーの /api/upload/guard の 3 か所で決まる。
+ */
+const MAX_FILE_MB = 2048;
+/** 月間アップロードの既定値。/api/upload/guard の DEFAULT_MAX_USER_MONTHLY_MB と揃える */
+const MONTHLY_LIMIT_MB = 2048;
+/**
+ * 複数ファイルを ZIP にまとめるときの合計の上限。ZIP はブラウザのメモリ上で作るので、
+ * これを超えると上限判定より先にタブが落ちる。大きいものは 1 本ずつ送ってもらう。
+ */
+const MAX_ZIP_TOTAL_MB = 500;
 const DEFAULT_RETENTION_OPTIONS = [3, 7, 14];
+const SENDER_KEY = 'yaneyuka:transmittal-sender';
+
+/** 各段の見出し（連番 + 名前）。線 1 本と小さな等幅で区切る */
+const SectionHead: React.FC<{ no: string; title: string; aside?: React.ReactNode }> = ({ no, title, aside }) => (
+  <div className="flex items-baseline justify-between gap-2 border-b border-[#3b3b3b] pb-1 mb-3">
+    <p className="flex items-baseline gap-2 min-w-0">
+      <span className="yy-mono text-[10px] tracking-[0.12em] uppercase text-gray-500">{no}</span>
+      <span className="text-[12px] font-bold text-[#141414]">{title}</span>
+    </p>
+    {aside}
+  </div>
+);
+
+const monoLabel = 'yy-mono text-[10px] tracking-[0.12em] uppercase text-gray-500';
+
+type FeatureKey = 'send' | 'large' | 'ledger' | 'password' | 'notify' | 'csv';
 
 const FileTransferTool: React.FC = () => {
   const { currentUser, isLoggedIn } = useAuth();
@@ -90,13 +142,52 @@ const FileTransferTool: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [compressionProgress, setCompressionProgress] = useState<number | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [uploadBytes, setUploadBytes] = useState<{ done: number; total: number } | null>(null);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
+  const [paused, setPaused] = useState(false);
+  const uploadTaskRef = useRef<UploadTask | null>(null);
   const monthKey = useMemo(() => getMonthKey(), []);
   const [selectedRetentionDays, setSelectedRetentionDays] = useState<number | null>(null);
   const [retentionInitApplied, setRetentionInitApplied] = useState(false);
   const [origin, setOrigin] = useState<string>('');
   const [deleteInFlight, setDeleteInFlight] = useState<string | null>(null);
   const generatingShortCodes = useRef<Set<string>>(new Set());
+
+  // --- 送付状の下書き（送る前に書く） ---
+  const [drawings, setDrawings] = useState<DrawingRow[]>([]);
+  const [draftRecipient, setDraftRecipient] = useState('');
+  const [draftSubject, setDraftSubject] = useState('');
+  const [draftPurpose, setDraftPurpose] = useState<string>('ご確認');
+  const [draftRemarks, setDraftRemarks] = useState('');
+  const [draftPassword, setDraftPassword] = useState('');
+  const [draftNotify, setDraftNotify] = useState(false);
+  const [sender, setSender] = useState('');
+  const [lastSentId, setLastSentId] = useState<string | null>(null);
+
+  // 「できること」の案内（ログインが要る機能を未ログインで押したときなど）
+  const [notice, setNotice] = useState<string | null>(null);
+  const [activeFeature, setActiveFeature] = useState<FeatureKey | null>(null);
+  const sendRef = useRef<HTMLDivElement>(null);
+  const dropRef = useRef<HTMLDivElement>(null);
+  const optionsRef = useRef<HTMLDivElement>(null);
+  const ledgerRef = useRef<HTMLDivElement>(null);
+
+  // 差出人は端末ごとに覚えておく（毎回同じなので）
+  useEffect(() => {
+    try {
+      setSender(window.localStorage.getItem(SENDER_KEY) ?? '');
+    } catch {
+      /* 保存できない環境では毎回入れてもらう */
+    }
+  }, []);
+  const saveSender = (v: string) => {
+    setSender(v);
+    try {
+      window.localStorage.setItem(SENDER_KEY, v);
+    } catch {
+      /* 同上 */
+    }
+  };
 
   // Fetch config limits
   useEffect(() => {
@@ -121,7 +212,7 @@ const FileTransferTool: React.FC = () => {
   useEffect(() => {
     try {
       if (typeof window !== 'undefined' && window.location) {
-      setOrigin(window.location.origin);
+        setOrigin(window.location.origin);
       }
     } catch (error) {
       console.error('Origin設定エラー:', error);
@@ -178,22 +269,20 @@ const FileTransferTool: React.FC = () => {
         const list: UploadRecord[] = [];
         const now = Date.now();
         const oneWeekInMs = 7 * 24 * 60 * 60 * 1000; // 1週間（ミリ秒）
-        
+
         snap.forEach(docSnap => {
           const data = docSnap.data();
           const expiresAt = data.expiresAt;
-          
+
           // 保存期間が過ぎてから1週間以上経過したファイルは除外
           if (expiresAt) {
             const expiresAtMs = expiresAt.toDate().getTime();
             const deletionDeadline = expiresAtMs + oneWeekInMs; // 保存期間 + 1週間
-            
-            // 削除期限を過ぎたファイルは表示しない
             if (now > deletionDeadline) {
               return; // このファイルはスキップ
             }
           }
-          
+
           list.push({
             id: docSnap.id,
             fileName: data.fileName,
@@ -206,6 +295,10 @@ const FileTransferTool: React.FC = () => {
             retentionDays: data.retentionDays,
             recipient: data.recipient,
             note: data.note,
+            drawings: Array.isArray(data.drawings) ? toStored(fromStored(data.drawings)) : undefined,
+            purpose: typeof data.purpose === 'string' ? data.purpose : undefined,
+            sender: typeof data.sender === 'string' ? data.sender : undefined,
+            remarks: typeof data.remarks === 'string' ? data.remarks : undefined,
             downloadCount: data.downloadCount,
             firstDownloadedAt: data.firstDownloadedAt,
             lastDownloadedAt: data.lastDownloadedAt,
@@ -218,7 +311,7 @@ const FileTransferTool: React.FC = () => {
       },
       error: err => {
         console.error('uploads購読に失敗', err);
-        setFilesError('ファイル一覧を読み込めませんでした。');
+        setFilesError('送付台帳を読み込めませんでした。');
       },
     });
     return () => unsub();
@@ -241,15 +334,39 @@ const FileTransferTool: React.FC = () => {
     }
   }, [retentionInitApplied, retentionOptions]);
 
+  const buildShortLink = useCallback(
+    (shortCode?: string) => {
+      if (!shortCode) return null;
+      if (origin) {
+        return `${origin}/share/${shortCode}`;
+      }
+      return `/share/${shortCode}`;
+    },
+    [origin],
+  );
+
   // --- 送付台帳 ---
   const fmtTime = (t?: Timestamp) => (t ? t.toDate().toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '');
-  const saveLedgerField = async (id: string, field: 'recipient' | 'note', value: string) => {
+  const saveLedgerField = async (id: string, field: 'recipient' | 'note' | 'purpose', value: string) => {
     try {
       await updateDoc(doc(db, 'uploads', id), { [field]: value.trim() });
     } catch (e) {
       console.error('送付台帳の保存に失敗', e);
     }
   };
+  // 台帳の図面リストを後から直す
+  const [editing, setEditing] = useState<{ id: string; rows: DrawingRow[] } | null>(null);
+  const saveDrawings = async () => {
+    if (!editing) return;
+    try {
+      await updateDoc(doc(db, 'uploads', editing.id), { drawings: toStored(editing.rows) });
+      setEditing(null);
+    } catch (e) {
+      console.error('図面リストの保存に失敗', e);
+      setNotice('図面リストを保存できませんでした。時間をおいてお試しください。');
+    }
+  };
+
   // --- 合言葉・開封のお知らせ ---
   const [pwFor, setPwFor] = useState<string | null>(null);
   const [pwText, setPwText] = useState('');
@@ -287,32 +404,45 @@ const FileTransferTool: React.FC = () => {
     }
   };
 
-  const coverText = (file: UploadRecord, link: string) =>
-    [
-      file.recipient ? `${file.recipient} 様` : '',
-      '',
-      '下記のファイルをお送りします。',
-      '',
-      file.note ? `件名: ${file.note}` : '',
-      `ファイル: ${file.fileName}（${formatBytes(file.size)}）`,
-      `ダウンロード: ${link}`,
-      file.expiresAt ? `有効期限: ${file.expiresAt.toDate().toLocaleDateString('ja-JP')} まで` : '',
-      '',
-      'よろしくお願いいたします。',
-    ]
-      .filter((l, i, arr) => !(l === '' && arr[i - 1] === ''))
-      .join('\n')
-      .trim();
+  const toTransmittal = (file: UploadRecord): TransmittalData => {
+    const created = file.createdAt?.toDate() ?? new Date();
+    return {
+      number: transmittalNumber(created, file.shortCode),
+      date: created,
+      recipient: file.recipient ?? '',
+      sender: file.sender || sender,
+      subject: file.note ?? '',
+      purpose: file.purpose ?? '',
+      drawings: file.drawings ?? [],
+      link: buildShortLink(file.shortCode),
+      expiresAt: file.expiresAt?.toDate() ?? null,
+      hasPassword: !!file.hasPassword,
+      fileName: file.fileName,
+      fileSize: formatBytes(file.size),
+      remarks: file.remarks,
+    };
+  };
+  const printTransmittal = (file: UploadRecord) => {
+    if (!openTransmittal(toTransmittal(file))) {
+      setNotice('別窓を開けませんでした。ブラウザのポップアップを許可してください。');
+    }
+  };
+
   const downloadLedgerCsv = () => {
     const cell = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    const rows = [['送付日時', '送付先', '件名', 'ファイル名', 'サイズ', '有効期限', '開封回数', '初回開封', '最終開封', 'リンク']];
+    const rows = [['送付状番号', '送付日時', '送付先', '件名', '送付目的', 'ファイル名', 'サイズ', '図面リスト', '合計枚数', '有効期限', '開封回数', '初回開封', '最終開封', 'リンク']];
     for (const f of files) {
+      const list = f.drawings ?? [];
       rows.push([
+        transmittalNumber(f.createdAt?.toDate() ?? new Date(), f.shortCode),
         f.createdAt ? f.createdAt.toDate().toLocaleString('ja-JP') : '',
         f.recipient ?? '',
         f.note ?? '',
+        f.purpose ?? '',
         f.fileName,
         formatBytes(f.size),
+        list.map((d) => [d.no, d.title, d.rev, d.scale, d.sheets ? `${d.sheets}枚` : ''].filter(Boolean).join(' ')).join(' / '),
+        list.length ? String(totalSheets(list)) : '',
         f.expiresAt ? f.expiresAt.toDate().toLocaleString('ja-JP') : '',
         String(f.downloadCount ?? 0),
         f.firstDownloadedAt ? f.firstDownloadedAt.toDate().toLocaleString('ja-JP') : '',
@@ -320,7 +450,7 @@ const FileTransferTool: React.FC = () => {
         buildShortLink(f.shortCode) ?? '',
       ]);
     }
-    const blob = new Blob(['\uFEFF' + rows.map((r) => r.map(cell).join(',')).join('\n') + '\n'], { type: 'text/csv;charset=utf-8' });
+    const blob = new Blob(['﻿' + rows.map((r) => r.map(cell).join(',')).join('\n') + '\n'], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -330,17 +460,6 @@ const FileTransferTool: React.FC = () => {
     a.remove();
     URL.revokeObjectURL(url);
   };
-
-  const buildShortLink = useCallback(
-    (shortCode?: string) => {
-      if (!shortCode) return null;
-      if (origin) {
-        return `${origin}/share/${shortCode}`;
-      }
-      return `/share/${shortCode}`;
-    },
-    [origin],
-  );
 
   // 共有コードはファイルへの唯一のアクセス制御なので、
   // 予測可能な Math.random ではなく暗号論的乱数で作り、長さも8文字に伸ばす
@@ -371,14 +490,29 @@ const FileTransferTool: React.FC = () => {
     throw new Error('shortcode_generation_failed');
   }, []);
 
+  /**
+   * 選んだファイルを足し、図面リストをファイル名から下書きする。
+   * PDF は頁数を数えて枚数に入れる（人が枚数を変えていなければ）。
+   */
+  const addFiles = (newFiles: File[]) => {
+    if (newFiles.length === 0) return;
+    setSelectedFiles((prev) => [...prev, ...newFiles]);
+    setUploadStatus(null);
+    setUploadProgress(null);
+    setLastSentId(null);
+    const rows = newFiles.map((f) => parseDrawingFileName(f.name));
+    setDrawings((prev) => [...prev, ...rows]);
+    rows.forEach((row, i) => {
+      void countPdfPages(newFiles[i]).then((pages) => {
+        if (!pages || pages === 1) return;
+        setDrawings((prev) => prev.map((r) => (r.key === row.key && r.sheets === '1' ? { ...r, sheets: String(pages) } : r)));
+      });
+    });
+  };
+
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      const newFiles = Array.from(e.target.files);
-      // 既存のファイル配列の後ろに結合する
-      setSelectedFiles((prev) => [...prev, ...newFiles]);
-      setUploadStatus(null);
-      setUploadProgress(null);
-      
+      addFiles(Array.from(e.target.files));
       // 同じファイルを連続で選べるようにinputの中身をリセット
       e.target.value = '';
     }
@@ -393,25 +527,51 @@ const FileTransferTool: React.FC = () => {
     e.preventDefault();
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const newFiles = Array.from(e.dataTransfer.files);
-      setSelectedFiles((prev) => [...prev, ...newFiles]);
-      setUploadStatus(null);
-      setUploadProgress(null);
+      addFiles(Array.from(e.dataTransfer.files));
     }
   };
 
   const resetSelection = () => {
     setSelectedFiles([]);
+    setDrawings((prev) => prev.filter((r) => !r.src));
     setCompressionProgress(null);
     setUploadProgress(null);
     setUploadStatus(null);
     if (typeof document !== 'undefined') {
-    const input = document.getElementById('file-transfer-input') as HTMLInputElement | null;
-    if (input) input.value = '';
+      const input = document.getElementById('file-transfer-input') as HTMLInputElement | null;
+      if (input) input.value = '';
     }
   };
 
-  const runUpload = useCallback(async () => {
+  const busy = compressionProgress !== null || uploadProgress !== null;
+
+  // 大きいファイルを上げている途中で画面を閉じると最初からやり直しになるので、閉じる前に確かめる
+  useEffect(() => {
+    if (uploadProgress === null || uploadProgress >= 100) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [uploadProgress]);
+
+  const cancelUpload = () => {
+    uploadTaskRef.current?.cancel();
+  };
+  const togglePause = () => {
+    const task = uploadTaskRef.current;
+    if (!task) return;
+    if (paused) {
+      task.resume();
+      setPaused(false);
+    } else {
+      task.pause();
+      setPaused(true);
+    }
+  };
+
+  const runUpload = async () => {
     if (!uid) {
       setUploadStatus('ログインが必要です。');
       return;
@@ -432,25 +592,45 @@ const FileTransferTool: React.FC = () => {
       setUploadStatus('Storage クライアントを初期化できません。');
       return;
     }
+    if (draftPassword.trim() && draftPassword.trim().length < 4) {
+      setUploadStatus('合言葉は4文字以上にしてください（空なら掛けません）。');
+      return;
+    }
+
+    // 送付状の中身は送り始めた時点のものを使う（上げている間に書き換えても混ざらないように）
+    const draft = {
+      recipient: draftRecipient.trim(),
+      subject: draftSubject.trim(),
+      purpose: draftPurpose,
+      remarks: draftRemarks.trim(),
+      sender: sender.trim(),
+      drawings: toStored(drawings),
+      password: draftPassword.trim(),
+      notify: draftNotify,
+    };
+
+    // ZIP はメモリ上で作るので、まとめる前に生の合計で弾く
+    if (selectedFiles.length > 1) {
+      const rawTotal = selectedFiles.reduce((a, f) => a + f.size, 0);
+      if (rawTotal > MAX_ZIP_TOTAL_MB * 1024 * 1024) {
+        setUploadStatus(`複数ファイルをまとめて送れるのは合計 ${MAX_ZIP_TOTAL_MB}MB までです（ブラウザ内で ZIP にするため）。大きいファイルは 1 本ずつ送ってください。`);
+        return;
+      }
+    }
 
     let fileToUpload: File;
 
-    // ---------------------------------------------------------
-    // 【追加機能】複数ファイルなら圧縮、単一ならそのまま使う
-    // ---------------------------------------------------------
+    // 複数ファイルなら圧縮、単一ならそのまま使う
     try {
       if (selectedFiles.length === 1) {
-        // 1ファイルならそのまま
         fileToUpload = selectedFiles[0];
       } else {
-        // 複数ファイルならZIP圧縮を開始
-        setUploadStatus('ファイルを圧縮してまとめています...');
+        setUploadStatus('ファイルを ZIP にまとめています');
         setCompressionProgress(0);
-        
-        // JSZipを動的インポート（SSR対応）
+
         const JSZip = (await import('jszip')).default;
         const zip = new JSZip();
-        
+
         // ファイル名の重複対策用Map
         const nameMap = new Map<string, number>();
 
@@ -469,30 +649,24 @@ const FileTransferTool: React.FC = () => {
           } else {
             nameMap.set(fileName, 0);
           }
-          
+
           zip.file(fileName, file);
           // ファイル追加の進行状況を更新（0%から50%まで）
-          const addProgress = Math.round(((index + 1) / selectedFiles.length) * 50);
-          setCompressionProgress(addProgress);
+          setCompressionProgress(Math.round(((index + 1) / selectedFiles.length) * 50));
         });
 
-        // ZIP生成 (圧縮レベルはお好みで調整)
-        // ファイル追加完了（50%）
         setCompressionProgress(50);
-        
-        const zipBlob = await zip.generateAsync({
-          type: 'blob',
-          compression: 'DEFLATE',
-          compressionOptions: { level: 6 }
-        });
-        
-        // 圧縮完了（100%）
+        const zipBlob = await zip.generateAsync(
+          { type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } },
+          (meta) => setCompressionProgress(50 + Math.round(meta.percent / 2)),
+        );
         setCompressionProgress(100);
 
-        // 今の日時でファイル名を作成 (例: archive_2025-12-10_123456.zip)
+        // 件名があれば ZIP 名にする（相手のダウンロードフォルダで見分けられるように）
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-        fileToUpload = new File([zipBlob], `archive_${timestamp}.zip`, {
-          type: 'application/zip'
+        const safeSubject = draft.subject.replace(/[\\/:*?"<>|]/g, '').slice(0, 40);
+        fileToUpload = new File([zipBlob], safeSubject ? `${safeSubject}_${timestamp.slice(0, 10)}.zip` : `archive_${timestamp}.zip`, {
+          type: 'application/zip',
         });
       }
     } catch (err) {
@@ -502,16 +676,16 @@ const FileTransferTool: React.FC = () => {
       return;
     }
 
-    // --- ここから先は fileToUpload (単一ファイル) に対して既存ロジックを実行 ---
-
     // size checks
     const fileSizeMB = fileToUpload.size / (1024 * 1024);
     if (fileSizeMB > effectiveMaxFileMB) {
-      setUploadStatus(`ファイルサイズ(${formatBytes(fileToUpload.size)})が上限 ${effectiveMaxFileMB}MB を超えています。`);
+      setCompressionProgress(null);
+      setUploadStatus(`ファイルサイズ(${formatBytes(fileToUpload.size)})が上限 ${formatMB(effectiveMaxFileMB)} を超えています。`);
       return;
     }
 
     if (effectiveMonthlyLimitMB && currentUsageMB + fileSizeMB > effectiveMonthlyLimitMB) {
+      setCompressionProgress(null);
       setUploadStatus('今月のアップロード上限を超えます。');
       return;
     }
@@ -519,20 +693,21 @@ const FileTransferTool: React.FC = () => {
     // サイト全体のダウンロード帯域上限チェック
     if (limits && siteUsage) {
       const siteDownloadGB = siteUsage.downloadedBytes / (1024 * 1024 * 1024);
-      // アップロードしたファイルがダウンロードされた場合を想定してチェック
       const fileSizeGB = fileToUpload.size / (1024 * 1024 * 1024);
       if (siteDownloadGB + fileSizeGB > limits.siteMonthlyDownloadGBCap) {
+        setCompressionProgress(null);
         setUploadStatus(`サイト全体のダウンロード帯域上限（${limits.siteMonthlyDownloadGBCap}GB/月）を超えます。`);
         return;
       }
     }
 
-    setUploadStatus('アップロード前チェック中...');
+    setUploadStatus('アップロード前チェック中');
     try {
       // 上の各チェックはあくまで即時フィードバック用。実際の判定はサーバー側で行うので、
       // 本人確認のための ID トークンを渡す。
       const idToken = await auth.currentUser?.getIdToken();
       if (!idToken) {
+        setCompressionProgress(null);
         setUploadStatus('ログイン情報を確認できませんでした。再ログインしてお試しください。');
         return;
       }
@@ -549,11 +724,13 @@ const FileTransferTool: React.FC = () => {
       }
       const guard = await guardResp.json();
       if (!guard.allowed) {
+        setCompressionProgress(null);
         setUploadStatus(guard.reason ?? 'アップロードが拒否されました。');
         return;
       }
     } catch (error) {
       console.error('uploadGuard 呼び出しに失敗', error);
+      setCompressionProgress(null);
       setUploadStatus('アップロード前チェックに失敗しました。');
       return;
     }
@@ -565,6 +742,8 @@ const FileTransferTool: React.FC = () => {
     const path = `userUploads/${uid}/${fileId}`;
     const storageRef = ref(storage, path);
 
+    // 分割して送る（uploadBytesResumable）。GB 級でも途中で一時停止・再開・中止ができ、
+    // 回線が一瞬切れても SDK が続きから送り直す。
     const uploadTask = uploadBytesResumable(storageRef, fileToUpload, {
       contentType: fileToUpload.type || 'application/octet-stream',
       contentDisposition: `attachment; filename="${fileToUpload.name}"`,
@@ -574,34 +753,48 @@ const FileTransferTool: React.FC = () => {
         originalName: fileToUpload.name,
       },
     });
+    uploadTaskRef.current = uploadTask;
+    setPaused(false);
 
-    // 圧縮が完了したら、アップロードを開始
     setCompressionProgress(null);
-    setUploadStatus('アップロード中...');
+    setUploadStatus('アップロード中');
     setUploadProgress(0);
-    
+    setUploadBytes({ done: 0, total: fileToUpload.size });
+
     uploadTask.on(
       'state_changed',
       snapshot => {
-        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        setUploadProgress(Math.round(progress));
+        setUploadProgress(snapshot.totalBytes > 0 ? Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100) : 0);
+        setUploadBytes({ done: snapshot.bytesTransferred, total: snapshot.totalBytes });
       },
       error => {
-        console.error('アップロード中にエラー', error);
-        setUploadStatus('アップロードに失敗しました。');
+        uploadTaskRef.current = null;
+        setPaused(false);
         setUploadProgress(null);
+        setUploadBytes(null);
+        if ((error as { code?: string }).code === 'storage/canceled') {
+          setUploadStatus('アップロードを中止しました。');
+          return;
+        }
+        console.error('アップロード中にエラー', error);
+        setUploadStatus(
+          (error as { code?: string }).code === 'storage/unauthorized'
+            ? 'アップロードが拒否されました（サイズ上限を超えているか、ログインが切れています）。'
+            : 'アップロードに失敗しました。',
+        );
       },
       () => {
+        uploadTaskRef.current = null;
         (async () => {
           let hadError = false;
           try {
-            setUploadStatus('アップロードが完了しました。リンクを生成しています...');
+            setUploadStatus('アップロード完了。リンクを発行しています');
             setUploadProgress(100);
             if (limits && !limits.sharingEnabled) {
               setUploadStatus('アップロードは完了しましたが、共有リンクの発行は一時停止中です。');
               return;
             }
-            
+
             // 共有リンク発行前のダウンロード帯域上限チェック
             if (limits && siteUsage) {
               const siteDownloadGB = siteUsage.downloadedBytes / (1024 * 1024 * 1024);
@@ -611,7 +804,7 @@ const FileTransferTool: React.FC = () => {
                 return;
               }
             }
-            
+
             const downloadUrl = await getDownloadURL(storageRef);
             const retentionDays =
               selectedRetentionDays ??
@@ -642,6 +835,8 @@ const FileTransferTool: React.FC = () => {
                 retentionDays,
               });
             }
+            // 作成時に書けるキーは firestore.rules で決まっている（hasOnly）。
+            // 送付状の中身はオーナーの更新として後から足す（送付先・件名と同じ扱い）。
             await setDoc(
               doc(db, 'uploads', fileId),
               {
@@ -657,45 +852,52 @@ const FileTransferTool: React.FC = () => {
               },
               { merge: true },
             );
-            
+            const extra: Record<string, string | number | boolean | StoredDrawing[]> = {};
+            if (draft.recipient) extra.recipient = draft.recipient;
+            if (draft.subject) extra.note = draft.subject;
+            if (draft.purpose) extra.purpose = draft.purpose;
+            if (draft.sender) extra.sender = draft.sender;
+            if (draft.remarks) extra.remarks = draft.remarks;
+            if (draft.drawings.length) extra.drawings = draft.drawings;
+            if (draft.notify) extra.notifyOnOpen = true;
+            if (draft.password) Object.assign(extra, await hashSharePassword(draft.password));
+            if (Object.keys(extra).length) {
+              await updateDoc(doc(db, 'uploads', fileId), extra);
+            }
+
             // 使用量を更新
             const userUsageRef = doc(db, 'usage', `${uid}_${monthKey}`);
             const siteUsageRef = doc(db, 'usage', `site_${monthKey}`);
-            await setDoc(
-              userUsageRef,
-              {
-                uploadedBytes: increment(fileToUpload.size),
-              },
-              { merge: true },
-            );
-            await setDoc(
-              siteUsageRef,
-              {
-                uploadedBytes: increment(fileToUpload.size),
-              },
-              { merge: true },
-            );
-            
-            setUploadStatus('アップロードが完了しました。共有リンクを生成しました。');
+            await setDoc(userUsageRef, { uploadedBytes: increment(fileToUpload.size) }, { merge: true });
+            await setDoc(siteUsageRef, { uploadedBytes: increment(fileToUpload.size) }, { merge: true });
+
+            setLastSentId(fileId);
+            setUploadStatus('送付リンクを発行しました。台帳の「送付状」「送付文」から相手に渡せます。');
           } catch (error) {
             console.error('アップロード完了処理に失敗', error);
             setUploadStatus('アップロードは完了しましたが、リンク生成に失敗しました。');
             hadError = true;
           } finally {
+            setUploadBytes(null);
             if (hadError) {
               setUploadProgress(null);
             } else {
-              setTimeout(() => {
-                setUploadStatus(null);
-                setUploadProgress(null);
-                setSelectedFiles([]);
-              }, 2000);
+              // 次の送付に備えて下書きを空にする（差出人・送付目的は同じことが多いので残す）
+              setSelectedFiles([]);
+              setDrawings([]);
+              setDraftRecipient('');
+              setDraftSubject('');
+              setDraftRemarks('');
+              setDraftPassword('');
+              setDraftNotify(false);
+              setUploadProgress(null);
+              setTimeout(() => setUploadStatus(null), 6000);
             }
           }
         })();
       },
     );
-  }, [uid, limits, selectedFiles, storage, effectiveMonthlyLimitMB, currentUsageMB, generateShortCode, selectedRetentionDays, monthKey, siteUsage]);
+  };
 
   useEffect(() => {
     if (!limits?.sharingEnabled || !uid) return;
@@ -742,12 +944,7 @@ const FileTransferTool: React.FC = () => {
         alert('削除できませんでした。再ログイン後にお試しください。');
         return;
       }
-      if (typeof window === 'undefined' || !window.confirm) {
-        // モバイルブラウザでconfirmが使えない場合のフォールバック
-        if (!confirm('このファイルを削除しますか？')) return;
-      } else {
-      if (!window.confirm('このファイルを削除しますか？')) return;
-      }
+      if (!window.confirm(`「${file.fileName}」を削除しますか？相手はダウンロードできなくなります。`)) return;
       setDeleteInFlight(file.id);
       try {
         await deleteObject(ref(storage, file.path));
@@ -768,55 +965,39 @@ const FileTransferTool: React.FC = () => {
       }
       setDeleteInFlight(null);
     },
-    [storage, uid],
+    [uid],
   );
 
-  const handleCopy = async (text?: string) => {
+  const [copied, setCopied] = useState<string | null>(null);
+  const handleCopy = async (text: string | undefined | null, key: string) => {
     if (!text) return;
-    if (typeof window === 'undefined' || typeof navigator === 'undefined') {
-      return;
-    }
-    
+    const fallback = () => {
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      textArea.style.position = 'fixed';
+      textArea.style.opacity = '0';
+      textArea.style.left = '-999999px';
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+    };
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
-      await navigator.clipboard.writeText(text);
+        await navigator.clipboard.writeText(text);
       } else {
-        // フォールバック: テキストエリアを使用
-        const textArea = document.createElement('textarea');
-        textArea.value = text;
-        textArea.style.position = 'fixed';
-        textArea.style.opacity = '0';
-        textArea.style.left = '-999999px';
-        if (document.body) {
-          document.body.appendChild(textArea);
-          textArea.select();
-          try {
-            document.execCommand('copy');
-          } catch (err) {
-            console.error('コピーに失敗しました:', err);
-            alert('コピーできませんでした。リンクを手動でコピーしてください。');
-          }
-          document.body.removeChild(textArea);
-        }
+        fallback();
       }
+      setCopied(key);
+      setTimeout(() => setCopied((c) => (c === key ? null : c)), 1600);
     } catch (error) {
       console.error('クリップボードコピー失敗', error);
-      // フォールバックを試行
       try {
-        const textArea = document.createElement('textarea');
-        textArea.value = text;
-        textArea.style.position = 'fixed';
-        textArea.style.opacity = '0';
-        textArea.style.left = '-999999px';
-        if (document.body) {
-          document.body.appendChild(textArea);
-          textArea.select();
-          document.execCommand('copy');
-          document.body.removeChild(textArea);
-        }
+        fallback();
+        setCopied(key);
       } catch (fallbackError) {
         console.error('フォールバックコピーも失敗:', fallbackError);
-      alert('コピーできませんでした');
+        alert('コピーできませんでした');
       }
     }
   };
@@ -824,422 +1005,552 @@ const FileTransferTool: React.FC = () => {
   const uploadDisabledReason = useMemo(() => {
     if (!limits) return '設定情報を読込中です';
     if (!limits.uploadsEnabled) return 'アップロード機能は一時停止中です';
-    if (!uid) return 'ログインが必要です';
+    if (!uid) return '送るにはログイン（無料の会員登録）が必要です';
     return null;
   }, [limits, uid]);
+
+  // --- 帯の「できること」 ---
+  const jump = (el: HTMLElement | null) => el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const pick = (key: FeatureKey, el: HTMLElement | null, loginMsg?: string, msg?: string) => {
+    setActiveFeature(key);
+    jump(el);
+    if (loginMsg && !isLoggedIn) setNotice(loginMsg);
+    else setNotice(msg ?? null);
+  };
+  const features = [
+    {
+      label: '送付状・図面リスト',
+      hint: '図面番号・図面名・版・縮尺・枚数の一覧をファイル名から下書きし、送付状（印刷 / PDF）と送付文を出します',
+      active: activeFeature === 'send',
+      onClick: () => pick('send', sendRef.current, undefined, 'ファイルを選ぶと、ファイル名（例: A-101_平面図_Rev2.pdf）から図面リストを下書きします。送った後は台帳の「送付状」で印刷・PDF 保存できます。'),
+    },
+    {
+      label: `大容量 ${formatMB(effectiveMaxFileMB)}`,
+      hint: '1ファイルの上限。送っている途中で一時停止・再開・中止できます',
+      active: activeFeature === 'large',
+      onClick: () => pick('large', dropRef.current, undefined, `1ファイル ${formatMB(effectiveMaxFileMB)} まで。途中で一時停止・再開・中止ができます。複数ファイルは合計 ${MAX_ZIP_TOTAL_MB}MB まで ZIP にまとめて送ります。`),
+    },
+    {
+      label: '送付台帳',
+      login: true,
+      hint: 'いつ・誰に・何を送り、相手がいつ開いたか',
+      active: activeFeature === 'ledger',
+      onClick: () => pick('ledger', ledgerRef.current, 'ログインすると、送ったファイルごとに 送付先・図面リスト・開封の記録 が台帳に残ります。'),
+    },
+    {
+      label: '合言葉',
+      login: true,
+      hint: 'リンクを開くときに合言葉を求めます（相手には電話など別の手段で伝える）',
+      active: activeFeature === 'password',
+      onClick: () => pick('password', optionsRef.current, 'ログインすると、送るファイルに合言葉を掛けられます。', '送る前にここで合言葉を入れるか、送った後に台帳の各行の「合言葉を掛ける」から設定します。'),
+    },
+    {
+      label: '開封メール',
+      login: true,
+      hint: '相手が初めてダウンロードしたとき、登録メールアドレスに知らせます',
+      active: activeFeature === 'notify',
+      onClick: () => pick('notify', optionsRef.current, 'ログインすると、相手が開いたときにメールで知らせる設定ができます。', '送る前にここで選ぶか、送った後に台帳の各行で切り替えます。'),
+    },
+    {
+      label: '台帳CSV',
+      login: true,
+      hint: '送付台帳を CSV（Excel で開ける）で保存',
+      active: activeFeature === 'csv',
+      onClick: () => {
+        setActiveFeature('csv');
+        if (!isLoggedIn) setNotice('ログインすると、送付台帳を CSV で保存できます。');
+        else if (files.length === 0) {
+          setNotice('まだ送付の記録がありません。送ると台帳に残り、CSV で保存できます。');
+          jump(ledgerRef.current);
+        } else {
+          setNotice(null);
+          downloadLedgerCsv();
+        }
+      },
+    },
+  ];
+
+  const bar = (pct: number) => (
+    <div className="w-full h-px bg-gray-300">
+      <div className="h-px bg-[#141414]" style={{ width: `${Math.min(100, Math.max(0, pct))}%` }} />
+    </div>
+  );
 
   const renderUsage = () => {
     if (!limits) return null;
     return (
-      <div className="bg-gray-50 p-4 border border-[#3b3b3b]">
-        <label className="block text-[12px] font-bold mb-3 text-gray-700 border-b border-gray-200 pb-1">使用量</label>
-        <div className="space-y-4">
-          <div>
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-[11px] text-gray-600">あなたの使用量（今月）</span>
-              <span className="text-[11px] font-mono text-gray-700">
-                {formatBytes(userUsage?.uploadedBytes ?? 0)} / {formatBytes(effectiveMonthlyLimitMB * 1024 * 1024)}
-              </span>
-            </div>
-            <div className="w-full h-2 bg-gray-200 rounded">
-              <div
-                className="h-2 bg-blue-500 rounded"
-                style={{
-                  width: `${Math.min(100, effectiveMonthlyLimitMB ? (currentUsageMB / effectiveMonthlyLimitMB) * 100 : 0)}%`,
-                }}
-              />
-            </div>
-            <p className="mt-1 text-[10px] text-gray-500">
-              ダウンロード帯域: {formatBytes(userUsage?.downloadedBytes ?? 0)}
-            </p>
-            {usageError && <p className="text-[10px] text-red-500 mt-1">{usageError}</p>}
+      <div className="space-y-3">
+        <div>
+          <div className="flex justify-between items-baseline mb-1">
+            <span className="text-[11px] text-gray-600">あなたの使用量（今月）</span>
+            <span className="yy-mono text-[10px] text-gray-600">
+              {formatBytes(userUsage?.uploadedBytes ?? 0)} / {formatBytes(effectiveMonthlyLimitMB * 1024 * 1024)}
+            </span>
           </div>
-          <div>
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-[11px] text-gray-600">サイト全体のダウンロード帯域</span>
-              <span className="text-[11px] font-mono text-gray-700">
-                {formatBytes(siteUsage?.downloadedBytes ?? 0)} / {limits.siteMonthlyDownloadGBCap} GB
-              </span>
-            </div>
-            <div className="w-full h-2 bg-gray-200 rounded">
-              <div
-                className="h-2 bg-purple-500 rounded"
-                style={{
-                  width: `${Math.min(
-                    100,
-                    ((siteUsage?.downloadedBytes ?? 0) / (limits.siteMonthlyDownloadGBCap * 1024 * 1024 * 1024)) * 100,
-                  )}%`,
-                }}
-              />
-            </div>
+          {bar(effectiveMonthlyLimitMB ? (currentUsageMB / effectiveMonthlyLimitMB) * 100 : 0)}
+          <p className={`mt-1 ${monoLabel}`}>DL {formatBytes(userUsage?.downloadedBytes ?? 0)}</p>
+          {usageError && <p className="text-[10px] text-red-600 mt-1">{usageError}</p>}
+        </div>
+        <div>
+          <div className="flex justify-between items-baseline mb-1">
+            <span className="text-[11px] text-gray-600">サイト全体のダウンロード帯域</span>
+            <span className="yy-mono text-[10px] text-gray-600">
+              {formatBytes(siteUsage?.downloadedBytes ?? 0)} / {limits.siteMonthlyDownloadGBCap} GB
+            </span>
           </div>
+          {bar(((siteUsage?.downloadedBytes ?? 0) / (limits.siteMonthlyDownloadGBCap * 1024 * 1024 * 1024)) * 100)}
         </div>
       </div>
     );
   };
 
+  const fieldLabel = 'block mb-1 yy-mono text-[10px] tracking-[0.12em] uppercase text-gray-500';
+  const input = 'w-full px-2 py-1 text-[11px] bg-white';
+
   return (
-    <div className="w-full bg-white rounded-b-lg shadow-sm border-b border-gray-100">
-      <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white shrink-0">
-        <div>
-        <h3 className="text-[13px] font-medium">ファイル転送（共有）</h3>
-        <p className="text-[11px] mt-0.5">ファイルをアップロードすると共有リンクが自動発行。ダウンロード回数制限や有効期限の設定が可能</p>
-        </div>
-      </div>
+    <div className="w-full bg-white border-b border-gray-100">
+      <ToolHeader
+        no="11"
+        code="TRANSMITTAL"
+        title="図面送付"
+        description="図面やデータを相手先へ送る。リンクに送付状（図面番号・版・枚数）を添え、いつ誰に何を送って相手が開いたかを台帳に残します"
+        features={features}
+        aside={<span className="yy-mono text-[9.5px] tracking-[0.14em] uppercase text-[#8c887f]">旧 ファイル転送</span>}
+      />
 
       <div className="p-4">
-        {limitsError && (
-          <div className="mb-4 p-3 rounded bg-red-50 text-red-600 text-xs border border-red-100">
-            {limitsError}
+        {notice && (
+          <div className="mb-4 flex items-start justify-between gap-3 border-l border-[#52AA96] pl-3 py-0.5 text-[11px] text-gray-700">
+            <span>{notice}</span>
+            <button type="button" onClick={() => setNotice(null)} aria-label="閉じる" className="text-gray-400 hover:text-gray-800 shrink-0">
+              <FiX size={12} />
+            </button>
           </div>
         )}
-
+        {limitsError && <p className="mb-4 text-[11px] text-red-600">{limitsError}</p>}
         {limits && (!limits.uploadsEnabled || !limits.sharingEnabled) && (
-          <div className="mb-4 p-3 rounded bg-yellow-50 text-yellow-700 text-xs border border-yellow-200">
+          <p className="mb-4 border-l border-[#3b3b3b] pl-3 text-[11px] text-gray-700">
             {[
               !limits.uploadsEnabled && '現在、アップロード機能は一時停止中です。',
               !limits.sharingEnabled && '現在、共有リンクの新規発行は一時停止中です。',
             ]
               .filter(Boolean)
               .join(' ')}
-          </div>
+          </p>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* --- 左カラム：入力・設定 --- */}
-          <div className="space-y-6">
-            {/* 1. ファイル選択エリア */}
-            <div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* --- 左：送るもの --- */}
+          <div className="space-y-8 min-w-0">
+            {/* 001 ファイル */}
+            <div ref={dropRef} className="scroll-mt-4">
+              <SectionHead no="001" title="ファイル" aside={<span className={monoLabel}>MAX {formatMB(effectiveMaxFileMB)}</span>} />
               <section
-                className={`border-2 border-dashed rounded-lg p-6 text-center transition ${
-                  isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
-                }`}
+                className={`border border-dashed p-6 text-center transition-colors ${isDragging ? 'border-[#52AA96]' : 'border-gray-400 hover:border-[#3b3b3b]'}`}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
               >
-                {compressionProgress !== null || uploadProgress !== null || uploadStatus ? (
-                  // 処理中・アップロード中の表示
-                  <div className="w-full max-w-xs mx-auto">
-                    <div className="animate-bounce mb-4 text-blue-500 text-3xl flex justify-center">
-                      <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                      </svg>
-                    </div>
-                    <p className="text-sm font-bold text-blue-600 mb-2">{uploadStatus || '処理中...'}</p>
+                {busy || uploadStatus ? (
+                  <div className="w-full max-w-sm mx-auto text-left space-y-3">
+                    <p className="text-[11px] text-[#141414]">{uploadStatus || '処理中'}</p>
                     {compressionProgress !== null && (
-                      <div className="mb-2">
-                        <p className="text-[10px] text-gray-600 mb-1">圧縮中: {compressionProgress}%</p>
-                        <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
-                          <div
-                            className="bg-blue-500 h-2.5 rounded-full transition-all duration-300 ease-out"
-                            style={{ width: `${compressionProgress}%` }}
-                          ></div>
-                        </div>
+                      <div>
+                        <p className={`mb-1 ${monoLabel}`}>ZIP {compressionProgress}%</p>
+                        {bar(compressionProgress)}
                       </div>
                     )}
                     {uploadProgress !== null && (
                       <div>
-                        <p className="text-[10px] text-gray-600 mb-1">アップロード中: {uploadProgress}%</p>
-                        <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
-                          <div
-                            className="bg-blue-600 h-2.5 rounded-full transition-all duration-300 ease-out"
-                            style={{ width: `${uploadProgress}%` }}
-                          ></div>
+                        <div className="flex justify-between mb-1">
+                          <span className={monoLabel}>{paused ? 'PAUSED' : 'UPLOAD'} {uploadProgress}%</span>
+                          {uploadBytes && (
+                            <span className={monoLabel}>
+                              {formatBytes(uploadBytes.done)} / {formatBytes(uploadBytes.total)}
+                            </span>
+                          )}
                         </div>
+                        {bar(uploadProgress)}
+                        {uploadProgress < 100 && (
+                          <div className="flex gap-4 mt-2 text-[11px]">
+                            <button type="button" onClick={togglePause} className="inline-flex items-center gap-1 underline underline-offset-2 text-gray-700 hover:text-black">
+                              {paused ? <FiPlay size={12} /> : <FiPause size={12} />}
+                              {paused ? '再開' : '一時停止'}
+                            </button>
+                            <button type="button" onClick={cancelUpload} className="inline-flex items-center gap-1 underline underline-offset-2 text-gray-500 hover:text-red-600">
+                              <FiX size={12} /> 中止
+                            </button>
+                          </div>
+                        )}
                       </div>
+                    )}
+                    {!busy && uploadStatus && (
+                      <button type="button" onClick={() => setUploadStatus(null)} className="text-[11px] underline underline-offset-2 text-gray-600">
+                        {selectedFiles.length ? '選んだファイルに戻る' : '次のファイルを選ぶ'}
+                      </button>
                     )}
                   </div>
                 ) : selectedFiles.length > 0 ? (
-                  <>
-                    <svg className="w-10 h-10 text-green-500 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      {selectedFiles.length === 1 ? (
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      ) : (
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                      )}
-                    </svg>
-
-                    {/* ファイル情報の表示切り替え */}
-                    {selectedFiles.length === 1 ? (
-                      <div>
-                        <p className="text-[12px] font-bold text-gray-700">{selectedFiles[0].name}</p>
-                        <p className="text-[11px] text-gray-500">{formatBytes(selectedFiles[0].size)}</p>
-                      </div>
-                    ) : (
-                      <div>
-                        <p className="text-[12px] font-bold text-gray-700">{selectedFiles.length} 個のファイル</p>
-                        <p className="text-[11px] text-gray-500">
-                          合計: {formatBytes(selectedFiles.reduce((acc, f) => acc + f.size, 0))}
-                          <span className="block text-[10px] text-blue-500 mt-1">※自動的にZIP圧縮されて送信されます</span>
-                        </p>
-                        {/* 必要ならここに簡易リストを表示してもOK */}
-                        <ul className="mt-2 text-[10px] text-gray-400 text-left max-h-20 overflow-y-auto px-4">
-                          {selectedFiles.map((f, i) => <li key={i} className="truncate">• {f.name}</li>)}
-                        </ul>
-                      </div>
-                    )}
-
-                    <div className="flex justify-center items-center gap-4 mt-4">
-                      {/* 1. 削除ボタン */}
-                    <button
-                      type="button"
-                        className="text-[11px] text-red-500 hover:text-red-700 hover:underline"
-                      onClick={resetSelection}
-                    >
-                        添付ファイルの削除
-                    </button>
-
-                      {/* 2. 追加ボタン（inputラベルとして機能させる） */}
-                      <label
-                        htmlFor="file-transfer-input"
-                        className="text-[11px] text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
-                      >
-                        別のファイルを追加
-                      </label>
+                  <div className="text-left">
+                    <div className="flex items-baseline justify-between mb-2">
+                      <span className="text-[11px] font-bold text-[#141414]">
+                        {selectedFiles.length === 1 ? selectedFiles[0].name : `${selectedFiles.length} 個のファイル`}
+                      </span>
+                      <span className="yy-mono text-[10px] text-gray-500">{formatBytes(selectedFiles.reduce((acc, f) => acc + f.size, 0))}</span>
                     </div>
-                  </>
+                    {selectedFiles.length > 1 && (
+                      <>
+                        <p className="text-[10px] text-gray-500 mb-1">1 つの ZIP にまとめて送ります</p>
+                        <ul className="text-[10px] text-gray-500 max-h-24 overflow-y-auto border-t border-gray-200">
+                          {selectedFiles.map((f, i) => (
+                            <li key={i} className="flex justify-between gap-2 py-0.5 border-b border-gray-100">
+                              <span className="truncate">{f.name}</span>
+                              <span className="yy-mono shrink-0">{formatBytes(f.size)}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+                    <div className="flex items-center gap-4 mt-3 text-[11px]">
+                      <label htmlFor="file-transfer-input" className="underline underline-offset-2 text-gray-700 hover:text-black cursor-pointer">
+                        ファイルを足す
+                      </label>
+                      <button type="button" className="underline underline-offset-2 text-gray-500 hover:text-red-600" onClick={resetSelection}>
+                        選び直す
+                      </button>
+                    </div>
+                  </div>
                 ) : (
                   <>
-                    <svg className="w-10 h-10 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    <p className="text-[12px] text-gray-600 mb-2">ファイルをドラッグ＆ドロップ（複数可）</p>
-                    <label
-                      htmlFor="file-transfer-input"
-                      onClick={(e) => {
-                        if (!isLoggedIn) {
-                          alert('入力するには会員登録（無料）が必要です。');
-                          e.preventDefault();
-                        }
-                      }}
-                      className="inline-flex items-center px-4 py-2 rounded bg-gray-200 text-gray-700 text-[11px] hover:bg-gray-300 cursor-pointer"
-                    >
+                    <FiUploadCloud className="mx-auto mb-2 text-gray-400" size={14} />
+                    <p className="text-[11px] text-gray-600 mb-3">ここへドラッグ＆ドロップ（複数可）</p>
+                    <label htmlFor="file-transfer-input" className="yy-btn inline-block cursor-pointer">
                       ファイルを選択
                     </label>
-                    <input
-                      id="file-transfer-input"
-                      type="file"
-                      multiple
-                      className="hidden"
-                      onChange={handleFileInputChange}
-                    />
+                    <p className={`mt-3 ${monoLabel}`}>
+                      1 FILE ≤ {formatMB(effectiveMaxFileMB)} · ZIP ≤ {MAX_ZIP_TOTAL_MB}MB
+                    </p>
                   </>
                 )}
+                <input id="file-transfer-input" type="file" multiple className="hidden" onChange={handleFileInputChange} />
               </section>
             </div>
 
-            {/* 2. 設定エリア */}
-            {retentionOptions.length > 0 && (
-              <div className="bg-gray-50 p-4 border border-[#3b3b3b]">
-                <label className="block text-[12px] font-bold mb-3 text-gray-700 border-b border-gray-200 pb-1">保存期間設定</label>
-                <div className="flex flex-wrap gap-3 text-xs text-gray-600">
-                  {retentionOptions.map(option => (
-                    <label key={option} className="inline-flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="retention"
-                        value={option}
-                        checked={selectedRetentionDays === option}
-                        onChange={() => setSelectedRetentionDays(option)}
-                      />
-                      <span>{option}日間</span>
+            {/* 002 送付状 */}
+            <div ref={sendRef} className="scroll-mt-4">
+              <SectionHead no="002" title="送付状" aside={<span className={monoLabel}>TRANSMITTAL</span>} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label className="block">
+                  <span className={fieldLabel}>宛先</span>
+                  <input type="text" value={draftRecipient} onChange={(e) => setDraftRecipient(e.target.value)} disabled={busy} placeholder="○○建設 田中" className={input} />
+                </label>
+                <label className="block">
+                  <span className={fieldLabel}>差出人</span>
+                  <input type="text" value={sender} onChange={(e) => saveSender(e.target.value)} disabled={busy} placeholder="△△設計事務所 山田" className={input} />
+                </label>
+                <label className="block sm:col-span-2">
+                  <span className={fieldLabel}>件名</span>
+                  <input type="text" value={draftSubject} onChange={(e) => setDraftSubject(e.target.value)} disabled={busy} placeholder="A邸 実施設計図 第2版" className={input} />
+                </label>
+              </div>
+              <div className="mt-3">
+                <span className={fieldLabel}>送付目的</span>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-700">
+                  {TRANSMITTAL_PURPOSES.map((p) => (
+                    <label key={p} className="inline-flex items-center gap-1.5 cursor-pointer">
+                      <input type="radio" name="transmittal-purpose" checked={draftPurpose === p} onChange={() => setDraftPurpose(p)} disabled={busy} />
+                      {p}
                     </label>
                   ))}
                 </div>
               </div>
-            )}
+              <div className="mt-4">
+                <span className={fieldLabel}>図面リスト</span>
+                <DrawingListEditor rows={drawings} onChange={setDrawings} disabled={busy} />
+              </div>
+              <label className="block mt-3">
+                <span className={fieldLabel}>備考</span>
+                <input type="text" value={draftRemarks} onChange={(e) => setDraftRemarks(e.target.value)} disabled={busy} placeholder="前回からの変更: 2階平面の階段位置" className={input} />
+              </label>
+            </div>
 
-            {/* 3. 使用量表示 */}
-            {renderUsage()}
+            {/* 003 受け渡しの設定 */}
+            <div ref={optionsRef} className="scroll-mt-4">
+              <SectionHead no="003" title="受け渡しの設定" />
+              <div className="space-y-3 text-[11px] text-gray-700">
+                {retentionOptions.length > 0 && (
+                  <div>
+                    <span className={fieldLabel}>保存期間</span>
+                    <div className="flex flex-wrap gap-4">
+                      {retentionOptions.map(option => (
+                        <label key={option} className="inline-flex items-center gap-1.5 cursor-pointer">
+                          <input type="radio" name="retention" value={option} checked={selectedRetentionDays === option} onChange={() => setSelectedRetentionDays(option)} disabled={busy} />
+                          <span className="yy-mono">{option}</span>日間
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label className="block">
+                    <span className={fieldLabel}>
+                      <FiLock size={10} className="inline -mt-0.5 mr-1" />
+                      合言葉（任意・4文字以上）
+                    </span>
+                    <input type="text" value={draftPassword} onChange={(e) => setDraftPassword(e.target.value)} disabled={busy || !isLoggedIn} placeholder="空なら掛けない" autoComplete="off" className={`${input} yy-mono`} />
+                  </label>
+                  <label className="flex items-end gap-1.5 cursor-pointer pb-1" title="相手が初めてダウンロードしたとき、登録メールアドレスに知らせます">
+                    <input type="checkbox" checked={draftNotify} onChange={(e) => setDraftNotify(e.target.checked)} disabled={busy || !isLoggedIn} />
+                    <FiMail size={12} className="text-gray-500 mb-0.5" />
+                    開いたらメールで知らせる
+                  </label>
+                </div>
+                {draftPassword.trim() && <p className="text-[10px] text-gray-500">合言葉はリンクと別の手段（電話・別のメール）で相手に伝えてください。</p>}
+              </div>
+            </div>
 
-            {/* 4. アクションボタン */}
-            <button
-              type="button"
-              onClick={runUpload}
-              disabled={Boolean(uploadDisabledReason) || selectedFiles.length === 0 || compressionProgress !== null || uploadProgress !== null}
-              className={`w-full py-3 rounded-lg text-sm font-bold shadow-sm transition-all ${
-                uploadDisabledReason || selectedFiles.length === 0 || compressionProgress !== null || uploadProgress !== null
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md'
-              }`}
-            >
-              {selectedFiles.length > 1 // ファイルが2つ以上なら「圧縮して」をつける
-                ? '圧縮してアップロードを開始する'
-                : 'アップロードを開始する'
-              }
-            </button>
-            {uploadDisabledReason && (
-              <p className="text-[10px] text-center text-gray-500">{uploadDisabledReason}</p>
-            )}
-            {/* アップロード中の表示はファイル選択エリア内に統合済み */}
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => void runUpload()}
+                disabled={Boolean(uploadDisabledReason) || selectedFiles.length === 0 || busy}
+                className="yy-btn yy-btn--primary w-full py-2.5"
+              >
+                {selectedFiles.length > 1 ? 'ZIP にまとめて送付リンクを発行' : '送付リンクを発行'}
+              </button>
+              {uploadDisabledReason && <p className="text-[10px] text-center text-gray-500">{uploadDisabledReason}</p>}
+            </div>
+
+            <div>
+              <SectionHead no="004" title="使用量" />
+              {renderUsage()}
+            </div>
           </div>
 
-          {/* --- 右カラム：結果・出力 --- */}
-          <div className="bg-gray-50 border border-[#3b3b3b] p-4 flex flex-col h-full min-h-[300px]">
-            <label className="block text-[12px] font-bold mb-3 text-gray-700 border-b border-gray-200 pb-1">アップロード済みファイル</label>
+          {/* --- 右：送付台帳 --- */}
+          <div ref={ledgerRef} className="scroll-mt-4 min-w-0 flex flex-col">
+            <SectionHead
+              no="005"
+              title="送付台帳"
+              aside={
+                files.length > 0 ? (
+                  <button type="button" onClick={downloadLedgerCsv} className="inline-flex items-center gap-1 text-[11px] text-gray-600 underline underline-offset-2 hover:text-black">
+                    <FiDownload size={12} /> CSV
+                  </button>
+                ) : (
+                  <span className={monoLabel}>LEDGER</span>
+                )
+              }
+            />
 
-            {filesError && (
-              <div className="mb-3 p-2 text-xs rounded bg-red-50 text-red-600 border border-red-100">
-                {filesError}
-              </div>
-            )}
+            {filesError && <p className="mb-3 text-[11px] text-red-600">{filesError}</p>}
 
-            {files.length > 0 && (
-              <div className="mb-2 flex justify-between items-center">
-                <span className="text-[10px] text-gray-500">送付先・件名を書いておくと、いつ誰に何を渡し、相手が開いたかの台帳になります</span>
-                <button type="button" onClick={downloadLedgerCsv} className="px-2 py-1 text-[10px] border border-[#3b3b3b] bg-white hover:bg-gray-50">
-                  送付台帳を CSV で保存
-                </button>
-              </div>
-            )}
-
-            {files.length === 0 ? (
-              <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
-                <svg className="w-12 h-12 mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <p className="text-[11px]">まだアップロードされたファイルはありません</p>
-              </div>
+            {!isLoggedIn ? (
+              <p className="text-[11px] text-gray-500 py-2 leading-relaxed">
+                ログインすると、送ったファイルごとに 送付先・図面リスト・相手が開いた日時 がここに残り、送付状をいつでも出し直せます。
+              </p>
+            ) : files.length === 0 ? (
+              <p className="text-[11px] text-gray-500 py-2 leading-relaxed">
+                まだ送付の記録はありません。送ると、ここに送付先・図面リスト・開封の記録が残り、各行で合言葉と開封メールを設定できます。{' '}
+                <label htmlFor="file-transfer-input" className="underline underline-offset-2 text-gray-700 hover:text-black cursor-pointer">
+                  ファイルを選ぶ
+                </label>
+              </p>
             ) : (
-              <div className="flex-1 overflow-y-auto">
-                <div className="space-y-3">
-                  {files.map(file => {
-                    const remainingHours = file.expiresAt
-                      ? Math.ceil((file.expiresAt.toDate().getTime() - Date.now()) / (1000 * 60 * 60))
-                      : null;
+              <>
+                <p className="text-[10px] text-gray-500 mb-2">送付先・件名は後からでも書き足せます。相手が開くと日時が入ります。</p>
+                {pwMsg && <p className="mb-2 border-l border-[#52AA96] pl-2 text-[11px] text-gray-700">{pwMsg}</p>}
+                <ol className="border-t border-[#3b3b3b]">
+                  {files.map((file, idx) => {
+                    const remainingHours = file.expiresAt ? Math.ceil((file.expiresAt.toDate().getTime() - Date.now()) / (1000 * 60 * 60)) : null;
                     const isExpired = file.expiresAt ? file.expiresAt.toDate().getTime() < Date.now() : false;
                     const shortLink = buildShortLink(file.shortCode);
+                    const list = file.drawings ?? [];
+                    const isNew = file.id === lastSentId;
+                    const isEditing = editing?.id === file.id;
                     return (
-                      <div key={file.id} className="bg-white p-3 border border-gray-200">
-                        <div className="flex justify-between items-start mb-2">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[12px] font-bold text-gray-800 truncate">{file.fileName}</p>
-                            <p className="text-[11px] text-gray-500">{formatBytes(file.size)}</p>
-                            <p className="text-[10px] text-gray-400 mt-1">
-                              {file.createdAt ? file.createdAt.toDate().toLocaleString() : '-'}
-                            </p>
-                            <div className="grid grid-cols-2 gap-1 mt-1.5">
-                              <input
-                                defaultValue={file.recipient ?? ''}
-                                onBlur={(e) => e.target.value.trim() !== (file.recipient ?? '') && void saveLedgerField(file.id, 'recipient', e.target.value)}
-                                placeholder="送付先（○○建設 田中様）"
-                                className="px-1.5 py-0.5 text-[10px] border border-gray-200"
-                              />
-                              <input
-                                defaultValue={file.note ?? ''}
-                                onBlur={(e) => e.target.value.trim() !== (file.note ?? '') && void saveLedgerField(file.id, 'note', e.target.value)}
-                                placeholder="件名（A邸 実施図 第2版）"
-                                className="px-1.5 py-0.5 text-[10px] border border-gray-200"
-                              />
-                            </div>
-                            <p className={`text-[10px] mt-1 ${file.downloadCount ? 'text-green-700' : 'text-gray-400'}`}>
-                              {file.downloadCount
-                                ? `開封 ${file.downloadCount} 回（初回 ${fmtTime(file.firstDownloadedAt)}・最終 ${fmtTime(file.lastDownloadedAt)}）`
-                                : '未開封'}
-                            </p>
-                            <div className="flex flex-wrap items-center gap-2 mt-1 text-[10px]">
-                              <label className="flex items-center gap-1" title="初めてダウンロードされたとき、登録メールアドレスに知らせます">
-                                <input type="checkbox" checked={!!file.notifyOnOpen} onChange={(e) => void setNotify(file, e.target.checked)} />
-                                開いたらメールで知らせる
-                              </label>
-                              {file.hasPassword ? (
-                                <span className="flex items-center gap-1">
-                                  <span className="px-1 border border-gray-500">合言葉あり</span>
-                                  <button type="button" className="underline text-gray-500" onClick={() => void setFilePassword(file, null)}>外す</button>
-                                </span>
-                              ) : pwFor === file.id ? (
-                                <span className="flex items-center gap-1">
-                                  <input type="text" value={pwText} onChange={(e) => setPwText(e.target.value)} placeholder="合言葉（4文字以上）" className="px-1 py-0.5 border border-gray-300 w-32" autoComplete="off" />
-                                  <button type="button" disabled={pwText.trim().length < 4} onClick={() => void setFilePassword(file, pwText.trim())} className="px-1.5 py-0.5 border border-[#3b3b3b] disabled:opacity-40">掛ける</button>
-                                  <button type="button" onClick={() => { setPwFor(null); setPwText(''); }} className="underline text-gray-500">やめる</button>
-                                </span>
-                              ) : (
-                                <button type="button" className="underline text-gray-600" onClick={() => { setPwFor(file.id); setPwText(''); setPwMsg(''); }}>合言葉を掛ける</button>
-                              )}
-                            </div>
-                            {pwMsg && (pwFor === file.id || pwFor === null) && <p className="text-[10px] text-gray-600 mt-0.5">{pwMsg}</p>}
-                          </div>
+                      <li key={file.id} className={`py-3 border-b border-gray-300 ${isNew ? 'border-l border-l-[#52AA96] pl-3' : ''}`}>
+                        {/* 1 行目: 連番・日時・状態 */}
+                        <div className="flex items-baseline justify-between gap-2">
+                          <span className={monoLabel}>
+                            {String(files.length - idx).padStart(3, '0')} · {fmtTime(file.createdAt) || '—'}
+                            {isNew && <span className="ml-2 text-[#52AA96]">NEW</span>}
+                          </span>
+                          <span className={`yy-mono text-[10px] tracking-[0.08em] ${file.downloadCount ? 'text-[#141414]' : 'text-gray-400'}`}>
+                            {file.downloadCount ? `OPENED ×${file.downloadCount}` : 'UNOPENED'}
+                          </span>
+                        </div>
+                        <div className="flex items-start justify-between gap-2 mt-1">
+                          <p className="text-[12px] font-bold text-[#141414] truncate min-w-0">{file.fileName}</p>
                           <button
                             type="button"
-                            className="px-2 py-1 rounded text-[10px] font-semibold bg-red-500 text-white hover:bg-red-600 disabled:bg-red-200 ml-2"
-                            onClick={() => handleDelete(file)}
+                            className="text-gray-400 hover:text-red-600 disabled:opacity-40 shrink-0 mt-0.5"
+                            onClick={() => void handleDelete(file)}
                             disabled={deleteInFlight === file.id}
+                            aria-label="削除"
+                            title="削除（相手はダウンロードできなくなります）"
                           >
-                            {deleteInFlight === file.id ? '削除中...' : '削除'}
+                            <FiTrash2 size={12} />
                           </button>
                         </div>
-                        <div className="mt-2 pt-2 border-t border-gray-100">
-                          <p className={`text-[10px] mb-1 ${isExpired ? 'text-red-600 font-medium' : 'text-gray-600'}`}>
-                            削除予定: {file.expiresAt
+                        <p className="yy-mono text-[10px] text-gray-500">
+                          {formatBytes(file.size)}
+                          {' · '}
+                          <span className={isExpired ? 'text-red-600' : ''}>
+                            {file.expiresAt
                               ? isExpired
-                                ? '削除済み'
+                                ? 'EXPIRED'
                                 : remainingHours !== null && remainingHours > 0
-                                ? `あと${remainingHours}時間`
-                                : 'まもなく削除予定'
-                              : '-'}
-                          </p>
-                          {shortLink ? (
-                            <div className="flex flex-col space-y-1">
-                              <span className="text-[10px] text-green-600 font-medium">共有リンク生成済み</span>
-                              <div className="flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  className="px-2 py-0.5 border rounded text-[10px] hover:bg-gray-100"
-                                  onClick={() => handleCopy(shortLink)}
-                                >
-                                  コピー
+                                  ? remainingHours > 48
+                                    ? `${Math.ceil(remainingHours / 24)}D LEFT`
+                                    : `${remainingHours}H LEFT`
+                                  : 'EXPIRING'
+                              : '—'}
+                          </span>
+                          {file.downloadCount ? ` · 初回 ${fmtTime(file.firstDownloadedAt)} / 最終 ${fmtTime(file.lastDownloadedAt)}` : ''}
+                        </p>
+
+                        {/* 送付先・件名・目的 */}
+                        <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_88px] gap-1 mt-2">
+                          <input
+                            type="text"
+                            defaultValue={file.recipient ?? ''}
+                            onBlur={(e) => e.target.value.trim() !== (file.recipient ?? '') && void saveLedgerField(file.id, 'recipient', e.target.value)}
+                            placeholder="送付先（○○建設 田中）"
+                            aria-label="送付先"
+                            className="px-1.5 py-0.5 text-[11px] bg-white"
+                          />
+                          <input
+                            type="text"
+                            defaultValue={file.note ?? ''}
+                            onBlur={(e) => e.target.value.trim() !== (file.note ?? '') && void saveLedgerField(file.id, 'note', e.target.value)}
+                            placeholder="件名（A邸 実施図 第2版）"
+                            aria-label="件名"
+                            className="px-1.5 py-0.5 text-[11px] bg-white"
+                          />
+                          <select value={file.purpose ?? ''} onChange={(e) => void saveLedgerField(file.id, 'purpose', e.target.value)} aria-label="送付目的" className="px-1 py-0.5 text-[11px] bg-white">
+                            <option value="">目的 —</option>
+                            {TRANSMITTAL_PURPOSES.map((p) => (
+                              <option key={p} value={p}>
+                                {p}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* 図面リスト */}
+                        <div className="mt-2">
+                          {isEditing && editing ? (
+                            <div className="border-t border-gray-200 pt-2">
+                              <DrawingListEditor rows={editing.rows} onChange={(rows) => setEditing({ id: file.id, rows })} />
+                              <div className="flex gap-2 mt-2">
+                                <button type="button" className="yy-btn yy-btn--primary !py-1 !px-3" onClick={() => void saveDrawings()}>
+                                  保存
                                 </button>
-                                <button
-                                  type="button"
-                                  className="px-2 py-0.5 border rounded text-[10px] hover:bg-gray-100"
-                                  onClick={() => handleCopy(coverText(file, shortLink))}
-                                  title="宛名・件名・リンク・期限を入れたメール本文をコピー"
-                                >
-                                  送付文
+                                <button type="button" className="yy-btn !py-1 !px-3" onClick={() => setEditing(null)}>
+                                  やめる
                                 </button>
-                                <a
-                                  href={shortLink}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="truncate text-blue-600 hover:underline text-[10px]"
-                                >
-                                  {shortLink}
-                                </a>
-                              </div>
-                            </div>
-                          ) : file.downloadUrl ? (
-                            <div className="flex flex-col space-y-1">
-                              <span className="text-[10px] text-yellow-600">短縮リンク生成中...</span>
-                              <div className="flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  className="px-2 py-0.5 border rounded text-[10px] hover:bg-gray-100"
-                                  onClick={() => handleCopy(file.downloadUrl)}
-                                >
-                                  コピー
-                                </button>
-                                <span className="truncate text-gray-600 text-[10px]">{file.downloadUrl}</span>
                               </div>
                             </div>
                           ) : (
-                            <span className="text-[10px] text-gray-500">リンク生成中...</span>
+                            <button
+                              type="button"
+                              onClick={() => setEditing({ id: file.id, rows: fromStored(list) })}
+                              className="text-[11px] text-gray-600 hover:text-black text-left"
+                              title="図面リストを直す"
+                            >
+                              <span className={monoLabel}>DWG</span>{' '}
+                              {list.length ? (
+                                <>
+                                  {list.length} 件 / 計 {totalSheets(list)} 枚
+                                  <span className="text-gray-400">
+                                    {' — '}
+                                    {list
+                                      .slice(0, 3)
+                                      .map((d) => [d.no, d.title].filter(Boolean).join(' '))
+                                      .join('、')}
+                                    {list.length > 3 ? ' ほか' : ''}
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="underline underline-offset-2">図面リストを付ける</span>
+                              )}
+                            </button>
                           )}
                         </div>
-                      </div>
+
+                        {/* 渡す */}
+                        {shortLink ? (
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-[11px]">
+                            <button type="button" onClick={() => printTransmittal(file)} className="inline-flex items-center gap-1 underline underline-offset-2 text-[#141414] hover:text-black" title="送付状を別窓で開く（印刷・PDF に保存）">
+                              <FiPrinter size={12} className="text-gray-500" /> 送付状
+                            </button>
+                            <button type="button" onClick={() => void handleCopy(transmittalText(toTransmittal(file)), `text-${file.id}`)} className="inline-flex items-center gap-1 underline underline-offset-2 text-gray-700 hover:text-black" title="宛名・件名・リンク・期限・図面リストを入れたメール本文をコピー">
+                              <FiCopy size={12} className="text-gray-500" /> {copied === `text-${file.id}` ? 'コピーしました' : '送付文'}
+                            </button>
+                            <button type="button" onClick={() => void handleCopy(shortLink, `link-${file.id}`)} className="inline-flex items-center gap-1 underline underline-offset-2 text-gray-700 hover:text-black">
+                              <FiLink size={12} className="text-gray-500" /> {copied === `link-${file.id}` ? 'コピーしました' : 'リンク'}
+                            </button>
+                            <a href={shortLink} target="_blank" rel="noopener noreferrer" className="yy-mono text-[10px] text-gray-400 hover:text-gray-700 truncate max-w-full">
+                              {shortLink.replace(/^https?:\/\//, '')}
+                            </a>
+                          </div>
+                        ) : file.downloadUrl ? (
+                          <p className={`mt-2 ${monoLabel}`}>リンクを発行中</p>
+                        ) : (
+                          <p className={`mt-2 ${monoLabel}`}>リンク未発行</p>
+                        )}
+
+                        {/* 受け渡しの確認 */}
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-[11px] text-gray-600">
+                          <label className="inline-flex items-center gap-1.5 cursor-pointer" title="初めてダウンロードされたとき、登録メールアドレスに知らせます">
+                            <input type="checkbox" checked={!!file.notifyOnOpen} onChange={(e) => void setNotify(file, e.target.checked)} />
+                            開いたらメール
+                          </label>
+                          {file.hasPassword ? (
+                            <span className="inline-flex items-center gap-1.5">
+                              <FiLock size={12} className="text-gray-500" /> 合言葉あり
+                              <button type="button" className="underline underline-offset-2 text-gray-500" onClick={() => void setFilePassword(file, null)}>
+                                外す
+                              </button>
+                            </span>
+                          ) : pwFor === file.id ? (
+                            <span className="inline-flex items-center gap-1.5">
+                              <input type="text" value={pwText} onChange={(e) => setPwText(e.target.value)} placeholder="合言葉（4文字以上）" className="px-1 py-0.5 w-32 text-[11px] yy-mono bg-white" autoComplete="off" />
+                              <button type="button" disabled={pwText.trim().length < 4} onClick={() => void setFilePassword(file, pwText.trim())} className="yy-btn !py-0.5 !px-2">
+                                掛ける
+                              </button>
+                              <button type="button" onClick={() => { setPwFor(null); setPwText(''); }} className="underline underline-offset-2 text-gray-500">
+                                やめる
+                              </button>
+                            </span>
+                          ) : (
+                            <button type="button" className="inline-flex items-center gap-1 underline underline-offset-2" onClick={() => { setPwFor(file.id); setPwText(''); setPwMsg(''); }}>
+                              <FiLock size={12} className="text-gray-400" /> 合言葉を掛ける
+                            </button>
+                          )}
+                        </div>
+                      </li>
                     );
                   })}
-                </div>
-              </div>
+                </ol>
+              </>
             )}
 
             {/* 運用ルール概要 */}
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <h4 className="text-[11px] font-semibold text-gray-800 mb-2">運用ルール概要</h4>
-              <ul className="list-disc list-inside text-[10px] text-gray-600 space-y-1">
-                <li>1ファイル最大 {effectiveMaxFileMB} MB、月間アップロード上限 {effectiveMonthlyLimitMB} MB</li>
-                <li>保存期間は {retentionOptions[retentionOptions.length - 1] ?? limits?.retentionDays ?? '-'} 日で自動削除</li>
-                <li>帯域上限 ({limits?.siteMonthlyDownloadGBCap ?? '-'} GB/月) に達すると新規リンク発行不可</li>
+            <div className="mt-6 pt-3 border-t border-gray-300">
+              <p className={`mb-1 ${monoLabel}`}>Rules</p>
+              <ul className="text-[10px] text-gray-500 space-y-0.5">
+                <li>1ファイル最大 {formatMB(effectiveMaxFileMB)}、月間アップロード上限 {formatMB(effectiveMonthlyLimitMB)}</li>
+                <li>保存期間を過ぎると自動で削除（最長 {retentionOptions[retentionOptions.length - 1] ?? limits?.retentionDays ?? '-'} 日）</li>
+                <li>サイト全体の帯域上限（{limits?.siteMonthlyDownloadGBCap ?? '-'} GB/月）に達すると新規リンク発行不可</li>
+                <li>
+                  自分の端末どうしで一時的に渡すだけなら{' '}
+                  <button type="button" onClick={() => requestGeneralTool({ toolId: 'temp-storage' })} className="underline underline-offset-2 text-gray-700 hover:text-black">
+                    端末間受け渡し
+                  </button>
+                  （24時間で消える・QR で開く）
+                </li>
               </ul>
             </div>
           </div>
@@ -1250,5 +1561,3 @@ const FileTransferTool: React.FC = () => {
 };
 
 export default FileTransferTool;
-
-

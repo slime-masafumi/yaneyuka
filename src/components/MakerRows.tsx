@@ -2,6 +2,7 @@ import React from 'react';
 import MakerLink from '@/components/MakerLink';
 import makers from '@/data/makers.json';
 import SaveToMakerBox from '@/components/SaveToMakerBox';
+import MakerLinkLogger from '@/components/MakerLinkLogger';
 
 /**
  * 建材メーカーの一覧行。
@@ -17,6 +18,9 @@ import SaveToMakerBox from '@/components/SaveToMakerBox';
  * 「ウチはそっちもやってますよ」と先方から掲載依頼が来ることを狙っている。
  * 網羅されていないのは不備ではないので、確認なしに pages を足さないこと。
  * 掲載依頼が来たときに、その分類を足すのが正規の流れ。
+ *
+ * ログイン中に「お問い合わせ」「カタログ」「サンプル」を押すと、担当者連絡先の
+ * やり取りの履歴に自動で残る（MakerLinkLogger。data-maker-slot で押したリンクを見分ける）。
  */
 
 type Maker = {
@@ -76,15 +80,17 @@ const MakerRows: React.FC<MakerRowsProps> = ({
         >
           {/* Tailwind は文字列連結で作ったクラス名を拾えないので、リテラルで分岐する */}
           <span className={nameWidth === '200px' ? 'w-[200px]' : 'w-[180px]'}>・{m.name}</span>
-          <span className="flex gap-1 flex-wrap">
+          <MakerLinkLogger name={m.name} page={page}>
             {SLOTS.map((slot, si) => (
               <React.Fragment key={slot.key}>
-                <MakerLink url={m[slot.key] as string} label={slot.label} />
+                <span data-maker-slot={slot.key}>
+                  <MakerLink url={m[slot.key] as string} label={slot.label} />
+                </span>
                 {si < SLOTS.length - 1 ? '｜' : null}
               </React.Fragment>
             ))}
             <SaveToMakerBox name={m.name} />
-          </span>
+          </MakerLinkLogger>
         </div>
       ))}
     </>

@@ -6,13 +6,14 @@ import { useAuth } from '@/lib/AuthContext';
 import { db } from '@/lib/firebaseClient';
 import { sanitizeHtml } from '@/lib/sanitize';
 import { collection, addDoc, updateDoc, deleteDoc, deleteField, doc, onSnapshot, writeBatch } from 'firebase/firestore';
-import { 
-  FiPlus, FiTrash2, FiEdit2, FiCheck, FiX, 
-  FiFileText, FiFolder, FiLock, FiUnlock, FiMenu, FiSettings, FiSearch, FiDownload, FiRotateCcw 
+import {
+  FiPlus, FiTrash2, FiEdit2, FiCheck, FiX,
+  FiFileText, FiFolder, FiLock, FiUnlock, FiMenu, FiSettings, FiSearch, FiDownload, FiRotateCcw, FiLink
 } from 'react-icons/fi';
-import { buildElm, fetchLawElement } from '@/lib/egovLaw';
+import { buildElm, fetchLawElement, searchLaws } from '@/lib/egovLaw';
 import { plainToHtml } from '@/lib/lawDiff';
-import { checkHouki, htmlToPlain, summarize, type ArticleCheck, type ArticleSource, type HoukiCheck, type LawLink } from './myRegulations/lawSync';
+import { checkHouki, htmlToPlain, matchLawByName, summarize, type ArticleCheck, type ArticleSource, type HoukiCheck, type LawLink } from './myRegulations/lawSync';
+import { lawNoticesFrom, writeLawNotices } from './myRegulations/lawNotice';
 import { ArticleLawStatus, LawCheckBar, LawLinkPicker, RevisionModal, type RevisionView } from './myRegulations/LawRevisionUi';
 
 // ------------------------------------------
@@ -45,92 +46,92 @@ const FONT_SIZES = [
 ];
 
 // 告示本文（改行保持用）
-const KOKUJI_1436_TEXT = `○火災が発生した場合に避難上支障のある高さまで煙又はガスの降下が生じない建築物の部分を定める件  
-（平成十二年五月三十一日）  （建設省告示第千四百三十六号）  
-改正  平成一三年  二月  一日国土交通省告示第  六七号  同  二七年  一月二九日同            第一八四号  
-（同二七年  三月一八日同            第四〇二号）  
-同  二七年  三月一八日同            第四〇二号  
-同  二七年  三月二七日同            第四四二号  
+const KOKUJI_1436_TEXT = `○火災が発生した場合に避難上支障のある高さまで煙又はガスの降下が生じない建築物の部分を定める件
+（平成十二年五月三十一日）  （建設省告示第千四百三十六号）
+改正  平成一三年  二月  一日国土交通省告示第  六七号  同  二七年  一月二九日同            第一八四号
+（同二七年  三月一八日同            第四〇二号）
+同  二七年  三月一八日同            第四〇二号
+同  二七年  三月二七日同            第四四二号
 
-建築基準法施行令（昭和二十五年政令第三百三十八号）第百二十六条の二第一項第五号 の規定に基づき、火災が発生した場合に避難上支障のある高さまで煙又はガスの降下が生 じない建築物の部分を次のように定める。  
+建築基準法施行令（昭和二十五年政令第三百三十八号）第百二十六条の二第一項第五号 の規定に基づき、火災が発生した場合に避難上支障のある高さまで煙又はガスの降下が生 じない建築物の部分を次のように定める。
 
-火災が発生した場合に避難上支障のある高さまで煙又はガスの降下が生じない建築 物の部分を定める件  
+火災が発生した場合に避難上支障のある高さまで煙又はガスの降下が生じない建築 物の部分を定める件
 
-建築基準法施行令（以下「令」という。）第百二十六条の二第一項第五号に規定する火 災が発生した場合に避難上支障のある高さまで煙又はガスの降下が生じない建築物の部分 は、次に掲げるものとする。  
+建築基準法施行令（以下「令」という。）第百二十六条の二第一項第五号に規定する火 災が発生した場合に避難上支障のある高さまで煙又はガスの降下が生じない建築物の部分 は、次に掲げるものとする。
 
-一  次に掲げる基準に適合する排煙設備を設けた建築物の部分  
+一  次に掲げる基準に適合する排煙設備を設けた建築物の部分
 
-イ  令第百二十六条の三第一項第一号から第三号まで、第七号から第十号まで及び第十二号に定める基準  
+イ  令第百二十六条の三第一項第一号から第三号まで、第七号から第十号まで及び第十二号に定める基準
 
-ロ  当該排煙設備は、一の防煙区画部分（令第百二十六条の三第一項第三号に規定する防煙区画部分をいう。以下同じ。）にのみ設置されるものであること。  
+ロ  当該排煙設備は、一の防煙区画部分（令第百二十六条の三第一項第三号に規定する防煙区画部分をいう。以下同じ。）にのみ設置されるものであること。
 
-ハ  排煙口は、常時開放状態を保持する構造のものであること。  
+ハ  排煙口は、常時開放状態を保持する構造のものであること。
 
-ニ  排煙機を用いた排煙設備にあっては、手動始動装置を設け、当該装置のうち手で操作する部分は、壁に設ける場合においては床面から八十センチメートル以上一・五メートル以下の高さの位置に、天井からつり下げて設ける場合においては床面からおおむね一・八メートルの高さの位置に設け、かつ、見やすい方法でその使用する方法を表示すること。  
+ニ  排煙機を用いた排煙設備にあっては、手動始動装置を設け、当該装置のうち手で操作する部分は、壁に設ける場合においては床面から八十センチメートル以上一・五メートル以下の高さの位置に、天井からつり下げて設ける場合においては床面からおおむね一・八メートルの高さの位置に設け、かつ、見やすい方法でその使用する方法を表示すること。
 
-二  令第百十二条第一項第一号に掲げる建築物の部分（令第百二十六条の二第一項第二号及び第四号に該当するものを除く。）で、次に掲げる基準に適合するもの  
+二  令第百十二条第一項第一号に掲げる建築物の部分（令第百二十六条の二第一項第二号及び第四号に該当するものを除く。）で、次に掲げる基準に適合するもの
 
-イ  令第百二十六条の三第一項第二号から第八号まで及び第十号から第十二号までに掲げる基準  
+イ  令第百二十六条の三第一項第二号から第八号まで及び第十号から第十二号までに掲げる基準
 
-ロ  防煙壁（令第百二十六条の二第一項に規定する防煙壁をいう。以下同じ。）によって区画されていること。  
+ロ  防煙壁（令第百二十六条の二第一項に規定する防煙壁をいう。以下同じ。）によって区画されていること。
 
-ハ  天井（天井のない場合においては、屋根。以下同じ。）の高さが三メートル以上であること。  
+ハ  天井（天井のない場合においては、屋根。以下同じ。）の高さが三メートル以上であること。
 
-ニ  壁及び天井の室内に面する部分の仕上げを準不燃材料でしてあること。  
+ニ  壁及び天井の室内に面する部分の仕上げを準不燃材料でしてあること。
 
-ホ  排煙機を設けた排煙設備にあっては、当該排煙機は、一分間に五百立方メートル 以上で、かつ、防煙区画部分の床面積（二以上の防煙区画部分に係る場合にあって は、それらの床面積の合計）一平方メートルにつき一立方メートル以上の空気を排出する能力を有するものであること。  
+ホ  排煙機を設けた排煙設備にあっては、当該排煙機は、一分間に五百立方メートル 以上で、かつ、防煙区画部分の床面積（二以上の防煙区画部分に係る場合にあって は、それらの床面積の合計）一平方メートルにつき一立方メートル以上の空気を排出する能力を有するものであること。
 
-三  次に掲げる基準に適合する排煙設備を設けた建築物の部分（天井の高さが三メートル以上のものに限る。）  
+三  次に掲げる基準に適合する排煙設備を設けた建築物の部分（天井の高さが三メートル以上のものに限る。）
 
-イ  令第百二十六条の三第一項各号（第三号中排煙口の壁における位置に関する規定を除く。）に掲げる基準  
+イ  令第百二十六条の三第一項各号（第三号中排煙口の壁における位置に関する規定を除く。）に掲げる基準
 
-ロ  排煙口が、床面からの高さが、二・一メートル以上で、かつ、天井（天井のない場合においては、屋根）の高さの二分の一以上の壁の部分に設けられていること。  
+ロ  排煙口が、床面からの高さが、二・一メートル以上で、かつ、天井（天井のない場合においては、屋根）の高さの二分の一以上の壁の部分に設けられていること。
 
-ハ  排煙口が、当該排煙口に係る防煙区画部分に設けられた防煙壁の下端より上方に設けられていること。  
+ハ  排煙口が、当該排煙口に係る防煙区画部分に設けられた防煙壁の下端より上方に設けられていること。
 
-ニ  排煙口が、排煙上、有効な構造のものであること。  
+ニ  排煙口が、排煙上、有効な構造のものであること。
 
-四  次のイからホまでのいずれかに該当する建築物の部分  
+四  次のイからホまでのいずれかに該当する建築物の部分
 
-イ  階数が二以下で、延べ面積が二百平方メートル以下の住宅又は床面積の合計が二百平方メートル以下の長屋の住戸の居室で、当該居室の床面積の二十分の一以上の換気上有効な窓その他の開口部を有するもの  
+イ  階数が二以下で、延べ面積が二百平方メートル以下の住宅又は床面積の合計が二百平方メートル以下の長屋の住戸の居室で、当該居室の床面積の二十分の一以上の換気上有効な窓その他の開口部を有するもの
 
-ロ  避難階又は避難階の直上階で、次に掲げる基準に適合する部分（当該基準に適合 する当該階の部分（以下「適合部分」という。）以外の建築物の部分の全てが令第 百二十六条の二第一項第一号から第三号までのいずれか、前各号に掲げるもののい ずれか若しくはイ及びハからホまでのいずれかに該当する場合又は適合部分と適合 部分以外の建築物の部分とが準耐火構造の床若しくは壁若しくは同条第二項に規定 する防火設備で区画されている場合に限る。）  
+ロ  避難階又は避難階の直上階で、次に掲げる基準に適合する部分（当該基準に適合 する当該階の部分（以下「適合部分」という。）以外の建築物の部分の全てが令第 百二十六条の二第一項第一号から第三号までのいずれか、前各号に掲げるもののい ずれか若しくはイ及びハからホまでのいずれかに該当する場合又は適合部分と適合 部分以外の建築物の部分とが準耐火構造の床若しくは壁若しくは同条第二項に規定 する防火設備で区画されている場合に限る。）
 
-（1）  建築基準法（昭和二十五年法律第二百一号。以下「法」という。）別表第一（い）欄に掲げる用途以外の用途又は児童福祉施設等（令第百十五条の三第一項 第一号に規定する児童福祉施設等をいい、入所する者の使用するものを除く。）、 博物館、美術館若しくは図書館の用途に供するものであること。  
+（1）  建築基準法（昭和二十五年法律第二百一号。以下「法」という。）別表第一（い）欄に掲げる用途以外の用途又は児童福祉施設等（令第百十五条の三第一項 第一号に規定する児童福祉施設等をいい、入所する者の使用するものを除く。）、 博物館、美術館若しくは図書館の用途に供するものであること。
 
-（2）  （1）に規定する用途に供する部分における主たる用途に供する各居室に屋 外への出口等（屋外への出口、バルコニー又は屋外への出口に近接した出口をい う。以下同じ。）（当該各居室の各部分から当該屋外への出口等まで及び当該屋 外への出口等から道までの避難上支障がないものに限る。）その他当該各居室に 存する者が容易に道に避難することができる出口が設けられていること。  
+（2）  （1）に規定する用途に供する部分における主たる用途に供する各居室に屋 外への出口等（屋外への出口、バルコニー又は屋外への出口に近接した出口をい う。以下同じ。）（当該各居室の各部分から当該屋外への出口等まで及び当該屋 外への出口等から道までの避難上支障がないものに限る。）その他当該各居室に 存する者が容易に道に避難することができる出口が設けられていること。
 
-ハ  法第二十七条第三項第二号の危険物の貯蔵場又は処理場、自動車車庫、通信機械 室、繊維工場その他これらに類する建築物の部分で、法令の規定に基づき、不燃性 ガス消火設備又は粉末消火設備を設けたもの  
+ハ  法第二十七条第三項第二号の危険物の貯蔵場又は処理場、自動車車庫、通信機械 室、繊維工場その他これらに類する建築物の部分で、法令の規定に基づき、不燃性 ガス消火設備又は粉末消火設備を設けたもの
 
-ニ  高さ三十一メートル以下の建築物の部分（法別表第一（い）欄に掲げる用途に供 する特殊建築物の主たる用途に供する部分で、地階に存するものを除く。）で、室 （居室を除く。）にあっては（一）又は（二）に、居室にあっては（三）又は（四） に該当するもの  
+ニ  高さ三十一メートル以下の建築物の部分（法別表第一（い）欄に掲げる用途に供 する特殊建築物の主たる用途に供する部分で、地階に存するものを除く。）で、室 （居室を除く。）にあっては（一）又は（二）に、居室にあっては（三）又は（四） に該当するもの
 
-（一）  壁及び天井の室内に面する部分の仕上げを準不燃材料でし、かつ、屋外に 面する開口部以外の開口部のうち、居室又は避難の用に供する部分に面するもの に法第二条第九号の二ロに規定する防火設備で令第百十二条第十四項第一号に規 定する構造であるものを、それ以外のものに戸又は扉を、それぞれ設けたもの  
+（一）  壁及び天井の室内に面する部分の仕上げを準不燃材料でし、かつ、屋外に 面する開口部以外の開口部のうち、居室又は避難の用に供する部分に面するもの に法第二条第九号の二ロに規定する防火設備で令第百十二条第十四項第一号に規 定する構造であるものを、それ以外のものに戸又は扉を、それぞれ設けたもの
 
-（二）  床面積が百平方メートル以下で、令第百二十六条の二第一項に掲げる防煙 壁により区画されたもの  
+（二）  床面積が百平方メートル以下で、令第百二十六条の二第一項に掲げる防煙 壁により区画されたもの
 
-（三）  床面積百平方メートル以内ごとに準耐火構造の床若しくは壁又は法第二条 第九号の二ロに規定する防火設備で令第百十二条第十四項第一号に規定する構造 であるものによって区画され、かつ、壁及び天井の室内に面する部分の仕上げを 準不燃材料でしたもの  
+（三）  床面積百平方メートル以内ごとに準耐火構造の床若しくは壁又は法第二条 第九号の二ロに規定する防火設備で令第百十二条第十四項第一号に規定する構造 であるものによって区画され、かつ、壁及び天井の室内に面する部分の仕上げを 準不燃材料でしたもの
 
-（四）  床面積が百平方メートル以下で、壁及び天井の室内に面する部分の仕上げ を不燃材料でし、かつ、その下地を不燃材料で造ったもの  
+（四）  床面積が百平方メートル以下で、壁及び天井の室内に面する部分の仕上げ を不燃材料でし、かつ、その下地を不燃材料で造ったもの
 
-ホ  高さ三十一メートルを超える建築物の床面積百平方メートル以下の室で、耐火構 造の床若しくは壁又は法第二条第九号の二に規定する防火設備で令第百十二条第十 四項第一号に規定する構造であるもので区画され、かつ、壁及び天井の室内に面す る部分の仕上げを準不燃材料でしたもの  
+ホ  高さ三十一メートルを超える建築物の床面積百平方メートル以下の室で、耐火構 造の床若しくは壁又は法第二条第九号の二に規定する防火設備で令第百十二条第十 四項第一号に規定する構造であるもので区画され、かつ、壁及び天井の室内に面す る部分の仕上げを準不燃材料でしたもの
 
-附  則  
+附  則
 
-1  この告示は、平成十二年六月一日から施行する。  
+1  この告示は、平成十二年六月一日から施行する。
 
-2  昭和四十七年建設省告示第三十号、建設省告示第三十一号、建設省告示第三十二号及び 建設省告示第三十三号は、廃止する。  
+2  昭和四十七年建設省告示第三十号、建設省告示第三十一号、建設省告示第三十二号及び 建設省告示第三十三号は、廃止する。
 
-附  則  （平成二七年一月二九日国土交通省告示第一八四号）  
+附  則  （平成二七年一月二九日国土交通省告示第一八四号）
 
-この告示は、平成二十七年六月一日から施行する。  
+この告示は、平成二十七年六月一日から施行する。
 
-附  則  （平成二七年三月一八日国土交通省告示第四〇二号）  抄  
+附  則  （平成二七年三月一八日国土交通省告示第四〇二号）  抄
 
-（施行期日）  
+（施行期日）
 
-第一条  この告示は、公布の日から施行する。  
+第一条  この告示は、公布の日から施行する。
 
-附  則  （平成二七年三月二七日国土交通省告示第四四二号）  
+附  則  （平成二七年三月二七日国土交通省告示第四四二号）
 
 この告示は、平成二十七年四月一日から施行する。  `;
 const KOKUJI_1399_TEXT = `○耐火構造の構造方法を定める件
@@ -882,6 +883,22 @@ const KOKUJI_1369_TEXT = `○特定防火設備の構造方法を定める件
 附 則 （平成二七年二月二三日国土交通省告示第二五一号）
 
 この告示は、平成二十七年六月一日から施行する。  `;
+/** 右の「良く使う告示」。本文は上の定数。並び順がそのまま一覧の順 */
+const KOKUJI = [
+  { no: '1436', summary: '火災が発生した場合に避難上支障のある高さまで煙又はガスの降下が生じない建築物の部分を定める件', text: KOKUJI_1436_TEXT },
+  { no: '1399', summary: '耐火構造の構造方法を定める件', text: KOKUJI_1399_TEXT },
+  { no: '1358', summary: '準耐火構造の構造方法を定める件', text: KOKUJI_1358_TEXT },
+  { no: '1359', summary: '防火構造の構造方法を定める件', text: KOKUJI_1359_TEXT },
+  { no: '1360', summary: '防火設備の構造方法を定める件', text: KOKUJI_1360_TEXT },
+  { no: '1369', summary: '特定防火設備の構造方法を定める件', text: KOKUJI_1369_TEXT },
+  { no: '1400', summary: '不燃材料を定める件', text: KOKUJI_1400_TEXT },
+  { no: '1401', summary: '準不燃材料を定める件', text: KOKUJI_1401_TEXT },
+  { no: '1402', summary: '難燃材料を定める件', text: KOKUJI_1402_TEXT },
+];
+
+/** 「すべての法規を連携」で一度に探す法規の上限。e-Gov に続けて問い合わせすぎないため */
+const BULK_LINK_MAX = 15;
+
 // 型定義
 interface Article {
   id: string;
@@ -993,14 +1010,14 @@ const ArticleCard = ({
   const formatValue = (val: string, type: 'jo' | 'ko' | 'go') => {
     if (!val) return '';
     const trimmed = val.trim();
-    
+
     // 数字（半角・全角・漢数字）のみかチェック
     if (isNumeric(trimmed)) {
       if (type === 'jo') return `第${trimmed}条`;
       if (type === 'ko') return `${trimmed}項`;
       if (type === 'go') return `${trimmed}号`;
     }
-    
+
     return trimmed;
   };
 
@@ -1055,16 +1072,16 @@ const ArticleCard = ({
     const displayJo = formatForDisplay(article.jo, 'jo');
     const displayKo = formatForDisplay(article.ko, 'ko');
     const displayGo = formatForDisplay(article.go, 'go');
-    
+
     // 連結して表示 (例: 第2条1項3号)
     const displayText = `${displayJo}${displayKo}${displayGo}`;
 
     return (
-      <div id={`art-${article.id}`} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow mb-3 group">
+      <div id={`art-${article.id}`} className="bg-white border-t border-gray-200 first:border-t-0 py-4 group">
         <div className="flex justify-between items-start mb-2">
           <div className="flex gap-2 items-baseline">
             {displayText ? (
-              <span className="font-bold text-gray-800">{displayText}</span>
+              <span className="yy-mono text-[11px] tracking-[0.08em] font-bold text-[#141414]">{displayText}</span>
             ) : (
               <span className="text-xs text-gray-400 italic">（条項未設定）</span>
             )}
@@ -1084,16 +1101,16 @@ const ArticleCard = ({
           </div>
           {!isLocked && (
             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button 
-                onClick={() => setIsEditing(true)} 
-                className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
+              <button
+                onClick={() => setIsEditing(true)}
+                className="p-1.5 text-gray-500 hover:text-[#141414]"
                 title="編集"
               >
                 <FiEdit2 />
               </button>
-              <button 
-                onClick={() => { if(confirm('削除しますか？')) onDelete(article.id) }} 
-                className="p-1.5 text-red-600 hover:bg-red-50 rounded"
+              <button
+                onClick={() => { if(confirm('削除しますか？')) onDelete(article.id) }}
+                className="p-1.5 text-gray-400 hover:text-red-600"
                 title="削除"
               >
                 <FiTrash2 />
@@ -1103,7 +1120,7 @@ const ArticleCard = ({
         </div>
         <ArticleLawStatus check={check} source={article.source} onOpen={onOpenRevision} />
         <div
-          className={`leading-relaxed whitespace-pre-wrap break-words text-gray-700 pl-1 border-l-4 border-gray-100 ${viewSettings.fontSize} ${(() => {
+          className={`leading-relaxed whitespace-pre-wrap break-words text-gray-700 pl-3 border-l border-gray-300 ${viewSettings.fontSize} ${(() => {
             const fontFamily = FONT_FAMILIES.find(f => f.id === viewSettings.fontFamily);
             return fontFamily?.className || '';
           })()}`}
@@ -1119,23 +1136,23 @@ const ArticleCard = ({
 
   // 編集モード
   return (
-    <div className="bg-white border-2 border-blue-400 rounded-lg p-4 shadow-md mb-3">
+    <div className="bg-white border border-[#3b3b3b] p-4 my-3">
       {/* ツールバー */}
       <div className="flex flex-wrap items-center gap-2 mb-4 pb-2 border-b border-gray-100">
         <div className="flex items-center gap-1 border-r pr-2 mr-1">
-          <span className="text-xs font-bold text-gray-400 mr-1">文字:</span>
-          <button onMouseDown={(e) => {e.preventDefault(); applyFormat('bold')}} className="px-2 py-1 text-xs border rounded hover:bg-gray-50 font-bold">B</button>
-          <button onMouseDown={(e) => {e.preventDefault(); applyFormat('foreColor', '#EF4444')}} className="px-2 py-1 text-xs border rounded hover:bg-gray-50 text-red-500 font-bold">赤</button>
-          <button onMouseDown={(e) => {e.preventDefault(); applyFormat('foreColor', '#3B82F6')}} className="px-2 py-1 text-xs border rounded hover:bg-gray-50 text-blue-500 font-bold">青</button>
+          <span className="yy-mono text-[10px] tracking-[0.12em] uppercase text-gray-500 mr-1">文字</span>
+          <button onMouseDown={(e) => {e.preventDefault(); applyFormat('bold')}} className="px-2 py-1 text-xs border border-gray-300 hover:border-[#3b3b3b] font-bold">B</button>
+          <button onMouseDown={(e) => {e.preventDefault(); applyFormat('foreColor', '#EF4444')}} className="px-2 py-1 text-xs border border-gray-300 hover:border-[#3b3b3b] text-red-500 font-bold">赤</button>
+          <button onMouseDown={(e) => {e.preventDefault(); applyFormat('foreColor', '#3B82F6')}} className="px-2 py-1 text-xs border border-gray-300 hover:border-[#3b3b3b] text-blue-500 font-bold">青</button>
         </div>
-        
+
         <div className="flex items-center gap-1">
-          <span className="text-xs font-bold text-gray-400 mr-1">ハイライト:</span>
+          <span className="yy-mono text-[10px] tracking-[0.12em] uppercase text-gray-500 mr-1">ハイライト</span>
           {HIGHLIGHT_COLORS.map((hl) => (
             <button
               key={hl.color}
               onMouseDown={(e) => {e.preventDefault(); applyFormat('hiliteColor', hl.color)}}
-              className={`w-6 h-6 rounded-full border ${hl.border} shadow-sm hover:scale-110 transition-transform`}
+              className={`w-5 h-5 rounded-full border ${hl.border}`}
               style={{ backgroundColor: hl.color }}
               title={hl.label}
             />
@@ -1144,42 +1161,42 @@ const ArticleCard = ({
       </div>
 
       {/* 番号入力エリア - 大型化・自動付与UI */}
-      <div className="flex gap-4 mb-4">
+      <div className="flex gap-2 sm:gap-4 mb-4">
         {/* 条 */}
-        <div className="flex-1 flex items-center border rounded-md bg-gray-50 focus-within:ring-2 ring-blue-500 focus-within:bg-white transition-colors overflow-hidden">
-          <span className="px-3 py-2 text-gray-500 font-bold select-none bg-gray-100 border-r">第</span>
-          <input 
-            type="text" 
-            placeholder="1" 
+        <div className="flex-1 min-w-0 flex items-center border border-gray-300 bg-white focus-within:border-[#3b3b3b] overflow-hidden">
+          <span className="px-3 py-2 text-gray-500 select-none border-r border-gray-200">第</span>
+          <input
+            type="text"
+            placeholder="1"
             value={editJo}
             onChange={(e) => setEditJo(e.target.value)}
-            className="w-full px-3 py-2 text-base outline-none bg-transparent"
+            className="w-full min-w-0 !border-0 px-3 py-2 text-[12px] outline-none bg-transparent"
           />
-          <span className="px-3 py-2 text-gray-500 font-bold select-none bg-gray-100 border-l">条</span>
+          <span className="px-3 py-2 text-gray-500 select-none border-l border-gray-200">条</span>
         </div>
 
         {/* 項 */}
-        <div className="flex-1 flex items-center border rounded-md bg-gray-50 focus-within:ring-2 ring-blue-500 focus-within:bg-white transition-colors overflow-hidden">
-          <input 
-            type="text" 
-            placeholder="1" 
+        <div className="flex-1 min-w-0 flex items-center border border-gray-300 bg-white focus-within:border-[#3b3b3b] overflow-hidden">
+          <input
+            type="text"
+            placeholder="1"
             value={editKo}
             onChange={(e) => setEditKo(e.target.value)}
-            className="w-full px-3 py-2 text-base outline-none bg-transparent text-right pr-1"
+            className="w-full min-w-0 !border-0 px-3 py-2 text-[12px] outline-none bg-transparent text-right pr-1"
           />
-          <span className="px-3 py-2 text-gray-500 font-bold select-none bg-gray-100 border-l">項</span>
+          <span className="px-3 py-2 text-gray-500 select-none border-l border-gray-200">項</span>
         </div>
 
         {/* 号 */}
-        <div className="flex-1 flex items-center border rounded-md bg-gray-50 focus-within:ring-2 ring-blue-500 focus-within:bg-white transition-colors overflow-hidden">
-          <input 
-            type="text" 
-            placeholder="1" 
+        <div className="flex-1 min-w-0 flex items-center border border-gray-300 bg-white focus-within:border-[#3b3b3b] overflow-hidden">
+          <input
+            type="text"
+            placeholder="1"
             value={editGo}
             onChange={(e) => setEditGo(e.target.value)}
-            className="w-full px-3 py-2 text-base outline-none bg-transparent text-right pr-1"
+            className="w-full min-w-0 !border-0 px-3 py-2 text-[12px] outline-none bg-transparent text-right pr-1"
           />
-          <span className="px-3 py-2 text-gray-500 font-bold select-none bg-gray-100 border-l">号</span>
+          <span className="px-3 py-2 text-gray-500 select-none border-l border-gray-200">号</span>
         </div>
       </div>
 
@@ -1193,7 +1210,7 @@ const ArticleCard = ({
           >
             <FiDownload /> {fetching ? '取得中…' : `e-Gov から本文を取得（${law.lawTitle}）`}
           </button>
-          {pendingSource && <span className="text-green-700">取り込みました。「完了」で保存すると改正を追えるようになります</span>}
+          {pendingSource && <span className="text-gray-600"><FiCheck className="inline text-[#52AA96] mr-1" />取り込みました。「完了」で保存すると改正を追えるようになります</span>}
         </div>
       )}
 
@@ -1201,20 +1218,20 @@ const ArticleCard = ({
       <div
         ref={editorRef}
         contentEditable
-        className="w-full min-h-[120px] p-3 text-sm leading-relaxed border rounded focus:outline-none focus:ring-2 focus:ring-blue-100 bg-gray-50 mb-3"
+        className="w-full min-h-[120px] p-3 text-[12px] leading-relaxed border border-gray-300 focus:outline-none focus:border-[#3b3b3b] bg-white mb-3"
       />
 
       {/* アクションボタン */}
       <div className="flex justify-end gap-2">
-        <button 
+        <button
           onClick={handleCancel}
-          className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded"
+          className="yy-btn flex items-center gap-1"
         >
           <FiX /> キャンセル
         </button>
-        <button 
+        <button
           onClick={handleSave}
-          className="flex items-center gap-1 px-3 py-1.5 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded shadow-sm"
+          className="yy-btn yy-btn--primary flex items-center gap-1"
         >
           <FiCheck /> 完了
         </button>
@@ -1225,16 +1242,16 @@ const ArticleCard = ({
 
 const MyRegulations: React.FC = () => {
   const { isLoggedIn, currentUser } = useAuth();
-  
+
   // データState
   const [houkis, setHoukis] = useState<Houki[]>([]);
   const [selectedHoukiId, setSelectedHoukiId] = useState<string | null>(null);
-  
+
   // UI State
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [newHoukiName, setNewHoukiName] = useState('');
   const [showAddHoukiInput, setShowAddHoukiInput] = useState(false);
-  
+
   // ドラッグアンドドロップ用State
   const [draggedHoukiId, setDraggedHoukiId] = useState<string | null>(null);
   const [dragOverHoukiId, setDragOverHoukiId] = useState<string | null>(null);
@@ -1245,6 +1262,19 @@ const MyRegulations: React.FC = () => {
   const [revision, setRevision] = useState<{ houkiId: string; articleId: string; view: RevisionView } | null>(null);
   const houkisRef = useRef<Houki[]>([]);
   houkisRef.current = houkis;
+
+  // 「e-Gov と連携」を外から開くための合図（値が変わるたびに開く）
+  const [linkRequest, setLinkRequest] = useState(0);
+  // すべての法規を連携（1件ずつ順に探す）
+  const [bulk, setBulk] = useState<{ running: boolean; done: number; total: number; linked: number; skipped: string[] } | null>(null);
+  // 見出しの「できること」を押したときの一言（その機能がまだ使えない理由など）
+  const [headNotice, setHeadNotice] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (!headNotice) return;
+    const t = setTimeout(() => setHeadNotice(''), 7000);
+    return () => clearTimeout(t);
+  }, [headNotice]);
 
   // 全文検索
   const [searchQuery, setSearchQuery] = useState('');
@@ -1270,16 +1300,10 @@ const MyRegulations: React.FC = () => {
     localStorage.setItem('regulationViewSettings', JSON.stringify(updated));
   };
 
-  // 告示モーダル State (既存維持)
-  const [showKokuji1436, setShowKokuji1436] = useState(false);
-  const [showKokuji1399, setShowKokuji1399] = useState(false);
-  const [showKokuji1358, setShowKokuji1358] = useState(false);
-  const [showKokuji1359, setShowKokuji1359] = useState(false);
-  const [showKokuji1360, setShowKokuji1360] = useState(false);
-  const [showKokuji1369, setShowKokuji1369] = useState(false);
-  const [showKokuji1400, setShowKokuji1400] = useState(false);
-  const [showKokuji1401, setShowKokuji1401] = useState(false);
-  const [showKokuji1402, setShowKokuji1402] = useState(false);
+  // 告示モーダル（開いている告示の番号）。スマホでは右の一覧が隠れるので、見出しから開けるようにする
+  const [openKokuji, setOpenKokuji] = useState<string | null>(null);
+  const [showKokujiList, setShowKokujiList] = useState(false);
+  const kokujiListRef = useRef<HTMLDivElement>(null);
 
   // 行頭の見出しを左カラム、本文を右カラムに分割して整列
   // 対応: （1）（2）…, イ・ロ・ハ…、第一・第二…, （i）（ii）…
@@ -1357,7 +1381,7 @@ const MyRegulations: React.FC = () => {
         const label = m[1] ?? '';
         const content = m[2] ?? '';
         // 1436の「ホ」の行の下に余白を追加
-        const is1436Ho = text === KOKUJI_1436_TEXT && label === 'ホ' && 
+        const is1436Ho = text === KOKUJI_1436_TEXT && label === 'ホ' &&
           content.includes('高さ三十一メートルを超える建築物');
         return (
           <div key={idx} className="grid" style={{ gridTemplateColumns: '4em 1fr', columnGap: '0.1em' }}>
@@ -1367,7 +1391,7 @@ const MyRegulations: React.FC = () => {
             >
               {label}
             </div>
-            <div 
+            <div
               className="whitespace-pre-wrap break-words"
               style={is1436Ho ? { marginBottom: '1em' } : undefined}
             >
@@ -1383,13 +1407,13 @@ const MyRegulations: React.FC = () => {
         const content = m[2] ?? '';
         passedIntro = true;
         // 1360の「第二 第一に定めるもののほか...」の下に余白
-        const is1360AfterDaiNi = text === KOKUJI_1360_TEXT && label === '第二' && 
+        const is1360AfterDaiNi = text === KOKUJI_1360_TEXT && label === '第二' &&
           content.includes('第一に定めるもののほか');
         // 1369の「第二 第一（第五号及び第六号を除く。）...」の下に余白
-        const is1369AfterDaiNi = text === KOKUJI_1369_TEXT && label === '第二' && 
+        const is1369AfterDaiNi = text === KOKUJI_1369_TEXT && label === '第二' &&
           content.includes('第一（第五号及び第六号を除く。）');
         // 1401の「第二 通常の火災による火熱が加えられた場合に、加熱開始後十分間令第百八条の二第一号及び第二号...」の下に余白
-        const is1401AfterDaiNi = text === KOKUJI_1401_TEXT && label === '第二' && 
+        const is1401AfterDaiNi = text === KOKUJI_1401_TEXT && label === '第二' &&
           content.includes('通常の火災による火熱が加えられた場合に、加熱開始後十分間令第百八条の二第一号及び第二号');
         return (
           <div key={idx} className="grid" style={{ gridTemplateColumns: '4em 1fr', columnGap: '0.1em', marginBottom: (is1360AfterDaiNi || is1369AfterDaiNi || is1401AfterDaiNi) ? '1em' : undefined }}>
@@ -1462,11 +1486,11 @@ const MyRegulations: React.FC = () => {
       // 全告示共通：タイトル行（○で始まる行）を検出（文字を大きく）
       const isTitleLine = trimmedLine && trimmedLine.startsWith('○');
       // 全告示共通：冒頭部分を太字にする（第一が出現するまで）
-      const isIntroLine = !passedIntro && 
+      const isIntroLine = !passedIntro &&
         !inFusoku &&
-        (text === KOKUJI_1436_TEXT || text === KOKUJI_1399_TEXT || text === KOKUJI_1358_TEXT || 
+        (text === KOKUJI_1436_TEXT || text === KOKUJI_1399_TEXT || text === KOKUJI_1358_TEXT ||
          text === KOKUJI_1359_TEXT || text === KOKUJI_1360_TEXT || text === KOKUJI_1369_TEXT ||
-         text === KOKUJI_1400_TEXT || text === KOKUJI_1401_TEXT || text === KOKUJI_1402_TEXT) && 
+         text === KOKUJI_1400_TEXT || text === KOKUJI_1401_TEXT || text === KOKUJI_1402_TEXT) &&
         trimmedLine &&
         !trimmedLine.startsWith('（一）') &&
         !trimmedLine.startsWith('（二）') &&
@@ -1475,40 +1499,40 @@ const MyRegulations: React.FC = () => {
         !isMetaLine &&
         !isTitleLine;
       // 1436の「次に掲げるものとする。」の行の後に余白を追加
-      const is1436BeforeIchi = text === KOKUJI_1436_TEXT && trimmedLine && 
-        trimmedLine.includes('次に掲げるものとする。') && 
+      const is1436BeforeIchi = text === KOKUJI_1436_TEXT && trimmedLine &&
+        trimmedLine.includes('次に掲げるものとする。') &&
         trimmedLine.includes('建築基準法施行令');
       // 1436の「同  二七年  三月二七日同            第四四二号」の行を検出（下に余白を追加）
-      const is1436LastMetaLine = text === KOKUJI_1436_TEXT && trimmedLine && 
-        trimmedLine.includes('同  二七年  三月二七日同') && 
+      const is1436LastMetaLine = text === KOKUJI_1436_TEXT && trimmedLine &&
+        trimmedLine.includes('同  二七年  三月二七日同') &&
         trimmedLine.includes('第四四二号');
       // 1399の「耐火構造の構造方法を定める件」の下に余白
-      const is1399BeforeDai = text === KOKUJI_1399_TEXT && trimmedLine && 
+      const is1399BeforeDai = text === KOKUJI_1399_TEXT && trimmedLine &&
         trimmedLine === '耐火構造の構造方法を定める件';
       // 1399の「四 鉄造」の下に余白
-      const is1399AfterYon = text === KOKUJI_1399_TEXT && trimmedLine && 
+      const is1399AfterYon = text === KOKUJI_1399_TEXT && trimmedLine &&
         trimmedLine === '四 鉄造';
       // 1358の「準耐火構造の構造方法を定める件」の下に余白
-      const is1358BeforeDai = text === KOKUJI_1358_TEXT && trimmedLine && 
+      const is1358BeforeDai = text === KOKUJI_1358_TEXT && trimmedLine &&
         trimmedLine === '準耐火構造の構造方法を定める件';
       // 1359の「防火構造の構造方法を定める件」の下に余白
-      const is1359BeforeDai = text === KOKUJI_1359_TEXT && trimmedLine && 
+      const is1359BeforeDai = text === KOKUJI_1359_TEXT && trimmedLine &&
         trimmedLine === '防火構造の構造方法を定める件';
       // 1360の「防火設備の構造方法を定める件」の下に余白
-      const is1360BeforeDai = text === KOKUJI_1360_TEXT && trimmedLine && 
+      const is1360BeforeDai = text === KOKUJI_1360_TEXT && trimmedLine &&
         trimmedLine === '防火設備の構造方法を定める件';
       // 1369の「特定防火設備の構造方法を定める件」の下に余白
-      const is1369BeforeDai = text === KOKUJI_1369_TEXT && trimmedLine && 
+      const is1369BeforeDai = text === KOKUJI_1369_TEXT && trimmedLine &&
         trimmedLine === '特定防火設備の構造方法を定める件';
       // 1400の「建築基準法施行令（昭和二十五年政令第三百三十八号）第百八条の二各号...」の下に余白
-      const is1400BeforeIchi = text === KOKUJI_1400_TEXT && trimmedLine && 
+      const is1400BeforeIchi = text === KOKUJI_1400_TEXT && trimmedLine &&
         trimmedLine.includes('建築基準法施行令（昭和二十五年政令第三百三十八号）第百八条の二各号') &&
         trimmedLine.includes('に掲げる要件を満たしている建築材料は、次に定めるものとする。');
       // 1401の「準不燃材料を定める件」の下に余白
-      const is1401BeforeDai = text === KOKUJI_1401_TEXT && trimmedLine && 
+      const is1401BeforeDai = text === KOKUJI_1401_TEXT && trimmedLine &&
         trimmedLine === '準不燃材料を定める件';
       // 1402の「難燃材料を定める件」の下に余白
-      const is1402BeforeDai = text === KOKUJI_1402_TEXT && trimmedLine && 
+      const is1402BeforeDai = text === KOKUJI_1402_TEXT && trimmedLine &&
         trimmedLine === '難燃材料を定める件';
       // styleオブジェクトを構築
       const styleObj: React.CSSProperties = {};
@@ -1579,7 +1603,7 @@ const MyRegulations: React.FC = () => {
   // Firestore購読
   useEffect(() => {
     if (!isLoggedIn || !currentUser) { setHoukis([]); return; }
-    
+
     // キャッシュ読み込み
     try {
       const cached = localStorage.getItem(`myRegulations:${currentUser.uid}`);
@@ -1601,8 +1625,8 @@ const MyRegulations: React.FC = () => {
           name: data.name,
           locked: !!data.locked,
           order: typeof data.order === 'number' ? data.order : i,
-          articles: (data.articles || []).map((art: any, idx: number) => ({ 
-            id: art.id || `a-${idx}`, 
+          articles: (data.articles || []).map((art: any, idx: number) => ({
+            id: art.id || `a-${idx}`,
             jo: art.jo || art.number?.split('-')[0] || '', // 旧データ互換
             ko: art.ko || art.number?.split('-')[1] || '',
             go: art.go || art.number?.split('-')[2] || '',
@@ -1616,7 +1640,7 @@ const MyRegulations: React.FC = () => {
       list.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
       setHoukis(list);
       try { localStorage.setItem(`myRegulations:${currentUser.uid}`, JSON.stringify(list)); } catch {}
-      
+
       // 選択中のIDがなければ先頭を選択
       if (list.length > 0 && !selectedHoukiId) {
         setSelectedHoukiId(list[0].id);
@@ -1651,12 +1675,12 @@ const MyRegulations: React.FC = () => {
     if (!currentUser) return;
     const target = houkis.find(h => h.id === id);
     if (!target) return;
-    
+
     const confirmMessage = `「${target.name}」を削除してもよろしいですか？\nこの操作は取り消せません。`;
     if (!window.confirm(confirmMessage)) {
       return;
     }
-    
+
     await deleteDoc(doc(db, 'users', currentUser.uid, 'regulations', id));
     if (selectedHoukiId === id) setSelectedHoukiId(null);
   };
@@ -1685,7 +1709,7 @@ const MyRegulations: React.FC = () => {
   const handleDrop = async (e: React.DragEvent<HTMLDivElement>, targetHoukiId: string) => {
     e.preventDefault();
     setDragOverHoukiId(null);
-    
+
     if (!draggedHoukiId || draggedHoukiId === targetHoukiId) return;
     if (!currentUser) return;
 
@@ -1769,6 +1793,8 @@ const MyRegulations: React.FC = () => {
     try {
       const result = await checkHouki(houki.law, houki.articles);
       setChecks((p) => ({ ...p, [houkiId]: result }));
+      // 改正を見つけたらベルにも出す（My法規を開かない日にも気づけるように）。同じ版では 1 回だけ
+      void writeLawNotices(currentUser.uid, lawNoticesFrom(houki.law, result, houki.articles));
       try { localStorage.setItem(`myRegulations:lastCheck:${currentUser.uid}:${houkiId}`, String(Date.now())); } catch {}
 
       // 初めて照合できた条項・版だけ進んだ条項を記録する（次回から取りに行かずに済む）
@@ -1795,6 +1821,41 @@ const MyRegulations: React.FC = () => {
     });
     // 紐付けたらすぐ照合する（Firestore の反映を待ってから）
     if (law) setTimeout(() => void runCheck(houkiId), 800);
+  };
+
+  /**
+   * まだ連携していない法規を、法規名で e-Gov から探して連携する。
+   * 名前が完全に一致した法令だけを選び、決められないものは手で選んでもらう。
+   * e-Gov に続けて問い合わせすぎないよう、1件ずつ順に、上限 BULK_LINK_MAX 件まで。
+   */
+  const linkAll = async () => {
+    if (!currentUser || bulk?.running) return;
+    const targets = houkisRef.current.filter((h) => !h.law && !h.locked).slice(0, BULK_LINK_MAX);
+    if (!targets.length) return;
+    setBulk({ running: true, done: 0, total: targets.length, linked: 0, skipped: [] });
+    const linkedIds: string[] = [];
+    const skipped: string[] = [];
+    for (const h of targets) {
+      try {
+        const hit = matchLawByName(h.name, await searchLaws(h.name));
+        if (hit) {
+          await updateDoc(doc(db, 'users', currentUser.uid, 'regulations', h.id), {
+            law: { lawId: hit.lawId, lawTitle: hit.title, lawNum: hit.lawNum },
+          });
+          linkedIds.push(h.id);
+        } else {
+          skipped.push(h.name);
+        }
+      } catch {
+        skipped.push(h.name);
+      }
+      setBulk((b) => (b ? { ...b, done: b.done + 1, linked: linkedIds.length, skipped: [...skipped] } : b));
+      await new Promise((r) => setTimeout(r, 300));
+    }
+    setBulk((b) => (b ? { ...b, running: false } : b));
+    // 連携できたものを順に照合して、一覧に印を出す（Firestore の反映を待ってから）
+    await new Promise((r) => setTimeout(r, 800));
+    for (const id of linkedIds) await runCheck(id);
   };
 
   // 開いた法規は、その場で1回照合する
@@ -1878,63 +1939,170 @@ const MyRegulations: React.FC = () => {
   // 選択中の法規データ
   const currentHouki = houkis.find(h => h.id === selectedHoukiId);
 
+  /** 新旧対照を開く先: 開いている法規を優先して、改正で変わった（またはこの先変わる）最初の条文 */
+  const firstRevisionTarget = (): { houkiId: string; articleId: string; view: RevisionView } | null => {
+    const order = currentHouki ? [currentHouki, ...houkis.filter((h) => h.id !== currentHouki.id)] : houkis;
+    for (const h of order) {
+      const hc = checks[h.id];
+      if (!hc) continue;
+      for (const a of h.articles) {
+        const c = hc.articles[a.id];
+        if (!c) continue;
+        if ((c.status === 'changed' || c.status === 'differs') && !c.acked) return { houkiId: h.id, articleId: a.id, view: 'current' };
+        if ('upcoming' in c && c.upcoming) return { houkiId: h.id, articleId: a.id, view: 'upcoming' };
+      }
+    }
+    return null;
+  };
+  const unlinkedCount = houkis.filter((h) => !h.law && !h.locked).length;
+
   return (
     <div className="pt-0 pb-4">
       <div className="w-full h-[calc(100vh-100px)] flex flex-col [&>*:not(:first-child)]:mx-4">
-        
+
         <ToolHeader
+          no="A6"
+          code="REGULATIONS"
           title="My法規"
-          description="よく参照する建築基準法や告示の条文を保存・整理。ハイライトやフォント設定、並び替え、検索に対応"
-          aside={`保存された法規: ${houkis.length}件`}
+          description="よく引く条文を自分の注記付きで手元に置き、e-Gov と照合して改正に気づく"
+          aside={<span className="yy-mono text-[10px] tracking-[0.12em] uppercase">{houkis.length} LAWS</span>}
+          features={[
+            {
+              label: '全文検索',
+              active: !!searchQuery.trim(),
+              onClick: () => {
+                setIsSidebarOpen(true);
+                setTimeout(() => searchInputRef.current?.focus(), 50);
+              },
+            },
+            {
+              label: '改正を追う（e-Gov）',
+              active: !!currentHouki?.law,
+              hint: 'e-Gov 法令検索と連携すると、開いたときと1日1回、改正を照合してベルでお知らせします',
+              onClick: () => {
+                if (!currentHouki) {
+                  setHeadNotice(houkis.length ? '左の一覧から法規を選ぶと、e-Gov と連携できます' : '「新しい法規を作成」で法規を作ると、e-Gov と連携できます');
+                } else if (currentHouki.law) {
+                  void runCheck(currentHouki.id);
+                } else if (currentHouki.locked) {
+                  setHeadNotice('ロック中の法規は連携を変えられません。ロックを外してから連携してください');
+                } else {
+                  setLinkRequest((n) => n + 1);
+                }
+              },
+            },
+            {
+              label: '新旧対照',
+              hint: '改正で変わった条文を、旧と新で並べて比べます',
+              onClick: () => {
+                const found = firstRevisionTarget();
+                if (found) setRevision(found);
+                else setHeadNotice('いま改正で変わった条文はありません。e-Gov と連携した法規で改正が見つかると、条文の上の「新旧を比較」から開けます');
+              },
+            },
+            {
+              label: 'ハイライト引継ぎ',
+              hint: '新しい条文に更新するとき、自分で付けた太字・色・ハイライトを同じ字句に移します',
+              onClick: () => {
+                const found = firstRevisionTarget();
+                if (found) setRevision(found);
+                else setHeadNotice('条文を新しい版に更新するとき（新旧対照の画面の「新しい条文に更新」）に、付けたハイライトを同じ字句へ引き継ぎます');
+              },
+            },
+            {
+              label: 'よく使う告示',
+              active: showKokujiList,
+              onClick: () => {
+                setShowKokujiList(true);
+                setTimeout(() => kokujiListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+              },
+            },
+          ]}
         />
-        <div className="flex items-baseline gap-2 mt-2 mb-2 flex-shrink-0">
-          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="lg:hidden p-2 bg-gray-100 rounded">
+        {headNotice && (
+          <p className="text-[11px] text-gray-600 py-1.5 border-b border-gray-200 flex-shrink-0">
+            {headNotice}
+            <button type="button" onClick={() => setHeadNotice('')} className="ml-2 underline text-gray-500">閉じる</button>
+          </p>
+        )}
+        <div className="flex items-center gap-2 mt-2 mb-2 flex-shrink-0 lg:hidden">
+          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-1.5 border border-gray-300 text-gray-600" aria-label="法規の一覧を開閉">
             <FiMenu />
           </button>
         </div>
 
         {/* Main Card */}
-        <div className="bg-white border border-[#3b3b3b] overflow-hidden flex flex-col md:flex-row flex-1">
+        <div className="bg-white border border-[#3b3b3b] overflow-hidden flex flex-col md:flex-row flex-1 min-h-0">
         {/* 左サイドバー */}
-        <div className={`${isSidebarOpen ? 'w-64' : 'w-0'} bg-white border-r border-[#3b3b3b] transition-all duration-300 flex flex-col shrink-0 overflow-hidden`}>
+        <div className={`${isSidebarOpen ? 'w-full md:w-64 max-h-[40vh] md:max-h-none' : 'w-0 h-0 md:h-auto'} bg-white md:border-r border-b md:border-b-0 border-gray-200 transition-all duration-300 flex flex-col shrink-0 overflow-hidden`}>
           {/* 左上エリア：高さ統一 (h-[60px]) */}
-          <div className="h-[60px] px-3 flex items-center border-b bg-gray-50 shrink-0">
+          <div className="h-[60px] px-3 flex items-center border-b border-gray-200 shrink-0">
             {!showAddHoukiInput ? (
-              <button onClick={() => setShowAddHoukiInput(true)} className="w-full py-2 bg-[#1dad95] text-white rounded text-sm font-medium hover:bg-[#0f6b5a] flex items-center justify-center gap-2">
+              <button onClick={() => setShowAddHoukiInput(true)} className="yy-btn yy-btn--primary w-full flex items-center justify-center gap-2">
                 <FiPlus /> 新しい法規を作成
               </button>
             ) : (
               <div className="w-full space-y-1">
-                <input type="text" placeholder="法規名..." className="w-full px-2 py-1 text-xs border rounded" value={newHoukiName} onChange={e => setNewHoukiName(e.target.value)} autoFocus />
+                <input type="text" placeholder="法規名（例: 建築基準法施行令）" className="w-full px-2 py-1 text-xs border" value={newHoukiName} onChange={e => setNewHoukiName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) void createNewHouki(); }} autoFocus />
                 <div className="flex gap-1">
-                  <button onClick={createNewHouki} className="flex-1 bg-[#1dad95] text-white text-[10px] py-1 rounded hover:bg-[#0f6b5a]">作成</button>
-                  <button onClick={() => setShowAddHoukiInput(false)} className="flex-1 bg-gray-200 text-gray-700 text-[10px] py-1 rounded">取消</button>
+                  <button onClick={createNewHouki} className="yy-btn yy-btn--primary flex-1 !py-1 !text-[10px]">作成</button>
+                  <button onClick={() => setShowAddHoukiInput(false)} className="yy-btn flex-1 !py-1 !text-[10px]">取消</button>
                 </div>
               </div>
             )}
           </div>
-          
+
           <div className="px-2 pt-2 shrink-0">
-            <label className="flex items-center gap-1 border px-2 py-1 bg-white">
+            <label className="flex items-center gap-1 border border-gray-300 focus-within:border-[#3b3b3b] px-2 py-1 bg-white">
               <FiSearch className="text-gray-400 shrink-0" />
               <input
+                ref={searchInputRef}
                 type="search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="条文を検索（全法規）"
-                className="w-full text-xs outline-none border-0 p-0"
+                className="w-full text-xs outline-none !border-0 p-0"
               />
             </label>
+            {/* 連携していない法規が残っていれば、まとめて連携の入口を 1 行だけ出す */}
+            {(unlinkedCount > 0 || bulk) && (
+              <div className="mt-2 text-[11px] text-gray-500 leading-relaxed">
+                {bulk?.running ? (
+                  <span className="yy-mono text-[10px] tracking-[0.12em] uppercase">e-Gov 照会中 {bulk.done}/{bulk.total}</span>
+                ) : bulk ? (
+                  <span>
+                    {bulk.linked}件を連携しました。
+                    {bulk.skipped.length > 0 && (
+                      <span title={bulk.skipped.join('、')}> {bulk.skipped.length}件は名前で決められないため、各法規の「e-Gov と連携」から選んでください。</span>
+                    )}
+                    <button type="button" onClick={() => setBulk(null)} className="ml-1 underline">閉じる</button>
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1">
+                    <FiLink className="text-gray-400 shrink-0" />
+                    未連携 <span className="yy-mono">{unlinkedCount}</span>
+                    <button
+                      type="button"
+                      onClick={() => void linkAll()}
+                      title={`法規名で e-Gov を探し、名前が一致する法令と連携します（${BULK_LINK_MAX}件まで）`}
+                      className="ml-auto underline text-gray-700 hover:text-black"
+                    >
+                      すべての法規を連携
+                    </button>
+                  </span>
+                )}
+              </div>
+            )}
           </div>
           <div className="flex-1 overflow-y-auto p-2 space-y-1">
             {houkis.map((h, index) => {
               const isDragging = draggedHoukiId === h.id;
               const isOver = dragOverHoukiId === h.id;
-              
+
               // 挿入位置（バー）の表示判定
               let showTopBar = false;
               let showBottomBar = false;
-              
+
               if (isOver && draggedHoukiId) {
                 const dragIndex = houkis.findIndex(ho => ho.id === draggedHoukiId);
                 if (dragIndex !== -1 && dragIndex !== index) {
@@ -1942,26 +2110,27 @@ const MyRegulations: React.FC = () => {
                   if (dragIndex < index) showBottomBar = true; // 下に移動中 -> 下にバー
                 }
               }
-              
+
               return (
                 <div key={h.id}>
                   {showTopBar && (
-                    <div className="h-1.5 w-full bg-[#1dad95] rounded-full my-1 animate-pulse" />
+                    <div className="h-px w-full bg-[#52AA96] my-1" />
                   )}
-                  <div 
+                  <div
                     draggable
                     onDragStart={(e) => handleDragStart(e, h)}
                     onDragOver={(e) => handleDragOver(e, h.id)}
                     onDragEnd={handleDragEnd}
                     onDrop={(e) => handleDrop(e, h.id)}
                     onClick={() => setSelectedHoukiId(h.id)}
-                    className={`group flex justify-between items-center px-3 py-2 rounded cursor-pointer text-sm transition-all ${
-                      selectedHoukiId === h.id ? 'bg-[#1dad95]/10 text-[#1dad95] font-bold' : 'text-gray-700 hover:bg-gray-100'
+                    className={`group flex justify-between items-center px-3 py-1.5 cursor-pointer text-[12px] border-l ${
+                      selectedHoukiId === h.id ? 'border-[#52AA96] text-[#141414] font-bold bg-gray-50' : 'border-transparent text-gray-700 hover:bg-gray-50'
                     } ${isDragging ? 'opacity-40' : ''}`}
                   >
                     <div className="flex items-center gap-2 truncate">
                       <span className="truncate">{h.name}</span>
-                      {h.locked && <FiLock className="text-xs text-yellow-500" />}
+                      {h.locked && <FiLock className="text-[11px] text-gray-400 shrink-0" />}
+                      {h.law && <span title={`e-Gov 連携中: ${h.law.lawTitle}`}><FiLink className="text-[11px] text-gray-300 shrink-0" /></span>}
                       {(() => {
                         const mark = summarize(checks[h.id]);
                         if (mark === 'changed') return <span title="改正で変わった条文があります" className="w-2 h-2 rounded-full bg-red-500 shrink-0" />;
@@ -1970,7 +2139,7 @@ const MyRegulations: React.FC = () => {
                       })()}
                     </div>
                     {!h.locked && selectedHoukiId === h.id && (
-                      <button 
+                      <button
                         onClick={(e) => {e.stopPropagation(); deleteHouki(h.id)}}
                         className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 p-1"
                       >
@@ -1979,7 +2148,7 @@ const MyRegulations: React.FC = () => {
                     )}
                   </div>
                   {showBottomBar && (
-                    <div className="h-1.5 w-full bg-[#1dad95] rounded-full my-1 animate-pulse" />
+                    <div className="h-px w-full bg-[#52AA96] my-1" />
                   )}
                 </div>
               );
@@ -1991,12 +2160,12 @@ const MyRegulations: React.FC = () => {
         <div className="flex-1 flex flex-col min-w-0">
           {searchResults ? (
             <div className="flex-1 flex flex-col min-h-0">
-              <div className="h-[60px] px-6 flex items-center justify-between border-b bg-white shrink-0">
-                <h3 className="font-bold text-gray-800">「{searchQuery.trim()}」の検索結果 {searchResults.hits.length}件</h3>
+              <div className="h-[60px] px-4 sm:px-6 flex items-center justify-between border-b border-gray-200 bg-white shrink-0">
+                <h3 className="text-[12px] font-bold text-gray-800">「{searchQuery.trim()}」の検索結果 <span className="yy-mono font-light">{searchResults.hits.length}</span>件</h3>
                 <button type="button" onClick={() => setSearchQuery('')} className="text-xs underline text-gray-500">検索をやめる</button>
               </div>
-              <div className="flex-1 overflow-y-auto p-4 space-y-2">
-                {searchResults.hits.length === 0 && <p className="text-sm text-gray-500">見つかりません。</p>}
+              <div className="flex-1 overflow-y-auto px-4 py-2">
+                {searchResults.hits.length === 0 && <p className="text-[12px] text-gray-500 py-2">見つかりません。</p>}
                 {searchResults.hits.map(({ houki, article, plain, at }) => {
                   const from = Math.max(0, at - 30);
                   const snippet = (from > 0 ? '…' : '') + plain.slice(from, from + 140).replace(/\n/g, ' ') + (plain.length > from + 140 ? '…' : '');
@@ -2006,10 +2175,10 @@ const MyRegulations: React.FC = () => {
                       key={houki.id + article.id}
                       type="button"
                       onClick={() => jumpToArticle(houki.id, article.id)}
-                      className="block w-full text-left border p-3 hover:bg-gray-50"
+                      className="block w-full text-left border-b border-gray-200 p-3 hover:bg-gray-50"
                     >
-                      <span className="text-xs text-gray-500">{houki.name}</span>
-                      <span className="ml-2 text-sm font-bold text-gray-800">{article.jo}{article.ko}{article.go}</span>
+                      <span className="text-[11px] text-gray-500">{houki.name}</span>
+                      <span className="ml-2 yy-mono text-[11px] font-bold text-gray-800">{article.jo}{article.ko}{article.go}</span>
                       <span className="block text-xs text-gray-700 mt-1 leading-relaxed">
                         {parts.map((p, i) => (searchResults.terms.includes(p) ? <mark key={i} className="bg-yellow-200">{p}</mark> : <span key={i}>{p}</span>))}
                       </span>
@@ -2021,14 +2190,14 @@ const MyRegulations: React.FC = () => {
           ) : currentHouki ? (
             <>
               {/* 中央上部エリア：高さ統一 (h-[60px]) + 設定UI */}
-              <div className="h-[60px] px-6 flex items-center justify-between border-b bg-white shrink-0">
-                <h3 className="font-bold text-lg text-gray-800 truncate mr-4">{currentHouki.name}</h3>
-                
-                <div className="flex items-center gap-3">
+              <div className="min-h-[60px] px-4 sm:px-6 py-2 flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 bg-white shrink-0">
+                <h3 className="text-[12px] font-bold text-[#141414] truncate mr-4">{currentHouki.name}</h3>
+
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                   {/* 表示設定ツールバー */}
-                  <div className="flex items-center gap-2 bg-gray-50 px-2 py-1 rounded border border-gray-200">
+                  <div className="flex items-center gap-2 px-2 py-1 border border-gray-200">
                     <FiSettings className="text-gray-400 text-sm" />
-                    <select 
+                    <select
                       value={viewSettings.fontFamily}
                       onChange={(e) => updateViewSettings({ fontFamily: e.target.value })}
                       className="text-xs bg-transparent border-none outline-none text-gray-700 cursor-pointer"
@@ -2036,7 +2205,7 @@ const MyRegulations: React.FC = () => {
                       {FONT_FAMILIES.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                     </select>
                     <div className="w-px h-3 bg-gray-300"></div>
-                    <select 
+                    <select
                       value={viewSettings.fontSize}
                       onChange={(e) => updateViewSettings({ fontSize: e.target.value })}
                       className="text-xs bg-transparent border-none outline-none text-gray-700 cursor-pointer"
@@ -2050,14 +2219,25 @@ const MyRegulations: React.FC = () => {
                     link={currentHouki.law}
                     disabled={currentHouki.locked}
                     onLink={(law) => void linkLaw(currentHouki.id, law)}
+                    openRequest={linkRequest}
                   />
 
                   {/* ロックボタン */}
-                  <button onClick={() => toggleLock(currentHouki)} className={`flex items-center gap-1 px-3 py-1.5 rounded text-xs whitespace-nowrap ${currentHouki.locked ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                  <button onClick={() => toggleLock(currentHouki)} className={`flex items-center gap-1 px-3 py-1.5 text-[11px] whitespace-nowrap border ${currentHouki.locked ? 'border-[#3b3b3b] text-[#141414] font-bold' : 'border-gray-300 text-gray-600 hover:border-[#3b3b3b]'}`}>
                     {currentHouki.locked ? <><FiLock /> ロック中</> : <><FiUnlock /> ロック解除中</>}
                   </button>
                 </div>
               </div>
+
+              {!currentHouki.law && !currentHouki.locked && (
+                <p className="px-4 sm:px-6 py-1.5 border-b border-gray-200 text-[11px] text-gray-500 flex flex-wrap items-center gap-x-2 shrink-0">
+                  <FiLink className="text-gray-400" />
+                  e-Gov と連携すると改正を自動で追えます
+                  <button type="button" onClick={() => setLinkRequest((n) => n + 1)} className="underline text-gray-700 hover:text-black">
+                    連携する
+                  </button>
+                </p>
+              )}
 
               {currentHouki.law && (
                 <LawCheckBar
@@ -2069,19 +2249,19 @@ const MyRegulations: React.FC = () => {
               )}
 
               {/* 記事リスト */}
-              <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+              <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-2">
                 <div className="w-full">
                   {currentHouki.articles.length === 0 ? (
-                    <div className="text-center text-gray-400 py-10">
-                      <FiFileText className="mx-auto text-4xl mb-2 opacity-30" />
-                      <p>法文がまだありません</p>
-                      <button onClick={addArticle} className="mt-4 text-blue-600 underline">法文を追加する</button>
-                    </div>
+                    <p className="text-[12px] text-gray-500 py-6">
+                      <FiFileText className="inline mr-1 text-gray-400" />
+                      法文がまだありません。
+                      {!currentHouki.locked && <button onClick={addArticle} className="ml-1 underline text-gray-700 hover:text-black">法文を追加する</button>}
+                    </p>
                   ) : (
                     currentHouki.articles.map((article) => (
-                      <ArticleCard 
-                        key={article.id} 
-                        article={article} 
+                      <ArticleCard
+                        key={article.id}
+                        article={article}
                         isLocked={currentHouki.locked}
                         viewSettings={viewSettings} // 設定を渡す
                         onSave={(id, data) => updateArticleData(currentHouki.id, id, data)}
@@ -2092,11 +2272,11 @@ const MyRegulations: React.FC = () => {
                       />
                     ))
                   )}
-                  
+
                   {!currentHouki.locked && (
-                    <button 
+                    <button
                       onClick={addArticle}
-                      className="w-full py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-blue-400 hover:text-blue-500 hover:bg-blue-50 transition-colors flex items-center justify-center gap-2 mt-4"
+                      className="w-full py-2.5 border-t border-dashed border-gray-300 text-[11px] text-gray-500 hover:text-[#141414] hover:border-[#3b3b3b] flex items-center justify-center gap-2 mt-2"
                     >
                       <FiPlus /> 条項を追加
                     </button>
@@ -2105,74 +2285,37 @@ const MyRegulations: React.FC = () => {
               </div>
             </>
           ) : (
-            <div className="flex-1 flex items-center justify-center text-gray-400">
-              左側から法規を選択するか、新しく作成してください
+            <div className="flex-1 flex items-center justify-center text-[12px] text-gray-500 p-6">
+              左の一覧から法規を選ぶか、
+              <button type="button" onClick={() => { setIsSidebarOpen(true); setShowAddHoukiInput(true); }} className="ml-1 underline text-gray-700 hover:text-black">新しく作成</button>
+              してください
             </div>
           )}
         </div>
 
-        {/* 右サイドバー */}
-        <div className="hidden lg:block w-64 bg-white border-l shrink-0 flex flex-col">
-          {/* 右上エリア：高さ統一 (h-[60px]) */}
-          <div className="h-[60px] px-3 flex items-center border-b bg-[#3b3b3b] text-white shrink-0">
-            <p className="text-xs font-semibold">良く使う告示</p>
+        {/* 右サイドバー（スマホでは見出しの「よく使う告示」から開く） */}
+        <div ref={kokujiListRef} className={`${showKokujiList ? 'block' : 'hidden'} lg:block md:w-64 bg-white border-t md:border-t-0 md:border-l border-gray-200 shrink-0 flex flex-col`}>
+          <div className="h-[44px] lg:h-[60px] px-3 flex items-center justify-between border-b border-gray-200 shrink-0">
+            <p className="yy-mono text-[10px] tracking-[0.12em] uppercase text-gray-500">良く使う告示</p>
+            {showKokujiList && (
+              <button type="button" onClick={() => setShowKokujiList(false)} className="lg:hidden text-gray-400 hover:text-gray-700" aria-label="閉じる">
+                <FiX />
+              </button>
+            )}
           </div>
           <div className="p-3 overflow-y-auto flex-1">
             <ul className="text-xs space-y-3">
-              <li>
-                <button onClick={() => setShowKokuji1436(true)} className="text-blue-600 hover:underline text-left w-full">
-                  建設省告示第1436号
-                </button>
-                <p className="text-[10px] text-gray-500 mt-0.5">火災が発生した場合に避難上支障のある高さまで煙又はガスの降下が生じない建築物の部分を定める件</p>
-              </li>
-              <li>
-                <button onClick={() => setShowKokuji1399(true)} className="text-blue-600 hover:underline text-left w-full">
-                  建設省告示第1399号
-                </button>
-                <p className="text-[10px] text-gray-500 mt-0.5">耐火構造の構造方法を定める件</p>
-              </li>
-              <li>
-                <button onClick={() => setShowKokuji1358(true)} className="text-blue-600 hover:underline text-left w-full">
-                  建設省告示第1358号
-                </button>
-                <p className="text-[10px] text-gray-500 mt-0.5">準耐火構造の構造方法を定める件</p>
-              </li>
-              <li>
-                <button onClick={() => setShowKokuji1359(true)} className="text-blue-600 hover:underline text-left w-full">
-                  建設省告示第1359号
-                </button>
-                <p className="text-[10px] text-gray-500 mt-0.5">防火構造の構造方法を定める件</p>
-              </li>
-              <li>
-                <button onClick={() => setShowKokuji1360(true)} className="text-blue-600 hover:underline text-left w-full">
-                  建設省告示第1360号
-                </button>
-                <p className="text-[10px] text-gray-500 mt-0.5">防火設備の構造方法を定める件</p>
-              </li>
-              <li>
-                <button onClick={() => setShowKokuji1369(true)} className="text-blue-600 hover:underline text-left w-full">
-                  建設省告示第1369号
-                </button>
-                <p className="text-[10px] text-gray-500 mt-0.5">特定防火設備の構造方法を定める件</p>
-              </li>
-              <li>
-                <button onClick={() => setShowKokuji1400(true)} className="text-blue-600 hover:underline text-left w-full">
-                  建設省告示第1400号
-                </button>
-                <p className="text-[10px] text-gray-500 mt-0.5">不燃材料を定める件</p>
-              </li>
-              <li>
-                <button onClick={() => setShowKokuji1401(true)} className="text-blue-600 hover:underline text-left w-full">
-                  建設省告示第1401号
-                </button>
-                <p className="text-[10px] text-gray-500 mt-0.5">準不燃材料を定める件</p>
-              </li>
-              <li>
-                <button onClick={() => setShowKokuji1402(true)} className="text-blue-600 hover:underline text-left w-full">
-                  建設省告示第1402号
-                </button>
-                <p className="text-[10px] text-gray-500 mt-0.5">難燃材料を定める件</p>
-              </li>
+              {KOKUJI.map((k, i) => (
+                <li key={k.no} className="flex gap-2">
+                  <span className="yy-mono text-[10px] text-gray-400 pt-px">{String(i + 1).padStart(3, '0')}</span>
+                  <span className="min-w-0">
+                    <button onClick={() => setOpenKokuji(k.no)} className="text-[#141414] underline decoration-gray-300 hover:decoration-[#141414] text-left w-full">
+                      建設省告示第{k.no}号
+                    </button>
+                    <span className="block text-[10px] text-gray-500 mt-0.5">{k.summary}</span>
+                  </span>
+                </li>
+              ))}
             </ul>
           </div>
         </div>
@@ -2204,257 +2347,36 @@ const MyRegulations: React.FC = () => {
         );
       })()}
 
-      {/* 告示モーダル群 (元のコンポーネントを流用) */}
-        {showKokuji1436 && (
+      {/* 告示モーダル */}
+      {openKokuji && (() => {
+        const k = KOKUJI.find((x) => x.no === openKokuji);
+        if (!k) return null;
+        return (
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-start justify-center p-4"
-            style={{ paddingTop: '200px' }}
-            onClick={() => setShowKokuji1436(false)}
+            className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4 pt-[80px] sm:pt-[200px]"
+            onClick={() => setOpenKokuji(null)}
           >
             <div
-              className="bg-white w-full overflow-hidden overflow-y-auto"
+              className="bg-white w-full overflow-hidden overflow-y-auto border border-[#3b3b3b]"
               style={{ maxWidth: 'min(1000px, 95vw)', maxHeight: 'calc(100vh - 220px)' }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="bg-white border-b p-4 flex justify-between items-center sticky top-0 bg-opacity-100 z-10">
-                <h3 className="text-base font-semibold">建設省告示第1436号</h3>
-                <button
-                  onClick={() => setShowKokuji1436(false)}
-                  className="text-gray-500 hover:text-gray-700 text-xl"
-                >
-                  ×
+              <div className="bg-white border-b border-gray-200 px-4 py-3 flex justify-between items-center sticky top-0 z-10">
+                <h3 className="text-[12px] font-bold text-[#141414]">
+                  <span className="yy-mono text-[10px] tracking-[0.12em] uppercase text-gray-400 mr-2">KOKUJI {k.no}</span>
+                  建設省告示第{k.no}号
+                </h3>
+                <button onClick={() => setOpenKokuji(null)} className="text-gray-500 hover:text-gray-800" aria-label="閉じる">
+                  <FiX />
                 </button>
               </div>
               <div className="overflow-auto p-4 flex-1 text-[12px] leading-6">
-                {renderStructuredText(KOKUJI_1436_TEXT)}
+                {renderStructuredText(k.text)}
               </div>
             </div>
           </div>
-        )}
-
-        {/* 告示モーダル：建設省告示第千三百九十九号 */}
-        {showKokuji1399 && (
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-start justify-center p-4"
-            style={{ paddingTop: '200px' }}
-            onClick={() => setShowKokuji1399(false)}
-          >
-            <div
-              className="bg-white w-full overflow-hidden overflow-y-auto"
-              style={{ maxWidth: 'min(1000px, 95vw)', maxHeight: 'calc(100vh - 220px)' }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="bg-white border-b p-4 flex justify-between items-center sticky top-0 bg-opacity-100 z-10">
-                <h3 className="text-base font-semibold">建設省告示第1399号</h3>
-                <button
-                  onClick={() => setShowKokuji1399(false)}
-                  className="text-gray-500 hover:text-gray-700 text-xl"
-                >
-                  ×
-                </button>
-              </div>
-              <div className="overflow-auto p-4 flex-1 text-[12px] leading-6">
-                {renderStructuredText(KOKUJI_1399_TEXT)}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* 告示モーダル：建設省告示第千三百五十八号 */}
-        {showKokuji1358 && (
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-start justify-center p-4"
-            style={{ paddingTop: '200px' }}
-            onClick={() => setShowKokuji1358(false)}
-          >
-            <div
-              className="bg-white w-full overflow-hidden overflow-y-auto"
-              style={{ maxWidth: 'min(1000px, 95vw)', maxHeight: 'calc(100vh - 220px)' }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="bg-white border-b p-4 flex justify-between items-center sticky top-0 bg-opacity-100 z-10">
-                <h3 className="text-base font-semibold">建設省告示第1358号</h3>
-                <button
-                  onClick={() => setShowKokuji1358(false)}
-                  className="text-gray-500 hover:text-gray-700 text-xl"
-                >
-                  ×
-                </button>
-              </div>
-              <div className="overflow-auto p-4 flex-1 text-[12px] leading-6">
-                {renderStructuredText(KOKUJI_1358_TEXT)}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* 告示モーダル：建設省告示第千三百五十九号 */}
-        {showKokuji1359 && (
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-start justify-center p-4"
-            style={{ paddingTop: '200px' }}
-            onClick={() => setShowKokuji1359(false)}
-          >
-            <div
-              className="bg-white w-full overflow-hidden overflow-y-auto"
-              style={{ maxWidth: 'min(1000px, 95vw)', maxHeight: 'calc(100vh - 220px)' }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="bg-white border-b p-4 flex justify-between items-center sticky top-0 bg-opacity-100 z-10">
-                <h3 className="text-base font-semibold">建設省告示第1359号</h3>
-                <button
-                  onClick={() => setShowKokuji1359(false)}
-                  className="text-gray-500 hover:text-gray-700 text-xl"
-                >
-                  ×
-                </button>
-              </div>
-              <div className="overflow-auto p-4 flex-1 text-[12px] leading-6">
-                {renderStructuredText(KOKUJI_1359_TEXT)}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* 告示モーダル：建設省告示第千三百六十号 */}
-        {showKokuji1360 && (
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-start justify-center p-4"
-            style={{ paddingTop: '200px' }}
-            onClick={() => setShowKokuji1360(false)}
-          >
-            <div
-              className="bg-white w-full overflow-hidden overflow-y-auto"
-              style={{ maxWidth: 'min(1000px, 95vw)', maxHeight: 'calc(100vh - 220px)' }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="bg-white border-b p-4 flex justify-between items-center sticky top-0 bg-opacity-100 z-10">
-                <h3 className="text-base font-semibold">建設省告示第1360号</h3>
-                <button
-                  onClick={() => setShowKokuji1360(false)}
-                  className="text-gray-500 hover:text-gray-700 text-xl"
-                >
-                  ×
-                </button>
-              </div>
-              <div className="overflow-auto p-4 flex-1 text-[12px] leading-6">
-                {renderStructuredText(KOKUJI_1360_TEXT)}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* 告示モーダル：建設省告示第千三百六十九号 */}
-        {showKokuji1369 && (
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-start justify-center p-4"
-            style={{ paddingTop: '200px' }}
-            onClick={() => setShowKokuji1369(false)}
-          >
-            <div
-              className="bg-white w-full overflow-hidden overflow-y-auto"
-              style={{ maxWidth: 'min(1000px, 95vw)', maxHeight: 'calc(100vh - 220px)' }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="bg-white border-b p-4 flex justify-between items-center sticky top-0 bg-opacity-100 z-10">
-                <h3 className="text-base font-semibold">建設省告示第1369号</h3>
-                <button
-                  onClick={() => setShowKokuji1369(false)}
-                  className="text-gray-500 hover:text-gray-700 text-xl"
-                >
-                  ×
-                </button>
-              </div>
-              <div className="overflow-auto p-4 flex-1 text-[12px] leading-6">
-                {renderStructuredText(KOKUJI_1369_TEXT)}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* 告示モーダル：建設省告示第千四百号 */}
-        {showKokuji1400 && (
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-start justify-center p-4"
-            style={{ paddingTop: '200px' }}
-            onClick={() => setShowKokuji1400(false)}
-          >
-            <div
-              className="bg-white w-full overflow-hidden overflow-y-auto"
-              style={{ maxWidth: 'min(1000px, 95vw)', maxHeight: 'calc(100vh - 220px)' }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="bg-white border-b p-4 flex justify-between items-center sticky top-0 bg-opacity-100 z-10">
-                <h3 className="text-base font-semibold">建設省告示第1400号</h3>
-                <button
-                  onClick={() => setShowKokuji1400(false)}
-                  className="text-gray-500 hover:text-gray-700 text-xl"
-                >
-                  ×
-                </button>
-              </div>
-              <div className="overflow-auto p-4 flex-1 text-[12px] leading-6">
-                {renderStructuredText(KOKUJI_1400_TEXT)}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* 告示モーダル：建設省告示第千四百一号 */}
-        {showKokuji1401 && (
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-start justify-center p-4"
-            style={{ paddingTop: '200px' }}
-            onClick={() => setShowKokuji1401(false)}
-          >
-            <div
-              className="bg-white w-full overflow-hidden overflow-y-auto"
-              style={{ maxWidth: 'min(1000px, 95vw)', maxHeight: 'calc(100vh - 220px)' }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="bg-white border-b p-4 flex justify-between items-center sticky top-0 bg-opacity-100 z-10">
-                <h3 className="text-base font-semibold">建設省告示第1401号</h3>
-                <button
-                  onClick={() => setShowKokuji1401(false)}
-                  className="text-gray-500 hover:text-gray-700 text-xl"
-                >
-                  ×
-                </button>
-              </div>
-              <div className="overflow-auto p-4 flex-1 text-[12px] leading-6">
-                {renderStructuredText(KOKUJI_1401_TEXT)}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* 告示モーダル：建設省告示第千四百二号 */}
-        {showKokuji1402 && (
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-start justify-center p-4"
-            style={{ paddingTop: '200px' }}
-            onClick={() => setShowKokuji1402(false)}
-          >
-            <div
-              className="bg-white w-full overflow-hidden overflow-y-auto"
-              style={{ maxWidth: 'min(1000px, 95vw)', maxHeight: 'calc(100vh - 220px)' }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="bg-white border-b p-4 flex justify-between items-center sticky top-0 bg-opacity-100 z-10">
-                <h3 className="text-base font-semibold">建設省告示第1402号</h3>
-                <button
-                  onClick={() => setShowKokuji1402(false)}
-                  className="text-gray-500 hover:text-gray-700 text-xl"
-                >
-                  ×
-                </button>
-              </div>
-              <div className="overflow-auto p-4 flex-1 text-[12px] leading-6">
-                {renderStructuredText(KOKUJI_1402_TEXT)}
-              </div>
-            </div>
-          </div>
-        )}
+        );
+      })()}
       </div>
     </div>
   );
