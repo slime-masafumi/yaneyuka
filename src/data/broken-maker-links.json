@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-09-20",
+  "generatedAt": "2026-10-04",
   "checked": 2061,
   "summary": {
-    "ok": 1567,
-    "broken": 329,
-    "unreachable": 159,
+    "ok": 1563,
+    "broken": 332,
+    "unreachable": 160,
     "error": 6
   },
   "broken": [
@@ -255,6 +255,11 @@
     },
     {
       "url": "https://sne.co.jp/company/map.html",
+      "status": 404,
+      "fallback": "https://sne.co.jp"
+    },
+    {
+      "url": "https://sne.co.jp/contact/",
       "status": 404,
       "fallback": "https://sne.co.jp"
     },
@@ -812,6 +817,16 @@
       "url": "https://www.kondotec.co.jp/company/",
       "status": 404,
       "fallback": "https://www.kondotec.co.jp"
+    },
+    {
+      "url": "https://www.kvk.co.jp/catalog/",
+      "status": 404,
+      "fallback": "https://www.kvk.co.jp"
+    },
+    {
+      "url": "https://www.kvk.co.jp/corporate/office/",
+      "status": 404,
+      "fallback": "https://www.kvk.co.jp"
     },
     {
       "url": "https://www.kyocera.co.jp/company/office/",
@@ -1668,6 +1683,22 @@
       "reason": "UND_ERR_CONNECT_TIMEOUT"
     },
     {
+      "url": "https://ssl.runon.co.jp/company/04.php",
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
+    },
+    {
+      "url": "https://ssl.runon.co.jp/contact/",
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
+    },
+    {
+      "url": "https://ssl.runon.co.jp/product/",
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
+    },
+    {
+      "url": "https://ssl.runon.co.jp/samplebook/wallcoverings.php",
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
+    },
+    {
       "url": "https://st.sankyo-tateyama.co.jp/inquiry/business/",
       "reason": "ENOTFOUND"
     },
@@ -1706,6 +1737,18 @@
     {
       "url": "https://www.amadoi.or.jp/members/",
       "reason": "ENOTFOUND"
+    },
+    {
+      "url": "https://www.asloc.co.jp/download/document.php?c=document1",
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
+    },
+    {
+      "url": "https://www.asloc.co.jp/download/document.php?c=document2&tmp=X83tHW3Exp",
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
+    },
+    {
+      "url": "https://www.asloc.co.jp/pd/index.html",
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
     },
     {
       "url": "https://www.assist777.co.jp/catalog/",
@@ -1924,22 +1967,6 @@
       "reason": "UND_ERR_CONNECT_TIMEOUT"
     },
     {
-      "url": "https://www.kvk.co.jp/catalog/",
-      "reason": "EAI_AGAIN"
-    },
-    {
-      "url": "https://www.kvk.co.jp/corporate/office/",
-      "reason": "EAI_AGAIN"
-    },
-    {
-      "url": "https://www.kvk.co.jp/products/",
-      "reason": "EAI_AGAIN"
-    },
-    {
-      "url": "https://www.kvk.co.jp/support/contact/",
-      "reason": "EAI_AGAIN"
-    },
-    {
       "url": "https://www.kyowa-kb.co.jp/branch/",
       "reason": "ENOTFOUND"
     },
@@ -1970,22 +1997,6 @@
     {
       "url": "https://www.laminam.jp/product/",
       "reason": "UNABLE_TO_VERIFY_LEAF_SIGNATURE"
-    },
-    {
-      "url": "https://www.marazzi.jp/",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
-    },
-    {
-      "url": "https://www.marazzi.jp/contacts/",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
-    },
-    {
-      "url": "https://www.marazzi.jp/download/",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
-    },
-    {
-      "url": "https://www.marazzi.jp/showroom/",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
     },
     {
       "url": "https://www.maruichi-kokan.co.jp/amadoi/",
@@ -2050,6 +2061,14 @@
     {
       "url": "https://www.nisc-s.co.jp/products/",
       "reason": "ERR_SSL_WRONG_VERSION_NUMBER"
+    },
+    {
+      "url": "https://www.nozawa-kobe.co.jp/corporate/corporate_06.html",
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
+    },
+    {
+      "url": "https://www.nozawa-kobe.co.jp/other/inquiry.html",
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
     },
     {
       "url": "https://www.okuoka.co.jp/catalog/",
