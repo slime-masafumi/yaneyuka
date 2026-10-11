@@ -43,6 +43,7 @@ export const LEGAL_APPS: LegalApp[] = [
   // （サポートは全アプリ共通の /support/ を使うので support は持たせない）
   { label: '計測ボックス', privacy: '/measurebox-privacy-policy/', terms: '/measurebox-terms/' },
   { label: '情報分解地図', privacy: '/app-map-privacy-policy/' },
+  { label: 'Curio', privacy: '/curio-privacy-policy/' },
 ];
 
 /** 末尾スラッシュを外して比較用に揃える（next.config.js の trailingSlash 対策） */
