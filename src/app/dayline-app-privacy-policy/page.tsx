@@ -32,6 +32,12 @@ function JapaneseContent() {
         </ul>
       </div>
       <div>
+        <h3 className="font-semibold mb-1">カレンダー情報</h3>
+        <p>当社アプリ「DayLine」は、ユーザーが iOS の「カレンダーへのアクセス」を許可した場合に、端末のカレンダーアプリに登録されている予定（件名、開始・終了日時、場所、所属カレンダー名、カレンダーの色）を読み取り、アプリ内のタイムラインに表示します。Google、Outlook、iCloud 等の各サービスへ当社が直接ログインすることはなく、それらのパスワードを当社が取得・保存することもありません。</p>
+        <p className="mt-1">ユーザーが DayLine アカウントにログインしている場合、上記の予定のうち当日の 7 日前から 60 日後までの範囲のコピーを、当該ユーザー専用の領域として Google Firebase（Firestore、米国等のリージョン）に保存し、同じアカウントでログインした PC 版 DayLine に表示するために利用します。この情報は本人以外のユーザーから閲覧できず、広告や第三者への提供には利用しません。</p>
+        <p className="mt-1">保存されたコピーは、アプリの「カレンダー連携」で端末カレンダーとの接続を解除した時点、またはアカウントを削除した時点で削除されます。iOS の「設定 &gt; プライバシーとセキュリティ &gt; カレンダー」から DayLine の権限を取り消すことで、読み取り自体を停止できます。</p>
+      </div>
+      <div>
         <h3 className="font-semibold mb-1">2. 利用目的</h3>
         <ul className="list-disc pl-5 space-y-1">
           <li>サービスの提供・本人確認・アカウント管理</li>
@@ -102,6 +108,12 @@ function EnglishContent() {
           <li>Device information (platform, OS version, app identifier)</li>
           <li>Operation history and access logs incidental to service use</li>
         </ul>
+      </div>
+      <div>
+        <h3 className="font-semibold mb-1">Calendar information</h3>
+        <p>When you grant DayLine access to your device calendars on iOS, the app reads the events stored in the device Calendar app (title, start and end time, location, calendar name and colour) and shows them on its timeline. DayLine never signs in to Google, Outlook, iCloud or any other calendar service on your behalf, and never receives or stores your passwords for those services.</p>
+        <p className="mt-1">If you are signed in to a DayLine account, a copy of those events from 7 days before to 60 days after the current date is stored in a space reserved for your account on Google Firebase (Firestore, hosted in the United States and other regions), solely so that the PC (web) version of DayLine signed in with the same account can display them. No other user can access this data, and it is never used for advertising or shared with third parties.</p>
+        <p className="mt-1">The stored copy is deleted when you disconnect the device calendar under &ldquo;Calendar Integration&rdquo; in the app, or when you delete your account. You can stop the reading itself at any time by revoking DayLine&rsquo;s permission under iOS Settings &gt; Privacy &amp; Security &gt; Calendars.</p>
       </div>
       <div>
         <h3 className="font-semibold mb-1">2. Purposes of Use</h3>
