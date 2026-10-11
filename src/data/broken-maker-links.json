@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-10-04",
+  "generatedAt": "2026-10-11",
   "checked": 2061,
   "summary": {
-    "ok": 1563,
+    "ok": 1566,
     "broken": 332,
-    "unreachable": 160,
+    "unreachable": 157,
     "error": 6
   },
   "broken": [
@@ -1671,34 +1671,6 @@
   ],
   "unreachable": [
     {
-      "url": "http://kimura-kawara.co.jp/about",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
-    },
-    {
-      "url": "http://kimura-kawara.co.jp/inquiry",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
-    },
-    {
-      "url": "http://kimura-kawara.co.jp/products",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
-    },
-    {
-      "url": "https://ssl.runon.co.jp/company/04.php",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
-    },
-    {
-      "url": "https://ssl.runon.co.jp/contact/",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
-    },
-    {
-      "url": "https://ssl.runon.co.jp/product/",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
-    },
-    {
-      "url": "https://ssl.runon.co.jp/samplebook/wallcoverings.php",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
-    },
-    {
       "url": "https://st.sankyo-tateyama.co.jp/inquiry/business/",
       "reason": "ENOTFOUND"
     },
@@ -1997,6 +1969,22 @@
     {
       "url": "https://www.laminam.jp/product/",
       "reason": "UNABLE_TO_VERIFY_LEAF_SIGNATURE"
+    },
+    {
+      "url": "https://www.marazzi.jp/",
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
+    },
+    {
+      "url": "https://www.marazzi.jp/contacts/",
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
+    },
+    {
+      "url": "https://www.marazzi.jp/download/",
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
+    },
+    {
+      "url": "https://www.marazzi.jp/showroom/",
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
     },
     {
       "url": "https://www.maruichi-kokan.co.jp/amadoi/",
