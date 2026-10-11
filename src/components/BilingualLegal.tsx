@@ -10,6 +10,7 @@ interface BilingualLegalProps {
   en: ReactNode;
   ja: ReactNode;
   defaultLang?: Lang; // 省略時は 'ja'
+  ignoreSavedLang?: boolean; // true なら localStorage の言語選択より defaultLang を優先(言語別 URL 用)
 }
 
 const STORAGE_KEY = 'yaneyuka-legal-lang';
@@ -20,17 +21,18 @@ const STORAGE_KEY = 'yaneyuka-legal-lang';
  * 両言語のコンテンツはDOMに保持され、displayプロパティで切替 → SEOクローラは両方をインデックス可能。
  * 言語選択はlocalStorageに保存し、プラポリ間ナビゲーション時に維持される。
  */
-export default function BilingualLegal({ titleEn, titleJa, en, ja, defaultLang = 'ja' }: BilingualLegalProps) {
+export default function BilingualLegal({ titleEn, titleJa, en, ja, defaultLang = 'ja', ignoreSavedLang = false }: BilingualLegalProps) {
   const [lang, setLang] = useState<Lang>(defaultLang);
 
   useEffect(() => {
+    if (ignoreSavedLang) return;
     try {
       const saved = window.localStorage.getItem(STORAGE_KEY);
       if (saved === 'en' || saved === 'ja') {
         setLang(saved);
       }
     } catch {}
-  }, []);
+  }, [ignoreSavedLang]);
 
   const switchLang = (next: Lang) => {
     setLang(next);
