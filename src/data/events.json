@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-10-04",
+  "updatedAt": "2026-10-11",
   "events": [
     {
       "id": "nikkei-architecture-materials-2026",
@@ -71,7 +71,7 @@
       "venue": "幕張メッセ",
       "region": "chiba",
       "link": "https://cspi-expo.com/",
-      "isLinkActive": false
+      "isLinkActive": true
     },
     {
       "id": "kyushu-home-building-2026",
