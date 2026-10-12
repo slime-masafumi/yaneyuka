@@ -18,7 +18,7 @@ function JapaneseContent() {
   return (
     <div className="bg-white p-4 rounded border border-gray-300 text-[13px] leading-6 text-gray-800 space-y-3">
       <p className="text-[12px] text-gray-500">
-        <strong>最終更新日:</strong> 2026年8月15日
+        <strong>最終更新日:</strong> 2026年10月12日
       </p>
       <p>
         合同会社slime（以下「当社」といいます）は、当社が提供する iOS アプリ「Accoria」（以下「本アプリ」といいます）におけるユーザー情報の取扱いについて、以下のとおり定めます。
@@ -40,6 +40,10 @@ function JapaneseContent() {
           <li>表示言語、対応国、テーマ、プランの判定結果などのアプリ設定</li>
         </ul>
         <p className="mt-2">これらは、ユーザーが本アプリを端末から削除した時点で、端末内のアプリデータとともに削除されます。なお、端末の iCloud バックアップ設定によっては、これらのデータが Apple の管理する端末バックアップに含まれる場合があります。その取扱いは Apple のプライバシーポリシーに従います。</p>
+        <p className="mt-2">税負担の推計機能で入力する働き方・収入・年齢・控除・消費・保有資産などの前提条件も、端末内にのみ保存されます。当社はこれらを取得しません。</p>
+        <p className="mt-2">証憑の文字認識（OCR）は端末内で行い、画像および認識したテキストを当社や第三者のサーバーへ送信することはありません。</p>
+        <p className="mt-2">経理整理機能でユーザーが保存先フォルダ（iCloud Drive、Dropbox、Google Drive など、ユーザー自身が利用するクラウドストレージ上のフォルダ）を選んだ場合、証憑の画像と読み取り結果は、ユーザーの操作に基づいてそのフォルダに書き出されます。書き出されたデータの取扱いは、ユーザーが選んだ各サービスのプライバシーポリシーに従います。当社はそのフォルダにアクセスせず、当社のサーバーへも送信されません。</p>
+        <p className="mt-2">保存先フォルダを選んだ場合、本アプリとブラウザで動く PC 版（Accoria の PC 画面）は、そのフォルダ内の同期用ファイルを介して、帳簿データ（帳簿・取引・予定・固定費・税金・口座・証憑の記録・前提条件など）を互いに読み書きします。同期はユーザーの端末とユーザーが選んだフォルダの間だけで行われ、当社のサーバーを経由しません。PC 版も本ポリシーと同じ方針で動作し、データを当社や第三者へ送信しません。</p>
       </div>
 
       <div>
@@ -119,7 +123,7 @@ function JapaneseContent() {
 
       <p className="text-[12px] text-gray-500 pt-2">
         制定日: 2026年6月14日<br />
-        最終改定日: 2026年8月15日
+        最終改定日: 2026年10月12日
       </p>
 
       <p className="text-[11px] text-gray-500 pt-2 border-t border-gray-200 mt-4">
@@ -133,7 +137,7 @@ function EnglishContent() {
   return (
     <div className="bg-white p-4 rounded border border-gray-300 text-[13px] leading-6 text-gray-800 space-y-3">
       <p className="text-[12px] text-gray-500">
-        <strong>Last updated:</strong> August 15, 2026
+        <strong>Last updated:</strong> 12 October 2026
       </p>
       <p>
         slime LLC (&ldquo;we&rdquo;, &ldquo;us&rdquo;) sets out below how user information is handled in the iOS app &ldquo;Accoria&rdquo; (the &ldquo;App&rdquo;).
@@ -155,6 +159,10 @@ function EnglishContent() {
           <li>App settings such as display language, country profile, theme, and your current plan status</li>
         </ul>
         <p className="mt-2">This data is removed together with the App&rsquo;s data when you delete the App from your device. Depending on your device&rsquo;s iCloud backup settings, this data may be included in the device backup managed by Apple; that backup is handled in accordance with Apple&rsquo;s privacy policy.</p>
+        <p className="mt-2">The assumptions you enter for the tax burden estimate (how you earn, income, age, deductions, spending and assets) are likewise stored only on your device. We do not collect them.</p>
+        <p className="mt-2">Text recognition (OCR) of vouchers runs on the device. Neither the image nor the recognised text is sent to our servers or to any third party.</p>
+        <p className="mt-2">If you choose a destination folder in the bookkeeping prep feature (a folder in cloud storage you already use, such as iCloud Drive, Dropbox or Google Drive), voucher images and their recognised data are written to that folder at your request. Data written there is handled under the privacy policy of the service you chose. We have no access to that folder, and nothing is sent to our servers.</p>
+        <p className="mt-2">If you choose a destination folder, the App and the browser-based PC version of Accoria read and write your ledger data (ledgers, transactions, planned items, recurring costs, taxes, accounts, voucher records and assumptions) through a sync file in that folder. Syncing happens only between your devices and the folder you chose; it does not pass through our servers. The PC version follows this same policy and does not send your data to us or to any third party.</p>
       </div>
 
       <div>
@@ -233,8 +241,8 @@ function EnglishContent() {
       </div>
 
       <p className="text-[12px] text-gray-500 pt-2">
-        Effective date: June 14, 2026<br />
-        Last updated: August 15, 2026
+        Effective date: 14 June 2026<br />
+        Last updated: 12 October 2026
       </p>
 
       <p className="text-[11px] text-gray-500 pt-2 border-t border-gray-200 mt-4">
