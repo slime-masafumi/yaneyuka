@@ -312,6 +312,27 @@ await check('部外者: 足す', 'deny', () => setDoc(doc(db, 'boards', 'teamA',
 await as('box-owner@example.com');
 await check('オーナー: 他人のカードも消せる', 'allow', () => deleteDoc(doc(db, 'boards', 'teamA', 'makerBox', 'akk')));
 
+// ===== 工程表の閲覧リンク =====
+console.log('\n--- 工程表の閲覧リンク ---');
+const uidG = await as('gantt-owner@example.com');
+const gantt = (owner, extra = {}) => ({ ownerUid: owner, projectId: 'p1', name: '山田邸', sub: '', author: '', tasks: [{ id: 1, name: '基礎', start: '2026-11-02', end: '2026-11-06' }], calendar: {}, view: {}, updatedAt: Date.now(), ...extra });
+await check('持ち主: 自分の工程表のリンクを作る', 'allow', () => setDoc(doc(db, 'publicGantts', 'g-slug-1'), gantt(uidG)));
+await check('持ち主: 他人になりすまして作る', 'deny', () => setDoc(doc(db, 'publicGantts', 'g-slug-2'), gantt('stranger')));
+await check('持ち主: 余計な項目を入れる', 'deny', () => setDoc(doc(db, 'publicGantts', 'g-slug-3'), gantt(uidG, { secret: 1 })));
+await check('持ち主: 工程が 300 行を超える', 'deny', () => setDoc(doc(db, 'publicGantts', 'g-slug-4'), gantt(uidG, { tasks: Array.from({ length: 301 }, (_, i) => ({ id: i })) })));
+await check('持ち主: 保存で上書き', 'allow', () => setDoc(doc(db, 'publicGantts', 'g-slug-1'), gantt(uidG, { name: '山田邸（改）' })));
+await signOut(auth);
+await check('未ログイン: リンクで見る', 'allow', () => getDoc(doc(db, 'publicGantts', 'g-slug-1')));
+await check('未ログイン: 一覧', 'deny', () => getDocs(collection(db, 'publicGantts')));
+await check('未ログイン: 書き込む', 'deny', () => setDoc(doc(db, 'publicGantts', 'g-slug-5'), gantt('anon')));
+await as('mallory@example.com');
+await check('部外者: 他人のリンクを自分の物に付け替え', 'deny', () => setDoc(doc(db, 'publicGantts', 'g-slug-1'), gantt(uidB)));
+await check('部外者: 他人のリンクを書き換え', 'deny', () => updateDoc(doc(db, 'publicGantts', 'g-slug-1'), { name: 'HIJACKED' }));
+await check('部外者: 他人のリンクを消す', 'deny', () => deleteDoc(doc(db, 'publicGantts', 'g-slug-1')));
+await check('部外者: 元の工程表（本人だけ）を読む', 'deny', () => getDoc(doc(db, 'users', uidG, 'ganttProjects', 'p1')));
+await as('gantt-owner@example.com');
+await check('持ち主: リンクを止める', 'allow', () => deleteDoc(doc(db, 'publicGantts', 'g-slug-1')));
+
 const failed = results.filter((r) => !r.pass).length;
 console.log(`\n${results.length - failed}/${results.length} 件成功`);
 process.exit(failed === 0 && intact ? 0 : 1);

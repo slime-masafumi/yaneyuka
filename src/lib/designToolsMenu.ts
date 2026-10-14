@@ -26,7 +26,7 @@ export const DESIGN_TOOL_MENU: DesignToolCategory[] = [
     description: '物件管理・工程計画・面積集計など、プロジェクトの基本管理ツール',
     subTabs: [
       { id: 'property-card', label: '物件カルテ', title: '物件カルテ', description: '建築設計の事前確認項目を物件ごとに管理' },
-      { id: 'schedule', label: '工程表', title: '工程表', description: 'ガントチャート形式でプロジェクトの工程を管理' },
+      { id: 'schedule', label: '工程表', title: '工程表', description: 'テンプレートと稼働日で設計・工事の工程を組み、前工程・進捗・遅れを見ながら A3 / A4 で印刷・共有する' },
       { id: 'area-table', label: '面積表', title: '面積表', description: '室ごとの面積・坪と、延べ面積・建蔽率・容積率を表計算のテンプレートで作る' },
     ],
   },

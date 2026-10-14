@@ -231,6 +231,32 @@ service cloud.firestore {
       allow delete: if request.auth != null && resource.data.owner == request.auth.uid;
     }
 
+    // 設計ツール「工程表」の閲覧リンク（/tool/gantt/{slug}/）。
+    // 元データ（users/{uid}/ganttProjects/*）は本人しか読めないままで、
+    // 持ち主がリンクを作った工程表だけ、保存のたびにここへ写す。見る側は slug を知っている人だけ。
+    match /publicGantts/{slug} {
+      allow get: if true;
+      allow list: if false;
+      function ganttShareShapeOk() {
+        return request.resource.data.keys().hasOnly([
+            'ownerUid', 'projectId', 'name', 'sub', 'author', 'tasks', 'calendar', 'view', 'updatedAt'
+          ])
+          && request.resource.data.name is string
+          && request.resource.data.name.size() <= 200
+          && request.resource.data.tasks is list
+          && request.resource.data.tasks.size() <= 300;
+      }
+      allow create: if request.auth != null
+        && request.resource.data.ownerUid == request.auth.uid
+        && ganttShareShapeOk();
+      // 今の持ち主も見る（ownerUid を自分に書き換えて他人のリンクを乗っ取らせない）
+      allow update: if request.auth != null
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerUid == request.auth.uid
+        && ganttShareShapeOk();
+      allow delete: if request.auth != null && resource.data.ownerUid == request.auth.uid;
+    }
+
     // 共有リンクのダウンロード計測ガード（/api/share/download が Admin SDK で読み書きする）。
     // クライアントから触れると計測を水増しできてしまうので完全に閉じる。
     match /shareDownloadMarks/{markId} {
