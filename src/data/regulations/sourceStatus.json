@@ -1,14 +1,15 @@
 {
-  "generatedAt": "2026-10-11T23:25:03.477Z",
+  "generatedAt": "2026-10-18T22:12:07.189Z",
   "summary": {
     "documents": 11,
     "changed": 6,
     "error": 0,
     "watchedLaws": 41,
-    "lawUpdates": 6,
-    "affectedRules": 29
+    "lawUpdates": 8,
+    "affectedRules": 30
   },
   "affectedRuleIds": [
+    "architect-act-3",
     "beea-tekigou",
     "beea-tekihan",
     "bsl-6-3",
@@ -72,7 +73,7 @@
         "contentHash": "92f83a166bd678b1c30d008af4d3cc94714a8024dcbb29f4e4dcdb394127bbb0"
       },
       "baselineAt": "2026-09-05T10:04:11.570Z",
-      "checkedAt": "2026-10-11T23:25:03.477Z"
+      "checkedAt": "2026-10-18T22:12:07.189Z"
     },
     "https://www.city.sapporo.jp/toshi/k-shido/chukousou/chukousou-top.html": {
       "label": "札幌市 中高層建築物の建築に係る紛争予防条例",
@@ -88,7 +89,7 @@
         "contentHash": "b6df1e52a6df761c9da383267361c4373f6c10a1d1f668ac23f6fa82f96b863a"
       },
       "baselineAt": "2026-09-05T10:04:11.570Z",
-      "checkedAt": "2026-10-11T23:25:03.477Z"
+      "checkedAt": "2026-10-18T22:12:07.189Z"
     },
     "https://www.city.sapporo.jp/ryokuka/midori/kisei/hozensyousai/hozensyousai.html": {
       "label": "札幌市 緑保全創出地域制度",
@@ -104,7 +105,7 @@
         "contentHash": "f77eb43b3c5feee1102d3f7d1b4bf71d47edc610c2de18567e6cff9950b9b5a4"
       },
       "baselineAt": "2026-09-05T10:04:11.570Z",
-      "checkedAt": "2026-10-11T23:25:03.477Z"
+      "checkedAt": "2026-10-18T22:12:07.189Z"
     },
     "https://www.city.sapporo.jp/toshi/k-shido/jourei/jourei-top.html": {
       "label": "札幌市 条例・要綱・取扱様式",
@@ -135,7 +136,7 @@
         "contentHash": "9c997fb499132666478fa7b9f4211852988bdfe5fa18e2d0575b99cb659a4f18"
       },
       "changedAt": "2026-10-04T22:41:29.371Z",
-      "checkedAt": "2026-10-11T23:25:03.477Z"
+      "checkedAt": "2026-10-18T22:12:07.189Z"
     },
     "https://www.city.sapporo.jp/toshi/k-shido/jourei/documents/kankeikitei-cl_r06.pdf": {
       "label": "札幌市 建築基準関係規定チェックリスト(令和6年9月更新)",
@@ -153,7 +154,7 @@
         "contentHash": "b112ab690c514e7d4b5bfdcf5de641416ba1fece75734fbc788501819cd3138a"
       },
       "baselineAt": "2026-09-05T10:04:11.570Z",
-      "checkedAt": "2026-10-11T23:25:03.477Z"
+      "checkedAt": "2026-10-18T22:12:07.189Z"
     },
     "https://www.city.yokohama.lg.jp/business/bunyabetsu/kenchiku/tetsuduki/jorei/chukosojorei/jorei.html": {
       "label": "横浜市中高層建築物条例",
@@ -177,7 +178,7 @@
         "contentHash": "a5867d82182fcb388d4c3987a8e241babf85c521e6c5c954931feeb4ddd0eef9"
       },
       "changedAt": "2026-09-20T22:09:02.002Z",
-      "checkedAt": "2026-10-11T23:25:03.477Z"
+      "checkedAt": "2026-10-18T22:12:07.189Z"
     },
     "https://www.city.yokohama.lg.jp/business/bunyabetsu/kankyo-koen-gesui/kyogi/ryokuka/soan.html": {
       "label": "横浜市 緑化地域制度",
@@ -203,7 +204,7 @@
         "contentHash": "2b7b898d57a01cabcbff1df75d1e958ada38c7aef584070fdd4e41f8fca91b18"
       },
       "changedAt": "2026-09-20T22:09:02.002Z",
-      "checkedAt": "2026-10-11T23:25:03.477Z"
+      "checkedAt": "2026-10-18T22:12:07.189Z"
     },
     "https://www.city.yokohama.lg.jp/business/bunyabetsu/kenchiku/tetsuduki/jorei/machizukuri/barrierfree.html": {
       "label": "横浜市 福祉のまちづくり条例",
@@ -227,7 +228,7 @@
         "contentHash": "81034b3f84e6a6a4a2d9d72f8b02c1c2ad858ee84a974edf1bb5cc6d53e619b3"
       },
       "changedAt": "2026-09-20T22:09:02.002Z",
-      "checkedAt": "2026-10-11T23:25:03.477Z"
+      "checkedAt": "2026-10-18T22:12:07.189Z"
     },
     "https://www.city.yokohama.lg.jp/business/bunyabetsu/kenchiku/tetsuduki/jorei/kijunjourei/kijunjourei.files/20260501_joreiall.pdf": {
       "label": "横浜市建築基準条例及び同解説(令和8年5月版)",
@@ -243,7 +244,7 @@
         "contentHash": "af9fa2a6c04acc91e37ac4e695a2ca30d7226e05f0406591ae1ed4dc59a3e696"
       },
       "baselineAt": "2026-09-05T10:04:11.570Z",
-      "checkedAt": "2026-10-11T23:25:03.477Z"
+      "checkedAt": "2026-10-18T22:12:07.189Z"
     },
     "https://www.city.yokohama.lg.jp/business/bunyabetsu/kenchiku/tetsuduki/jorei/": {
       "label": "横浜市 建築に関する条例・規則等",
@@ -269,13 +270,13 @@
       "baselineAt": "2026-09-05T10:04:11.570Z",
       "current": {
         "kind": "html",
-        "lastModified": "Sun, 11 Oct 2026 23:15:17 GMT",
-        "etag": "\"a741-65d98c127da6d-gzip\"",
+        "lastModified": "Sun, 18 Oct 2026 22:01:21 GMT",
+        "etag": "\"a741-65e2489a75690-gzip\"",
         "bytes": 42817,
         "contentHash": "ffe334a7c35a4fda86cb7a86a8292d7d0a4d33e0f8e7045e8dc26c6b4cdafaff"
       },
       "changedAt": "2026-09-20T22:09:02.002Z",
-      "checkedAt": "2026-10-11T23:25:03.477Z"
+      "checkedAt": "2026-10-18T22:12:07.189Z"
     },
     "https://www.city.yokohama.lg.jp/business/bunyabetsu/kenchiku/tetsuduki/kisoku/toriatsukai.html": {
       "label": "横浜市建築基準法取扱基準集",
@@ -299,11 +300,11 @@
         "contentHash": "c4c8ece1d105208ba3fcdeb0c59df5d510243c7f36f3603793a5b7cd6ca0ae3b"
       },
       "changedAt": "2026-09-20T22:09:02.002Z",
-      "checkedAt": "2026-10-11T23:25:03.477Z"
+      "checkedAt": "2026-10-18T22:12:07.189Z"
     }
   },
   "egov": {
-    "watermark": "20261011",
+    "watermark": "20261018",
     "updates": [
       {
         "lawId": "427AC0000000053",
@@ -340,6 +341,18 @@
         "lawName": "医薬品、医療機器等の品質、有効性及び安全性の確保等に関する法律",
         "date": "20261009",
         "lawKey": "薬機法"
+      },
+      {
+        "lawId": "325AC1000000202",
+        "lawName": "建築士法",
+        "date": "20261014",
+        "lawKey": "建築士法"
+      },
+      {
+        "lawId": "409AC0000000081",
+        "lawName": "環境影響評価法",
+        "date": "20261015",
+        "lawKey": "環境影響評価法"
       }
     ]
   }
