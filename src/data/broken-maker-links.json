@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-10-11",
+  "generatedAt": "2026-10-18",
   "checked": 2061,
   "summary": {
-    "ok": 1566,
-    "broken": 332,
-    "unreachable": 157,
-    "error": 6
+    "ok": 1569,
+    "broken": 331,
+    "unreachable": 154,
+    "error": 7
   },
   "broken": [
     {
@@ -1234,11 +1234,6 @@
       "fallback": "https://www.okamura.co.jp"
     },
     {
-      "url": "https://www.okamura.co.jp/product/toilet/",
-      "status": 404,
-      "fallback": "https://www.okamura.co.jp"
-    },
-    {
       "url": "https://www.owenscorning.jp/company/profile.html",
       "status": 404,
       "fallback": "https://www.owenscorning.jp"
@@ -1680,7 +1675,7 @@
     },
     {
       "url": "https://webcatalog.koizumi-lt.co.jp/iportal/CatalogViewInterfaceStartUpAction.do?method=startUp&mode=PAGE&volumeID=DIGICATA&catalogId=8642230000&pageGroupId=1&catalogCategoryId=",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
+      "reason": "EAI_AGAIN"
     },
     {
       "url": "https://www.3mcompany.jp/3M/ja_JP/architectural-design-jp/",
@@ -1912,31 +1907,31 @@
     },
     {
       "url": "https://www.koizumi-lt.co.jp/catalog/",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
+      "reason": "EAI_AGAIN"
     },
     {
       "url": "https://www.koizumi-lt.co.jp/company/",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
+      "reason": "EAI_AGAIN"
     },
     {
       "url": "https://www.koizumi-lt.co.jp/company/office.html",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
+      "reason": "EAI_AGAIN"
     },
     {
       "url": "https://www.koizumi-lt.co.jp/contact/",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
+      "reason": "EAI_AGAIN"
     },
     {
       "url": "https://www.koizumi-lt.co.jp/l-design/",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
+      "reason": "EAI_AGAIN"
     },
     {
       "url": "https://www.koizumi-lt.co.jp/product/",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
+      "reason": "EAI_AGAIN"
     },
     {
       "url": "https://www.koizumi-lt.co.jp/support/",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
+      "reason": "EAI_AGAIN"
     },
     {
       "url": "https://www.kyowa-kb.co.jp/branch/",
@@ -1969,22 +1964,6 @@
     {
       "url": "https://www.laminam.jp/product/",
       "reason": "UNABLE_TO_VERIFY_LEAF_SIGNATURE"
-    },
-    {
-      "url": "https://www.marazzi.jp/",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
-    },
-    {
-      "url": "https://www.marazzi.jp/contacts/",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
-    },
-    {
-      "url": "https://www.marazzi.jp/download/",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
-    },
-    {
-      "url": "https://www.marazzi.jp/showroom/",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
     },
     {
       "url": "https://www.maruichi-kokan.co.jp/amadoi/",
@@ -2056,6 +2035,10 @@
     },
     {
       "url": "https://www.nozawa-kobe.co.jp/other/inquiry.html",
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
+    },
+    {
+      "url": "https://www.okamura.co.jp/product/toilet/",
       "reason": "UND_ERR_CONNECT_TIMEOUT"
     },
     {
@@ -2306,6 +2289,10 @@
     },
     {
       "url": "https://cleanup.jp/support/contact/",
+      "status": 500
+    },
+    {
+      "url": "https://www.kawaki-sowa.co.jp/product_search/category05",
       "status": 500
     },
     {
