@@ -14,6 +14,7 @@ interface Material {
   lambda: number; // 熱伝導率 [W/(m·K)]
   mu: number;     // 透湿抵抗比 [-]
   category: MaterialCategory;
+  fixedR?: number; // 厚さによらない熱抵抗 [m²K/W]（中空層など）。指定時は λ を使わない
 }
 
 interface Layer {
@@ -34,25 +35,66 @@ interface CalculationPoint {
   isIce: boolean;
   displayLabel: string; // 表示用ラベル（表面を基準に「〇〇 表面（△△ 裏面）」形式）
   isBonded?: boolean; // この界面が密着している場合true（判定はスキップ済み）
+  zone?: 'vent' | 'ground'; // 判定対象外の領域（通気層より外側 / 土間の防湿層より地盤側）
 }
 
 interface CalcResult {
   uValue: number;
   rTotal: number;
+  rseUsed: number; // 実際に使った外気側（地盤側）表面熱抵抗
+  ventApplied: boolean; // 通気層より外側を計算から除外したか
   points: CalculationPoint[];
   isCondensing: boolean;
-  condensationLayerIndex: number | null;
+  condensationPointIndex: number | null; // 最初に結露判定となった points の位置（室内側から）
   limitOutdoorTemp: number | null;
-  layerDetails: { 
+  layerDetails: {
     name: string;
+    category: string;
     d: number;
     lambda: number;
     mu: number;
     r: number;
     sd: number;
+    fixedR?: boolean;
+    excluded?: boolean; // 通気層より外側で計算から除外
     isBonded?: boolean; // 計算結果側にもこの情報を持たせる
   }[];
 }
+
+// 判定に使う界面の状態
+type PointStatus = 'ok' | 'ng' | 'bonded' | 'vent' | 'ground' | 'ground-ng';
+
+const isPointRisky = (p: CalculationPoint) => p.pressure > p.satPressure + 1;
+
+// 印刷用の判定記号
+const POINT_STATUS_MARK: Record<PointStatus, string> = {
+  ok: '○', ng: '×', bonded: '-', vent: '除外', ground: '除外', 'ground-ng': '除外(参考×)',
+};
+
+// 画面の判定表示
+const StatusBadge: React.FC<{ status: PointStatus }> = ({ status }) => {
+  switch (status) {
+    case 'ng':
+      return <span className="inline-block px-1.5 py-0.5 bg-red-100 text-red-700 font-bold rounded">NG</span>;
+    case 'ok':
+      return <span className="text-green-600 font-bold">OK</span>;
+    case 'bonded':
+      return <span className="text-gray-400">-</span>;
+    case 'vent':
+      return <span className="text-gray-400" title="通気層より外側は外気とみなし判定しません">除外</span>;
+    case 'ground':
+      return <span className="text-gray-400" title="地盤側の防湿層より下は土壌水分の影響域として判定しません">除外</span>;
+    case 'ground-ng':
+      return <span className="text-gray-400" title="計算上は飽和しますが、地盤側の防湿層より下は土壌水分の影響域として判定しません">除外(参考NG)</span>;
+  }
+};
+
+const getPointStatus = (p: CalculationPoint): PointStatus => {
+  if (p.zone === 'vent') return 'vent';
+  if (p.zone === 'ground') return isPointRisky(p) ? 'ground-ng' : 'ground';
+  if (p.isBonded) return 'bonded';
+  return isPointRisky(p) ? 'ng' : 'ok';
+};
 
 // --- データベース & 定数 ---
 
@@ -73,7 +115,7 @@ const DEFAULT_MATERIAL_DB: Material[] = [
   { id: 'ext_siding', name: '窯業系サイディング', lambda: 1.0, mu: 40, category: 'finish' },
   { id: 'metal_siding', name: '金属サイディング', lambda: 0.04, mu: 1000, category: 'finish' }, // 断熱裏打込
   { id: 'alc', name: 'ALCパネル', lambda: 0.17, mu: 10, category: 'finish' },
-  { id: 'ecp', name: '押出成形セメント板(ECP)', lambda: 1.0, mu: 60, category: 'finish' },
+  { id: 'ecp', name: '押出成形セメント板(ECP)', lambda: 0.40, mu: 60, category: 'finish' }, // JIS A 5441 解説: 約0.34〜0.47
   { id: 'mortar', name: 'モルタル', lambda: 1.5, mu: 30, category: 'finish' },
   { id: 'galvalume', name: 'ガルバリウム鋼板', lambda: 50, mu: 100000, category: 'finish' },
 
@@ -84,13 +126,17 @@ const DEFAULT_MATERIAL_DB: Material[] = [
   { id: 'pef_sheet', name: 'ペフ(ポリエチレンフォーム)', lambda: 0.04, mu: 100, category: 'insulation' },
 
   // --- 空気層 ---
-  { id: 'air_stat', name: '密閉空気層', lambda: 0.14, mu: 1, category: 'air' },
-  { id: 'air_vent', name: '通気層(外気導入)', lambda: 100, mu: 0.01, category: 'air' }, // 仮想的に抵抗なし
+  // 中空層の熱抵抗は厚さに比例しない（対流・放射が支配的）。現場施工の密閉中空層 0.09 m²K/W で固定
+  { id: 'air_stat', name: '密閉空気層', lambda: 0.14, mu: 1, category: 'air', fixedR: 0.09 },
+  // 通気層: これより外側の層は計算から除外し、外気側表面熱伝達抵抗を室内側と同値にする（calculateProfile）
+  { id: 'air_vent', name: '通気層(外気導入)', lambda: 100, mu: 0.01, category: 'air' },
 
   // --- シート ---
-  { id: 'breathable', name: '透湿防水シート', lambda: 0.2, mu: 0.5, category: 'membrane' },
+  // JIS A 6111 透湿抵抗 0.19 m²·s·Pa/μg 以下 → 等価空気層厚 Sd ≒ 0.036m（0.2mm 換算で μ≒180）
+  { id: 'breathable', name: '透湿防水シート', lambda: 0.2, mu: 180, category: 'membrane' },
   { id: 'asphalt_roofing', name: 'アスファルトルーフィング', lambda: 0.15, mu: 40000, category: 'membrane' },
-  { id: 'pe_film', name: '防湿気密シート(0.2mm)', lambda: 0.33, mu: 144000, category: 'membrane' },
+  // JIS A 6930 B種 透湿抵抗 0.144 m²·s·Pa/ng 相当（0.2mm で Sd≒29m）。μ は厚さあたりなので 0.1mm 品にも使える
+  { id: 'pe_film', name: '防湿気密シート/防湿フィルム(PE)', lambda: 0.33, mu: 144000, category: 'membrane' },
   { id: 'vapor_barrier', name: '可変透湿気密シート', lambda: 0.33, mu: 10000, category: 'membrane' },
 
   // --- 構造 ---
@@ -123,13 +169,14 @@ const DEFAULT_MATERIAL_DB: Material[] = [
   { id: 'carpet', name: 'カーペット', lambda: 0.06, mu: 2, category: 'floor' },
 ];
 
-const PRESETS: Record<string, { name: string, type: 'wall'|'roof'|'floor'|'foundation', rsi: number, rse: number, layers: Omit<Layer, 'id'>[] }> = {
+const PRESETS: Record<string, { name: string, type: 'wall'|'roof'|'floor'|'foundation'|'slab', rsi: number, rse: number, layers: Omit<Layer, 'id'>[] }> = {
   'wall_wood': {
     name: '外壁 - 木造',
     type: 'wall',
     rsi: 0.11, rse: 0.04,
     layers: [
       { materialId: 'ext_siding', thickness: 16 },
+      { materialId: 'air_vent', thickness: 18 },
       { materialId: 'breathable', thickness: 0.2 },
       { materialId: 'plywood', thickness: 9 },
       { materialId: 'gw_16k', thickness: 105 },
@@ -162,7 +209,7 @@ const PRESETS: Record<string, { name: string, type: 'wall'|'roof'|'floor'|'found
   'roof_wood': {
     name: '屋根 - 木造',
     type: 'roof',
-    rsi: 0.10, rse: 0.04,
+    rsi: 0.09, rse: 0.04, // 熱流上向き（屋根・天井）の室内側は 0.09
     layers: [
       { materialId: 'roof_slate', thickness: 6 },
       { materialId: 'asphalt_roofing', thickness: 1 },
@@ -175,7 +222,7 @@ const PRESETS: Record<string, { name: string, type: 'wall'|'roof'|'floor'|'found
   'roof_double': {
     name: '屋根 - S造 (ダブル折板)',
     type: 'roof',
-    rsi: 0.10, rse: 0.04,
+    rsi: 0.09, rse: 0.04, // 熱流上向き（屋根・天井）の室内側は 0.09
     layers: [
       { materialId: 'roof_folded', thickness: 0.8 }, // 上弦
       { materialId: 'gw_32k', thickness: 100 }, // 中間断熱
@@ -188,7 +235,7 @@ const PRESETS: Record<string, { name: string, type: 'wall'|'roof'|'floor'|'found
   'roof_s': {
     name: '屋根 - S造 (シングル折板)',
     type: 'roof',
-    rsi: 0.10, rse: 0.04,
+    rsi: 0.09, rse: 0.04, // 熱流上向き（屋根・天井）の室内側は 0.09
     layers: [
       { materialId: 'roof_metal', thickness: 0.6 },
       { materialId: 'pef_sheet', thickness: 4 },
@@ -200,7 +247,7 @@ const PRESETS: Record<string, { name: string, type: 'wall'|'roof'|'floor'|'found
   'roof_rc': {
     name: '屋根 - RC造',
     type: 'roof',
-    rsi: 0.10, rse: 0.04,
+    rsi: 0.09, rse: 0.04, // 熱流上向き（屋根・天井）の室内側は 0.09
     layers: [
       { materialId: 'concrete', thickness: 60 },
       { materialId: 'xps_3', thickness: 50 },
@@ -239,6 +286,39 @@ const PRESETS: Record<string, { name: string, type: 'wall'|'roof'|'floor'|'found
       { materialId: 'xps_3', thickness: 50 },
     ]
   },
+  // 土間: 外側の境界は「地盤」。rse は使わず、地中温度・地盤考慮深さから決める（設定条件）
+  // 層は地盤側 → 室内側の順。isBonded は「この層の地盤側の界面が密着」（コンクリート打込み）
+  'slab_plain': {
+    name: '土間 - 土間コンクリート（断熱なし）',
+    type: 'slab',
+    rsi: 0.15, rse: 0,
+    layers: [
+      { materialId: 'pe_film', thickness: 0.1 },
+      { materialId: 'concrete', thickness: 150, isBonded: true },
+    ]
+  },
+  'slab_xps': {
+    name: '土間 - スラブ下断熱（XPS）',
+    type: 'slab',
+    rsi: 0.15, rse: 0,
+    layers: [
+      { materialId: 'pe_film', thickness: 0.1 },
+      { materialId: 'xps_3', thickness: 50 },
+      { materialId: 'concrete', thickness: 150, isBonded: true },
+    ]
+  },
+  'slab_floor': {
+    name: '土間 - 土間コン＋置床（フローリング）',
+    type: 'slab',
+    rsi: 0.15, rse: 0,
+    layers: [
+      { materialId: 'pe_film', thickness: 0.1 },
+      { materialId: 'concrete', thickness: 150, isBonded: true },
+      { materialId: 'air_stat', thickness: 80 },
+      { materialId: 'plywood', thickness: 20 },
+      { materialId: 'flooring', thickness: 12 },
+    ]
+  },
   'partition_wall': {
     name: '間仕切壁',
     type: 'wall',
@@ -253,71 +333,102 @@ const PRESETS: Record<string, { name: string, type: 'wall'|'roof'|'floor'|'found
 
 // --- 計算ロジック (Tetensの式を採用) ---
 
-// 飽和水蒸気圧 Ps [Pa] (Tetens)
-// t: 温度 [℃]
+// 飽和水蒸気圧（水面）[Pa] (Tetens)
+// Tetensの式: P = 6.1078 * 10^(7.5t / (t + 237.3))  [hPa]
+const getSatPressureWater = (t: number): number => {
+  return 610.78 * Math.pow(10, (7.5 * t) / (t + 237.3));
+};
+
+// 飽和水蒸気圧（氷面）[Pa] (Tetens): P = 6.1078 * 10^(9.5t / (t + 265.3))  [hPa]
+const getSatPressureIce = (t: number): number => {
+  return 610.78 * Math.pow(10, (9.5 * t) / (t + 265.3));
+};
+
+// 結露判定に使う飽和水蒸気圧 [Pa]。0℃未満は氷面（霜）で判定する
+// 水面のまま判定すると飽和圧を高く見積もり、氷点下の界面で結露（霜）を見逃す
 const getSatPressure = (t: number): number => {
-  // Tetensの式: P = 6.1078 * 10^(7.5t / (t + 237.3))  [hPa]
-  // 1 hPa = 100 Pa なので 100倍する
-  const hPa = 6.1078 * Math.pow(10, (7.5 * t) / (t + 237.3));
-  return hPa * 100;
+  return t < 0 ? getSatPressureIce(t) : getSatPressureWater(t);
+};
+
+// 温度・相対湿度から水蒸気分圧 [Pa]
+// 相対湿度は氷点下でも水面基準（気象庁の観測値と同じ定義）
+const getVaporPressure = (t: number, rh: number): number => {
+  return getSatPressureWater(t) * (rh / 100);
 };
 
 // 重量絶対湿度 X [kg/kg(DA)]
 // t: 温度 [℃], rh: 相対湿度 [%]
 const getAbsoluteHumidity = (t: number, rh: number): number => {
-  const ps = getSatPressure(t); // Pa
-  const pv = ps * (rh / 100);   // 水蒸気分圧 Pa
+  const pv = getVaporPressure(t, rh); // 水蒸気分圧 Pa
   const P = 101325;             // 標準大気圧 Pa
-  
+
   // 0.622 * e / (P - e)
   if (P <= pv) return 0.1; // エラー回避
   return (0.622 * pv) / (P - pv);
 };
 
-// 露点温度 Td [℃] (Tetensの逆算)
+// 露点温度 Td [℃]（0℃未満は霜点）。getSatPressure の逆関数
 // pressure: 水蒸気圧 [Pa]
 const getDewPoint = (pressure: number): number => {
   if (pressure <= 0) return -50;
-  const p_hPa = pressure / 100;
-  
-  // log10(P/6.1078) = 7.5t / (t + 237.3)
-  const A = Math.log10(p_hPa / 6.1078);
-  // A = 7.5t / (t + 237.3)  => A(t + 237.3) = 7.5t => At + 237.3A = 7.5t => 237.3A = t(7.5 - A)
-  // t = 237.3 * A / (7.5 - A)
-  
-  const val = (237.3 * A) / (7.5 - A);
-  return val;
+  const A = Math.log10(pressure / 610.78);
+  // 水面: A = 7.5t / (t + 237.3) → t = 237.3A / (7.5 - A)
+  if (A >= 0) return (237.3 * A) / (7.5 - A);
+  // 氷面: A = 9.5t / (t + 265.3) → t = 265.3A / (9.5 - A)
+  return (265.3 * A) / (9.5 - A);
 };
+
+// 厚さによらず外気とみなす層（これより外側は計算から除外）
+const VENTED_MATERIAL_IDS = new Set(['air_vent']);
+// 土間で「地盤側の防湿層」とみなす透湿抵抗 Sd [m]
+const GROUND_VAPOR_BARRIER_SD = 1;
+
+interface ProfileOptions {
+  isSlab?: boolean;     // 土間（外側の境界が地盤）
+  outLabel?: string;    // 外側の呼び名（室外 / 地盤）
+}
 
 const calculateProfile = (
   inputLayers: Layer[],
   ti: number, rhi: number,
   te: number, rhe: number,
   rsi: number, rse: number,
-  materials: Material[]
+  materials: Material[],
+  options: ProfileOptions = {}
 ): CalcResult => {
+  const outLabel = options.outLabel ?? '室外';
   const validLayers = inputLayers.filter(l => l.materialId !== '' && l.thickness !== '');
-  const layers = [...validLayers].reverse();
+  const layers = [...validLayers].reverse(); // 室内側 → 外側
+
+  // 通気層: 室内側から見て最初の通気層より外側（通気層を含む）は外気とみなす
+  const ventIdx = layers.findIndex(l => VENTED_MATERIAL_IDS.has(l.materialId));
+  const ventApplied = ventIdx >= 0;
+  // 通気層に接する面の外気側表面熱伝達抵抗は室内側と同値（省エネ基準の扱い）
+  const rseUsed = ventApplied ? rsi : rse;
 
   const layerDetails: CalcResult['layerDetails'] = [];
 
-  const layerProps = layers.map(layer => {
+  const layerProps = layers.map((layer, idx) => {
     const mat = materials.find(m => m.id === layer.materialId);
     const lambda = mat?.lambda ?? 1.0;
     const mu = mat?.mu ?? 1.0;
     const d_mm = Number(layer.thickness) || 0;
     const d = d_mm / 1000;
-    
-    const r = d / lambda;
-    const sd = d * mu;
+    const excluded = ventApplied && idx >= ventIdx;
+
+    const r = excluded ? 0 : (mat?.fixedR ?? (lambda > 0 ? d / lambda : 0));
+    const sd = excluded ? 0 : d * mu;
 
     layerDetails.push({
       name: mat?.name ?? 'Unknown',
+      category: mat?.category ?? '',
       d: d_mm,
       lambda,
       mu,
       r,
       sd,
+      fixedR: mat?.fixedR !== undefined,
+      excluded,
       isBonded: layer.isBonded
     });
 
@@ -326,18 +437,30 @@ const calculateProfile = (
       name: mat?.name ?? 'Unknown',
       R: r,
       Sd: sd,
-      d_mm: d_mm
+      d_mm: d_mm,
+      excluded,
     };
   });
 
-  const R_total = rsi + layerProps.reduce((sum, l) => sum + l.R, 0) + rse;
+  const R_total = rsi + layerProps.reduce((sum, l) => sum + l.R, 0) + rseUsed;
   const U = 1 / R_total;
 
-  const Pi_sat = getSatPressure(ti);
-  const Pi = Pi_sat * (rhi / 100);
-  const Pe_sat = getSatPressure(te);
-  const Pe = Pe_sat * (rhe / 100);
+  const Pi = getVaporPressure(ti, rhi);
+  const Pe = getVaporPressure(te, rhe);
   const Sd_total = layerProps.reduce((sum, l) => sum + l.Sd, 0);
+  const activeCount = layerProps.filter(l => !l.excluded).length;
+
+  // 土間: 地盤側で最初に現れる防湿層の室内側の面から地盤側は、土壌水分の影響域として判定対象外
+  // （下向きの水蒸気流で計算上は飽和するが、量はごく僅かで、土壌はもともと湿潤）
+  let groundZoneFrom = layerProps.length; // points のこの位置以降が地盤側
+  if (options.isSlab) {
+    for (let i = layerProps.length - 1; i >= 0; i--) {
+      if (layerProps[i].Sd >= GROUND_VAPOR_BARRIER_SD && materials.find(m => m.id === layerProps[i].materialId)?.category === 'membrane') {
+        groundZoneFrom = i;
+        break;
+      }
+    }
+  }
 
   const points: CalculationPoint[] = [];
   let currentR = rsi;
@@ -345,8 +468,8 @@ const calculateProfile = (
   let currentDist = 0;
 
   const Tsi = ti - (rsi / R_total) * (ti - te);
-  
-  // 室内表面: 最初の層の表面
+
+  // 室内表面: 最初の層の表面（表面結露の判定点）
   const firstLayerName = layerDetails[0]?.name || '不明';
   points.push({
     distance: 0,
@@ -356,45 +479,48 @@ const calculateProfile = (
     satPressure: getSatPressure(Tsi),
     layerName: '室内表面',
     displayLabel: `【室内側】${firstLayerName} 表面`,
-    isIce: Tsi < 0
+    isIce: Tsi < 0,
+    zone: options.isSlab && groundZoneFrom === 0 ? 'ground' : undefined,
   });
 
-  let isCondensing = false;
-  let condensationLayerIndex: number | null = null;
-
+  let activeIdx = 0;
   layerProps.forEach((layer, idx) => {
     currentR += layer.R;
     currentSd += layer.Sd;
     currentDist += layer.d_mm;
 
-    const Tx = ti - (currentR / R_total) * (ti - te);
-    const ratio = Sd_total > 0 ? currentSd / Sd_total : (idx + 1) / layerProps.length;
-    const Px = Pi - ratio * (Pi - Pe);
+    let Tx: number;
+    let Px: number;
+    if (layer.excluded) {
+      // 通気層とその外側は外気そのもの
+      Tx = te;
+      Px = Pe;
+    } else {
+      activeIdx++;
+      Tx = ti - (currentR / R_total) * (ti - te);
+      const ratio = Sd_total > 0 ? currentSd / Sd_total : activeIdx / Math.max(activeCount, 1);
+      Px = Pi - ratio * (Pi - Pe);
+    }
     const Px_sat = getSatPressure(Tx);
     const Tdx = getDewPoint(Px);
 
-    // この層が「密着（isBonded）」指定されている場合、結露判定を行わない
-    // ※ UIで「この層と次の層の間」を指定した場合、ここでのチェックをスキップします
-    const skipCheck = layer.isBonded;
-
-    if (!skipCheck && Px > Px_sat + 1) { 
-      isCondensing = true;
-      if (condensationLayerIndex === null) condensationLayerIndex = idx;
-    }
-
-    // 表示ラベル生成: この層の外側表面（= 次の層との界面 / 最後だけ室外表面）
+    // 表示ラベル生成: この層の外側表面（= 次の層との界面 / 最後だけ外側表面）
     const currentLayerName = layer.name;
     const isLastLayer = idx === layerProps.length - 1;
     let displayLabel: string;
-    
+
     if (isLastLayer) {
-      // 最後の層の外側 = 室外表面（その層の表面）
-      displayLabel = `【室外側】${currentLayerName} 表面`;
+      displayLabel = `【${outLabel}側】${currentLayerName} 表面`;
     } else {
       // 中間界面は「次の層の表面（現在の層の裏面でもある）」が正しい
       const nextLayerName = layerDetails[idx + 1]?.name || '不明';
       displayLabel = `${nextLayerName} 表面（${currentLayerName} 裏面）`;
     }
+
+    let zone: CalculationPoint['zone'];
+    if (layer.excluded) zone = 'vent';
+    // 土間の地盤接触面は常に除外。防湿層があればその室内側の面から地盤側を除外
+    else if (options.isSlab && (idx + 1 >= groundZoneFrom || isLastLayer)) zone = 'ground';
 
     points.push({
       distance: currentDist,
@@ -404,25 +530,85 @@ const calculateProfile = (
       satPressure: Px_sat,
       layerName: layer.name,
       displayLabel,
+      // この層が「密着（isBonded）」指定されている場合、この層の外側の界面は結露判定を行わない
       isBonded: layer.isBonded,
-      isIce: Tx < 0
+      isIce: Tx < 0,
+      zone,
     });
   });
 
-  return { uValue: U, rTotal: R_total, points, isCondensing, condensationLayerIndex, limitOutdoorTemp: null, layerDetails };
+  // 室内表面（表面結露）を含め、判定対象の全界面をチェック
+  const condensationPointIndex = points.findIndex(p => getPointStatus(p) === 'ng');
+  const isCondensing = condensationPointIndex >= 0;
+
+  return {
+    uValue: U, rTotal: R_total, rseUsed, ventApplied, points, isCondensing,
+    condensationPointIndex: isCondensing ? condensationPointIndex : null,
+    limitOutdoorTemp: null, layerDetails
+  };
 };
 
-const findWinterLimitTemp = (layers: Layer[], ti: number, rhi: number, rhe: number, rsi: number, rse: number, materials: Material[]): number | null => {
-  let low = -30; 
+// 外側温度（外気温 / 地中温度）をどこまで下げると結露し始めるか
+const findWinterLimitTemp = (layers: Layer[], ti: number, rhi: number, rhe: number, rsi: number, rse: number, materials: Material[], options: ProfileOptions = {}): number | null => {
+  let low = -30;
   let high = ti;
   let safeTemp = ti;
   for(let i = 0; i < 15; i++){
     const mid = (low + high) / 2;
-    const res = calculateProfile(layers, ti, rhi, mid, rhe, rsi, rse, materials);
-    if (res.isCondensing) low = mid; 
+    const res = calculateProfile(layers, ti, rhi, mid, rhe, rsi, rse, materials, options);
+    if (res.isCondensing) low = mid;
     else { safeTemp = mid; high = mid; }
   }
   return safeTemp > -29 ? safeTemp : null;
+};
+
+// --- 材料DBの保存（既定値との差分だけ保存し、既定値の修正が既存ユーザーにも届くようにする） ---
+
+const MATERIAL_STORAGE_KEY = 'userMaterialDB_v2';
+const LEGACY_MATERIAL_STORAGE_KEY = 'userMaterialDB';
+// 旧版の既定値（今回変えたものだけ）。旧保存データでこの値のままのものはユーザー編集ではない
+const LEGACY_DEFAULTS: Record<string, { lambda: number; mu: number }> = {
+  ecp: { lambda: 1.0, mu: 60 },
+  breathable: { lambda: 0.2, mu: 0.5 },
+  air_stat: { lambda: 0.14, mu: 1 },
+};
+type MaterialOverride = { lambda?: number; mu?: number; fixedR?: number };
+interface StoredMaterials { overrides: Record<string, MaterialOverride>; custom: Material[] }
+
+const toStoredMaterials = (db: Material[]): StoredMaterials => {
+  const overrides: Record<string, MaterialOverride> = {};
+  const custom: Material[] = [];
+  db.forEach(m => {
+    const def = DEFAULT_MATERIAL_DB.find(d => d.id === m.id);
+    if (!def) { custom.push(m); return; }
+    const o: MaterialOverride = {};
+    if (m.lambda !== def.lambda) o.lambda = m.lambda;
+    if (m.mu !== def.mu) o.mu = m.mu;
+    if (m.fixedR !== def.fixedR) o.fixedR = m.fixedR;
+    if (Object.keys(o).length > 0) overrides[m.id] = o;
+  });
+  return { overrides, custom };
+};
+
+const fromStoredMaterials = (s: StoredMaterials): Material[] => [
+  ...DEFAULT_MATERIAL_DB.map(d => ({ ...d, ...(s.overrides?.[d.id] ?? {}) })),
+  ...(s.custom ?? []),
+];
+
+const migrateLegacyMaterials = (legacy: Material[]): StoredMaterials => {
+  const overrides: Record<string, MaterialOverride> = {};
+  const custom: Material[] = [];
+  legacy.forEach(m => {
+    const def = DEFAULT_MATERIAL_DB.find(d => d.id === m.id);
+    if (!def) { custom.push(m); return; }
+    if (def.fixedR !== undefined) return; // 計算方法を変えた材料は旧値を引き継がない
+    const base = LEGACY_DEFAULTS[m.id] ?? def;
+    const o: MaterialOverride = {};
+    if (m.lambda !== base.lambda) o.lambda = m.lambda;
+    if (m.mu !== base.mu) o.mu = m.mu;
+    if (Object.keys(o).length > 0) overrides[m.id] = o;
+  });
+  return { overrides, custom };
 };
 
 // --- コンポーネント ---
@@ -457,26 +643,47 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
 
   // 計算パラメータ
   const [rsi, setRsi] = useState(0.11);
-  const [rse, setRse] = useState(0.04);
+  const [rseOut, setRseOut] = useState(0.04);
   const [ti, setTi] = useState(22);
   const [rhi, setRhi] = useState(50);
-  const [te, setTe] = useState(0);
-  const [rhe, setRhe] = useState(80);
-  
+  const [teOut, setTeOut] = useState(0);
+  const [rheOut, setRheOut] = useState(80);
+  // 土間（外側の境界 = 地盤）
+  const [tg, setTg] = useState(10);            // 地中温度 [℃]
+  const [rhg, setRhg] = useState(100);         // 地盤側の相対湿度 [%]（土壌は湿潤なので 100）
+  const [groundDepth, setGroundDepth] = useState(0);   // 地盤の考慮深さ [m]（0 = 土間下端を地中温度で固定）
+  const [groundLambda, setGroundLambda] = useState(1.0); // 土壌の熱伝導率 [W/(m·K)]
+
   const [layers, setLayers] = useState<Layer[]>([]);
+
+  // 土間モードでは外側の境界条件を地盤に置き換える（以降の計算・表示は te / rhe / rse を使う）
+  const isSlab = presetType === 'slab';
+  const outLabel = isSlab ? '地盤' : '室外';
+  const te = isSlab ? tg : teOut;
+  const rhe = isSlab ? rhg : rheOut;
+  const rse = isSlab ? groundDepth / Math.max(groundLambda, 0.01) : rseOut;
+
+  const [materialDBLoaded, setMaterialDBLoaded] = useState(false);
 
   useEffect(() => {
     try {
-      const savedMaterials = localStorage.getItem('userMaterialDB');
-      if (savedMaterials) setMaterialDB(JSON.parse(savedMaterials));
+      const saved = localStorage.getItem(MATERIAL_STORAGE_KEY);
+      if (saved) {
+        setMaterialDB(fromStoredMaterials(JSON.parse(saved)));
+      } else {
+        const legacy = localStorage.getItem(LEGACY_MATERIAL_STORAGE_KEY);
+        if (legacy) setMaterialDB(fromStoredMaterials(migrateLegacyMaterials(JSON.parse(legacy))));
+      }
     } catch (e) {}
+    setMaterialDBLoaded(true);
   }, []);
 
   useEffect(() => {
+    if (!materialDBLoaded) return; // 読み込み前の既定値で保存データを上書きしない
     try {
-      localStorage.setItem('userMaterialDB', JSON.stringify(materialDB));
+      localStorage.setItem(MATERIAL_STORAGE_KEY, JSON.stringify(toStoredMaterials(materialDB)));
     } catch (e) {}
-  }, [materialDB]);
+  }, [materialDB, materialDBLoaded]);
 
   const availableCategories = useMemo(() => {
     const cats = new Set(materialDB.map(m => m.category));
@@ -489,6 +696,7 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
       'roof': ['roof', 'air', 'membrane', 'structure', 'insulation', 'board', 'finish'],
       'floor': ['floor', 'structure', 'insulation', 'membrane', 'air', 'board'],
       'foundation': ['structure', 'insulation', 'finish', 'air'],
+      'slab': ['structure', 'insulation', 'membrane', 'air', 'board', 'floor', 'finish'],
     };
     const allowed = defaults[type] || [];
     const customCats = availableCategories.filter(c => !Object.keys(DEFAULT_CATEGORY_LABELS).includes(c));
@@ -505,16 +713,24 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
       setPresetKey(key);
       setPresetType(p.type);
       setRsi(p.rsi);
-      setRse(p.rse);
+      if (p.type !== 'slab') setRseOut(p.rse); // 土間は地盤条件（設定条件）から決まる
       setLayers(p.layers.map((l, i) => ({ ...l, id: Date.now().toString() + i })));
     }
   };
 
+  // 土間の季節別の検討条件（例）。地中温度は地域の年平均気温 ±数℃ が目安
+  const applySlabSeason = (season: 'winter' | 'summer') => {
+    if (!isLoggedIn) return;
+    if (season === 'winter') { setTi(20); setRhi(50); setTg(10); }
+    else { setTi(28); setRhi(75); setTg(18); }
+  };
+
   const result = useMemo(() => {
-    const res = calculateProfile(layers, ti, rhi, te, rhe, rsi, rse, materialDB);
-    const limit = (ti > te) ? findWinterLimitTemp(layers, ti, rhi, rhe, rsi, rse, materialDB) : null;
+    const opts: ProfileOptions = { isSlab, outLabel };
+    const res = calculateProfile(layers, ti, rhi, te, rhe, rsi, rse, materialDB, opts);
+    const limit = (ti > te) ? findWinterLimitTemp(layers, ti, rhi, rhe, rsi, rse, materialDB, opts) : null;
     return { ...res, limitOutdoorTemp: limit };
-  }, [layers, ti, rhi, te, rhe, rsi, rse, materialDB]);
+  }, [layers, ti, rhi, te, rhe, rsi, rse, materialDB, isSlab, outLabel]);
 
   const updateLayerMaterial = (realIndex: number, newMaterialId: string) => {
     if (!isLoggedIn) return;
@@ -803,7 +1019,7 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
                 <text x={indoorPt.x} y={indoorPt.y - 2} fontSize="3" fill="red" textAnchor="middle" fontWeight="bold" style={{textShadow: "0px 0px 2px white"}}>室内</text>
 
                 <circle cx={outdoorPt.x} cy={outdoorPt.y} r="1" fill="blue" stroke="white" strokeWidth="0.2" />
-                <text x={outdoorPt.x} y={outdoorPt.y + 4} fontSize="3" fill="blue" textAnchor="middle" fontWeight="bold" style={{textShadow: "0px 0px 2px white"}}>室外</text>
+                <text x={outdoorPt.x} y={outdoorPt.y + 4} fontSize="3" fill="blue" textAnchor="middle" fontWeight="bold" style={{textShadow: "0px 0px 2px white"}}>{outLabel}</text>
             </svg>
             
             {/* 凡例・軸ラベル */}
@@ -819,7 +1035,8 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
   };
 
   const GraphView = () => {
-    if (!result || result.points.length === 0) return null;
+    // 層が無い（初回描画・全層未入力）と厚さ合計が 0 になり座標が NaN になる
+    if (!result || result.points.length < 2 || result.points[result.points.length - 1].distance <= 0) return null;
     
     const pts = result.points;
     const maxDist = pts[pts.length - 1].distance;
@@ -845,7 +1062,7 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
     if (graphMode === 'pressure') {
       // 圧力モード: Pa単位（主軸）+ 温度単位（副軸）
       const pressures = pts.map(p => p.pressure).concat(pts.map(p => p.satPressure));
-      const allPressures = [...pressures, getSatPressure(ti) * (rhi/100), getSatPressure(te) * (rhe/100)];
+      const allPressures = [...pressures, getVaporPressure(ti, rhi), getVaporPressure(te, rhe)];
       maxVal = Math.ceil(Math.max(...allPressures) / 100) * 100 + 100;
       minVal = Math.floor(Math.min(...allPressures) / 100) * 100 - 100;
       rangeVal = maxVal - minVal;
@@ -877,10 +1094,10 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
       formatValue = (val: number) => Math.round(val).toString();
     }
     
-    const indoorDew = getDewPoint(getSatPressure(ti) * (rhi/100));
-    const outdoorDew = getDewPoint(getSatPressure(te) * (rhe/100));
-    const indoorPressure = getSatPressure(ti) * (rhi/100);
-    const outdoorPressure = getSatPressure(te) * (rhe/100);
+    const indoorDew = getDewPoint(getVaporPressure(ti, rhi));
+    const outdoorDew = getDewPoint(getVaporPressure(te, rhe));
+    const indoorPressure = getVaporPressure(ti, rhi);
+    const outdoorPressure = getVaporPressure(te, rhe);
     const indoorSatPressure = getSatPressure(ti);
     const outdoorSatPressure = getSatPressure(te);
 
@@ -919,10 +1136,6 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
         layerName: p.layerName
     })).sort((a, b) => a.x - b.x);
     
-    const getMaterialFromLayerName = (layerName: string | undefined) => {
-        if (!layerName || layerName === '室内表面' || layerName === '室外表面') return null;
-        return materialDB.find(m => m.name === layerName);
-    };
 
     const pathVal1Full = `
         M 0,${toY(leftAirVal1)} L ${leftSurfX},${toY(leftAirVal1)} L ${leftSurfX},${toY(visualPoints[0].val1)}
@@ -955,10 +1168,10 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
              </div>
           ))}
           <div className="absolute font-bold text-gray-600 print:text-black" style={{ top: '10px', left: `${ZONE_WIDTH / 2}%`, transform: 'translateX(-50%)' }}>
-              {direction === 'out_in' ? '室外' : '室内'}
+              {direction === 'out_in' ? outLabel : '室内'}
           </div>
           <div className="absolute font-bold text-gray-600 print:text-black" style={{ top: '10px', left: `${100 - ZONE_WIDTH / 2}%`, transform: 'translateX(-50%)' }}>
-              {direction === 'out_in' ? '室内' : '室外'}
+              {direction === 'out_in' ? '室内' : outLabel}
           </div>
         </div>
 
@@ -972,11 +1185,13 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
                 const nextP = visualPoints[i+1];
                 const xStart = Math.min(p.x, nextP.x);
                 const xEnd = Math.max(p.x, nextP.x);
-                if (p.layerName && p.layerName !== '室内表面' && p.layerName !== '室外表面') {
-                    const material = getMaterialFromLayerName(p.layerName);
-                    if (material?.category === 'insulation') {
-                        return <rect key={`bg-${i}`} x={xStart} y="0" width={xEnd - xStart} height="100" fill="#fef3c7" opacity="0.3" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }} />;
-                    }
+                // 隣り合う 2 点の間の層 = 室内側の点の番号（points[k] と points[k+1] の間が layerDetails[k]）
+                const layer = result.layerDetails[Math.min(p.ptsIndex, nextP.ptsIndex)];
+                if (layer?.category === 'insulation') {
+                    return <rect key={`bg-${i}`} x={xStart} y="0" width={xEnd - xStart} height="100" fill="#fef3c7" opacity="0.3" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }} />;
+                }
+                if (layer?.excluded) {
+                    return <rect key={`bg-${i}`} x={xStart} y="0" width={xEnd - xStart} height="100" fill="#e5e7eb" opacity="0.5" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }} />;
                 }
                 return null;
             })}
@@ -1002,26 +1217,16 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
                 if (i === visualPoints.length - 1) return null;
                 const nextP = visualPoints[i+1];
                 const xCenter = (p.x + nextP.x) / 2;
-                let displayNum: number | null = null;
-                if (p.ptsIndex !== 0) {
-                    if (direction === 'out_in') {
-                        const layerIndexFromIn = p.ptsIndex - 1;
-                        displayNum = layers.length - layerIndexFromIn;
-                    } else {
-                        const layerIndexFromIn = p.ptsIndex - 1;
-                        displayNum = i + 1;
-                    }
-                }
-                if(displayNum === null) return null;
+                // 層番号は左の構成リストと同じ（表示順で 1 から）
+                const layerIndexFromIn = Math.min(p.ptsIndex, nextP.ptsIndex);
+                const n = result.layerDetails.length;
+                const displayNum = direction === 'out_in' ? n - layerIndexFromIn : layerIndexFromIn + 1;
                 return (
                     <div key={`num-${i}`} className="absolute text-[10px] font-bold text-gray-600 text-center" style={{ left: `${xCenter}%`, top: '10px', transform: 'translateX(-50%)' }}>{displayNum}</div>
                 );
             })}
 
             {visualPoints.map((p, i) => {
-                const orgPt = pts.find(pt => pt.distance === p.dist);
-                if (!orgPt) return null;
-
                 const displayVal1 = graphMode === 'pressure' ? Math.round(p.val1) : p.val1.toFixed(1);
                 const displayVal2 = graphMode === 'pressure' ? Math.round(p.val2) : p.val2.toFixed(1);
 
@@ -1042,8 +1247,7 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
             })}
 
             {result.isCondensing && graphMode !== 'pressure' && visualPoints.map((p, i) => {
-                 const orgPt = pts.find(pt => pt.distance === p.dist);
-                 if (orgPt && orgPt.pressure > orgPt.satPressure + 1) {
+                 if (getPointStatus(pts[p.ptsIndex]) === 'ng') {
                      return <div key={`risk-${i}`} className="absolute rounded-full bg-red-600 opacity-60 animate-pulse" style={{ left: `${p.x}%`, top: `${toY(p.val1)}%`, width: '12px', height: '12px', transform: 'translate(-50%, -50%)', zIndex: 20 }} />;
                  }
                  return null;
@@ -1063,8 +1267,8 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
     materialDB: Material[];
     direction: 'out_in' | 'in_out';
     graphMode: 'temp-dew' | 'pressure';
-  }> = ({ result, ti, rhi, te, rhe, materialDB, direction, graphMode }) => {
-    if (!result || result.points.length === 0) return null;
+  }> = ({ result, ti, rhi, te, rhe, direction, graphMode }) => {
+    if (!result || result.points.length < 2 || result.points[result.points.length - 1].distance <= 0) return null;
     
     const pts = result.points;
     const maxDist = pts[pts.length - 1].distance;
@@ -1089,7 +1293,7 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
     if (graphMode === 'pressure') {
       // 圧力モード: Pa単位（主軸）+ 温度単位（副軸）
       const pressures = pts.map(p => p.pressure).concat(pts.map(p => p.satPressure));
-      const allPressures = [...pressures, getSatPressure(ti) * (rhi/100), getSatPressure(te) * (rhe/100)];
+      const allPressures = [...pressures, getVaporPressure(ti, rhi), getVaporPressure(te, rhe)];
       maxVal = Math.ceil(Math.max(...allPressures) / 100) * 100 + 100;
       minVal = Math.floor(Math.min(...allPressures) / 100) * 100 - 100;
       rangeVal = maxVal - minVal;
@@ -1121,10 +1325,10 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
       formatValue = (val: number) => Math.round(val).toString();
     }
     
-    const indoorDew = getDewPoint(getSatPressure(ti) * (rhi/100));
-    const outdoorDew = getDewPoint(getSatPressure(te) * (rhe/100));
-    const indoorPressure = getSatPressure(ti) * (rhi/100);
-    const outdoorPressure = getSatPressure(te) * (rhe/100);
+    const indoorDew = getDewPoint(getVaporPressure(ti, rhi));
+    const outdoorDew = getDewPoint(getVaporPressure(te, rhe));
+    const indoorPressure = getVaporPressure(ti, rhi);
+    const outdoorPressure = getVaporPressure(te, rhe);
     const indoorSatPressure = getSatPressure(ti);
     const outdoorSatPressure = getSatPressure(te);
 
@@ -1163,10 +1367,6 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
         layerName: p.layerName
     })).sort((a, b) => a.x - b.x);
     
-    const getMaterialFromLayerName = (layerName: string | undefined) => {
-        if (!layerName || layerName === '室内表面' || layerName === '室外表面') return null;
-        return materialDB.find(m => m.name === layerName);
-    };
 
     const pathVal1Full = `
         M 0,${toY(leftAirVal1)} L ${leftSurfX},${toY(leftAirVal1)} L ${leftSurfX},${toY(visualPoints[0].val1)}
@@ -1199,10 +1399,10 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
              </div>
           ))}
           <div className="absolute font-bold text-black" style={{ top: '10px', left: `${ZONE_WIDTH / 2}%`, transform: 'translateX(-50%)' }}>
-              {direction === 'out_in' ? '室外' : '室内'}
+              {direction === 'out_in' ? outLabel : '室内'}
           </div>
           <div className="absolute font-bold text-black" style={{ top: '10px', left: `${100 - ZONE_WIDTH / 2}%`, transform: 'translateX(-50%)' }}>
-              {direction === 'out_in' ? '室内' : '室外'}
+              {direction === 'out_in' ? '室内' : outLabel}
           </div>
         </div>
 
@@ -1216,11 +1416,12 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
                 const nextP = visualPoints[i+1];
                 const xStart = Math.min(p.x, nextP.x);
                 const xEnd = Math.max(p.x, nextP.x);
-                if (p.layerName && p.layerName !== '室内表面' && p.layerName !== '室外表面') {
-                    const material = getMaterialFromLayerName(p.layerName);
-                    if (material?.category === 'insulation') {
-                        return <rect key={`bg-${i}`} x={xStart} y="0" width={xEnd - xStart} height="100" fill="#fef3c7" opacity="0.3" />;
-                    }
+                const layer = result.layerDetails[Math.min(p.ptsIndex, nextP.ptsIndex)];
+                if (layer?.category === 'insulation') {
+                    return <rect key={`bg-${i}`} x={xStart} y="0" width={xEnd - xStart} height="100" fill="#fef3c7" opacity="0.3" />;
+                }
+                if (layer?.excluded) {
+                    return <rect key={`bg-${i}`} x={xStart} y="0" width={xEnd - xStart} height="100" fill="#e5e7eb" opacity="0.5" />;
                 }
                 return null;
             })}
@@ -1317,11 +1518,11 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
             </thead>
             <tbody>
               {/* 室外側から表示 */}
-              <tr className="bg-gray-50"><td className="border border-black p-1 text-center text-xs">-</td><td className="border border-black p-1 text-xs">室外側気層 (Rse)</td><td className="border border-black p-1 text-center">-</td><td className="border border-black p-1 text-center">-</td><td className="border border-black p-1 text-center">-</td></tr>
+              <tr className="bg-gray-50"><td className="border border-black p-1 text-center text-xs">-</td><td className="border border-black p-1 text-xs">{outLabel}側 ({isSlab ? 'Rg' : 'Rse'})</td><td className="border border-black p-1 text-center">-</td><td className="border border-black p-1 text-center">-</td><td className="border border-black p-1 text-center">-</td></tr>
               {details.map((layer, idx) => (
                 <tr key={idx}>
                   <td className="border border-black p-2 text-center">{idx + 1}</td>
-                  <td className="border border-black p-2">{layer.name}</td>
+                  <td className="border border-black p-2">{layer.name}{layer.excluded ? '（通気層より外側・計算除外）' : ''}{layer.fixedR ? '（中空層 R 固定）' : ''}</td>
                   <td className="border border-black p-2 text-right">{layer.d.toFixed(1)}</td>
                   <td className="border border-black p-2 text-right">{layer.lambda.toFixed(3)}</td>
                   <td className="border border-black p-2 text-right">{layer.mu.toFixed(1)}</td>
@@ -1342,7 +1543,7 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
                   </thead>
                   <tbody>
                       <tr><td className="border border-black p-2">室内側 (Rsi)</td><td className="border border-black p-2 text-center">{rsi.toFixed(2)}</td></tr>
-                      <tr><td className="border border-black p-2">室外側 (Rse)</td><td className="border border-black p-2 text-center">{rse.toFixed(2)}</td></tr>
+                      <tr><td className="border border-black p-2">{isSlab ? `地盤側 (Rg = 深さ${groundDepth}m / λ${groundLambda})` : '室外側 (Rse)'}{result.ventApplied ? '※通気層' : ''}</td><td className="border border-black p-2 text-center">{result.rseUsed.toFixed(2)}</td></tr>
                   </tbody>
               </table>
           </div>
@@ -1354,7 +1555,7 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
                   </thead>
                   <tbody>
                       <tr><td className="border border-black p-2">室内</td><td className="border border-black p-2 text-center">{ti.toFixed(1)}</td><td className="border border-black p-2 text-center">{rhi}</td></tr>
-                      <tr><td className="border border-black p-2">室外</td><td className="border border-black p-2 text-center">{te.toFixed(1)}</td><td className="border border-black p-2 text-center">{rhe}</td></tr>
+                      <tr><td className="border border-black p-2">{outLabel}</td><td className="border border-black p-2 text-center">{te.toFixed(1)}</td><td className="border border-black p-2 text-center">{rhe}</td></tr>
                   </tbody>
               </table>
           </div>
@@ -1385,16 +1586,16 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
                           {result.isCondensing ? '× 結露発生' : '○ 結露なし'}
                       </td>
                       <td className="border border-black p-2 text-xs">
-                          {result.isCondensing 
-                              ? '構成内部で露点温度を下回る箇所があります' 
-                              : '全ての層で表面温度が露点温度を上回っています'}
+                          {result.isCondensing
+                              ? (result.condensationPointIndex === 0 ? '室内表面で露点温度を下回ります（表面結露）' : '構成内部で露点温度を下回る箇所があります（内部結露）')
+                              : '室内表面・各界面の温度が露点温度を上回っています'}
                       </td>
                   </tr>
                   {result.limitOutdoorTemp !== null && (
                   <tr>
-                      <td className="border border-black p-2 font-bold">限界外気温度</td>
+                      <td className="border border-black p-2 font-bold">{isSlab ? '限界地中温度' : '限界外気温度'}</td>
                       <td className="border border-black p-2 text-center">{result.limitOutdoorTemp.toFixed(1)} °C</td>
-                      <td className="border border-black p-2 text-xs">結露が発生し始める外気温度の目安</td>
+                      <td className="border border-black p-2 text-xs">{isSlab ? 'これを下回ると結露が発生し始める地中温度の目安' : '結露が発生し始める外気温度の目安'}</td>
                   </tr>
                   )}
               </tbody>
@@ -1418,7 +1619,7 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
           </div>
 
           {/* 詳細結果テーブル */}
-          <h4 className="font-bold mb-2 text-sm border-b border-gray-400 inline-block">詳細温度分布 ({direction === 'out_in' ? '室外 → 室内' : '室内 → 室外'})</h4>
+          <h4 className="font-bold mb-2 text-sm border-b border-gray-400 inline-block">詳細温度分布 ({direction === 'out_in' ? `${outLabel} → 室内` : `室内 → ${outLabel}`})</h4>
           <table className="w-full text-xs border-collapse border border-black">
               <thead className="bg-gray-100">
                   <tr>
@@ -1430,13 +1631,13 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
               </thead>
               <tbody>
                   {(direction === 'out_in' ? [...result.points].reverse() : result.points).map((p, i, pointsArray) => {
-                       const isRisky = p.pressure > p.satPressure + 1;
                        const originalIndex = direction === 'out_in' ? result.points.length - 1 - i : i;
-                       
+                       const status = getPointStatus(p);
+
                        // 密着判定: このポイントが表す界面が密着しているか
-                       const isBondedInterface = p.isBonded ?? false;
-                       const isRiskyNoBonded = isRisky && !isBondedInterface;
-                       
+                       const isBondedInterface = status === 'bonded';
+                       const isRiskyNoBonded = status === 'ng';
+
                        return (
                            <React.Fragment key={originalIndex}>
                                {/* 密着行: この材料行の直前（界面の前）に表示。最初の行の前には表示しない */}
@@ -1457,7 +1658,7 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
                                    <td className="border border-black p-1 text-center align-middle">{p.temp.toFixed(2)}</td>
                                    <td className="border border-black p-1 text-center align-middle">{p.dewPoint.toFixed(2)}</td>
                                    <td className="border border-black p-1 text-center font-bold align-middle">
-                                       {isBondedInterface ? '-' : (isRisky ? '×' : '○')}
+                                       {POINT_STATUS_MARK[status]}
                                    </td>
                                </tr>
                            </React.Fragment>
@@ -1479,7 +1680,10 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
           </p>
           <p className="text-xs text-gray-500 mt-4">
               ※本計算書は定常計算に基づく簡易シミュレーション結果であり、実際の建物における性能を保証するものではありません。<br/>
-              ※気象条件の変動や施工精度、経年劣化等は考慮されておりません。
+              ※気象条件の変動や施工精度、経年劣化等は考慮されておりません。<br/>
+              ※0℃未満の位置は氷面の飽和水蒸気圧（霜点）で判定しています。<br/>
+              {result.ventApplied && <>※通気層より外側の層は計算から除外し、通気層側の表面熱伝達抵抗を室内側と同値としています。<br/></>}
+              {isSlab && <>※土間は地盤側を地中温度・相対湿度{rhe}%の境界とし、地盤側の防湿層より下（防湿層の上面を含む）は土壌水分の影響域として判定から除外しています。熱容量による表面温度の遅れ（梅雨時の急な高湿外気の流入など）は定常計算では評価できません。</>}
           </p>
         </div>
         
@@ -1503,10 +1707,10 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
               <tbody>
                 <tr><td className="py-1">室内温度 (Ti)</td><td className="font-mono text-right">{ti.toFixed(1)} ℃</td></tr>
                 <tr><td className="py-1">室内湿度 (RHi)</td><td className="font-mono text-right">{rhi.toFixed(0)} %</td></tr>
-                <tr><td className="py-1">外気温度 (Te)</td><td className="font-mono text-right">{te.toFixed(1)} ℃</td></tr>
-                <tr><td className="py-1">外気湿度 (RHe)</td><td className="font-mono text-right">{rhe.toFixed(0)} %</td></tr>
+                <tr><td className="py-1">{isSlab ? '地中温度 (Tg)' : '外気温度 (Te)'}</td><td className="font-mono text-right">{te.toFixed(1)} ℃</td></tr>
+                <tr><td className="py-1">{isSlab ? '地盤側湿度 (RHg)' : '外気湿度 (RHe)'}</td><td className="font-mono text-right">{rhe.toFixed(0)} %</td></tr>
                 <tr><td className="py-1 text-gray-500">室内表面熱伝達抵抗 (Rsi)</td><td className="font-mono text-right">{rsi.toFixed(2)} m²K/W</td></tr>
-                <tr><td className="py-1 text-gray-500">室外表面熱伝達抵抗 (Rse)</td><td className="font-mono text-right">{rse.toFixed(2)} m²K/W</td></tr>
+                <tr><td className="py-1 text-gray-500">{isSlab ? `地盤側熱抵抗 Rg（深さ${groundDepth}m / λ${groundLambda}）` : result.ventApplied ? '室外表面熱伝達抵抗 (Rse・通気層側)' : '室外表面熱伝達抵抗 (Rse)'}</td><td className="font-mono text-right">{result.rseUsed.toFixed(2)} m²K/W</td></tr>
               </tbody>
             </table>
           </div>
@@ -1523,7 +1727,7 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
           </div>
         </div>
         <div className="mt-6">
-          <h4 className="font-bold border-b border-gray-300 mb-2">3. 部位別計算詳細 (室外側 → 室内側)</h4>
+          <h4 className="font-bold border-b border-gray-300 mb-2">3. 部位別計算詳細 ({outLabel}側 → 室内側)</h4>
           <table className="w-full text-xs text-left border-collapse border border-gray-300">
             <thead className="bg-gray-100">
               <tr>
@@ -1537,11 +1741,11 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
               </tr>
             </thead>
             <tbody>
-              <tr className="bg-gray-50"><td className="p-1 border border-gray-300 text-center">-</td><td className="p-1 border border-gray-300">室外側表面熱伝達抵抗</td><td className="p-1 border border-gray-300 text-center">-</td><td className="p-1 border border-gray-300 text-center">-</td><td className="p-1 border border-gray-300 text-right font-mono">{rse.toFixed(2)}</td><td className="p-1 border border-gray-300 text-center">-</td><td className="p-1 border border-gray-300 text-center">-</td></tr>
+              <tr className="bg-gray-50"><td className="p-1 border border-gray-300 text-center">-</td><td className="p-1 border border-gray-300">{isSlab ? '地盤側熱抵抗 (Rg)' : '室外側表面熱伝達抵抗'}</td><td className="p-1 border border-gray-300 text-center">-</td><td className="p-1 border border-gray-300 text-center">-</td><td className="p-1 border border-gray-300 text-right font-mono">{result.rseUsed.toFixed(2)}</td><td className="p-1 border border-gray-300 text-center">-</td><td className="p-1 border border-gray-300 text-center">-</td></tr>
               {details.map((layer, idx) => (
                 <tr key={idx}>
                   <td className="p-1 border border-gray-300 text-center">{idx + 1}</td>
-                  <td className="p-1 border border-gray-300">{layer.name}</td>
+                  <td className="p-1 border border-gray-300">{layer.name}{layer.excluded ? '（通気層より外側・計算除外）' : ''}{layer.fixedR ? '（中空層 R 固定）' : ''}</td>
                   <td className="p-1 border border-gray-300 text-right font-mono">{layer.d.toFixed(1)}</td>
                   <td className="p-1 border border-gray-300 text-right font-mono">{layer.lambda.toFixed(3)}</td>
                   <td className="p-1 border border-gray-300 text-right font-mono">{layer.r.toFixed(3)}</td>
@@ -1632,7 +1836,7 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
                 <div className="mb-4">
                   <PsychrometricChartView />
                   <p className="text-xs text-gray-500 mt-2">
-                    ※ 室内(赤点)と室外(青点)の状態をプロットしています。<br />
+                    ※ 室内(赤点)と{outLabel}(青点)の状態をプロットしています。<br />
                     ※ <span className="text-red-300">赤線: 等エンタルピー線</span>, <span className="text-green-300">緑線: 等比容積線</span>
                   </p>
                 </div>
@@ -1652,7 +1856,9 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
                 <div className="space-y-4 text-sm">
                   <div className="bg-yellow-50 p-3 rounded text-xs text-yellow-800 border border-yellow-100">
                     <p className="font-bold mb-1"><FiInfo className="inline mr-1" />数値の考え方について</p>
-                    <p>一般的に、日本の省エネ基準では室内の熱伝達抵抗(Rsi)は<strong>0.11</strong>が標準です。</p>
+                    <p>省エネ基準の室内側(Rsi)は 壁 <strong>0.11</strong> / 屋根・天井（熱流上向き）<strong>0.09</strong> / 床・土間（熱流下向き）<strong>0.15</strong>、外気側(Rse)は <strong>0.04</strong> です。</p>
+                    <p className="mt-1">構成に「通気層(外気導入)」があると、それより外側を計算から除外し、Rse を Rsi と同値にします。</p>
+                    {isSlab && <p className="mt-1">土間は地盤側を「地中温度・湿度」の境界とし、地盤の熱抵抗 Rg = 考慮深さ ÷ 土壌の熱伝導率 とします。深さ 0 は土間下端を地中温度に固定する扱いで、夏型の表面結露を安全側に見ます。</p>}
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -1662,13 +1868,33 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
                         <span className="text-xs text-gray-500 whitespace-nowrap">m²K/W</span>
                       </div>
                     </div>
+                    {isSlab ? (
+                      <>
+                        <div>
+                          <label className="block text-gray-600 text-xs font-bold mb-1">地盤の考慮深さ (D)</label>
+                          <div className="flex items-center gap-2">
+                            <input type="number" step="0.1" min="0" value={groundDepth} onChange={e => setGroundDepth(Math.max(0, Number(e.target.value)))} className="w-full border rounded px-2 py-1" />
+                            <span className="text-xs text-gray-500 whitespace-nowrap">m</span>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-gray-600 text-xs font-bold mb-1">土壌の熱伝導率 (λ)</label>
+                          <div className="flex items-center gap-2">
+                            <input type="number" step="0.1" min="0.1" value={groundLambda} onChange={e => setGroundLambda(Number(e.target.value))} className="w-full border rounded px-2 py-1" />
+                            <span className="text-xs text-gray-500 whitespace-nowrap">W/mK</span>
+                          </div>
+                        </div>
+                        <div className="flex items-end text-xs text-gray-600 pb-1">Rg = {rse.toFixed(2)} m²K/W</div>
+                      </>
+                    ) : (
                     <div>
                       <label className="block text-gray-600 text-xs font-bold mb-1">室外側表面抵抗 (Rse)</label>
                       <div className="flex items-center gap-2">
-                        <input type="number" step="0.01" value={rse} onChange={e => setRse(Number(e.target.value))} className="w-full border rounded px-2 py-1" />
+                        <input type="number" step="0.01" value={rseOut} onChange={e => setRseOut(Number(e.target.value))} className="w-full border rounded px-2 py-1" />
                         <span className="text-xs text-gray-500 whitespace-nowrap">m²K/W</span>
                       </div>
                     </div>
+                    )}
                   </div>
                   <button onClick={() => setShowSettings(false)} className="w-full bg-blue-600 text-white py-2 rounded mt-2 hover:bg-blue-700">設定を閉じる</button>
                 </div>
@@ -1705,7 +1931,16 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
                         <tr key={mat.id} className="hover:bg-gray-50">
                           <td className="p-2 text-gray-600">{DEFAULT_CATEGORY_LABELS[mat.category] || mat.category}</td>
                           <td className="p-2 font-medium">{mat.name}</td>
-                          <td className="p-2"><input type="number" step="0.001" value={mat.lambda} onChange={(e) => updateMaterialValue(mat.id, 'lambda', parseFloat(e.target.value))} className="w-full border rounded px-1 py-0.5 bg-white focus:bg-blue-50" /></td>
+                          <td className="p-2">
+                            {mat.fixedR !== undefined ? (
+                              <div className="flex items-center gap-1" title="中空層は厚さによらず熱抵抗 R [m²K/W] で計算します">
+                                <span className="text-gray-500 whitespace-nowrap">R=</span>
+                                <input type="number" step="0.01" value={mat.fixedR} onChange={(e) => updateMaterialValue(mat.id, 'fixedR', parseFloat(e.target.value))} className="w-full border rounded px-1 py-0.5 bg-white focus:bg-blue-50" />
+                              </div>
+                            ) : (
+                              <input type="number" step="0.001" value={mat.lambda} onChange={(e) => updateMaterialValue(mat.id, 'lambda', parseFloat(e.target.value))} className="w-full border rounded px-1 py-0.5 bg-white focus:bg-blue-50" />
+                            )}
+                          </td>
                           <td className="p-2"><input type="number" step="0.1" value={mat.mu} onChange={(e) => updateMaterialValue(mat.id, 'mu', parseFloat(e.target.value))} className="w-full border rounded px-1 py-0.5 bg-white focus:bg-blue-50" /></td>
                         </tr>
                       ))}
@@ -1743,22 +1978,30 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
                     </div>
                   </div>
                   <div className="flex items-center justify-between bg-blue-50 p-1.5 rounded">
-                    <span className="text-gray-600">室外</span>
+                    <span className="text-gray-600" title={isSlab ? '地中温度（土間下の地盤温度）と地盤側の相対湿度' : undefined}>{isSlab ? '地中' : '室外'}</span>
                     <div className="flex gap-1 items-center">
-                      <input type="number" value={te} onChange={e => setTe(Number(e.target.value))} className="w-[60px] text-center border rounded px-1" disabled={!isLoggedIn} />℃
-                      <input type="number" value={rhe} onChange={e => handleHumidityChange(setRhe, e.target.value)} className="w-[60px] text-center border rounded px-1" disabled={!isLoggedIn} />%
+                      <input type="number" value={te} onChange={e => (isSlab ? setTg : setTeOut)(Number(e.target.value))} className="w-[60px] text-center border rounded px-1" disabled={!isLoggedIn} />℃
+                      <input type="number" value={rhe} onChange={e => handleHumidityChange(isSlab ? setRhg : setRheOut, e.target.value)} className="w-[60px] text-center border rounded px-1" disabled={!isLoggedIn} />%
                     </div>
                   </div>
                 </div>
+                {isSlab && (
+                  <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-gray-500 print:hidden">
+                    <span className="whitespace-nowrap">条件例</span>
+                    <button onClick={() => applySlabSeason('winter')} disabled={!isLoggedIn} title="室内 20℃ 50% / 地中 10℃" className="whitespace-nowrap px-2 py-0.5 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50">冬期</button>
+                    <button onClick={() => applySlabSeason('summer')} disabled={!isLoggedIn} title="室内 28℃ 75% / 地中 18℃（夏型の表面結露）" className="whitespace-nowrap px-2 py-0.5 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50">夏期</button>
+                    <span className="whitespace-nowrap">地中温度は地域の年平均気温 ±数℃ が目安</span>
+                  </div>
+                )}
               </div>
 
               <div className="bg-white rounded border border-gray-200 p-3 print:border-gray-300">
                 <div className="flex justify-between items-center mb-2 border-b pb-1">
                   <div className="flex items-center gap-2">
                     <h3 className="text-xs font-bold text-gray-600">
-                      {direction === 'out_in' ? '室外側' : '室内側'}
+                      {direction === 'out_in' ? `${outLabel}側` : '室内側'}
                       <span className="text-gray-400 mx-1">→</span>
-                      {direction === 'out_in' ? '室内側' : '室外側'}
+                      {direction === 'out_in' ? '室内側' : `${outLabel}側`}
                     </h3>
                     <button onClick={() => setDirection(prev => prev === 'out_in' ? 'in_out' : 'out_in')} className="text-gray-500 hover:text-blue-600 p-1 rounded hover:bg-gray-100 print:hidden" title="表示順序を切り替え">
                       {direction === 'out_in' ? <FiArrowDown size={14} /> : <FiArrowUp size={14} />}
@@ -1862,7 +2105,11 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
                 {result.isCondensing ? <FiAlertTriangle className="text-red-500 shrink-0" size={20} /> : <FiCheckCircle className="text-green-500 shrink-0" size={20} />}
                 <div>
                   <h2 className={`font-bold text-sm ${result.isCondensing ? 'text-red-800' : 'text-green-800'}`}>{result.isCondensing ? '結露リスクあり' : '結露リスクなし'}</h2>
-                  <p className="text-xs text-gray-600 leading-tight">{result.isCondensing ? `${result.points[result.points.length - 1 - (result.condensationLayerIndex! + 1)]?.layerName || '構成内'} の外側で判定` : '現在の条件では内部結露は発生しません'}</p>
+                  <p className="text-xs text-gray-600 leading-tight">
+                    {result.isCondensing && result.condensationPointIndex !== null
+                      ? `${result.condensationPointIndex === 0 ? '表面結露' : '内部結露'}: ${result.points[result.condensationPointIndex]?.displayLabel ?? '構成内'}`
+                      : '現在の条件では表面結露・内部結露とも発生しません'}
+                  </p>
                 </div>
               </div>
 
@@ -1914,7 +2161,7 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
                 <div className="mt-2 flex gap-4 text-xs">
                   <div className="bg-gray-50 px-2 py-1 rounded border border-gray-100 print:border print:border-gray-300"><span className="text-gray-500 mr-2">U値</span><span className="font-mono font-bold">{result.uValue.toFixed(2)}</span> W/m²K</div>
                   {result.limitOutdoorTemp !== null && (
-                    <div className="bg-blue-50 px-2 py-1 rounded border border-blue-100 print:border print:border-gray-300 print:hidden"><span className="text-blue-800 mr-2">限界外気</span><span className="font-mono font-bold text-blue-900">{result.limitOutdoorTemp.toFixed(1)} ℃</span></div>
+                    <div className="bg-blue-50 px-2 py-1 rounded border border-blue-100 print:border print:border-gray-300 print:hidden"><span className="text-blue-800 mr-2">{isSlab ? '限界地中温度' : '限界外気'}</span><span className="font-mono font-bold text-blue-900">{result.limitOutdoorTemp.toFixed(1)} ℃</span></div>
                   )}
                 </div>
               </div>
@@ -1930,7 +2177,7 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
                   <table className="w-full text-xs text-left">
                     <thead className="bg-gray-50 text-gray-500 border-b print:bg-gray-200">
                       <tr>
-                        <th className="p-1 font-medium">位置 <span className="text-[10px] font-normal text-gray-400">(室外側 ➡ 室内側)</span></th>
+                        <th className="p-1 font-medium">位置 <span className="text-[10px] font-normal text-gray-400">({outLabel}側 ➡ 室内側)</span></th>
                         <th className="p-1 font-medium text-right">表面温度</th>
                         <th className="p-1 font-medium text-right">露点温度</th>
                         <th className="p-1 font-medium text-center">判定</th>
@@ -1958,7 +2205,7 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
                           // ラベル生成
                           const labelOuter =
                             layerIdx === n - 1
-                              ? `【室外側】${matName} 表面`
+                              ? `【${outLabel}側】${matName} 表面`
                               : `${matName} 表面（${outerNeighbor ?? '不明'} 裏面）`;
 
                           const labelInner =
@@ -1974,17 +2221,12 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
                           // ただし、一番内側の材料（layerIdx === 0）の場合、内側面は室内表面なので界面ではない
                           const bondedInner = (layerIdx > 0) ? (pInner?.isBonded ?? false) : false;
 
-                          // 判定ロジック
-                          const isRiskyOuter = pOuter && pOuter.pressure > pOuter.satPressure + 1;
-                          const isRiskyInner = pInner && pInner.pressure > pInner.satPressure + 1;
-                          // 界面が密着している場合、その界面の両側を判定除外
-                          // 外側面の判定：外側面の界面が密着していれば除外
-                          const isRiskyNoBondedOuter = isRiskyOuter && !bondedOuter;
-                          // 内側面の判定：内側面の界面が密着していれば除外
-                          const isRiskyNoBondedInner = isRiskyInner && !bondedInner;
+                          // 判定（密着・通気層より外側・土間の地盤側は除外）
+                          const statusOuter: PointStatus = pOuter ? getPointStatus(pOuter) : 'ok';
+                          const statusInner: PointStatus = pInner ? getPointStatus(pInner) : 'ok';
 
                           // 行背景色（どちらかが危険なら背景色を変える）
-                          const rowBgClass = (isRiskyNoBondedOuter || isRiskyNoBondedInner) ? 'bg-red-50 print:bg-gray-100' : '';
+                          const rowBgClass = (statusOuter === 'ng' || statusInner === 'ng') ? 'bg-red-50 print:bg-gray-100' : '';
 
                           rows.push(
                             <React.Fragment key={`material-${layerIdx}`}>
@@ -2026,23 +2268,11 @@ const MultiLayerCondensation: React.FC<MultiLayerCondensationProps> = ({ hideHea
                                   <div className="flex flex-col gap-0.5 items-center">
                                     {/* 外側面判定 */}
                                     <div className="text-[10px]">
-                                      {bondedOuter ? (
-                                        <span className="text-gray-400">-</span>
-                                      ) : isRiskyOuter ? (
-                                        <span className="inline-block px-1.5 py-0.5 bg-red-100 text-red-700 font-bold rounded">NG</span>
-                                      ) : (
-                                        <span className="text-green-600 font-bold">OK</span>
-                                      )}
+                                      <StatusBadge status={statusOuter} />
                                     </div>
                                     {/* 内側面判定 */}
                                     <div className="text-[10px]">
-                                      {bondedInner ? (
-                                        <span className="text-gray-400">-</span>
-                                      ) : isRiskyInner ? (
-                                        <span className="inline-block px-1.5 py-0.5 bg-red-100 text-red-700 font-bold rounded">NG</span>
-                                      ) : (
-                                        <span className="text-green-600 font-bold">OK</span>
-                                      )}
+                                      <StatusBadge status={statusInner} />
                                     </div>
                                   </div>
                                 </td>

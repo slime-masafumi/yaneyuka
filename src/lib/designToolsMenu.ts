@@ -53,7 +53,7 @@ export const DESIGN_TOOL_MENU: DesignToolCategory[] = [
     description: '',
     subTabs: [
       { id: 'glass-thickness', label: 'ガラス厚計算', title: 'ガラス厚計算', description: '風圧力に対するガラス厚の検証（NSG技術資料準拠）' },
-      { id: 'condensation', label: '結露検討', title: '結露検討', description: '多層壁体の温度分布・露点から結露判定' },
+      { id: 'condensation', label: '結露検討', title: '結露検討', description: '多層壁体・土間の温度分布・露点から表面結露・内部結露を判定' },
       { id: 'building-rainwater', label: '建物雨水', title: '建物雨水排水', description: '降雨強度に基づく軒樋・ルーフドレンの設計検証' },
     ],
   },
