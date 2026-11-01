@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-10-25",
+  "generatedAt": "2026-11-01",
   "checked": 2061,
   "summary": {
-    "ok": 1475,
-    "broken": 302,
-    "unreachable": 187,
-    "error": 97
+    "ok": 1524,
+    "broken": 309,
+    "unreachable": 160,
+    "error": 68
   },
   "broken": [
     {
@@ -359,6 +359,11 @@
       "fallback": "https://www.aronkasei.co.jp"
     },
     {
+      "url": "https://www.atomlt.com/product/knobs/",
+      "status": 404,
+      "fallback": "https://www.atomlt.com"
+    },
+    {
       "url": "https://www.bestlock.co.jp/catalog/",
       "status": 404,
       "fallback": "https://www.bestlock.co.jp"
@@ -392,11 +397,6 @@
       "url": "https://www.can-net.co.jp/sample-order",
       "status": 404,
       "fallback": "https://www.can-net.co.jp"
-    },
-    {
-      "url": "https://www.caname-roof.jp/contact/pdf/pmf_products.pdf?v=4162eb7c1b8414cc1afd3dffeb742441",
-      "status": 404,
-      "fallback": "https://www.caname-roof.jp"
     },
     {
       "url": "https://www.cemedine.co.jp/company/office/",
@@ -1094,6 +1094,41 @@
       "fallback": "https://www.nichi-bei.co.jp"
     },
     {
+      "url": "https://www.nichiha.co.jp/company/branch/",
+      "status": 404,
+      "fallback": "https://www.nichiha.co.jp"
+    },
+    {
+      "url": "https://www.nichiha.co.jp/component/parts/hafu-makuita/",
+      "status": 404,
+      "fallback": "https://www.nichiha.co.jp"
+    },
+    {
+      "url": "https://www.nichiha.co.jp/contact/",
+      "status": 404,
+      "fallback": "https://www.nichiha.co.jp"
+    },
+    {
+      "url": "https://www.nichiha.co.jp/document/detail/metal.html",
+      "status": 404,
+      "fallback": "https://www.nichiha.co.jp"
+    },
+    {
+      "url": "https://www.nichiha.co.jp/document/detail/parts.html",
+      "status": 404,
+      "fallback": "https://www.nichiha.co.jp"
+    },
+    {
+      "url": "https://www.nichiha.co.jp/wall/metal/lineup/",
+      "status": 404,
+      "fallback": "https://www.nichiha.co.jp"
+    },
+    {
+      "url": "https://www.nikko-company.co.jp/products/",
+      "status": 404,
+      "fallback": "https://www.nikko-company.co.jp"
+    },
+    {
       "url": "https://www.nipponpaint.co.jp/company/network/",
       "status": 404,
       "fallback": "https://www.nipponpaint.co.jp"
@@ -1521,42 +1556,6 @@
   ],
   "unreachable": [
     {
-      "url": "http://k-kumamoto.ticcata.jp/iportal/CatalogViewInterfaceStartUpAction.do?method=startUp&mode=PAGE&volumeID=KMT00001&catalogId=339980000&designID=KMTD02&catalogCategoryId=&designConfirmFlg=&keyword=",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
-    },
-    {
-      "url": "http://k-kumamoto.ticcata.jp/products/category/list/code/38190000/",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
-    },
-    {
-      "url": "http://k-kumamoto.ticcata.jp/products/category/list/code/38980000/",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
-    },
-    {
-      "url": "http://kimura-kawara.co.jp/about",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
-    },
-    {
-      "url": "http://kimura-kawara.co.jp/inquiry",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
-    },
-    {
-      "url": "http://kimura-kawara.co.jp/products",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
-    },
-    {
-      "url": "http://nichidai.net/nichidaikougyou_gaiyou/",
-      "reason": "ECONNREFUSED"
-    },
-    {
-      "url": "http://nichidai.net/product-cat/building/",
-      "reason": "ECONNREFUSED"
-    },
-    {
-      "url": "http://nichidai.net/toiawase/",
-      "reason": "ECONNREFUSED"
-    },
-    {
       "url": "http://www.orimeta.co.jp/company.html",
       "reason": "UND_ERR_CONNECT_TIMEOUT"
     },
@@ -1683,26 +1682,6 @@
     {
       "url": "https://www.chubu-corp.co.jp/products/",
       "reason": "ENOTFOUND"
-    },
-    {
-      "url": "https://www.clion.co.jp/alc/",
-      "reason": "UNABLE_TO_VERIFY_LEAF_SIGNATURE"
-    },
-    {
-      "url": "https://www.clion.co.jp/catalog-seikyu/",
-      "reason": "UNABLE_TO_VERIFY_LEAF_SIGNATURE"
-    },
-    {
-      "url": "https://www.clion.co.jp/company/office/",
-      "reason": "UNABLE_TO_VERIFY_LEAF_SIGNATURE"
-    },
-    {
-      "url": "https://www.clion.co.jp/documents/",
-      "reason": "UNABLE_TO_VERIFY_LEAF_SIGNATURE"
-    },
-    {
-      "url": "https://www.clion.co.jp/inquiry/",
-      "reason": "UNABLE_TO_VERIFY_LEAF_SIGNATURE"
     },
     {
       "url": "https://www.cyclochem.co.jp/catalog/",
@@ -1833,22 +1812,6 @@
       "reason": "ENOTFOUND"
     },
     {
-      "url": "https://www.kk-alpha.com/cp/about/",
-      "reason": "ECONNREFUSED"
-    },
-    {
-      "url": "https://www.kk-alpha.com/cp/form/",
-      "reason": "ECONNREFUSED"
-    },
-    {
-      "url": "https://www.kk-alpha.com/lock/",
-      "reason": "ECONNREFUSED"
-    },
-    {
-      "url": "https://www.kk-alpha.com/lock/catalog/",
-      "reason": "ECONNREFUSED"
-    },
-    {
       "url": "https://www.koizumi-lt.co.jp/catalog/",
       "reason": "EAI_AGAIN"
     },
@@ -1877,26 +1840,6 @@
       "reason": "EAI_AGAIN"
     },
     {
-      "url": "https://www.kokensangyo.co.jp/catalogue_cad/",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
-    },
-    {
-      "url": "https://www.kokensangyo.co.jp/catalogue_cad/catalogue/",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
-    },
-    {
-      "url": "https://www.kokensangyo.co.jp/company/place/",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
-    },
-    {
-      "url": "https://www.kokensangyo.co.jp/contact/",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
-    },
-    {
-      "url": "https://www.kokensangyo.co.jp/product/masu/",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
-    },
-    {
       "url": "https://www.kyowa-kb.co.jp/branch/",
       "reason": "ENOTFOUND"
     },
@@ -1911,22 +1854,6 @@
     {
       "url": "https://www.kyowa-kb.co.jp/search/?query_word=&query_cat%5B%5D=seppan#search_result",
       "reason": "ENOTFOUND"
-    },
-    {
-      "url": "https://www.laminam.jp/company/",
-      "reason": "UNABLE_TO_VERIFY_LEAF_SIGNATURE"
-    },
-    {
-      "url": "https://www.laminam.jp/contact/",
-      "reason": "UNABLE_TO_VERIFY_LEAF_SIGNATURE"
-    },
-    {
-      "url": "https://www.laminam.jp/download/",
-      "reason": "UNABLE_TO_VERIFY_LEAF_SIGNATURE"
-    },
-    {
-      "url": "https://www.laminam.jp/product/",
-      "reason": "UNABLE_TO_VERIFY_LEAF_SIGNATURE"
     },
     {
       "url": "https://www.maruichi-kokan.co.jp/amadoi/",
@@ -2271,18 +2198,6 @@
   ],
   "error": [
     {
-      "url": "http://okuju.co.jp/business-cat/ceiling-access-hole_alts-hatch/",
-      "status": 503
-    },
-    {
-      "url": "http://okuju.co.jp/company/",
-      "status": 503
-    },
-    {
-      "url": "http://okuju.co.jp/contact/",
-      "status": 503
-    },
-    {
       "url": "http://www.alracs.co.jp/company/index.html",
       "status": 500
     },
@@ -2293,10 +2208,6 @@
     {
       "url": "https://appsp.st-grp.co.jp/",
       "status": 503
-    },
-    {
-      "url": "https://cad.ykkap.co.jp/",
-      "status": 500
     },
     {
       "url": "https://cleanup.jp/support/contact/",
@@ -2335,14 +2246,6 @@
       "status": 500
     },
     {
-      "url": "https://inquiry.teijin.co.jp/form/contact_kr_jp.html",
-      "status": 503
-    },
-    {
-      "url": "https://kenzai.shikoku.co.jp/support/",
-      "status": 503
-    },
-    {
       "url": "https://www.aica-tech.co.jp/company/office.html",
       "status": 503
     },
@@ -2379,6 +2282,22 @@
       "status": 503
     },
     {
+      "url": "https://www.excelshanon.co.jp/catalog/",
+      "status": 503
+    },
+    {
+      "url": "https://www.excelshanon.co.jp/company/outline.html",
+      "status": 503
+    },
+    {
+      "url": "https://www.excelshanon.co.jp/contact/",
+      "status": 503
+    },
+    {
+      "url": "https://www.excelshanon.co.jp/product/",
+      "status": 503
+    },
+    {
       "url": "https://www.hokusei-kogyo.co.jp/catalog/",
       "status": 503
     },
@@ -2395,91 +2314,27 @@
       "status": 503
     },
     {
-      "url": "https://www.inoue-s.co.jp/cad/catalog/",
+      "url": "https://www.kawaki-sowa.co.jp/product_search/category05",
+      "status": 500
+    },
+    {
+      "url": "https://www.kokensangyo.co.jp/catalogue_cad/",
       "status": 503
     },
     {
-      "url": "https://www.inoue-s.co.jp/contact/",
+      "url": "https://www.kokensangyo.co.jp/catalogue_cad/catalogue/",
       "status": 503
     },
     {
-      "url": "https://www.inoue-s.co.jp/contents/company/office.html",
+      "url": "https://www.kokensangyo.co.jp/company/place/",
       "status": 503
     },
     {
-      "url": "https://www.inoue-s.co.jp/products/cat/al_hisasi/",
+      "url": "https://www.kokensangyo.co.jp/contact/",
       "status": 503
     },
     {
-      "url": "https://www.inoue-s.co.jp/products/cat/al_kiri/",
-      "status": 503
-    },
-    {
-      "url": "https://www.inoue-s.co.jp/products/cat/al_sus_expjc/",
-      "status": 503
-    },
-    {
-      "url": "https://www.inoue-s.co.jp/products/cat/al_sus_expjc02/",
-      "status": 503
-    },
-    {
-      "url": "https://www.kal-ten.jp/products.php",
-      "status": 503
-    },
-    {
-      "url": "https://www.kume-ind.co.jp/branches",
-      "status": 503
-    },
-    {
-      "url": "https://www.kume-ind.co.jp/cad",
-      "status": 503
-    },
-    {
-      "url": "https://www.kume-ind.co.jp/contact",
-      "status": 503
-    },
-    {
-      "url": "https://www.kume-ind.co.jp/products",
-      "status": 503
-    },
-    {
-      "url": "https://www.kume-ind.co.jp/products-search/catalog",
-      "status": 503
-    },
-    {
-      "url": "https://www.nichiha.co.jp/about/support/",
-      "status": 503
-    },
-    {
-      "url": "https://www.nichiha.co.jp/company/branch/",
-      "status": 503
-    },
-    {
-      "url": "https://www.nichiha.co.jp/company/network_2/",
-      "status": 503
-    },
-    {
-      "url": "https://www.nichiha.co.jp/component/parts/hafu-makuita/",
-      "status": 503
-    },
-    {
-      "url": "https://www.nichiha.co.jp/contact/",
-      "status": 503
-    },
-    {
-      "url": "https://www.nichiha.co.jp/document/detail/metal.html",
-      "status": 503
-    },
-    {
-      "url": "https://www.nichiha.co.jp/document/detail/parts.html",
-      "status": 503
-    },
-    {
-      "url": "https://www.nichiha.co.jp/products/loof/armor/",
-      "status": 503
-    },
-    {
-      "url": "https://www.nichiha.co.jp/wall/metal/lineup/",
+      "url": "https://www.kokensangyo.co.jp/product/masu/",
       "status": 503
     },
     {
@@ -2495,55 +2350,15 @@
       "status": 503
     },
     {
-      "url": "https://www.shikoku.co.jp/company/group/shikoku-kenzai/",
+      "url": "https://www.seiki.gr.jp/pro/download/",
       "status": 503
     },
     {
-      "url": "https://www.shindo-kogyo.co.jp/company/office/",
+      "url": "https://www.seiki.gr.jp/products/screen/rakumado/",
       "status": 503
     },
     {
-      "url": "https://www.shindo-kogyo.co.jp/product/",
-      "status": 503
-    },
-    {
-      "url": "https://www.shindo-kogyo.co.jp/quote/",
-      "status": 503
-    },
-    {
-      "url": "https://www.shindo-kogyo.co.jp/total-catalog/#target/page_no=1",
-      "status": 503
-    },
-    {
-      "url": "https://www.toli.co.jp/member/faq",
-      "status": 503
-    },
-    {
-      "url": "https://www.toyo-kogyo.co.jp/catalog/",
-      "status": 503
-    },
-    {
-      "url": "https://www.toyo-kogyo.co.jp/company/",
-      "status": 503
-    },
-    {
-      "url": "https://www.toyo-kogyo.co.jp/company/branch.html",
-      "status": 503
-    },
-    {
-      "url": "https://www.toyo-kogyo.co.jp/contact/",
-      "status": 503
-    },
-    {
-      "url": "https://www.toyo-kogyo.co.jp/exterior/product-selection.html",
-      "status": 503
-    },
-    {
-      "url": "https://www.toyo-kogyo.co.jp/products/",
-      "status": 503
-    },
-    {
-      "url": "https://www.toyo-kogyo.co.jp/webcatalog/",
+      "url": "https://www.seiki.gr.jp/showroom.html",
       "status": 503
     },
     {
@@ -2653,10 +2468,6 @@
     {
       "url": "https://www.yodoko.co.jp/app/Enquete/contacts/",
       "status": 400
-    },
-    {
-      "url": "https://www2.teijin-frontier.com/company/office/",
-      "status": 503
     }
   ]
 }
