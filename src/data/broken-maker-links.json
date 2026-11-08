@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-11-01",
+  "generatedAt": "2026-11-08",
   "checked": 2061,
   "summary": {
-    "ok": 1524,
-    "broken": 309,
-    "unreachable": 160,
-    "error": 68
+    "ok": 1525,
+    "broken": 311,
+    "unreachable": 164,
+    "error": 61
   },
   "broken": [
     {
@@ -789,6 +789,16 @@
       "fallback": "https://www.kmew.co.jp"
     },
     {
+      "url": "https://www.koizumi-lt.co.jp/catalog/",
+      "status": 404,
+      "fallback": "https://www.koizumi-lt.co.jp"
+    },
+    {
+      "url": "https://www.koizumi-lt.co.jp/contact/",
+      "status": 404,
+      "fallback": "https://www.koizumi-lt.co.jp"
+    },
+    {
       "url": "https://www.komatsumatere.co.jp/greenbiz/",
       "status": 404,
       "fallback": "https://www.komatsumatere.co.jp"
@@ -1556,6 +1566,26 @@
   ],
   "unreachable": [
     {
+      "url": "http://kimura-kawara.co.jp/about",
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
+    },
+    {
+      "url": "http://kimura-kawara.co.jp/inquiry",
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
+    },
+    {
+      "url": "http://kimura-kawara.co.jp/products",
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
+    },
+    {
+      "url": "http://www.alracs.co.jp/company/index.html",
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
+    },
+    {
+      "url": "http://www.alracs.co.jp/index.html",
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
+    },
+    {
       "url": "http://www.orimeta.co.jp/company.html",
       "reason": "UND_ERR_CONNECT_TIMEOUT"
     },
@@ -1568,16 +1598,20 @@
       "reason": "UND_ERR_CONNECT_TIMEOUT"
     },
     {
+      "url": "https://ssl.runon.co.jp/product/",
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
+    },
+    {
+      "url": "https://ssl.runon.co.jp/samplebook/wallcoverings.php",
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
+    },
+    {
       "url": "https://st.sankyo-tateyama.co.jp/inquiry/business/",
       "reason": "ENOTFOUND"
     },
     {
       "url": "https://st.sankyo-tateyama.co.jp/service/catalog/",
       "reason": "ENOTFOUND"
-    },
-    {
-      "url": "https://webcatalog.koizumi-lt.co.jp/iportal/CatalogViewInterfaceStartUpAction.do?method=startUp&mode=PAGE&volumeID=DIGICATA&catalogId=8642230000&pageGroupId=1&catalogCategoryId=",
-      "reason": "EAI_AGAIN"
     },
     {
       "url": "https://www.acosstec.co.jp/company/index.html#outline",
@@ -1812,32 +1846,8 @@
       "reason": "ENOTFOUND"
     },
     {
-      "url": "https://www.koizumi-lt.co.jp/catalog/",
-      "reason": "EAI_AGAIN"
-    },
-    {
-      "url": "https://www.koizumi-lt.co.jp/company/",
-      "reason": "EAI_AGAIN"
-    },
-    {
-      "url": "https://www.koizumi-lt.co.jp/company/office.html",
-      "reason": "EAI_AGAIN"
-    },
-    {
-      "url": "https://www.koizumi-lt.co.jp/contact/",
-      "reason": "EAI_AGAIN"
-    },
-    {
-      "url": "https://www.koizumi-lt.co.jp/l-design/",
-      "reason": "EAI_AGAIN"
-    },
-    {
-      "url": "https://www.koizumi-lt.co.jp/product/",
-      "reason": "EAI_AGAIN"
-    },
-    {
       "url": "https://www.koizumi-lt.co.jp/support/",
-      "reason": "EAI_AGAIN"
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
     },
     {
       "url": "https://www.kyowa-kb.co.jp/branch/",
@@ -1854,6 +1864,22 @@
     {
       "url": "https://www.kyowa-kb.co.jp/search/?query_word=&query_cat%5B%5D=seppan#search_result",
       "reason": "ENOTFOUND"
+    },
+    {
+      "url": "https://www.marazzi.jp/",
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
+    },
+    {
+      "url": "https://www.marazzi.jp/contacts/",
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
+    },
+    {
+      "url": "https://www.marazzi.jp/download/",
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
+    },
+    {
+      "url": "https://www.marazzi.jp/showroom/",
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
     },
     {
       "url": "https://www.maruichi-kokan.co.jp/amadoi/",
@@ -1981,19 +2007,19 @@
     },
     {
       "url": "https://www.sanko-k.co.jp/company/office/",
-      "reason": "ERR_TLS_CERT_ALTNAME_INVALID"
+      "reason": "EAI_AGAIN"
     },
     {
       "url": "https://www.sanko-k.co.jp/contact/",
-      "reason": "ERR_TLS_CERT_ALTNAME_INVALID"
+      "reason": "EAI_AGAIN"
     },
     {
       "url": "https://www.sanko-k.co.jp/products/aluminum/",
-      "reason": "ERR_TLS_CERT_ALTNAME_INVALID"
+      "reason": "EAI_AGAIN"
     },
     {
       "url": "https://www.sanko-k.co.jp/support/catalog/",
-      "reason": "ERR_TLS_CERT_ALTNAME_INVALID"
+      "reason": "EAI_AGAIN"
     },
     {
       "url": "https://www.sanwa-ss.co.jp/ask/",
@@ -2198,14 +2224,6 @@
   ],
   "error": [
     {
-      "url": "http://www.alracs.co.jp/company/index.html",
-      "status": 500
-    },
-    {
-      "url": "http://www.alracs.co.jp/index.html",
-      "status": 500
-    },
-    {
       "url": "https://appsp.st-grp.co.jp/",
       "status": 503
     },
@@ -2242,10 +2260,6 @@
       "status": 503
     },
     {
-      "url": "https://fc.canonet.ne.jp/www.alracs.co.jp/secure/info/",
-      "status": 500
-    },
-    {
       "url": "https://www.aica-tech.co.jp/company/office.html",
       "status": 503
     },
@@ -2259,22 +2273,6 @@
     },
     {
       "url": "https://www.aica-tech.co.jp/products/mace_index.html",
-      "status": 503
-    },
-    {
-      "url": "https://www.asahitostem.co.jp/catalog/",
-      "status": 503
-    },
-    {
-      "url": "https://www.asahitostem.co.jp/company/base/",
-      "status": 503
-    },
-    {
-      "url": "https://www.asahitostem.co.jp/contact/",
-      "status": 503
-    },
-    {
-      "url": "https://www.asahitostem.co.jp/products/",
       "status": 503
     },
     {
