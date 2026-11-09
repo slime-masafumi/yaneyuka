@@ -1,5 +1,5 @@
 /**
- * 設計ツールのメニュー定義（分野7 / ツール37）。
+ * 設計ツールのメニュー定義（分野7 / ツール38）。
  *
  * 左カラム（Sidebar の Ⅳ）と中央の DesignTools が同じ並びを出す必要があるので、
  * ラベルだけをここに置いて唯一の定義にする。ツール本体（React コンポーネント）は
@@ -65,6 +65,7 @@ export const DESIGN_TOOL_MENU: DesignToolCategory[] = [
     subTabs: [
       { id: 'section', label: '断面性能', title: '断面性能計算', description: '矩形・円形・H形断面の断面二次モーメント等を算出' },
       { id: 'portal', label: 'ラーメン解析', title: '門型ラーメン解析', description: 'D値法による門型ラーメンの応力・変位を計算' },
+      { id: 'force-flow', label: '構造フロー', title: '構造フロービューア', description: '壁・梁の力の流れを実寸・実材料で可視化。案の比較、説明用の出力、物件カルテへの保存ができる（構造計算の代替ではなく参考表示）' },
       { id: 'beam', label: '梁公式', title: '梁の検討', description: '木造・S造の梁に対する曲げ・たわみの検討' },
       { id: 'nvalue', label: 'N値計算', title: 'N値計算', description: '木造軸組の柱頭柱脚接合部に必要な金物を判定' },
       { id: 'formulas', label: '公式集', title: '構造公式集', description: '構造計算でよく使う公式・係数のリファレンス' },

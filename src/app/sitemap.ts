@@ -1,6 +1,7 @@
 import { MetadataRoute } from 'next'
 import { allLegalPaths } from '@/lib/legalPages'
 import { LOOKUP_ORDER } from '@/lib/lookup'
+import { FLOW_ARTICLES } from '@/lib/forceFlowArticles'
 
 type ChangeFreq = 'always' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'never';
 
@@ -77,6 +78,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...LOOKUP_ORDER.map((slug) => ({ path: `/lookup/${slug}`, changeFrequency: 'monthly' as ChangeFreq, priority: 0.7 })),
     { path: '/calc', changeFrequency: 'monthly', priority: 0.6 },
     { path: '/calc/glass-thickness', changeFrequency: 'monthly', priority: 0.7 },
+    { path: '/calc/force-flow', changeFrequency: 'monthly', priority: 0.7 },
+    ...FLOW_ARTICLES.map((a) => ({ path: `/calc/force-flow/${a.slug}`, changeFrequency: 'monthly' as ChangeFreq, priority: 0.7 })),
     { path: '/karte', changeFrequency: 'monthly', priority: 0.4 },
   ];
 

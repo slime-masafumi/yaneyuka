@@ -138,7 +138,7 @@ const RAIL_MODES: RailMode[] = [
   {
     label: '設計ツール', bg: '#2b2113', ac: '#c79a5a',
     items: [],
-    // 分野7 ＞ ツール37。中央のタブ行は lg 以上では畳んであるので、ここが本体。
+    // 分野7 ＞ ツール38。中央のタブ行は lg 以上では畳んであるので、ここが本体。
     tree: DESIGN_TOOL_MENU,
   },
   {
@@ -382,7 +382,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onItemClick, onPageChange, onLogoClic
             )
           )}
 
-          {/* Ⅳ 設計ツール：分野7 ＞ ツール37。建材検索とまったく同じアコーディオン。 */}
+          {/* Ⅳ 設計ツール：分野7 ＞ ツール38。建材検索とまったく同じアコーディオン。 */}
           {railMode.tree?.map((category) => (
             <div key={category.id}>
               <button

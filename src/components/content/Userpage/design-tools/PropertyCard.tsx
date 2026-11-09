@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { db } from '@/lib/firebaseClient';
 import { collection, doc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
+import { PropertyFlowStudies } from '@/components/forceflow/ForceFlowKarte';
 
 // --- Types ---
 interface PropertyCardData {
@@ -573,6 +574,8 @@ const PropertyCard: React.FC<{ hideHeader?: boolean }> = ({ hideHeader }) => {
               </div>
             );
           })}
+
+          <PropertyFlowStudies propertyId={activeCard.id} />
         </div>
       ) : (
         <div className="p-8 text-center">

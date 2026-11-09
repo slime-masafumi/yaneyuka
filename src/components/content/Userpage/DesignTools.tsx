@@ -21,6 +21,7 @@ import AreaTableLauncher from '@/components/content/Userpage/design-tools/AreaTa
 import FireEquipment from '@/components/content/Userpage/design-tools/3_FireEquipment';
 import BuildingRegulations from '@/components/content/Userpage/design-tools/7_BuildingRegulations';
 import PropertyCard from '@/components/content/Userpage/design-tools/PropertyCard';
+import ForceFlowTool from '@/components/forceflow/ForceFlowTool';
 
 // --- カテゴリ＆サブタブ定義 ---
 // 並びとラベルは src/lib/designToolsMenu.ts が唯一の定義。
@@ -59,6 +60,7 @@ const TOOL_COMPONENTS: Record<string, React.ReactNode> = {
   'building-rainwater': <RainwaterCalculation mode="building" hideTabBar />,
   'section': <StructuralTools defaultTab="section" hideTabBar />,
   'portal': <StructuralTools defaultTab="portal" hideTabBar />,
+  'force-flow': <ForceFlowTool />,
   'beam': <StructuralTools defaultTab="beam" hideTabBar />,
   'nvalue': <StructuralTools defaultTab="nvalue" hideTabBar />,
   'formulas': <StructuralTools defaultTab="formulas" hideTabBar />,

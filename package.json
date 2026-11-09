@@ -29,6 +29,7 @@
     "makers:find-cad": "node scripts/find-cad-links.mjs",
     "makers:apply-cad": "node scripts/apply-cad-links.mjs",
     "events:update": "node scripts/update-events.mjs",
+    "test:force-flow": "node scripts/test-force-flow.ts",
     "check:regulations": "node scripts/check-regulation-sources.mjs",
     "test:regulations": "node scripts/test-regulation-rules.mjs"
   },

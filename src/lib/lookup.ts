@@ -70,6 +70,11 @@ export const LOOKUP_TOOL_LINKS: Record<string, { href: string; label: string }> 
   '1-11-01': { href: '/karte/?open=pipe', label: '物件カルテ内' },
   '1-11-04': { href: '/karte/?open=pipe', label: '物件カルテ内' },
   '3-7-02': { href: '/karte/?open=pipe', label: '物件カルテ内' },
+  '1-17-17': { href: '/calc/force-flow/beam-sleeve/', label: '構造フロー' },
+  '2-8-14': { href: '/calc/force-flow/beam-sleeve/', label: '構造フロー' },
+  '2-9-08': { href: '/calc/force-flow/wall-opening/', label: '構造フロー' },
+  '2-22-13': { href: '/calc/force-flow/wall-removal/', label: '構造フロー' },
+  '2-28-11': { href: '/calc/force-flow/', label: '構造フロー' },
 };
 
 /** 索引ページの並び。カルテの分野タブと同じ順 */
