@@ -2,7 +2,7 @@ export default function NewsFilterTermsPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 md:py-12">
       <div className="flex items-baseline mb-3">
-        <h2 className="text-lg font-semibold">News Filter 利用規約</h2>
+        <h1 className="text-lg font-semibold">News Filter 利用規約</h1>
       </div>
       <div className="bg-white p-4 rounded border border-gray-300 text-[13px] leading-6 text-gray-800 space-y-3">
         <p className="text-[12px] text-gray-500"><strong>最終更新日:</strong> 2026年5月13日</p>

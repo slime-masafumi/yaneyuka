@@ -19,6 +19,8 @@ interface AuthContextType {
   register: (email: string, password: string, displayName?: string) => Promise<{ success: boolean; error?: string; requiresVerification?: boolean }>;
   logout: () => Promise<void>;
   isAdmin: boolean;
+  /** ログイン状態の確認が終わったら true。false の間 isLoggedIn は未確定（false のまま）。 */
+  authReady: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -150,10 +152,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     login,
     register,
     logout,
-    isAdmin: role === 'admin'
-  }), [firebaseUser, role]);
+    isAdmin: role === 'admin',
+    authReady: !loading,
+  }), [firebaseUser, role, loading]);
 
-  if (loading) return null;
-
+  // 確認中でも children は描く。ここで null を返すと配信 HTML の本文が空になる。
+  // ログイン状態で中身が変わる画面は authReady を見て待つ（MainLayout の renderContent）。
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

@@ -48,9 +48,9 @@ export default function BilingualLegal({ titleEn, titleJa, en, ja, defaultLang =
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 md:py-12">
       <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
-        <h2 className="text-lg font-semibold">
+        <h1 className="text-lg font-semibold">
           {lang === 'en' ? titleEn : titleJa}
-        </h2>
+        </h1>
         <div className="inline-flex rounded-md border border-gray-300 overflow-hidden">
           <button
             type="button"

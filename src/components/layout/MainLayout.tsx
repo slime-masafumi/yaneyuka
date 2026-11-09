@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Navigation from './Navigation';
 import UserpageBottomBar from './UserpageBottomBar';
 import RelatedPrivacyLinks from '../RelatedPrivacyLinks';
+import AfterMount from '../AfterMount';
 import { isPrivacyPolicyPath } from '@/lib/legalPages';
 import { CATEGORY_ROUTES, EXTERIOR_FINISH_SUBCATEGORIES, findCategoryBySubcategory } from '@/lib/materialCategories';
 import {
@@ -100,11 +101,60 @@ const ToolLoading = () => (
   </div>
 );
 
+/** URL パスと、中央カラムに出す画面の対応 */
+const PATH_TO_CONTENT: Record<string, string> = {
+  '/event': 'event',
+  '/news': 'news',
+  '/new-products': 'new-products',
+  '/books-software': 'books-software',
+  '/pickup': 'pickup',
+  '/regulations': 'regulations',
+  '/qualifications': 'qualifications',
+  '/landscape-cad': 'landscape-cad',
+  '/shop': 'shop',
+  '/projects': 'projects',
+  '/competitions': 'competitions',
+  '/construction-companies': 'construction-companies',
+  '/design-offices': 'design-offices',
+  '/job-info': 'job-info',
+  '/public-works': 'public-works',
+  '/forum': 'forum',
+  '/roof': 'roof',
+  '/exterior-wall': 'exterior-wall',
+  '/opening': 'opening',
+  '/external-floor': 'external-floor',
+  '/exterior-other': 'exterior-other',
+  '/internal-floor': 'internal-floor',
+  '/internal-wall': 'internal-wall',
+  '/internal-ceiling': 'internal-ceiling',
+  '/internal-other': 'internal-other',
+  '/waterproof': 'waterproof',
+  '/hardware': 'hardware',
+  '/furniture': 'furniture',
+  '/electrical-systems': 'electrical-systems',
+  '/mechanical-systems': 'mechanical-systems',
+  '/exterior-infrastructure': 'exterior-infrastructure',
+  '/exterior': 'exterior',
+};
+
+/**
+ * パスが同じままクエリだけ変わった遷移（/roof?subcategory=a → b）を拾う。
+ * useSearchParams をサーバーで呼ぶとページがクライアント描画に落ち、配信 HTML から
+ * 本文が消えるので、この部品は必ず AfterMount の中に置く。
+ */
+const SearchParamsWatcher: React.FC<{ onChange: (pathname: string) => void }> = ({ onChange }) => {
+  const pathname = usePathname();
+  const search = useSearchParams().toString();
+  useEffect(() => {
+    onChange(pathname);
+  }, [pathname, search, onChange]);
+  return null;
+};
+
 const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'topix' }) => {
   const pathname = usePathname();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  
+
   // URLパスからactiveContentを決定
   // ブラウザ更新時は常にトップページに戻る
   const getInitialContent = () => {
@@ -127,6 +177,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
   ];
 
   const [activeContent, setActiveContent] = useState<string>(getInitialContent());
+  const [hasMounted, setHasMounted] = useState(false);
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
 
   /**
    * URL が指している画面を開く。ツールの指定は、画面が組み立てられる前に
@@ -144,8 +198,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
   }, []);
 
   // 開いた直後の復元。?m= が付いた URL で入ってきたらその画面を出す。
-  // useSearchParams は使わない（呼ぶとページ全体がクライアント描画に落ちて
-  // 配信 HTML から本文が消えるため）。window から直接読む。
+  // useSearchParams は使わない（サーバーで呼ぶとページ全体がクライアント描画に
+  // 落ちて配信 HTML から本文が消えるため）。window から直接読む。
   useEffect(() => {
     const target = parseUserpageQuery(window.location.search);
     if (target) applyUserpageTarget(target);
@@ -283,7 +337,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
       window.removeEventListener('popstate', handlePopState);
     };
   }, [applyUserpageTarget]);
-  const { isLoggedIn, currentUser } = useAuth();
+  const { isLoggedIn, currentUser, authReady } = useAuth();
   const [totalUnreadCount, setTotalUnreadCount] = useState<number>(0);
   
   // 未読カウントを取得（相手から送られたメッセージの未読のみ）
@@ -391,63 +445,26 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
   }, []);
   
   // URLパスとクエリパラメータが変更された時にactiveContentとサブカテゴリーを更新
-  useEffect(() => {
-    console.log('[MainLayout] pathname changed:', pathname);
+  // pathname === '/'の場合は、handleMenuClickで管理されるため、ここでは何もしない
+  // URLベースのルーティングがないページでは、activeContentはhandleMenuClickで管理される（SPA的な動作を維持）
+  const applyRouteFromUrl = useCallback((currentPath: string) => {
     // trailingSlash: trueの設定により、pathnameは末尾にスラッシュが付く可能性があるため、正規化する
-    const normalizedPathname = pathname.endsWith('/') && pathname !== '/' ? pathname.slice(0, -1) : pathname;
-    console.log('[MainLayout] normalized pathname:', normalizedPathname);
-    
-    const pathToContentMap: Record<string, string> = {
-      '/event': 'event',
-      '/news': 'news',
-      '/new-products': 'new-products',
-      '/books-software': 'books-software',
-      '/pickup': 'pickup',
-      '/regulations': 'regulations',
-      '/qualifications': 'qualifications',
-      '/landscape-cad': 'landscape-cad',
-      '/shop': 'shop',
-      '/projects': 'projects',
-      '/competitions': 'competitions',
-      '/construction-companies': 'construction-companies',
-      '/design-offices': 'design-offices',
-      '/job-info': 'job-info',
-      '/public-works': 'public-works',
-      '/forum': 'forum',
-      '/roof': 'roof',
-      '/exterior-wall': 'exterior-wall',
-      '/opening': 'opening',
-      '/external-floor': 'external-floor',
-      '/exterior-other': 'exterior-other',
-      '/internal-floor': 'internal-floor',
-      '/internal-wall': 'internal-wall',
-      '/internal-ceiling': 'internal-ceiling',
-      '/internal-other': 'internal-other',
-      '/waterproof': 'waterproof',
-      '/hardware': 'hardware',
-      '/furniture': 'furniture',
-      '/electrical-systems': 'electrical-systems',
-      '/mechanical-systems': 'mechanical-systems',
-      '/exterior-infrastructure': 'exterior-infrastructure',
-      '/exterior': 'exterior',
-    };
-    
-    const content = pathToContentMap[normalizedPathname];
-    console.log('[MainLayout] content from pathname:', content);
-    if (content) {
-      console.log('[MainLayout] setting activeContent to:', content);
-      setActiveContent(content);
-      
-      // クエリパラメータからサブカテゴリーを設定
-      const subcategory = searchParams.get('subcategory');
-      if (subcategory) {
-        // サブカテゴリーに応じて適切なstateを更新
-        handleSubcategoryFromQuery(content, subcategory);
-      }
+    const normalizedPathname = currentPath.endsWith('/') && currentPath !== '/' ? currentPath.slice(0, -1) : currentPath;
+    const content = PATH_TO_CONTENT[normalizedPathname];
+    if (!content) return;
+    setActiveContent(content);
+
+    const subcategory = new URLSearchParams(window.location.search).get('subcategory');
+    if (subcategory) {
+      handleSubcategoryFromQuery(content, subcategory);
     }
-    // pathname === '/'の場合は、handleMenuClickで管理されるため、ここでは何もしない
-    // URLベースのルーティングがないページでは、activeContentはhandleMenuClickで管理される（SPA的な動作を維持）
-  }, [pathname, searchParams, handleSubcategoryFromQuery]);
+  }, [handleSubcategoryFromQuery]);
+
+  // パスの変化はここで受ける（クエリだけの変化は SearchParamsWatcher）。
+  // 上の pathname の useEffect より後に走らせて、そちらの 'topix' 戻しを上書きする順序を保つ。
+  useEffect(() => {
+    applyRouteFromUrl(pathname);
+  }, [pathname, applyRouteFromUrl]);
   const [roofSubcategory, setRoofSubcategory] = useState<string>('');
   const [exteriorWallSubcategory, setExteriorWallSubcategory] = useState<string>('');
   const [openingSubcategory, setOpeningSubcategory] = useState<string>('');
@@ -1272,7 +1289,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
 
   const renderContent = () => {
     console.log('Rendering content. Active content:', activeContent, 'Opening subcategory:', openingSubcategory);
-    
+
+    // サーバーで出すのは children（各ページ本文）だけ。ツールや掲載情報の画面は
+    // ログイン状態を前提に読み書きするので、確認が終わるまで組み立てない。
+    if (!authReady && activeContent !== 'topix') {
+      return <ToolLoading />;
+    }
+
     switch (activeContent) {
       case 'event':
         return <EventsWithBookmarks />;
@@ -1409,6 +1432,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
   return (
     <AuthProvider>
       <div className="min-h-screen">
+        <AfterMount><SearchParamsWatcher onChange={applyRouteFromUrl} /></AfterMount>
         {/* サイト全体パスワードゲート（本番のみ有効） */}
         {/* Navigationはmain-layout-container内で左カラムの右に配置 */}
         {/* ハンバーガーメニュー（モバイルのみ） */}
@@ -2316,8 +2340,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
                 const isTargetPage = targetPages.includes(activeContent);
 
                 // アフィリエイト広告をランダムに最大2個選択
+                // 乱数はマウント後だけ。サーバーの HTML と初回描画は同じ並びにしないと
+                // ハイドレーションが失敗し、ページ全体が描き直しになる。
                 const allAds = getAdContent(activeContent);
-                const shuffled = [...allAds].sort(() => Math.random() - 0.5);
+                const shuffled = hasMounted ? [...allAds].sort(() => Math.random() - 0.5) : allAds;
                 const displayAds = shuffled.slice(0, 2);
 
                 return (

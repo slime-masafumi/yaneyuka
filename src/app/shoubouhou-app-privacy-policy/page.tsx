@@ -2,7 +2,7 @@ export default function ShoubouhouAppPrivacyPolicyPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 md:py-12">
       <div className="flex items-baseline mb-3">
-        <h2 className="text-lg font-semibold">消防法アプリ プライバシーポリシー</h2>
+        <h1 className="text-lg font-semibold">消防法アプリ プライバシーポリシー</h1>
       </div>
       <div className="bg-white p-4 rounded border border-gray-300 text-[13px] leading-6 text-gray-800 space-y-3">
         <p>本ポリシーは、yaneyuka（以下「当アプリ」）が提供するサービスにおける個人情報の取扱いを定めるものです。会員登録・お問い合わせ・サービス利用時に取得する情報の利用目的、保護体制等について定めます。</p>
