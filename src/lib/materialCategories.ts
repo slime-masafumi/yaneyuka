@@ -1,3 +1,4 @@
+import { MATERIAL_SCREEN_TO_PATH } from './siteScreens';
 /**
  * 建材カテゴリと小分類の対応。
  *
@@ -12,24 +13,7 @@
  */
 
 /** カテゴリ -> ページの URL */
-export const CATEGORY_ROUTES: Record<string, string> = {
-  'roof': '/roof',
-  'exterior-wall': '/exterior-wall',
-  'opening': '/opening',
-  'external-floor': '/external-floor',
-  'exterior-other': '/exterior-other',
-  'internal-floor': '/internal-floor',
-  'internal-wall': '/internal-wall',
-  'internal-ceiling': '/internal-ceiling',
-  'internal-other': '/internal-other',
-  'waterproof': '/waterproof',
-  'hardware': '/hardware',
-  'furniture': '/furniture',
-  'electrical-systems': '/electrical-systems',
-  'mechanical-systems': '/mechanical-systems',
-  'exterior-infrastructure': '/exterior-infrastructure',
-  'exterior': '/exterior',
-};
+export const CATEGORY_ROUTES: Readonly<Record<string, string>> = MATERIAL_SCREEN_TO_PATH;
 
 /** カテゴリ -> そのページが受け付ける小分類 */
 export const CATEGORY_SUBCATEGORIES: Record<string, string[]> = {

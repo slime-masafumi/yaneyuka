@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { usePathname } from 'next/navigation';
+import { SCREEN_LABEL } from '@/lib/siteScreens';
 
 interface BreadcrumbItem {
   label: string;
@@ -22,37 +23,8 @@ const Breadcrumbs: React.FC = () => {
 
     const pathSegments = pathname.split('/').filter(Boolean);
     const pathMap: Record<string, string> = {
-      'event': 'イベント情報',
-      'news': 'NEWS',
-      'new-products': '新製品',
-      'books-software': '書籍・ソフト',
-      'pickup': 'Pickup',
-      'regulations': '法規',
-      'qualifications': '資格試験',
-      'landscape-cad': '添景・CAD',
-      'shop': 'Shop',
-      'projects': 'プロジェクト',
-      'competitions': 'コンペ',
-      'construction-companies': '施工会社',
-      'design-offices': '設計事務所',
-      'job-info': '求人情報',
-      'forum': '掲示板',
-      'roof': '屋根材',
-      'exterior-wall': '外壁材',
-      'opening': '開口部',
-      'external-floor': '外部床材',
-      'exterior-other': '外部その他',
-      'internal-floor': '内部床材',
-      'internal-wall': '内装壁材',
-      'internal-ceiling': '内装天井材',
-      'internal-other': '内装その他',
-      'waterproof': '防水材',
-      'hardware': '金物',
-      'furniture': 'ファニチャー',
-      'electrical-systems': '電気設備',
-      'mechanical-systems': '機械設備',
-      'exterior-infrastructure': '外構',
-      'exterior': 'エクステリア',
+      // 上部ナビの情報ページと建材 16 分類（画面台帳 src/lib/siteScreens.ts）
+      ...SCREEN_LABEL,
       // 建築の調べもの（/lookup, /calc, /karte）
       'lookup': '建築の調べもの',
       'design': '意匠・法規',

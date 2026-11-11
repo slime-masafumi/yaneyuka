@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useForumUnread, markForumSeen } from '@/lib/useForumUnread';
 import NotificationBell from './NotificationBell';
+import { INFO_SCREEN_TO_PATH, TOP_NAV_SCREENS } from '@/lib/siteScreens';
 
 interface NavigationProps {
   onMenuClick?: (menuItem: string) => void;
@@ -34,24 +35,7 @@ const Navigation: React.FC<NavigationProps> = ({ onMenuClick, activeItem }) => {
     
     setLoadingMenuItem(menuItem);
     
-    const routeMap: Record<string, string> = {
-      'event': '/event',
-      'news': '/news',
-      'new-products': '/new-products',
-      'books-software': '/books-software',
-      'pickup': '/pickup',
-      'regulations': '/regulations',
-      'qualifications': '/qualifications',
-      'landscape-cad': '/landscape-cad',
-      'shop': '/shop',
-      'projects': '/projects',
-      'competitions': '/competitions',
-      'construction-companies': '/construction-companies',
-      'design-offices': '/design-offices',
-      'job-info': '/job-info',
-      'public-works': '/public-works',
-      'forum': '/forum',
-    };
+    const routeMap = INFO_SCREEN_TO_PATH;
     
     const route = routeMap[menuItem];
     if (route) {
@@ -166,23 +150,7 @@ const Navigation: React.FC<NavigationProps> = ({ onMenuClick, activeItem }) => {
             }
           >
             {/* メニュー項目群 */}
-            {[
-              { id: 'event', label: 'イベント情報' },
-              { id: 'news', label: 'NEWS' },
-              { id: 'new-products', label: '新製品' },
-              { id: 'books-software', label: '書籍・ソフト' },
-              { id: 'pickup', label: 'Pickup' },
-              { id: 'regulations', label: '法規' },
-              { id: 'qualifications', label: '資格試験' },
-              { id: 'landscape-cad', label: '添景・CAD' },
-              { id: 'shop', label: 'Shop' },
-              { id: 'projects', label: 'プロジェクト' },
-              { id: 'competitions', label: 'コンペ' },
-              { id: 'construction-companies', label: '施工会社' },
-              { id: 'design-offices', label: '設計事務所' },
-              { id: 'job-info', label: '求人情報' },
-              { id: 'forum', label: '掲示板' },
-            ].map((item) => (
+            {TOP_NAV_SCREENS.map((item) => (
               <button 
                 key={item.id}
                 className={`nav-item h-full flex items-center justify-center${activeItem === item.id ? ' active' : ''}${loadingMenuItem === item.id ? ' loading' : ''}`}

@@ -22,6 +22,7 @@ import ReferenceResources from '../content/ReferenceResources';
 import Settings from '../content/Userpage/Settings';
 import Sidebar from './Sidebar';
 import Breadcrumbs from './Breadcrumbs';
+import { INFO_SCREEN_TO_PATH, PATH_TO_SCREEN, SCREEN_TO_PATH } from '@/lib/siteScreens';
 import EventsWithBookmarks from '../content/events/EventsWithBookmarks';
 import NewProducts from '../content/NewProducts';
 import BooksSoftware from '../content/BooksSoftware';
@@ -96,41 +97,8 @@ const ToolLoading = () => (
   </div>
 );
 
-/** URL パスと、中央カラムに出す画面の対応 */
-const PATH_TO_CONTENT: Record<string, string> = {
-  '/event': 'event',
-  '/news': 'news',
-  '/new-products': 'new-products',
-  '/books-software': 'books-software',
-  '/pickup': 'pickup',
-  '/regulations': 'regulations',
-  '/qualifications': 'qualifications',
-  '/landscape-cad': 'landscape-cad',
-  '/shop': 'shop',
-  '/projects': 'projects',
-  '/competitions': 'competitions',
-  '/construction-companies': 'construction-companies',
-  '/design-offices': 'design-offices',
-  '/job-info': 'job-info',
-  '/public-works': 'public-works',
-  '/forum': 'forum',
-  '/roof': 'roof',
-  '/exterior-wall': 'exterior-wall',
-  '/opening': 'opening',
-  '/external-floor': 'external-floor',
-  '/exterior-other': 'exterior-other',
-  '/internal-floor': 'internal-floor',
-  '/internal-wall': 'internal-wall',
-  '/internal-ceiling': 'internal-ceiling',
-  '/internal-other': 'internal-other',
-  '/waterproof': 'waterproof',
-  '/hardware': 'hardware',
-  '/furniture': 'furniture',
-  '/electrical-systems': 'electrical-systems',
-  '/mechanical-systems': 'mechanical-systems',
-  '/exterior-infrastructure': 'exterior-infrastructure',
-  '/exterior': 'exterior',
-};
+/** URL パスと、中央カラムに出す画面の対応（定義は画面台帳 src/lib/siteScreens.ts） */
+const PATH_TO_CONTENT = PATH_TO_SCREEN;
 
 /**
  * パスが同じままクエリだけ変わった遷移（/roof?subcategory=a → b）を拾う。
@@ -251,17 +219,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
     }
 
     // URLルートがあるページへの遷移時は、pathToContentMapベースのuseEffectに任せる
-    const urlRoutedPaths = [
-      '/event', '/news', '/new-products', '/books-software', '/pickup',
-      '/regulations', '/qualifications', '/landscape-cad', '/shop',
-      '/projects', '/competitions', '/construction-companies', '/design-offices',
-      '/job-info', '/public-works', '/forum',
-      '/roof', '/exterior-wall', '/opening', '/external-floor', '/exterior-other',
-      '/internal-floor', '/internal-wall', '/internal-ceiling', '/internal-other',
-      '/waterproof', '/hardware', '/furniture', '/electrical-systems',
-      '/mechanical-systems', '/exterior-infrastructure', '/exterior',
-    ];
-    if (urlRoutedPaths.includes(normalizedPathname)) {
+    if (normalizedPathname in PATH_TO_SCREEN) {
       return;
     }
 
@@ -510,40 +468,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
     console.log('Menu clicked:', menuItem);
     
     // URLベースのルーティングを使用するメニューは、Navigation.tsxで処理される
-    const routeMap: Record<string, string> = {
-      'event': '/event',
-      'news': '/news',
-      'new-products': '/new-products',
-      'books-software': '/books-software',
-      'pickup': '/pickup',
-      'regulations': '/regulations',
-      'qualifications': '/qualifications',
-      'landscape-cad': '/landscape-cad',
-      'shop': '/shop',
-      'projects': '/projects',
-      'competitions': '/competitions',
-      'construction-companies': '/construction-companies',
-      'design-offices': '/design-offices',
-      'job-info': '/job-info',
-      'public-works': '/public-works',
-      'forum': '/forum',
-      'roof': '/roof',
-      'exterior-wall': '/exterior-wall',
-      'opening': '/opening',
-      'external-floor': '/external-floor',
-      'exterior-other': '/exterior-other',
-      'internal-floor': '/internal-floor',
-      'internal-wall': '/internal-wall',
-      'internal-ceiling': '/internal-ceiling',
-      'internal-other': '/internal-other',
-      'waterproof': '/waterproof',
-      'hardware': '/hardware',
-      'furniture': '/furniture',
-      'electrical-systems': '/electrical-systems',
-      'mechanical-systems': '/mechanical-systems',
-      'exterior-infrastructure': '/exterior-infrastructure',
-      'exterior': '/exterior',
-    };
+    const routeMap = SCREEN_TO_PATH;
     
     if (routeMap[menuItem]) {
       // URLベースのルーティングがあるメニューでもactiveContentを更新
@@ -779,23 +704,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
     }
     
     // URLベースのルーティングがあるページから遷移する場合は/に戻す
-    const routeMap: Record<string, string> = {
-      'event': '/event',
-      'news': '/news',
-      'new-products': '/new-products',
-      'books-software': '/books-software',
-      'pickup': '/pickup',
-      'regulations': '/regulations',
-      'qualifications': '/qualifications',
-      'landscape-cad': '/landscape-cad',
-      'shop': '/shop',
-      'projects': '/projects',
-      'competitions': '/competitions',
-      'construction-companies': '/construction-companies',
-      'design-offices': '/design-offices',
-      'job-info': '/job-info',
-      'forum': '/forum',
-    };
+    const routeMap = INFO_SCREEN_TO_PATH;
     const currentRoute = Object.keys(routeMap).find(key => routeMap[key] === pathname);
     if (currentRoute) {
       startTransition(() => {
