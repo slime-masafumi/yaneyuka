@@ -1,5 +1,4 @@
 import { Inter, JetBrains_Mono } from 'next/font/google'
-import Script from 'next/script'
 import './globals.css'
 import ClientSideEffects from './ClientSideEffects';
 import ClientProviders from './ClientProviders';
@@ -123,13 +122,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ClientProviders>
           {children}
         </ClientProviders>
-        {process.env.NEXT_PUBLIC_GOOGLE_CSE_ID && (
-          <Script
-            id="google-cse"
-            src={`https://cse.google.com/cse.js?cx=${process.env.NEXT_PUBLIC_GOOGLE_CSE_ID}`}
-            strategy="afterInteractive"
-          />
-        )}
       </body>
     </html>
   );
