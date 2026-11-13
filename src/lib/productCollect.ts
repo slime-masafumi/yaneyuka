@@ -381,7 +381,7 @@ export const productTime = (pubDate?: string) => {
 };
 
 /** これより古い記事は「新製品」として出さない */
-export const MAX_AGE_DAYS = 120;
+export const MAX_AGE_DAYS = 180;
 
 export type ProductSourceResult = { source: string; url: string; ok: boolean; status: number; items: number; kept: number };
 
