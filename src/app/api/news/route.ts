@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import { createHash } from 'node:crypto'
 import { getAdminDb } from '@/lib/firebaseAdmin'
 import { fillImages } from '@/lib/feedImage'
 import { collectNews, pickForList, pubTime, type NewsItem } from '@/lib/newsCollect'
@@ -67,7 +68,43 @@ async function live(month: string | null): Promise<NewsItem[]> {
   // 写真の無い記事は記事ページの og:image を取りに行く(待つのは 3.5 秒まで。残りは裏で取り、次の集計で出る)。
   // Google News 経由の記事はリンク先が Google のページで写真が取れないので行かない
   await fillImages(list, IMAGE_CACHE, { budgetMs: 3500, parallel: 12, skip: (link) => link.includes('news.google.com') })
+  await saveBack(items)
   return list
+}
+
+/**
+ * その場で集めた分を保管庫にも書く(本番だけ。開発サーバーは firebase-admin が無いので何もしない)。
+ * GitHub の時刻指定の実行は数時間遅れることがあり(daily_scrape は 5〜6 時間遅れで動いていた)、
+ * その間は毎回その場で集めることになるため、1 回集めたら他の利用者はそれを読めるようにする。
+ * 写真の取得(og:image)は次の定期収集に任せる(imageTried を立てない)。
+ */
+async function saveBack(items: NewsItem[]) {
+  const db = getAdminDb()
+  if (!db) return
+  try {
+    const now = Date.now()
+    const batch = db.batch()
+    for (const it of items.slice(0, 200)) {
+      const id = createHash('sha1').update(it.link).digest('hex').slice(0, 20)
+      batch.set(
+        db.collection(ARCHIVE).doc(id),
+        {
+          title: it.title,
+          link: it.link,
+          source: it.source,
+          description: (it.description || '').slice(0, 400),
+          pubDate: it.pubDate || '',
+          ts: pubTime(it.pubDate) || now,
+          ...(it.image ? { image: it.image } : {}),
+        },
+        { merge: true }
+      )
+    }
+    batch.set(db.collection(META).doc(STATUS_DOC), { lastRun: now, by: 'api' }, { merge: true })
+    await batch.commit()
+  } catch (e) {
+    console.error('[news] 保管庫への書き戻しに失敗', e)
+  }
 }
 
 export async function GET(req: NextRequest) {

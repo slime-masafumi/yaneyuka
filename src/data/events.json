@@ -162,7 +162,20 @@
       "venue": "東京ビッグサイト 西展示棟",
       "region": "tokyo",
       "link": "https://www.jma.or.jp/homeshow/tokyo/",
-      "isLinkActive": true
+      "isLinkActive": true,
+      "coShows": [
+        "Japan Home Show & Building Show 2026",
+        "第45回 JAPANTEX 2026",
+        "第11回 アジア・ファニシング・フェア 2026",
+        "ビルメンヒューマンフェア＆クリーンEXPO 2026",
+        "第48回ジャパンホームショー",
+        "第21回 ふるさと建材･家具見本市",
+        "第10回 団地・マンションリノベーション展",
+        "第10回 ホテル・オフィス・店舗・商業空間展",
+        "第4回 リフォーム・リノベーション展",
+        "第3回 建築ソフト・DX・業務サポート展",
+        "第1回 上質住空間・インテリア展"
+      ]
     },
     {
       "id": "japan-build-tokyo-2026",
@@ -175,7 +188,48 @@
       "region": "tokyo",
       "link": "https://www.japan-build.jp/tokyo/ja-jp.html",
       "isLinkActive": true,
-      "image": "https://www.japan-build.jp/content/dam/sitebuilder/rxjp/japan-build/images/jp/hub/common/header/japan-build-thumb-tokyo.png/_jcr_content/renditions/original"
+      "image": "https://www.japan-build.jp/content/dam/sitebuilder/rxjp/japan-build/images/jp/hub/common/header/japan-build-thumb-tokyo.png/_jcr_content/renditions/original",
+      "coShows": [
+        "第11回 JAPAN BUILD TOKYO －建築・土木・不動産の先端技術展－",
+        "第11回 建材・設備 EXPO [東京]",
+        "第11回 スマートビルディング EXPO [東京]",
+        "第9回 建物リニューアルEXPO [東京]",
+        "第9回 スマートホーム?EXPO [東京]",
+        "第7回 不動産テックEXPO [東京]",
+        "第6回 建設DX展 [東京]",
+        "第4回 建物の脱炭素 EXPO [東京] -GX BUILD-",
+        "第2回 建設現場イノベーション展 [東京]",
+        "第2回 住宅DX展 [東京]",
+        "第1回 マンション経営・管理支援 EXPO [東京]"
+      ]
+    },
+    {
+      "id": "auto-bigsight-64a1a9aeca",
+      "title": "ENEX2027 第51回地球環境とエネルギーの調和展",
+      "description": "革新的な省エネルギー、 脱炭素技術の総合展",
+      "dateText": "2026年12月16日～18日",
+      "startDate": "2026-12-16",
+      "endDate": "2026-12-18",
+      "venue": "東京ビッグサイト 西1-4ホール、南1-4ホール",
+      "region": "tokyo",
+      "link": "https://www.low-cf.jp/",
+      "isLinkActive": true,
+      "image": "https://www.bigsight.jp/visitor/event/img/thumbnail/24027909J.jpg",
+      "discovered": "bigsight"
+    },
+    {
+      "id": "auto-makuhari-2968934b7c",
+      "title": "2026いずみ住まいのグランドフェア",
+      "description": "展示会・見本市",
+      "dateText": "2026年11月25日～26日",
+      "startDate": "2026-11-25",
+      "endDate": "2026-11-26",
+      "venue": "幕張メッセ",
+      "region": "chiba",
+      "link": "https://www.m-messe.co.jp/event/detail/8905",
+      "isLinkActive": true,
+      "image": "https://www.m-messe.co.jp/static/images/event/noimage_cat3.jpg",
+      "discovered": "makuhari"
     }
   ]
 }

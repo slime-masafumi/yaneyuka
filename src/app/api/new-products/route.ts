@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { createHash } from 'node:crypto'
 import { getAdminDb } from '@/lib/firebaseAdmin'
 import { fillImages, normalizeImageUrl } from '@/lib/feedImage'
 import { GENERAL_PRODUCT_SOURCES, MAX_AGE_DAYS, collectProducts, makerProductSources, productTime, type NewProductItem } from '@/lib/productCollect'
@@ -70,7 +71,44 @@ async function live(): Promise<NewProductItem[]> {
   const { items } = await collectProducts(sources)
   const list = items.slice(0, MAX_RETURN)
   await fillImages(list, IMAGE_CACHE, { budgetMs: 4000, parallel: 12 })
+  await saveBack(list)
   return list
+}
+
+/**
+ * その場で集めた分を保管庫にも書く(本番だけ)。定期収集が遅れているあいだ、
+ * 利用者ごとに約 160 本の配信を読み直さないようにする(NEWS の route.ts と同じ考え方)。
+ */
+async function saveBack(items: NewProductItem[]) {
+  const db = getAdminDb()
+  if (!db) return
+  try {
+    const now = Date.now()
+    const batch = db.batch()
+    for (const it of items) {
+      const id = createHash('sha256').update(it.link).digest('hex').slice(0, 40)
+      batch.set(
+        db.collection('new-products-archive').doc(id),
+        {
+          id: it.link,
+          title: it.title,
+          link: it.link,
+          pubDate: it.pubDate || '',
+          source: it.source,
+          description: (it.description || '').slice(0, 400),
+          category: it.category,
+          ts: productTime(it.pubDate) || now,
+          firstSeen: now,
+          ...(it.image ? { image: it.image } : {}),
+        },
+        { merge: true }
+      )
+    }
+    batch.set(db.collection('news-meta').doc('products'), { lastRun: now, by: 'api' }, { merge: true })
+    await batch.commit()
+  } catch (e) {
+    console.error('[new-products] 保管庫への書き戻しに失敗', e)
+  }
 }
 
 export async function GET() {

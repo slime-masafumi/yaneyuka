@@ -12,6 +12,10 @@ import PageHead, { Stat } from '../../ui/PageHead';
 // APIから返ってくるデータの型拡張
 type ApiEventItem = EventItem & {
   image?: string;
+  /** 同じ会場・同じ会期の構成展・同時開催展(scripts/lib/event-discover.mjs が会場の開催予定から) */
+  coShows?: string[];
+  /** 会場の開催予定から自動で足したもの(bigsight / makuhari) */
+  discovered?: string;
   startDate?: string;
   endDate?: string;
   region?: 'tokyo' | 'osaka' | 'nagoya' | 'fukuoka' | 'chiba' | 'other';
@@ -230,7 +234,16 @@ export default function EventsWithBookmarks() {
     <div key={ev.id} className={`yy-ev__row${done ? ' is-past' : ''}${!done && i === 0 ? ' is-next' : ''}`}>
       <span className="yy-ev__date">{yy(ev.startDate)}{md(ev.startDate)}{ev.endDate && ev.endDate !== ev.startDate ? <small> 〜 {md(ev.endDate)}</small> : null}</span>
       <FeedPic src={ev.image} size="mini" className="yy-ev__pic" />
-      <a className="yy-ev__title" href={ev.link} target="_blank" rel="noopener noreferrer" title={ev.description || ev.title}>{ev.title}</a>
+      <span className="yy-ev__titlecell">
+        <a className="yy-ev__title" href={ev.link} target="_blank" rel="noopener noreferrer" title={ev.description || ev.title}>{ev.title}</a>
+        {ev.coShows?.length ? (
+          <span className="yy-ev__co" title={ev.coShows.join('\n')}>
+            同時開催 {ev.coShows.length} 展 · {ev.coShows.slice(0, 3).map((n) => n.replace(/^第\d+回\s*/, '')).join('、')}
+          </span>
+        ) : ev.discovered ? (
+          <span className="yy-ev__co">{ev.description ? `${ev.description} · ` : ''}会場の開催予定から</span>
+        ) : null}
+      </span>
       <span className="yy-ev__venue" title={ev.venue}>{ev.venue}</span>
       <span className="yy-ev__region">{regionName[ev.region || 'other'] || 'その他'}</span>
       {!done ? (

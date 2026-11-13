@@ -2608,3 +2608,8 @@ a:hover + .yy-pic img, .yy-pic:hover img { opacity: 0.85; }
 /* 日付のタブ(NEWS の月)。本文と同じ大きさだと強すぎるので、等幅の小さな文字に */
 .yy-tabs--dates { gap: 0 16px; }
 .yy-tabs--dates .yy-tab { height: 30px; font-family: var(--font-mono), monospace; font-size: 11px; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
+
+/* イベントの名前の下の 1 行(同時開催の展示会 / 会場の開催予定から自動で足したもの) */
+.yy-ev__titlecell { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.yy-ev__titlecell .yy-ev__title { display: block; }
+.yy-ev__co { font-size: 10.5px; color: var(--yy-t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

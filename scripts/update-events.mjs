@@ -10,6 +10,7 @@
 // 表示側は endDate で足切りするので、ここが動かなくても古い情報は出ない。
 
 import fs from 'node:fs';
+import { discoverEvents } from './lib/event-discover.mjs';
 
 const FILE = 'src/data/events.json';
 const TIMEOUT_MS = 25000;
@@ -121,6 +122,8 @@ async function run() {
 
   for (const ev of events) {
     if (!ev.link) continue;
+    // 会場の開催予定から自動で足したものは、会期も写真も会場の情報が正しい。公式ページを読み直さない
+    if (ev.discovered) continue;
     const html = await fetchText(ev.link);
     if (!html) {
       ev.isLinkActive = false;
@@ -190,6 +193,11 @@ async function run() {
 
   // 同じ展示会を年度別に 2 件登録していると、会期が追いつくと同じ内容が並ぶ。
   // （建築・建材展 2026 と 2027 の両方が 2027-03-02 になった）
+  // 会場の開催予定から、建築系のイベントを足す(scripts/lib/event-discover.mjs)。
+  // 同時開催の一覧は毎週作り直す(会場側の掲載が変わるため)
+  for (const e of events) delete e.coShows;
+  const disc = await discoverEvents(events, today);
+
   const dupes = new Map();
   for (const e of events) {
     const k = `${e.link}|${e.startDate}|${e.endDate}`;
@@ -203,6 +211,9 @@ async function run() {
   console.log('');
   console.log(`会期を更新   : ${updated} 件`);
   console.log(`写真を更新   : ${imaged} 件`);
+  console.log(`会場から追加 : ${disc.added.length} 件(会場の予定 ${disc.scanned} 件を確認 / 終了した自動登録 ${disc.removed} 件を削除)`);
+  disc.added.forEach((t) => console.log(`    + ${t}`));
+  events.filter((e) => e.coShows?.length).forEach((e) => console.log(`    ＝ ${e.title} の同時開催 ${e.coShows.length} 展`));
   console.log(`要確認       : ${review.length} 件（自動反映していない）`);
   review.forEach((r) => {
     console.log(`    ${r.title}`);
