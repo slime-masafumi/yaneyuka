@@ -116,3 +116,12 @@
   .yy-cad__grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 12px 8px; }
   .yy-cad__dl { display: none; }
 }
+
+/* 2026-11-14 見直し:順に現れる演出は、隠れた画面や遅い端末で薄いまま止まることがあるのでやめる。
+   下の 1 行(形式 · 無料 · ダウンロード)は折り返さない */
+.yy-cad__item { opacity: 1; transition: none; }
+.yy-cad__meta { flex-wrap: nowrap; }
+.yy-cad__meta > * { white-space: nowrap; }
+.yy-cad__dl { flex-shrink: 0; }
+/* 「無料」は頭の数字(すべて無料)で言っているので、狭い 1 行からは外す */
+.yy-cad__price { display: none; }
