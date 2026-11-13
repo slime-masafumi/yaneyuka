@@ -77,7 +77,7 @@ export default function Home() {
                 const subs = CATEGORY_SUBCATEGORIES[m.id] ?? [];
                 const photo = MAT_PHOTO[m.id];
                 return (
-                  <Link key={m.id} className="yy-home__row" href={`${screenPath(m.id)}/?subcategory=${encodeURIComponent(subs[0] ?? '')}`}>
+                  <Link key={m.id} className="yy-home__row" href={`${screenPath(m.id)}/`}>
                     {photo ? (
                       <span className="yy-photo">
                         <img src={photo} alt="" loading="lazy" />

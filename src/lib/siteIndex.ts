@@ -9,7 +9,7 @@
  * 上部の帯から静的に import しないこと(全ページの配信が重くなる)。
  */
 import { ROUTED_SCREENS, screenPath } from './siteScreens';
-import { CATEGORY_SUBCATEGORIES, subcategoryLabel } from './materialCategories';
+import { CATEGORY_SUBCATEGORIES, materialSubPath, subcategoryLabel } from './materialCategories';
 import { GENERAL_TOOL_MENU } from './generalToolsMenu';
 import { DESIGN_TOOL_MENU } from './designToolsMenu';
 import { LOOKUP_CATEGORIES } from './lookup';
@@ -70,7 +70,7 @@ export function siteIndex(): SearchEntry[] {
         label: subcategoryLabel(id),
         sub: materialLabel[cat] ?? '',
         group: '建材',
-        href: `${screenPath(cat)}/?subcategory=${encodeURIComponent(id)}`,
+        href: materialSubPath(cat, id),
       }));
     }
   }

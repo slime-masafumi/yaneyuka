@@ -7,7 +7,7 @@ import UserpageBottomBar from './UserpageBottomBar';
 import RelatedPrivacyLinks from '../RelatedPrivacyLinks';
 import AfterMount from '../AfterMount';
 import { isPrivacyPolicyPath } from '@/lib/legalPages';
-import { CATEGORY_ROUTES, CATEGORY_SUBCATEGORIES, EXTERIOR_FINISH_SUBCATEGORIES, findCategoryBySubcategory } from '@/lib/materialCategories';
+import { CATEGORY_ROUTES, CATEGORY_SUBCATEGORIES, EXTERIOR_FINISH_SUBCATEGORIES, findCategoryBySubcategory, materialSubPath, parseMaterialPath } from '@/lib/materialCategories';
 import {
   USERPAGE_MENUS,
   isUserpageMenu as isUserpageMenuId,
@@ -55,6 +55,7 @@ import ContactsManagement from '../content/Userpage/ContactsManagement';
 import DesignTools from '../content/Userpage/DesignTools';
 import ToolIndex from '../content/ToolIndex';
 import MaterialNav from '../content/MaterialNav';
+import { MakerFilterProvider } from '../MakerFilter';
 import { MakerNews, MaterialSide, MaterialSponsor } from '../content/MaterialSide';
 import { INDEX_MENUS } from '@/lib/railMenu';
 import { OPEN_SCREEN_EVENT } from '@/lib/openScreen';
@@ -132,13 +133,19 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
     // 建材の 16 分類（/roof/ など）は、サーバーの時点で建材の画面を組む。
     // 以前は 'topix'（中身は空の children）をサーバーで出し、読み込み後に建材へ切り替えていたため、
     // 配信 HTML にメーカー表が 1 行も無く、検索エンジンから見えていなかった（2026-11-14）。
-    const content = PATH_TO_CONTENT[normalizedPathname];
-    if (content && CATEGORY_SUBCATEGORIES[content]) return content;
+    // 小分類ごとの URL（/roof/seppan/）も同じく建材の画面
+    const mat = parseMaterialPath(normalizedPathname);
+    if (mat) return mat.category;
     return 'topix';
   };
-  // 建材ページをサーバーで組むときの小分類は先頭のもの（?subcategory= は読み込み後に SearchParamsWatcher が反映）
-  const initialMaterialSub = (category: string) =>
-    getInitialContent() === category ? CATEGORY_SUBCATEGORIES[category]?.[0] ?? '' : '';
+  // 建材ページをサーバーで組むときの小分類。/roof/seppan/ ならその小分類、/roof/ なら先頭のもの
+  // （旧 URL の ?subcategory= は読み込み後に SearchParamsWatcher が反映）
+  const initialMaterialSub = (category: string) => {
+    const normalizedPathname = pathname.endsWith('/') && pathname !== '/' ? pathname.slice(0, -1) : pathname;
+    const mat = parseMaterialPath(normalizedPathname);
+    if (!mat || mat.category !== category) return '';
+    return mat.sub ?? CATEGORY_SUBCATEGORIES[category]?.[0] ?? '';
+  };
   
   // 中央カラムを全面に使う画面。余白と角丸を外して、ナビ直下・左右いっぱいに広げる。
   // 左カラム Ⅲ（一般ツール）から開くものはすべてこの扱いに揃える。
@@ -233,7 +240,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
     }
 
     // URLルートがあるページへの遷移時は、pathToContentMapベースのuseEffectに任せる
-    if (normalizedPathname in PATH_TO_SCREEN) {
+    if (normalizedPathname in PATH_TO_SCREEN || parseMaterialPath(normalizedPathname)) {
       return;
     }
 
@@ -417,6 +424,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
   const applyRouteFromUrl = useCallback((currentPath: string) => {
     // trailingSlash: trueの設定により、pathnameは末尾にスラッシュが付く可能性があるため、正規化する
     const normalizedPathname = currentPath.endsWith('/') && currentPath !== '/' ? currentPath.slice(0, -1) : currentPath;
+    // 小分類ごとの URL（/roof/seppan/）
+    const mat = parseMaterialPath(normalizedPathname);
+    if (mat?.sub) {
+      setActiveContent(mat.category);
+      handleSubcategoryFromQuery(mat.category, mat.sub);
+      return;
+    }
     const content = PATH_TO_CONTENT[normalizedPathname];
     if (!content) return;
     setActiveContent(content);
@@ -726,10 +740,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
       // URL遷移前にサブカテゴリーステートを設定（ハイライトを即座に表示するため）
       handleSubcategoryFromQuery(category, subcategory);
 
-      // カテゴリーページに遷移し、クエリパラメータでサブカテゴリーを指定
-      const route = categoryRouteMap[category];
-      const url = `${route}?subcategory=${encodeURIComponent(subcategory)}`;
-      router.push(url);
+      // 小分類ごとの URL（/roof/seppan/）へ。以前は /roof?subcategory=折板 だった（旧 URL も引き続き開ける）
+      router.push(materialSubPath(category, subcategory));
       return;
     }
     
@@ -1355,7 +1367,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
                       subcategory={materialSubcategory || CATEGORY_SUBCATEGORIES[activeContent][0]}
                       onRegister={() => handleMenuClick('registration')}
                     />
-                    <div className="yy-matbody">{renderContent()}</div>
+                    <div className="yy-matbody">
+                      {/* 見出しの絞り込み(CAD あり など)。小分類が変わったら作り直して解除 */}
+                      <MakerFilterProvider key={`${activeContent}:${materialSubcategory}`}>{renderContent()}</MakerFilterProvider>
+                      {/* 分類・小分類ページの構造化データ（JSON-LD）。本文は null なので見た目には出ない */}
+                      {children}
+                    </div>
                     <MaterialSide category={activeContent} subcategory={materialSubcategory || CATEGORY_SUBCATEGORIES[activeContent][0]} />
                     <div className="yy-matpage__news">
                       <MakerNews category={activeContent} />

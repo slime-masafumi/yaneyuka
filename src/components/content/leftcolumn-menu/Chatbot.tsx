@@ -16,6 +16,7 @@ import { DESIGN_TOOL_MENU } from '@/lib/designToolsMenu';
 import { GENERAL_TOOL_MENU } from '@/lib/generalToolsMenu';
 import { buildUserpageQuery } from '@/lib/userpageUrl';
 import { openMakerConect } from '@/lib/makerConectPreset';
+import { CATEGORY_SUBCATEGORIES, materialSubPath, parseMaterialPath } from '@/lib/materialCategories';
 import SaveToMakerBox from '@/components/SaveToMakerBox';
 import PageHead, { Stat } from '@/components/ui/PageHead';
 import { SecHead } from '@/components/ui/Sheet';
@@ -56,7 +57,13 @@ type Msg = { role: 'user' | 'bot'; text?: string; answer?: Answer; chips?: strin
 
 const EXAMPLES = ['折板屋根の結露対策', '外壁をカバー工法で改修したい', '防火地域のサッシの選び方', 'フローリングの表面材の違い', 'ベランダの防水', 'タイルの剥落を防ぐには'];
 
-const pageHref = (route: string, param: string) => (param ? `${route}/?subcategory=${encodeURIComponent(param)}` : route);
+// 小分類のページは /roof/seppan/ の形。その分類に無い小分類なら旧形式(?subcategory=)のまま
+const pageHref = (route: string, param: string) => {
+  if (!param) return route;
+  const mat = parseMaterialPath(route.endsWith('/') ? route.slice(0, -1) : route);
+  if (mat && CATEGORY_SUBCATEGORIES[mat.category]?.includes(param)) return materialSubPath(mat.category, param);
+  return `${route}/?subcategory=${encodeURIComponent(param)}`;
+};
 
 const Chatbot: React.FC = () => {
   const [knowledge, setKnowledge] = useState<KnowledgePage[] | null>(null);

@@ -1,4 +1,7 @@
+'use client';
+
 import React from 'react';
+import { useMakerFilter } from '@/components/MakerFilter';
 import MakerLink from '@/components/MakerLink';
 import makers from '@/data/makers.json';
 import SaveToMakerBox from '@/components/SaveToMakerBox';
@@ -68,8 +71,10 @@ const MakerRows: React.FC<MakerRowsProps> = ({
   nameWidth = '180px',
   topMargin = false,
 }) => {
+  const { filter } = useMakerFilter();
+  // 見出しの「CAD ◯」などで絞り込み中なら、その資料がある社だけ
   const rows = (DATA[category] || []).filter(
-    (m) => m.pages.includes(page) && (m.group || '') === group
+    (m) => m.pages.includes(page) && (m.group || '') === group && (!filter || Boolean(m[filter]))
   );
 
   if (!rows.length) return null;

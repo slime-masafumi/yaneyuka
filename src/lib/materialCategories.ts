@@ -65,3 +65,53 @@ const SUB_LABEL: Record<string, string> = {
 /** 「内装壁壁紙」→「壁紙」。小分類の id は分類名を頭に付けて重複を避けているので、表示では外す */
 const PREFIX = /^(内装壁|内装天井|内装床|内装|外構|エクステリア|機械設備|電気設備|ファニチャー|金物|防水|屋根)(?=.)/;
 export const subcategoryLabel = (id: string) => SUB_LABEL[id] ?? id.replace(PREFIX, '');
+
+/* ───────── 小分類ごとの URL(/roof/seppan/ など。2026-11-14 追加) ─────────
+ * 以前は /roof/?subcategory=折板 で切り替えるだけで、canonical が分類の URL のため
+ * 先頭以外の小分類のメーカー表は検索エンジンに載らなかった。小分類ごとに URL を持たせる。
+ * 旧 URL(?subcategory=)もそのまま動く(リンク切れにしない)。
+ * slug は英小文字とハイフンだけ。英字 id の小分類はそのまま、日本語 id の小分類はこの表で決める。
+ * ⚠️ 公開したら slug は変えない(URL になる)。 */
+const SUB_SLUG: Record<string, Record<string, string>> = {
+  roof: { 折板: 'seppan', 金属屋根: 'metal-roof', スレート: 'slate', 瓦: 'kawara', 屋根その他: 'other' },
+  'exterior-wall': { 金属サイディング: 'metal-siding', 窯業サイディング: 'ceramic-siding' },
+  'exterior-other': { 笠木水切: 'coping-flashing', 庇オーニング: 'canopy-awning', 雨どい: 'gutter', ハト小屋: 'hatogoya', 太陽光パネル: 'solar-panel', 手摺: 'handrail' },
+  'internal-floor': { フローリング: 'flooring', ビニールタイル: 'vinyl-tile', ビニールシート: 'vinyl-sheet', カーペット: 'carpet', 内装タイル: 'tile', 内装床石レンガ: 'stone-brick', 畳: 'tatami', 巾木床見切: 'baseboard', 内装床機能性: 'functional', 内装床その他: 'other' },
+  'internal-wall': { 内装壁壁紙: 'wallpaper', 内装壁化粧板: 'decorative-board', 内装壁化粧シート: 'decorative-sheet', 内装壁化粧パネル: 'decorative-panel', 内装壁金属板: 'metal-sheet', 内装壁塗り壁: 'plaster', 内装壁タイル: 'tile', 内装壁石レンガ: 'stone-brick', 内装壁装飾材: 'ornament', 内装壁機能性: 'functional', 内装壁壁見切: 'trim', 内装壁その他: 'other' },
+  'internal-ceiling': { 内装天井ボード: 'board', 内装天井化粧材: 'finish', 内装天井装飾材: 'ornament', 内装天井機能性: 'functional', 内装天井その他: 'other' },
+  'internal-other': { トイレブース: 'toilet-booth', 内装サッシ: 'interior-sash', 内装シャッター: 'interior-shutter', ノンスリップ: 'non-slip', 内装手摺: 'handrail', グレーチング: 'grating', 内装緑化: 'greening', 点検口: 'access-panel', 隔壁: 'partition', 保護材: 'protector', 点字: 'braille', ディスプレイ: 'display', 内装その他製品: 'other' },
+  waterproof: { ウレタン防水: 'urethane', アスファルト防水: 'asphalt', シート防水: 'sheet', FRP防水: 'frp', 防水その他: 'other' },
+  hardware: { ハンドル: 'handle', 引棒: 'pull-bar', 建具金物: 'door-hardware', 棚フック: 'shelf-hook', サニタリー: 'sanitary', 家具金物: 'furniture-hardware', 鍵関係: 'lock', 'EXP,J': 'expansion-joint', 金物その他: 'other' },
+  furniture: { 家具: 'furniture', カーテン: 'curtain', ブラインド: 'blind', 生地: 'fabric', ファニチャーその他: 'other' },
+  'electrical-systems': { 照明: 'lighting', 外構照明: 'exterior-lighting', スイッチコンセント: 'switch-outlet', 発電機: 'generator', 電気設備その他: 'other' },
+  'mechanical-systems': { 水栓: 'faucet', 衛生機器: 'sanitary-ware', 住宅設備: 'housing-equipment', キッチン: 'kitchen', 空調機: 'air-conditioner', 機械設備その他: 'other' },
+  'exterior-infrastructure': { 縁石: 'curb', 外構舗装: 'paving', 雨水桝: 'rainwater-basin', 桝蓋: 'basin-cover', 外構グレーチング: 'grating', 外構その他: 'other' },
+  exterior: { 宅配ボックス: 'delivery-box', 郵便受け: 'mailbox', 表札: 'nameplate', 門扉: 'gate', フェンス: 'fence', カーポート: 'carport', 大型引戸: 'large-sliding-gate', ウッドデッキ: 'wood-deck', 駐輪場: 'bicycle-parking', ゴミストッカー: 'garbage-stocker', エクステリア緑化: 'greening', エクステリアその他: 'other' },
+};
+
+/** 小分類 id → URL の slug */
+export const subSlug = (category: string, sub: string): string => SUB_SLUG[category]?.[sub] ?? sub;
+
+/** URL の slug → 小分類 id。無ければ null */
+export function subFromSlug(category: string, slug: string): string | null {
+  let s = slug;
+  try { s = decodeURIComponent(slug); } catch {}
+  return (CATEGORY_SUBCATEGORIES[category] || []).find((id) => subSlug(category, id) === s) ?? null;
+}
+
+/** 小分類のページの URL(末尾 / 付き)。例 /roof/seppan/ */
+export const materialSubPath = (category: string, sub: string): string =>
+  `${CATEGORY_ROUTES[category]}/${subSlug(category, sub)}/`;
+
+const ROUTE_TO_CATEGORY: Record<string, string> = Object.fromEntries(Object.entries(CATEGORY_ROUTES).map(([c, r]) => [r, c]));
+
+/** '/roof' や '/roof/seppan'(末尾 / なし)から { category, sub }。sub はパスに小分類が無ければ null。建材のパスでなければ null */
+export function parseMaterialPath(path: string): { category: string; sub: string | null } | null {
+  const m = /^(\/[^/]+)(?:\/([^/]+))?\/?$/.exec(path);
+  if (!m) return null;
+  const category = ROUTE_TO_CATEGORY[m[1]];
+  if (!category) return null;
+  if (!m[2]) return { category, sub: null };
+  const sub = subFromSlug(category, m[2]);
+  return sub ? { category, sub } : null;
+}

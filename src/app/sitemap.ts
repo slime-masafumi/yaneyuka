@@ -3,6 +3,7 @@ import { allLegalPaths } from '@/lib/legalPages'
 import { LOOKUP_ORDER } from '@/lib/lookup'
 import { FLOW_ARTICLES } from '@/lib/forceFlowArticles'
 import { ROUTED_SCREENS, screenPath, type ChangeFreq } from '@/lib/siteScreens'
+import { CATEGORY_SUBCATEGORIES, materialSubPath } from '@/lib/materialCategories'
 
 interface SitemapEntry {
   path: string;
@@ -35,6 +36,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
   }));
   const freshScreenPaths = ROUTED_SCREENS.filter((s) => s.sitemap.fresh).map((s) => screenPath(s.id));
 
+  // 建材の小分類ページ（/roof/seppan/ など。メーカーの比較表）。2026-11-14 から
+  const materialSubs: SitemapEntry[] = Object.entries(CATEGORY_SUBCATEGORIES).flatMap(([cat, subs]) =>
+    subs.map((sub) => ({ path: materialSubPath(cat, sub), changeFrequency: 'monthly' as ChangeFreq, priority: 0.6 })),
+  );
+
   // 建築の調べもの（逆引き索引・計算ツール・物件カルテ）。
   // 索引ページは検索流入の受け皿なので優先度を高めに置く。カルテは端末内アプリなので低め。
   const lookup: SitemapEntry[] = [
@@ -60,7 +66,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   // /userpage は robots.txt で Disallow しているため sitemap にも載せない。
 
   const frequentPaths = new Set<string>([...freshScreenPaths, '/']);
-  const allEntries = [...top, ...screens, ...lookup, ...legal];
+  const allEntries = [...top, ...screens, ...materialSubs, ...lookup, ...legal];
 
   return allEntries.map((entry) => ({
     url: `${base}${withSlash(entry.path)}`,

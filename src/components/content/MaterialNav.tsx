@@ -3,14 +3,14 @@
 import React from 'react';
 import Link from 'next/link';
 import { screensInGroup, screenPath } from '@/lib/siteScreens';
-import { CATEGORY_SUBCATEGORIES, subcategoryLabel } from '@/lib/materialCategories';
+import { CATEGORY_SUBCATEGORIES, materialSubPath, subcategoryLabel } from '@/lib/materialCategories';
 
 /**
  * 建材ページの頭(モック「高級感 3」の建材 Q9)。
  * 左カラムは入口「建材」だけにしたので、16 分類と小分類はここで選ぶ。
  *   1 段目 … 16 分類の下線タブ(どれも URL を持つページ)
  *   2 段目 … その分類の小分類。選択中は緑の点
- * どちらも a で出す(クローラが小分類まで辿れるように)。
+ * どちらも a で出す(クローラが小分類まで辿れるように)。小分類は /roof/seppan/ のような小分類ごとの URL。
  */
 const CATEGORIES = screensInGroup('material');
 
@@ -32,7 +32,7 @@ export default function MaterialNav({
         {CATEGORIES.map((c) => (
           <Link
             key={c.id}
-            href={`${screenPath(c.id)}/?subcategory=${encodeURIComponent(CATEGORY_SUBCATEGORIES[c.id]?.[0] ?? '')}`}
+            href={`${screenPath(c.id)}/`}
             className="yy-tab"
             aria-pressed={c.id === category}
           >
@@ -44,7 +44,7 @@ export default function MaterialNav({
         {subs.map((s) => (
           <Link
             key={s}
-            href={`${screenPath(category)}/?subcategory=${encodeURIComponent(s)}`}
+            href={materialSubPath(category, s)}
             className="yy-matnav__sub"
             aria-current={s === current ? 'true' : undefined}
           >

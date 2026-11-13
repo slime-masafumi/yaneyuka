@@ -334,3 +334,12 @@ textarea.yy-mk2-in { height: 56px; padding-top: 4px; line-height: 1.6; resize: v
 .yy-mk2-mc__hst { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; color: var(--yy-t3); }
 .yy-mk2-mc__hst.is-open { color: var(--yy-acc-ink); }
 .yy-mk2-mc__hst .yy-dot { margin-right: 0; }
+
+/* 小分類の見出しの比較用の集計(MakerCount)。押すとその資料がある社だけに絞る */
+.yy-mkf { display: inline-flex; align-items: baseline; gap: 2px; }
+.yy-mkf__btn { padding: 0 6px; border: 0; background: none; font-family: var(--font-mono), ui-monospace, monospace; font-size: 10.5px; letter-spacing: 0.04em; color: var(--yy-t3); cursor: pointer; border-bottom: 1px solid transparent; }
+.yy-mkf__btn b { font-weight: 400; color: var(--yy-ink); font-variant-numeric: tabular-nums; }
+.yy-mkf__btn:hover:not(:disabled) { color: var(--yy-ink); }
+.yy-mkf__btn[aria-pressed='true'] { color: var(--yy-acc-ink); border-bottom-color: var(--yy-acc); }
+.yy-mkf__btn[aria-pressed='true'] b { color: var(--yy-acc-ink); }
+.yy-mkf__btn:disabled { cursor: default; opacity: 0.45; }
