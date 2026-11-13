@@ -7,6 +7,8 @@ import { parseUserpageQuery, type UserpageTarget } from '@/lib/userpageUrl';
 import { DESIGN_TOOL_MENU } from '@/lib/designToolsMenu';
 import { requestGeneralTool, onGeneralTool, type GeneralToolId } from '@/lib/generalToolsMenu';
 import { useAuth } from '@/lib/AuthContext';
+import { TOP_NAV_SCREENS, screenPath, screensInGroup } from '@/lib/siteScreens';
+import { useForumUnread } from '@/lib/useForumUnread';
 
 interface SidebarProps {
   onItemClick?: () => void;
@@ -77,6 +79,8 @@ type RailItem = {
 const appStore = (id: number) => `https://apps.apple.com/jp/app/id${id}`;
 type RailMode = {
   label: string;
+  /** info = 情報ページ（旧上部ナビ）/ material = 建材検索ツリー（下の JSX）。無ければ items と tree を出す */
+  kind?: 'info' | 'material';
   bg: string;
   ac: string;
   items: RailItem[];
@@ -84,11 +88,11 @@ type RailMode = {
   tree?: typeof DESIGN_TOOL_MENU;
 };
 
-const ROMAN = ['Ⅰ', 'Ⅱ', 'Ⅲ', 'Ⅳ', 'Ⅴ'];
+const ROMAN = ['Ⅰ', 'Ⅱ', 'Ⅲ', 'Ⅳ', 'Ⅴ', 'Ⅵ'];
 
 /**
- * 左カラムの5モード。Ⅰ は従来どおり建材検索ツリー（下の JSX をそのまま使う）。
- * Ⅱ〜Ⅴ は削除した UserpageBottomBar の項目をそのまま引き取ったもの。
+ * 左カラムの6モード。Ⅰ 情報は旧上部ナビ、Ⅱ は従来どおり建材検索ツリー（下の JSX をそのまま使う）。
+ * Ⅲ〜Ⅵ は削除した UserpageBottomBar の項目をそのまま引き取ったもの。
  * bg = 左カラムの地色 / ac = 見出し下線と開いたアコーディオンの色。
  */
 // 5 段とも同じ黒にそろえた（2026-11-13）。段ごとに色を変えていたが、上の濃い緑の帯と並ぶと色が多すぎる。
@@ -96,8 +100,11 @@ const ROMAN = ['Ⅰ', 'Ⅱ', 'Ⅲ', 'Ⅳ', 'Ⅴ'];
 const RAIL_BG = '#121413';
 const RAIL_AC = '#52AA96';
 
+// Ⅰ 情報は上部の帯にあった 15 本（NEWS・イベント・法規…）を移したもの（2026-11-13）。
+// 帯は戻る・パンくず・検索だけにした。lg 未満は左カラムが出ないので、帯に従来の横並びが残る。
 const RAIL_MODES: RailMode[] = [
-  { label: '建材検索', bg: RAIL_BG, ac: RAIL_AC, items: [] },
+  { label: '情報', kind: 'info', bg: RAIL_BG, ac: RAIL_AC, items: [] },
+  { label: '建材検索', kind: 'material', bg: RAIL_BG, ac: RAIL_AC, items: [] },
   {
     label: '設計情報', bg: RAIL_BG, ac: RAIL_AC,
     items: [
@@ -188,8 +195,14 @@ const RailIcon: React.FC<{ src?: string }> = ({ src }) =>
     />
   ) : null;
 
+const MODE_INFO = RAIL_MODES.findIndex((m) => m.kind === 'info');
+const MODE_MATERIAL = RAIL_MODES.findIndex((m) => m.kind === 'material');
+const INFO_IDS = new Set(TOP_NAV_SCREENS.map((s) => s.id));
+const MATERIAL_IDS = new Set(screensInGroup('material').map((s) => s.id));
+
 const Sidebar: React.FC<SidebarProps> = ({ onItemClick, onPageChange, onLogoClick, onMenuClick, activeContent }) => {
-  const [mode, setMode] = useState(0);
+  const [mode, setMode] = useState(MODE_INFO);
+  const forumUnread = useForumUnread();
   // 一般ツール・設計ツールは activeContent だけでは中のどれを開いたか分からないので、
   // 左カラムから開いたものを覚えておく（lg 以上では中央のタブを畳んであるので、これで一致する）。
   const [activeTool, setActiveTool] = useState<string | null>(null);
@@ -199,6 +212,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onItemClick, onPageChange, onLogoClic
   // 押して切り替えた場合はこの効果より前に mode が変わっているので、結果は同じ。
   useEffect(() => {
     if (!activeContent) return;
+    if (INFO_IDS.has(activeContent)) return setMode(MODE_INFO);
+    if (MATERIAL_IDS.has(activeContent)) return setMode(MODE_MATERIAL);
     // 設計ツールは items ではなく tree で持っているので、そちらも見る。
     const found = RAIL_MODES.findIndex(
       (m) => m.items.some((i) => i.menu === activeContent) || (m.tree && activeContent === 'design-tools')
@@ -337,10 +352,37 @@ const Sidebar: React.FC<SidebarProps> = ({ onItemClick, onPageChange, onLogoClic
       </h3>
       <div className="category-scroll-container"></div>
 
-      {/* Ⅱ〜Ⅴ：旧フッターバーから引き取ったメニュー。
-          行の高さは 21px。Ⅲ の22本が 1280×720 で切り替えバーの上に収まる高さにしてある
+      {/* Ⅰ 情報：旧上部ナビの 15 本。URL を持つページなので a で出す（クローラも辿れる） */}
+      {railMode.kind === 'info' && (
+        <div className="space-y-0 pb-2">
+          {TOP_NAV_SCREENS.map((s) => (
+            <Link
+              key={s.id}
+              href={`${screenPath(s.id)}/`}
+              onClick={() => onItemClick?.()}
+              // .subcategory を付けると建材ツリー用のクリック処理に拾われるので、別の名前にする
+              className={`rail-info flex items-center gap-2 w-full text-left px-4 py-[3px] leading-tight text-[12px] 2xl:text-[13px] hover:text-white ${
+                activeContent === s.id ? ACTIVE : 'text-gray-300'
+              }`}
+            >
+              {s.label}
+              {s.id === 'forum' && forumUnread > 0 && (
+                <span
+                  className="inline-flex min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-4 text-white"
+                  title={`未読の投稿が${forumUnread}件あります`}
+                >
+                  {forumUnread > 99 ? '99+' : forumUnread}
+                </span>
+              )}
+            </Link>
+          ))}
+        </div>
+      )}
+
+      {/* Ⅲ〜Ⅵ：旧フッターバーから引き取ったメニュー。
+          行の高さは 21px。Ⅳ の22本が 1280×720 で切り替えバーの上に収まる高さにしてある
           （24.8px だと最後の2本が隠れ、スクロールバーも出さないので気づけなかった）。 */}
-      {mode !== 0 && (
+      {railMode.kind === undefined && (
         <div className="space-y-0 pb-2">
           {railMode.items.map((item) =>
             item.menu.startsWith('http') ? (
@@ -424,7 +466,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onItemClick, onPageChange, onLogoClic
       )}
 
       {/* Ⅰ：建材検索ツリー。DOM には常に残す（リンクを消さないため） */}
-      <div className="space-y-0" style={mode === 0 ? undefined : { display: 'none' }}>
+      <div className="space-y-0" style={railMode.kind === 'material' ? undefined : { display: 'none' }}>
         {/* Maker conect */}
         <div>
           <button className="subcategory w-full text-left px-4 py-1 text-[12px] 2xl:text-[13px] text-gray-300" data-page="makerconect">Maker conect</button>

@@ -4,44 +4,41 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useForumUnread, markForumSeen } from '@/lib/useForumUnread';
 import NotificationBell from './NotificationBell';
+import TopBar from './TopBar';
+import AfterMount from '../AfterMount';
 import { INFO_SCREEN_TO_PATH, TOP_NAV_SCREENS } from '@/lib/siteScreens';
+import type { UserpageTarget } from '@/lib/userpageUrl';
 
 interface NavigationProps {
-  onMenuClick?: (menuItem: string) => void;
+  onMenuClick?: (menuItem: string, target?: UserpageTarget) => void;
   activeItem?: string;
 }
 
-const BASE_WIDTH = 1280; // デザイン想定幅
-const HORIZONTAL_SCROLL_BREAKPOINT = 1366; // iPad Pro (12.9インチ) まで横スクロール
-
+/**
+ * 上部の濃い緑の帯。
+ *   lg 以上 … 戻る / パンくず / 検索 / 通知・お問い合わせ・掲載希望(TopBar.tsx)。
+ *             情報ページ 15 本は左カラムの Ⅰ「情報」から開く。
+ *   lg 未満 … 左カラムが出ないので、従来どおり 15 本を横スクロールで並べる。
+ */
 const Navigation: React.FC<NavigationProps> = ({ onMenuClick, activeItem }) => {
-
   const router = useRouter();
   const pathname = usePathname();
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
-  const [useHorizontalScroll, setUseHorizontalScroll] = useState(false);
   const [loadingMenuItem, setLoadingMenuItem] = useState<string | null>(null);
   const forumUnread = useForumUnread();
   const expectedRouteRef = useRef<string | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleMenuClick = (menuItem: string) => {
-    // 既存のタイムアウトをクリア
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
-    
-    setLoadingMenuItem(menuItem);
-    
-    const routeMap = INFO_SCREEN_TO_PATH;
-    
-    const route = routeMap[menuItem];
+    const route = INFO_SCREEN_TO_PATH[menuItem];
     if (route) {
+      setLoadingMenuItem(menuItem);
       expectedRouteRef.current = route;
       router.push(route);
-      // タイムアウトはフォールバックとして残す（最大5秒）
+      // 遷移が終わらなかったときの保険(最大 5 秒)
       timeoutRef.current = setTimeout(() => {
         setLoadingMenuItem(null);
         expectedRouteRef.current = null;
@@ -49,51 +46,25 @@ const Navigation: React.FC<NavigationProps> = ({ onMenuClick, activeItem }) => {
       }, 5000);
       return;
     }
-    
-    if (onMenuClick) {
-      onMenuClick(menuItem);
-      setLoadingMenuItem(null);
-    }
+    onMenuClick?.(menuItem);
   };
 
-  // pathnameが変更されたらローディングを解除
+  // 目的のパスに着いたらローディングを解除
   useEffect(() => {
-    if (loadingMenuItem && expectedRouteRef.current) {
-      const normalizedPathname = pathname.endsWith('/') && pathname !== '/' ? pathname.slice(0, -1) : pathname;
-      const normalizedExpected = expectedRouteRef.current.endsWith('/') && expectedRouteRef.current !== '/' 
-        ? expectedRouteRef.current.slice(0, -1) 
-        : expectedRouteRef.current;
-      
-      if (normalizedPathname === normalizedExpected || normalizedPathname === expectedRouteRef.current) {
-        // タイムアウトをクリア
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current);
-          timeoutRef.current = null;
-        }
-        
-        // ページ読み込み完了を待つ（DOMContentLoaded + 少し余裕を持たせる）
-        const checkPageLoaded = () => {
-          if (document.readyState === 'complete') {
-            // さらに少し待ってからローディングを解除（コンテンツのレンダリング完了を待つ）
-            setTimeout(() => {
-              setLoadingMenuItem(null);
-              expectedRouteRef.current = null;
-            }, 100);
-          } else {
-            const handleLoad = () => {
-              setTimeout(() => {
-                setLoadingMenuItem(null);
-                expectedRouteRef.current = null;
-              }, 100);
-            };
-            window.addEventListener('load', handleLoad, { once: true });
-            return () => window.removeEventListener('load', handleLoad);
-          }
-        };
-        
-        checkPageLoaded();
-      }
+    if (!loadingMenuItem || !expectedRouteRef.current) return;
+    const strip = (p: string) => (p.endsWith('/') && p !== '/' ? p.slice(0, -1) : p);
+    if (strip(pathname) !== strip(expectedRouteRef.current)) return;
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
     }
+    const done = () =>
+      setTimeout(() => {
+        setLoadingMenuItem(null);
+        expectedRouteRef.current = null;
+      }, 100);
+    if (document.readyState === 'complete') done();
+    else window.addEventListener('load', done, { once: true });
   }, [pathname, loadingMenuItem]);
 
   // 掲示板を開いたら既読にする。バッジは次の新規投稿から再び出る。
@@ -101,101 +72,59 @@ const Navigation: React.FC<NavigationProps> = ({ onMenuClick, activeItem }) => {
     if (pathname?.startsWith('/forum')) markForumSeen();
   }, [pathname]);
 
-  useEffect(() => {
-    const onResize = () => {
-      const w = window.innerWidth || BASE_WIDTH;
-      // モバイル・タブレット（1024px未満）ではスケーリングせず横スクロール
-      if (w < 1024) {
-        setScale(1);
-        setUseHorizontalScroll(true);
-      } else if (w <= HORIZONTAL_SCROLL_BREAKPOINT) {
-        setScale(1);
-        setUseHorizontalScroll(true);
-      } else {
-        const s = Math.min(1, w / BASE_WIDTH);
-        setScale(s);
-        setUseHorizontalScroll(false);
-      }
-    };
-    onResize();
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
-
   const LoadingSpinner = () => (
-    <svg 
-      className="animate-spin h-3 w-3 ml-1 inline-block" 
-      xmlns="http://www.w3.org/2000/svg" 
-      fill="none" 
-      viewBox="0 0 24 24"
-    >
+    <svg className="animate-spin h-3 w-3 ml-1 inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
     </svg>
   );
 
+  const rightLinks = (
+    <div className="yy-topnav__right">
+      <NotificationBell />
+      <button type="button" onClick={() => handleMenuClick('feedback')}>お問い合わせ</button>
+      <button type="button" onClick={() => handleMenuClick('registration')}>掲載希望</button>
+    </div>
+  );
+
   return (
-    <>
-      <nav className="yy-topnav" style={{ backgroundColor: 'var(--yy-deep)', position: 'relative', zIndex: 2147483647, overflow: 'visible' }}>
-        <div 
-          className={`w-full px-4 h-full ${useHorizontalScroll ? 'overflow-x-auto' : ''}`} 
-          ref={wrapRef}
-          style={useHorizontalScroll ? { overflowX: 'auto', overflowY: 'visible', WebkitOverflowScrolling: 'touch' } : { overflowY: 'visible', overflowX: 'visible' }}
-        >
-          <div 
-            className={`flex items-stretch h-full ${useHorizontalScroll ? 'justify-start flex-nowrap' : 'justify-center'}`} 
-            style={useHorizontalScroll 
-              ? { transform: 'scale(1)', transformOrigin: 'top left', width: 'auto', minWidth: '100%' }
-              : { transform: `scale(${scale})`, transformOrigin: 'top left', width: `${100 / scale}%` }
-            }
-          >
-            {/* メニュー項目群 */}
-            {TOP_NAV_SCREENS.map((item) => (
-              <button 
-                key={item.id}
-                className={`nav-item h-full flex items-center justify-center${activeItem === item.id ? ' active' : ''}${loadingMenuItem === item.id ? ' loading' : ''}`}
-                type="button"
-                onClick={() => handleMenuClick(item.id)}
-                disabled={loadingMenuItem === item.id}
-              >
-                {item.label}
-                {item.id === 'forum' && forumUnread > 0 && (
-                  <span
-                    className="ml-1 inline-flex min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-4 text-white"
-                    title={`未読の投稿が${forumUnread}件あります`}
-                  >
-                    {forumUnread > 99 ? '99+' : forumUnread}
-                  </span>
-                )}
-                {loadingMenuItem === item.id && <LoadingSpinner />}
-              </button>
-            ))}
-            {/* 右端：お問い合わせ・掲載希望 */}
-            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-              <NotificationBell />
-              <button
-                type="button"
-                onClick={() => handleMenuClick('feedback')}
-                style={{ fontSize: '11px', color: 'var(--yy-deep-t2)', padding: '0 6px', background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = '#ffffff'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--yy-deep-t2)'; }}
-              >
-                お問い合わせ
-              </button>
-              <button
-                type="button"
-                onClick={() => handleMenuClick('registration')}
-                style={{ fontSize: '11px', color: 'var(--yy-deep-t2)', padding: '0 6px', background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = '#ffffff'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--yy-deep-t2)'; }}
-              >
-                掲載希望
-              </button>
-            </div>
-          </div>
+    <nav className="yy-topnav" style={{ backgroundColor: 'var(--yy-deep)', position: 'relative', zIndex: 2147483647, overflow: 'visible' }}>
+      {/* lg 以上：戻る / パンくず / 検索 */}
+      <div className="yy-topbar hidden lg:flex">
+        <AfterMount fallback={<div className="yy-topbar__inner" />}>
+          <TopBar activeItem={activeItem} onMenuClick={onMenuClick} />
+        </AfterMount>
+      </div>
+
+      {/* lg 未満：情報ページ 15 本を横スクロールで */}
+      <div className="lg:hidden flex-1 min-w-0 h-full overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div className="flex items-stretch h-full justify-start flex-nowrap" style={{ minWidth: '100%', width: 'max-content' }}>
+          {TOP_NAV_SCREENS.map((item) => (
+            <button
+              key={item.id}
+              className={`nav-item h-full flex items-center justify-center${activeItem === item.id ? ' active' : ''}${loadingMenuItem === item.id ? ' loading' : ''}`}
+              type="button"
+              onClick={() => handleMenuClick(item.id)}
+              disabled={loadingMenuItem === item.id}
+            >
+              {item.label}
+              {item.id === 'forum' && forumUnread > 0 && (
+                <span
+                  className="ml-1 inline-flex min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-4 text-white"
+                  title={`未読の投稿が${forumUnread}件あります`}
+                >
+                  {forumUnread > 99 ? '99+' : forumUnread}
+                </span>
+              )}
+              {loadingMenuItem === item.id && <LoadingSpinner />}
+            </button>
+          ))}
         </div>
-      </nav>
-    </>
+      </div>
+
+      {/* 右端：通知・お問い合わせ・掲載希望（どの幅でも 1 つだけ描く） */}
+      {rightLinks}
+    </nav>
   );
 };
 

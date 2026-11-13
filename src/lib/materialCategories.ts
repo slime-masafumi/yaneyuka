@@ -50,3 +50,18 @@ export function findCategoryBySubcategory(subcategory: string): string | null {
   }
   return null;
 }
+
+/** 英字 id の小分類は画面上の名前に置き換える(左カラムの表記と同じ) */
+const SUB_LABEL: Record<string, string> = {
+  alc: 'ALC', ecp: 'ECPパネル', metalpanel: '金属パネル', 'exterior-wall-other': '外壁その他',
+  'aluminum-sash': 'アルミサッシ', 'resin-sash': '樹脂サッシ', 'wood-sash': '木製サッシ',
+  'light-shutter': '軽量シャッター', 'heavy-shutter': '重量シャッター',
+  paint: '塗装', plaster: '塗り壁', tile: 'タイル', 'stone-brick': '石・レンガ', 'metal-panel': '金属パネル',
+  'wood-board': '木板材', decorative: '装飾材', 'other-finish': '外壁仕上げその他',
+  'external-tile': 'タイル', 'external-stone-brick': '石・レンガ', 'pvc-sheet': '塩ビシート', 'external-finish': '外部床その他',
+  外構照明: '外構照明',
+};
+
+/** 「内装壁壁紙」→「壁紙」。小分類の id は分類名を頭に付けて重複を避けているので、表示では外す */
+const PREFIX = /^(内装壁|内装天井|内装床|内装|外構|エクステリア|機械設備|電気設備|ファニチャー|金物|防水|屋根)(?=.)/;
+export const subcategoryLabel = (id: string) => SUB_LABEL[id] ?? id.replace(PREFIX, '');

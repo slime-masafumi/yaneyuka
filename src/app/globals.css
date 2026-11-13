@@ -157,14 +157,150 @@ nav.yy-topnav {
   border-bottom: 0;
 }
 
-nav.yy-topnav > div > div > a,
-nav.yy-topnav > div > div > div > button {
-  color: #ffffff !important;
+/* lg 以上の帯：戻る / パンくず / 検索。情報ページ 15 本は左カラムの Ⅰ「情報」へ移した（2026-11-13） */
+.yy-topbar {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
 }
+.yy-topbar__inner {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 12px 0 16px;
+}
+.yy-topbar__back {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 22px;
+  padding: 0 10px 0 4px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  background: transparent;
+  color: #ffffff;
+  font-size: 11px;
+  cursor: pointer;
+}
+.yy-topbar__back svg { color: var(--yy-acc); width: 13px; height: 13px; }
+.yy-topbar__back:hover { border-color: #ffffff; }
 
-nav.yy-topnav .absolute .py-1 a {
-  color: #374151 !important; /* text-gray-700 */
+.yy-crumbs {
+  flex: 0 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
 }
+.yy-crumbs li { display: flex; align-items: center; min-width: 0; }
+.yy-crumbs li + li::before {
+  content: '/';
+  margin: 0 8px;
+  color: rgba(255, 255, 255, 0.3);
+}
+.yy-crumbs a,
+.yy-crumbs span { color: var(--yy-deep-t2); text-decoration: none; overflow: hidden; text-overflow: ellipsis; }
+.yy-crumbs a:hover { color: #ffffff; }
+.yy-crumbs li[aria-current='page'] span { color: #ffffff; font-weight: 700; }
+
+.yy-search {
+  position: relative;
+  flex: 0 0 auto;
+  margin-left: auto;
+  width: 300px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px 0 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+}
+.yy-search:focus-within { box-shadow: inset 0 0 0 1px var(--yy-acc); background: rgba(255, 255, 255, 0.12); }
+.yy-search__icon { flex: 0 0 auto; width: 13px; height: 13px; color: var(--yy-acc); }
+.yy-search input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #ffffff;
+  font-size: 12px;
+}
+.yy-search input::placeholder { color: var(--yy-deep-t2); }
+.yy-search input::-webkit-search-cancel-button { display: none; }
+.yy-search__key {
+  flex: 0 0 auto;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 10px;
+  color: var(--yy-deep-t2);
+}
+.yy-search__panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 420px;
+  max-height: 70vh;
+  overflow-y: auto;
+  background: #ffffff;
+  border: 1px solid var(--yy-line);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 4px 0 6px;
+  text-align: left;
+}
+.yy-search__group {
+  padding: 8px 12px 3px;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--yy-t3);
+  border-top: 1px solid var(--yy-line);
+}
+.yy-search__group:first-child { border-top: 0; }
+.yy-search__row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 4px 12px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.yy-search__row[aria-selected='true'] { background: var(--yy-acc-bg); }
+.yy-search__label { flex: 0 1 auto; min-width: 0; font-size: 12.5px; color: var(--yy-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.yy-search__sub { flex: 1 1 auto; min-width: 0; font-size: 11px; color: var(--yy-t3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; }
+.yy-search__empty { margin: 0; padding: 12px; font-size: 12px; color: var(--yy-t3); }
+
+.yy-topnav__right {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  padding-right: 10px;
+}
+.yy-topnav__right > button {
+  font-size: 11px;
+  color: var(--yy-deep-t2);
+  padding: 0 6px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.yy-topnav__right > button:hover { color: #ffffff; }
 
 .nav-item {
   position: relative;
