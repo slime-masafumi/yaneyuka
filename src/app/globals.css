@@ -2265,14 +2265,14 @@ nav {
   display: grid;
   grid-template-columns: 26px minmax(0, 1.5fr) minmax(0, 1.1fr) repeat(6, 52px) 40px;
   align-items: center;
-  min-height: 34px;
+  min-height: 30px;
   border-bottom: 1px solid var(--yy-line);
   font-size: 12px;
 }
 .yy-mk__row--head { min-height: 26px; font-size: 11px; color: var(--yy-t3); }
 .yy-mk__row > .flex { display: contents; }
 .yy-mk__no { font-family: var(--yy-serif); font-size: 13px; color: var(--yy-t3); font-variant-numeric: lining-nums tabular-nums; }
-.yy-mk__name { font-family: var(--yy-serif); font-size: 15px; font-weight: 500; color: var(--yy-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 8px; }
+.yy-mk__name { font-family: var(--yy-serif); font-size: 13px; font-weight: 500; color: var(--yy-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 8px; }
 .yy-mk__pages { font-size: 11px; color: var(--yy-t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 8px; }
 .yy-mk__cell { display: flex; align-items: center; }
 .yy-mk__cell a { color: var(--yy-acc-ink); text-decoration: none; font-size: 13px; }
