@@ -1,4 +1,4 @@
-import { Inter, JetBrains_Mono } from 'next/font/google'
+import { Inter, JetBrains_Mono, Cormorant_Garamond, Noto_Serif_JP } from 'next/font/google'
 import './globals.css'
 import ClientSideEffects from './ClientSideEffects';
 import ClientProviders from './ClientProviders';
@@ -7,6 +7,10 @@ import type { Metadata, Viewport } from 'next';
 const inter = Inter({ subsets: ['latin'] })
 // 補助の等幅（番号・ラベル・日時）。ツールの見出し帯 .yy-head などが var(--font-mono) で使う
 const mono = JetBrains_Mono({ subsets: ['latin'], weight: ['400'], variable: '--font-mono', display: 'swap' })
+// 番号・章題・数字だけに使う細い明朝。英数字は Cormorant、日本語は Noto Serif JP（.yy-serif が両方を並べて使う）。
+// 大きく見せるためではなく、組版（索引・表・二重線）の品を出すため。本文は今のゴシックのまま。
+const serifLatin = Cormorant_Garamond({ subsets: ['latin'], weight: ['400', '500'], variable: '--font-serif-latin', display: 'swap' })
+const serifJp = Noto_Serif_JP({ subsets: ['latin'], weight: ['400', '500'], variable: '--font-serif-jp', display: 'swap', preload: false })
 
 // --- SEO: Metadata ---
 export const metadata: Metadata = {
@@ -54,7 +58,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#3b3b3b',
+  themeColor: '#17302A',
 };
 
 // --- JSON-LD Structured Data ---
@@ -117,7 +121,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
         />
       </head>
-      <body className={`${inter.className} ${mono.variable}`}>
+      <body className={`${inter.className} ${mono.variable} ${serifLatin.variable} ${serifJp.variable}`}>
         <ClientSideEffects />
         <ClientProviders>
           {children}

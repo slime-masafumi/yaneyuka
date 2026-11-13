@@ -91,7 +91,7 @@ export default function NotificationBell() {
         onClick={() => setOpen((o) => !o)}
         aria-label={unread ? `通知 ${unread} 件` : '通知'}
         title={unread ? `未読の通知が${unread}件あります` : '通知'}
-        className="relative flex items-center px-2 text-gray-500 hover:text-gray-800"
+        className="relative flex items-center px-2 text-[#9fbdb4] hover:text-white"
       >
         <FiBell className="w-3.5 h-3.5" />
         {unread > 0 && (

@@ -2,7 +2,7 @@ import React from 'react'
 
 const ReferenceResources: React.FC = () => {
   return (
-    <div className="space-y-4 pr-2">
+    <div className="yy-refs space-y-4 pr-2">
       <h4 className="text-xs font-semibold border-b pb-1 mb-2">設計実務リファレンス</h4>
       
       {/* 1. 官庁営繕・標準仕様書（最も参照頻度が高い） */}

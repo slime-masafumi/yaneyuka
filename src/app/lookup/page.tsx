@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import { FORMAT_HELP, LOOKUP_CATEGORIES, LOOKUP_ORDER, LOOKUP_TOOL_LINKS, LOOKUP_TOTAL, countItems, type LookupFormat } from '@/lib/lookup';
 import '@/components/karte/yk.css';
+import PageHead, { Stat } from '@/components/ui/PageHead';
 
 export const metadata: Metadata = {
   title: '建築の調べもの 逆引き索引（意匠・構造・設備・電気）',
@@ -11,35 +12,54 @@ export const metadata: Metadata = {
 };
 
 const toolCount = Object.keys(LOOKUP_TOOL_LINKS).length;
+/** ツールにつながる項目を持つ章（例 1-8）。目次で番号を緑にする */
+const toolSections = new Set(Object.keys(LOOKUP_TOOL_LINKS).map((id) => id.split('-').slice(0, 2).join('-')));
 
 export default function LookupIndexPage() {
   const cats = LOOKUP_ORDER.map((slug) => LOOKUP_CATEGORIES.find((c) => c.slug === slug)!).filter(Boolean);
   return (
     <div className="yk yk-tool">
       <main className="yk-wrap yk-main">
-        <h1>建築の調べもの 逆引き索引</h1>
-        <p className="yk-intro">
-          設計・監理・審査のやり取りで繰り返し出てくる {LOOKUP_TOTAL.toLocaleString('ja-JP')} 項目を、4分野・各28章に整理しました。<br />
-          項目名｜根拠条文｜優先度｜形式 の順です。ツールができた項目からリンクに差し替えていきます（現在 {toolCount} 項目）。
-        </p>
+        <h1 className="sr-only">建築の調べもの 逆引き索引</h1>
+        <PageHead
+          no="06"
+          en="lookup"
+          title="建築の調べもの"
+          desc="設計・監理・審査のやり取りで繰り返し出てくる項目を、条文と計算から引く逆引き索引"
+          right={
+            <>
+              <Stat n={LOOKUP_TOTAL.toLocaleString('ja-JP')} label="項目" />
+              <Stat n={cats.length} label="分野" />
+              <Stat n={cats[0]?.sections.length ?? 0} label="章" />
+              <Stat n={toolCount} label="ツール" />
+            </>
+          }
+        />
 
-        <div className="yk-cards">
+        {/* 4 分野の目次を 1 画面に並べる。章 ……… 項目数。ツールにつながる章は番号を緑に */}
+        <div className="yy-lk-toc">
           {cats.map((c) => (
-            <section key={c.slug} className="yk-card">
-              <h2>
+            <section key={c.slug} className="yy-lk-col">
+              <h2 className="yy-lk-col__head">
                 <Link href={`/lookup/${c.slug}/`}>{c.label}</Link>
-                <span className="yk-cnt">{countItems(c)}項目</span>
+                <span className="yy-lk-col__cnt">{countItems(c)} 項目</span>
               </h2>
-              <ol>
-                {c.sections.map((s) => (
+              <ol className="yy-lk-col__list">
+                {c.sections.map((s, i) => (
                   <li key={s.id}>
-                    <Link href={`/lookup/${c.slug}/#${s.id}`}>{s.title}</Link>
+                    <Link href={`/lookup/${c.slug}/#${s.id}`} className="yy-lk-row">
+                      <span className={`yy-lk-row__no yy-serif${toolSections.has(s.id) ? ' is-tool' : ''}`}>{String(i + 1).padStart(2, '0')}</span>
+                      <span className="yy-lk-row__title">{s.title}</span>
+                      <span className="yy-leader" />
+                      <span className="yy-lk-row__n">{s.items.length}</span>
+                    </Link>
                   </li>
                 ))}
               </ol>
             </section>
           ))}
         </div>
+        <p className="yy-lk-note"><span className="yy-lk-dot" />緑の番号の章には、計算ツールにつながる項目があります(現在 {toolCount} 項目)。項目名・根拠条文・優先度・形式の順で並びます</p>
 
         <h2>使い方</h2>
         <div className="yk-legend">

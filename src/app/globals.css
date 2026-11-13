@@ -6,6 +6,24 @@
 :root {
   --header-height: 140px;
   --nav-height: 35px;
+
+  /* ── 見た目の決まり（2026-11-13 高級感 3「大きくせず組版で」） ──
+     差し色は元の緑 #52AA96 を線・点・下線に。面は同じ緑を深くした #17302A。
+     案件の名前を出す面は濃い緑と被らないよう明るいグレー。 */
+  --yy-ink: #141414;
+  --yy-t2: #5c5c5a;
+  --yy-t3: #9a9a96;
+  --yy-line: #e6e6e2;
+  --yy-surf: #f5f5f2;
+  --yy-acc: #52AA96;
+  --yy-acc-ink: #2E7D6B;
+  --yy-acc-bg: #eef6f3;
+  --yy-deep: #17302A;
+  --yy-deep-t: #c9dcd5;
+  --yy-deep-t2: #9fbdb4;
+  --yy-rail: #121413;
+  --yy-case: #ECECE8;
+  --yy-serif: var(--font-serif-latin), var(--font-serif-jp), 'Hiragino Mincho ProN', serif;
 }
 
 @media (max-width: 1023px) {
@@ -126,28 +144,31 @@ header h1 {
 }
 
 /* Navigation specific styles - 蜆ｪ蜈亥ｺｦ繧剃ｸ翫￡縺ｦ蛻晄悄繝ｭ繝ｼ繝画凾縺ｮ蝠城｡後ｒ隗｣豎ｺ */
-nav {
-  background-color: #52AA96 !important;
+/* 上部ナビは濃い緑。以前は nav 要素すべてに効いていたので、
+   物件カルテの分野タブ（nav.yk-tabs）まで緑に塗られていた。サイトのナビだけに絞る。 */
+nav.yy-topnav {
+  background-color: var(--yy-deep) !important;
   height: var(--nav-height) !important;
   min-height: var(--nav-height) !important;
   max-height: var(--nav-height) !important;
   color: #ffffff !important;
   display: flex !important;
   align-items: center !important;
-  border-bottom: 5px solid #52AA96;
+  border-bottom: 0;
 }
 
-nav > div > div > a,
-nav > div > div > div > button {
+nav.yy-topnav > div > div > a,
+nav.yy-topnav > div > div > div > button {
   color: #ffffff !important;
 }
 
-nav .absolute .py-1 a {
+nav.yy-topnav .absolute .py-1 a {
   color: #374151 !important; /* text-gray-700 */
 }
 
 .nav-item {
-  color: #ffffff !important;
+  position: relative;
+  color: rgba(255, 255, 255, 0.82) !important;
   text-decoration: none;
   padding: 0 0.5rem;
   margin: 0;
@@ -177,18 +198,29 @@ nav .absolute .py-1 a {
 }
 
 .nav-item:hover {
-  background-color: #000000 !important;
+  background-color: rgba(255, 255, 255, 0.07) !important;
   color: #ffffff !important;
 }
 
+/* 選んでいる項目は塗らずに、白い文字と緑の下線で示す */
 .nav-item.active {
-  background-color: #000000 !important;
+  background-color: transparent !important;
   color: #ffffff !important;
-  font-weight: 600;
+  font-weight: 700;
+}
+
+.nav-item.active::after {
+  content: '';
+  position: absolute;
+  left: 0.5rem;
+  right: 0.5rem;
+  bottom: 0;
+  height: 2px;
+  background: var(--yy-acc);
 }
 
 .nav-item.active:hover {
-  background-color: #000000 !important;
+  background-color: rgba(255, 255, 255, 0.07) !important;
   color: #ffffff !important;
 }
 
@@ -1413,3 +1445,355 @@ nav {
 /* 単位キーは電卓の機能キーと役割が違うので、緑で区別したまま残す。 */
 .yy-tool .yy-keypad button.yy-key-unit { background-color: #115e59; color: #ccfbf1; }
 .yy-tool .yy-keypad button.yy-key-unit:hover:not(:disabled) { background-color: #0f766e; }
+
+/* ─────────── 組版の部品（2026-11-13 高級感 3） ───────────
+   上質さは文字の大きさではなく並べ方で出す。1 画面の情報量は減らさない。
+   見出し 20〜24px・本文 12〜13px。明朝は番号・章題・数字だけ。 */
+.yy-serif {
+  font-family: var(--yy-serif);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+/* 補助ラベル：等幅・小さく・字間を広げる（例 05 — REGULATIONS） */
+.yy-label {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--yy-t3);
+}
+
+/* 章の始まりの二重線（太い線 + 細い線） */
+.yy-rule2 {
+  height: 0;
+  border-top: 2px solid var(--yy-ink);
+  box-shadow: 0 3px 0 -2px var(--yy-ink);
+  margin-bottom: 4px;
+}
+
+/* ページの頭：1 行。番号ラベル・明朝の題・説明・右に数字 */
+.yy-pagehead {
+  margin-bottom: 14px;
+}
+.yy-pagehead__row {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  padding-bottom: 10px;
+}
+.yy-pagehead__title {
+  font-family: var(--yy-serif);
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 1.25;
+  color: var(--yy-ink);
+  margin: 0;
+}
+.yy-pagehead__desc {
+  font-size: 12px;
+  color: var(--yy-t2);
+}
+.yy-pagehead__right {
+  margin-left: auto;
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+.yy-stat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--yy-t3);
+}
+.yy-stat b {
+  font-family: var(--yy-serif);
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--yy-ink);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+/* タブ：枠や塗りは使わず、文字と緑の下線だけ */
+.yy-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 22px;
+  border-bottom: 1px solid var(--yy-line);
+  margin-bottom: 14px;
+}
+.yy-tab {
+  position: relative;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  background: none;
+  border: 0;
+  font-size: 13px;
+  color: var(--yy-t2);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.yy-tab:hover {
+  color: var(--yy-ink);
+}
+.yy-tab[aria-pressed='true'],
+.yy-tab[aria-selected='true'] {
+  color: var(--yy-ink);
+}
+.yy-tab[aria-pressed='true']::after,
+.yy-tab[aria-selected='true']::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: var(--yy-acc);
+}
+.yy-tab small {
+  font-family: var(--font-mono), monospace;
+  font-size: 10.5px;
+  color: var(--yy-t3);
+}
+
+/* 本の索引のような点線のリーダー（項目名 ……… 値） */
+.yy-leader {
+  flex: 1 1 auto;
+  min-width: 12px;
+  margin: 0 8px;
+  border-bottom: 1px dotted #c4c4bf;
+  transform: translateY(-4px);
+}
+
+/* 本文の中の章題（建材ページの「折板」「金属屋根」など）。
+   各コンポーネントは text-xl font-semibold の h2 を使っているので、ここでまとめて明朝 + 下線にする。 */
+.yy-shell__main h2.text-xl.font-semibold {
+  font-family: var(--yy-serif);
+  font-weight: 500;
+  font-size: 20px;
+  letter-spacing: 0.01em;
+  color: var(--yy-ink);
+}
+.yy-shell__main div.mb-2:has(> h2.text-xl.font-semibold.inline) {
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--yy-ink);
+  margin-bottom: 10px !important;
+}
+
+/* 建築の調べもの：4 分野の目次（本の目次のように） */
+.yy-lk-toc {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0 28px;
+  margin-bottom: 10px;
+}
+@media (max-width: 1279px) {
+  .yy-lk-toc { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 28px; }
+}
+@media (max-width: 639px) {
+  .yy-lk-toc { grid-template-columns: 1fr; }
+}
+.yk .yy-lk-col__head,
+.yy-lk-col__head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 4px 0;
+  padding: 0 0 6px 0;
+  border: 0;
+  border-bottom: 1px solid var(--yy-ink);
+  font-family: var(--yy-serif);
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--yy-ink);
+}
+.yy-lk-col__head a { color: inherit; text-decoration: none; }
+.yy-lk-col__head a:hover { color: var(--yy-acc-ink); }
+.yy-lk-col__cnt {
+  margin-left: auto;
+  font-family: var(--font-mono), monospace;
+  font-size: 10.5px;
+  font-weight: 400;
+  color: var(--yy-t3);
+}
+.yk .yy-lk-col__list,
+.yy-lk-col__list { list-style: none; margin: 0; padding: 0; }
+.yy-lk-col__list li { margin: 0; padding: 0; }
+.yy-lk-row {
+  height: 22px;
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  color: var(--yy-ink);
+  text-decoration: none;
+}
+.yy-lk-row:hover .yy-lk-row__title { color: var(--yy-acc-ink); text-decoration: underline; text-underline-offset: 3px; }
+.yy-lk-row__no {
+  width: 24px;
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--yy-t3);
+}
+.yy-lk-row__no.is-tool { color: var(--yy-acc-ink); }
+.yy-lk-row__title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.yy-lk-row__n {
+  font-size: 11px;
+  color: var(--yy-t3);
+  font-variant-numeric: tabular-nums;
+}
+.yy-lk-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--yy-t2);
+  margin: 6px 0 18px 0;
+}
+.yy-lk-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--yy-acc); flex-shrink: 0; }
+/* 目次ページは 820px の読み物幅だと 4 列の章名が切れるので、本文いっぱいに広げる */
+.yk-wrap.yk-main:has(.yy-lk-toc) {
+  max-width: none;
+  padding: 0;
+}
+.yk:has(.yy-lk-toc) {
+  background: transparent;
+}
+
+/* 法規：法令リンクの表 */
+.yy-law { margin-bottom: 14px; }
+.yy-law__row {
+  display: grid;
+  grid-template-columns: 34px minmax(220px, 1.7fr) 0.6fr 0.6fr 0.7fr 2fr;
+  align-items: center;
+  gap: 0 10px;
+  min-height: 44px;
+  border-bottom: 1px solid var(--yy-line);
+  font-size: 12px;
+}
+.yy-law__row--head {
+  min-height: 28px;
+  font-size: 11px;
+  color: var(--yy-t3);
+  border-bottom-color: var(--yy-ink);
+}
+.yy-law__no { font-size: 15px; font-weight: 500; color: var(--yy-t3); }
+.yy-law__name { display: flex; flex-direction: column; gap: 1px; padding: 6px 0; min-width: 0; }
+.yy-law__name b { font-size: 16px; font-weight: 500; color: var(--yy-ink); }
+.yy-law__name small { font-size: 11px; color: var(--yy-t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.yy-law__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0;
+  background: none;
+  border: 0;
+  font-size: 12px;
+  color: var(--yy-acc-ink);
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.yy-law__link span { font-size: 10px; opacity: 0.7; }
+.yy-law__link:hover { color: var(--yy-ink); text-decoration: underline; text-underline-offset: 3px; }
+.yy-law__none { color: #d4d4cf; }
+.yy-law__extra { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 6px 0; }
+.yy-law__app {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 12px;
+  background: var(--yy-case);
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--yy-t2);
+  line-height: 1.7;
+}
+.yy-law__app img { width: 64px; height: 64px; border-radius: 3px; flex-shrink: 0; }
+@media (max-width: 767px) {
+  .yy-law__row { grid-template-columns: 28px 1fr; }
+  .yy-law__row > :nth-child(n + 3) { grid-column: 2; }
+  .yy-law__row--head { display: none; }
+}
+
+/* 法規の右列「設計実務リファレンス」：青いリンクと黒丸をやめ、索引の組み方にそろえる */
+.yy-refs h4 {
+  font-family: var(--yy-serif);
+  font-size: 15px !important;
+  font-weight: 500 !important;
+  color: var(--yy-ink);
+  border-bottom: 1px solid var(--yy-ink) !important;
+  padding-bottom: 6px !important;
+}
+.yy-refs .font-bold.text-gray-800 {
+  font-family: var(--font-mono), monospace;
+  font-size: 10.5px;
+  font-weight: 400 !important;
+  letter-spacing: 0.08em;
+  color: var(--yy-t3) !important;
+  margin-bottom: 4px;
+}
+.yy-refs ul {
+  list-style: none !important;
+  margin-left: 0 !important;
+  padding: 0;
+}
+.yy-refs li {
+  padding: 4px 0;
+  border-bottom: 1px solid var(--yy-line);
+}
+.yy-refs a {
+  color: var(--yy-ink) !important;
+}
+.yy-refs a:hover {
+  color: var(--yy-acc-ink) !important;
+}
+.yy-refs a::after {
+  content: ' ↗';
+  font-size: 10px;
+  color: var(--yy-t3);
+}
+
+/* NEWS：枠の箱をやめ、番号付きの行で並べる。出典の色は小さな点だけ */
+.yy-news { border-top: 1px solid var(--yy-ink); }
+.yy-news__row {
+  display: grid;
+  grid-template-columns: 30px 1fr auto;
+  gap: 0 14px;
+  align-items: baseline;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--yy-line);
+}
+.yy-news__no { font-size: 15px; font-weight: 500; color: var(--yy-t3); }
+.yy-news__body { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.yy-news__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono), monospace;
+  font-size: 10.5px;
+  color: var(--yy-t3);
+}
+.yy-news__dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.yy-news__title {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--yy-ink);
+  text-decoration: none;
+}
+.yy-news__title:hover { color: var(--yy-acc-ink); text-decoration: underline; text-underline-offset: 3px; }
+.yy-news__desc { font-size: 12px; line-height: 1.7; color: var(--yy-t2); }
+.yy-news__bm {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-size: 11px;
+  color: var(--yy-t3);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.yy-news__bm:hover, .yy-news__bm.is-on { color: var(--yy-acc-ink); }

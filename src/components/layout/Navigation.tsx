@@ -136,7 +136,7 @@ const Navigation: React.FC<NavigationProps> = ({ onMenuClick, activeItem }) => {
 
   return (
     <>
-      <nav style={{ backgroundColor: '#52AA96', position: 'relative', zIndex: 2147483647, overflow: 'visible', borderBottom: '5px solid #52AA96' }}>
+      <nav className="yy-topnav" style={{ backgroundColor: 'var(--yy-deep)', position: 'relative', zIndex: 2147483647, overflow: 'visible' }}>
         <div 
           className={`w-full px-4 h-full ${useHorizontalScroll ? 'overflow-x-auto' : ''}`} 
           ref={wrapRef}
@@ -176,18 +176,18 @@ const Navigation: React.FC<NavigationProps> = ({ onMenuClick, activeItem }) => {
               <button
                 type="button"
                 onClick={() => handleMenuClick('feedback')}
-                style={{ fontSize: '11px', color: '#6b7280', padding: '0 6px', background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = '#1f2937'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = '#6b7280'; }}
+                style={{ fontSize: '11px', color: 'var(--yy-deep-t2)', padding: '0 6px', background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = '#ffffff'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--yy-deep-t2)'; }}
               >
                 お問い合わせ
               </button>
               <button
                 type="button"
                 onClick={() => handleMenuClick('registration')}
-                style={{ fontSize: '11px', color: '#6b7280', padding: '0 6px', background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = '#1f2937'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = '#6b7280'; }}
+                style={{ fontSize: '11px', color: 'var(--yy-deep-t2)', padding: '0 6px', background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = '#ffffff'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--yy-deep-t2)'; }}
               >
                 掲載希望
               </button>

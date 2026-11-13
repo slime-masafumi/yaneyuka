@@ -294,7 +294,7 @@ export default function NewsFeed({ onToggleBookmark, isBookmarked, selectedMonth
   }
 
   return (
-    <div className="space-y-3">
+    <div className="yy-news">
       {items
         .filter(item => {
           if (selectedMonth === 'all') return true
@@ -305,34 +305,35 @@ export default function NewsFeed({ onToggleBookmark, isBookmarked, selectedMonth
           return ym === selectedMonth
         })
         .slice(0, 30)
-        .map(item => {
+        .map((item, i) => {
         const bookmarked = isBookmarked ? isBookmarked(item.id) : false
+        // 配信元ごとの色は、色の帯ではなく小さな点で示す（本文は組版の白のまま）
         const highlight = getSourceHighlightColor(item.source)
         return (
-          <div key={`${item.source}-${item.id}`} className="p-3 border rounded border-gray-200 bg-white">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <div className="text-[12px] text-gray-500">
-                  <span className={`px-1.5 py-0.5 ${highlight.bg} font-medium text-white`}>{item.source}</span>
-                  <span className="ml-1">・{item.pubDate ? new Date(item.pubDate).toLocaleString('ja-JP') : ''}</span>
-                </div>
-                <a href={item.link} target="_blank" rel="noopener noreferrer" className="text-[14px] font-medium text-blue-700 hover:underline">
-                  {item.title}
-                </a>
+          <div key={`${item.source}-${item.id}`} className="yy-news__row">
+            <span className="yy-news__no yy-serif">{String(i + 1).padStart(2, '0')}</span>
+            <div className="yy-news__body">
+              <div className="yy-news__meta">
+                <span className={`yy-news__dot ${highlight.bg}`} aria-hidden="true" />
+                <span>{item.source}</span>
+                <span>{item.pubDate ? new Date(item.pubDate).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}</span>
               </div>
-              <button
-                type="button"
-                onClick={() => onToggleBookmark && onToggleBookmark(item)}
-                className={`shrink-0 text-[12px] px-2 py-1 rounded border ${bookmarked ? 'bg-yellow-100 border-yellow-300 text-yellow-700' : 'bg-white hover:bg-gray-50 border-gray-300 text-gray-700'}`}
-                aria-label={bookmarked ? 'ブックマーク解除' : 'ブックマーク'}
-              >
-                {bookmarked ? '★ 保存済' : '☆ ブクマ'}
-              </button>
+              <a href={item.link} target="_blank" rel="noopener noreferrer" className="yy-news__title">
+                {item.title}
+              </a>
+              {item.description && (
+                <div className="yy-news__desc line-clamp-2" dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.description) }} />
+              )}
             </div>
-            {item.description && (
-              <div className="text-[12px] text-gray-700 mt-1 line-clamp-3" dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.description) }} />
-            )}
-            <div className="text-[11px] text-gray-400 mt-1">出典先で全文をお読みください</div>
+            <button
+              type="button"
+              onClick={() => onToggleBookmark && onToggleBookmark(item)}
+              className={`yy-news__bm${bookmarked ? ' is-on' : ''}`}
+              aria-label={bookmarked ? 'ブックマーク解除' : 'ブックマーク'}
+              aria-pressed={bookmarked}
+            >
+              {bookmarked ? '★ 保存済' : '☆ 保存'}
+            </button>
           </div>
         )
       })}

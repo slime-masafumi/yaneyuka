@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useEffect, useMemo, useState } from 'react'
+import PageHead from '../../ui/PageHead'
 import NewsFeed, { NewsItem, getSourceHighlightColor } from './NewsFeed'
 import { logEvent } from '@/lib/firebaseClient'
 import { listNewsBookmarks, setNewsBookmark, deleteNewsBookmark } from '@/lib/firebaseUserData'
@@ -106,20 +107,19 @@ export default function NewsWithBookmarks() {
 
   return (
     <div>
-      <div className="flex items-baseline mb-2">
-        <h2 className="text-xl font-semibold">NEWS
-          <span className="ml-2 text-[11px] font-normal text-gray-500">（外部ソース要約・出典リンク）</span>
-        </h2>
-      </div>
-      <p className="text-[12px] text-gray-600 mb-3">
-        建築・不動産・テック領域の最新ニュースをキュレーションしています。気になる記事はブックマークし、情報共有や後日のリサーチにお役立てください。
-      </p>
-      <div className="mb-3 flex flex-wrap gap-2">
+      <PageHead
+        no="02"
+        en="news"
+        title="NEWS"
+        desc="建築・不動産・テック領域のニュースを要約し、出典へリンク。気になる記事はブックマークできます"
+      />
+      <div className="yy-tabs">
         {months.map(m => (
           <button
             key={m}
             type="button"
-            className={`px-2 py-1 text-xs rounded ${selectedMonth === m ? 'bg-gray-700 text-white' : 'bg-gray-200 hover:bg-gray-700 hover:text-white'}`}
+            aria-pressed={selectedMonth === m}
+            className="yy-tab"
             onClick={() => { setSelectedMonth(m); try { logEvent('news_month_select', { month: m }) } catch {} }}
           >
             {m === 'all' ? 'すべて' : m}

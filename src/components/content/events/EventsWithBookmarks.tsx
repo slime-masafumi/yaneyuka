@@ -6,6 +6,7 @@ import { listEventBookmarks, setEventBookmark, deleteEventBookmark } from '@/lib
 import { useAuth } from '@/lib/AuthContext';
 import { db } from '@/lib/firebaseClient';
 import { collection, onSnapshot } from 'firebase/firestore';
+import PageHead from '../../ui/PageHead';
 
 // APIから返ってくるデータの型拡張
 type ApiEventItem = EventItem & {
@@ -238,23 +239,23 @@ export default function EventsWithBookmarks() {
 
   return (
     <div>
-      <div className="flex items-baseline mb-2">
-        <h2 className="text-xl font-semibold">イベント情報</h2>
-        <a href="/register" className="text-[11px] text-gray-600 hover:text-gray-800 ml-3">掲載希望はコチラ</a>
-      </div>
-      <p className="text-[12px] text-gray-600 mb-3">
-        建築・建材・インフラ分野の展示会やセミナー情報をまとめています。気になるイベントはブックマークして、チームとの共有や訪問計画にご活用ください。
-      </p>
-      
-      {/* フィルタボタンエリア */}
-      <div className="flex items-center gap-2 mb-3 overflow-x-auto pb-2">
+      <PageHead
+        no="03"
+        en="events"
+        title="イベント情報"
+        desc="建築・建材・インフラ分野の展示会やセミナー。ブックマークしてチームと共有できます"
+        right={<a href="/register" className="yy-stat" style={{ textDecoration: 'none' }}>掲載希望はこちら ↗</a>}
+      />
+
+      {/* 地域で絞る：下線タブ */}
+      <div className="yy-tabs">
         {(['all', 'tokyo', 'nagoya', 'osaka', 'fukuoka', 'other'] as const).map((r) => (
           <button
             key={r}
+            type="button"
             onClick={() => setRegion(r)}
-            className={`text-xs px-2 py-1 rounded min-w-[60px] whitespace-nowrap ${
-              region === r ? 'bg-gray-700 text-white' : 'bg-gray-300 hover:bg-gray-700 hover:text-white'
-            }`}
+            aria-pressed={region === r}
+            className="yy-tab"
           >
             {regionLabels[r]}
           </button>

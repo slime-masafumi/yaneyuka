@@ -2,11 +2,137 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import RegulationCheck from './regulations/RegulationCheck';
+import PageHead, { Stat } from '../ui/PageHead';
 
 type RegulationTab = 'links' | 'check';
 
+const LAW_LINKS: Array<{ name: string; desc: string; links: Array<{ label: string; href: string }> }> = [
+  {
+    "name": "建築基準法",
+    "desc": "建築物の敷地、構造、設備及び用途に関する最低の基準",
+    "links": [
+      {
+        "href": "https://elaws.e-gov.go.jp/document?lawid=325AC0000000201",
+        "label": "法"
+      },
+      {
+        "href": "https://elaws.e-gov.go.jp/document?lawid=325CO0000000338",
+        "label": "施行令"
+      },
+      {
+        "href": "https://elaws.e-gov.go.jp/document?lawid=325M50004000040",
+        "label": "施行規則"
+      }
+    ]
+  },
+  {
+    "name": "国土交通省告示",
+    "desc": "技術的基準を定める告示の検索",
+    "links": [
+      {
+        "href": "https://www.mlit.go.jp/notice/index.html",
+        "label": "告示検索システム"
+      },
+      {
+        "href": "https://www.mlit.go.jp/jutakukentiku/build/jutakukentiku_house_fr_000074.html",
+        "label": "技術的助言・通達"
+      }
+    ]
+  },
+  {
+    "name": "建築物省エネ法",
+    "desc": "建築物のエネルギー消費性能の向上に関する法律",
+    "links": [
+      {
+        "href": "https://elaws.e-gov.go.jp/document?lawid=427AC0000000053",
+        "label": "法"
+      },
+      {
+        "href": "https://elaws.e-gov.go.jp/document?lawid=428CO0000000008",
+        "label": "施行令"
+      },
+      {
+        "href": "https://elaws.e-gov.go.jp/document?lawid=428M60000800008",
+        "label": "施行規則"
+      }
+    ]
+  },
+  {
+    "name": "消防法",
+    "desc": "火災予防・危険物規制・消防用設備等",
+    "links": [
+      {
+        "href": "https://elaws.e-gov.go.jp/document?lawid=323AC1000000186",
+        "label": "法"
+      },
+      {
+        "href": "https://elaws.e-gov.go.jp/document?lawid=336CO0000000037",
+        "label": "施行令"
+      },
+      {
+        "href": "https://elaws.e-gov.go.jp/document?lawid=336M50000008006",
+        "label": "施行規則"
+      }
+    ]
+  },
+  {
+    "name": "都市計画法",
+    "desc": "都市計画の内容及び決定手続、都市計画制限等",
+    "links": [
+      {
+        "href": "https://elaws.e-gov.go.jp/document?lawid=343AC0000000100",
+        "label": "法"
+      },
+      {
+        "href": "https://elaws.e-gov.go.jp/document?lawid=344CO0000000158",
+        "label": "施行令"
+      },
+      {
+        "href": "https://elaws.e-gov.go.jp/document?lawid=344M50004000049",
+        "label": "施行規則"
+      }
+    ]
+  },
+  {
+    "name": "バリアフリー法",
+    "desc": "高齢者、障害者等の移動等の円滑化の促進",
+    "links": [
+      {
+        "href": "https://elaws.e-gov.go.jp/document?lawid=418AC0000000091",
+        "label": "法"
+      },
+      {
+        "href": "https://elaws.e-gov.go.jp/document?lawid=418CO0000000379",
+        "label": "施行令"
+      },
+      {
+        "href": "https://elaws.e-gov.go.jp/document?lawid=418M60000800011",
+        "label": "施行規則"
+      }
+    ]
+  },
+  {
+    "name": "道路法",
+    "desc": "道路の定義、整備手続き、管理、費用負担等",
+    "links": [
+      {
+        "href": "https://elaws.e-gov.go.jp/document?lawid=327AC0000000180",
+        "label": "法"
+      },
+      {
+        "href": "https://elaws.e-gov.go.jp/document?lawid=327CO0000000479",
+        "label": "施行令"
+      },
+      {
+        "href": "https://elaws.e-gov.go.jp/document?lawid=327M50004000025",
+        "label": "施行規則"
+      }
+    ]
+  }
+];
+
 const TabBar: React.FC<{ tab: RegulationTab; setTab: (t: RegulationTab) => void }> = ({ tab, setTab }) => (
-  <div className="flex gap-1 mb-3 border-b border-gray-300">
+  <div className="yy-tabs">
     {([
       { id: 'links' as const, label: '法令リンク' },
       { id: 'check' as const, label: '対象法令チェック' },
@@ -15,11 +141,8 @@ const TabBar: React.FC<{ tab: RegulationTab; setTab: (t: RegulationTab) => void 
         key={t.id}
         type="button"
         onClick={() => setTab(t.id)}
-        className={`text-[12px] px-4 py-2 rounded-t border border-b-0 -mb-px transition-colors ${
-          tab === t.id
-            ? 'bg-white border-gray-300 text-blue-700 font-bold'
-            : 'bg-gray-50 border-transparent text-gray-600 hover:bg-gray-100'
-        }`}
+        aria-pressed={tab === t.id}
+        className="yy-tab"
       >
         {t.label}
         {t.id === 'check' && (
@@ -111,6 +234,7 @@ const LawsRegulations: React.FC = () => {
   if (tab === 'check') {
     return (
       <div>
+        <PageHead no="05" en="regulations" title="法規" desc="案件の用途・規模・立地から、関わる法令を判定" />
         <TabBar tab={tab} setTab={setTab} />
         <RegulationCheck />
       </div>
@@ -119,120 +243,75 @@ const LawsRegulations: React.FC = () => {
 
   return (
     <div>
-      <div className="flex items-baseline mb-2">
-        <h2 className="text-xl font-semibold">法規</h2>
-      </div>
+      <PageHead
+        no="05"
+        en="regulations"
+        title="法規"
+        desc="建築設計で頻繁に参照する法令・告示リンク(e-Gov 法令検索・国交省データベースへ遷移)"
+      />
       <TabBar tab={tab} setTab={setTab} />
-      <p className="text-[12px] text-gray-600 mb-3">
-        建築設計で頻繁に参照する法令・告示リンクをまとめています（e-Gov法令検索・国交省データベースへ遷移します）。
-      </p>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
-        
-        {/* 建築基準法 */}
-        <div className="bg-white p-4 rounded border border-gray-300 md:col-span-2">
-          <h3 className="font-bold mb-1 text-[13px] border-b pb-1 border-gray-100">建築基準法</h3>
-          <p className="text-[11px] mb-2 text-gray-500">建築物の敷地、構造、設備及び用途に関する最低の基準</p>
-          <div className="flex gap-2 flex-wrap mb-2">
-            <a href="https://elaws.e-gov.go.jp/document?lawid=325AC0000000201" target="_blank" rel="noopener noreferrer" className="text-[11px] text-blue-700 bg-blue-50 px-3 py-1.5 rounded hover:bg-blue-100 border border-blue-200 font-bold no-underline inline-block">法</a>
-            <a href="https://elaws.e-gov.go.jp/document?lawid=325CO0000000338" target="_blank" rel="noopener noreferrer" className="text-[11px] text-gray-600 bg-gray-50 px-3 py-1.5 rounded hover:bg-gray-100 border border-gray-200 no-underline inline-block">施行令</a>
-            <a href="https://elaws.e-gov.go.jp/document?lawid=325M50004000040" target="_blank" rel="noopener noreferrer" className="text-[11px] text-gray-600 bg-gray-50 px-3 py-1.5 rounded hover:bg-gray-100 border border-gray-200 no-underline inline-block">施行規則</a>
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            <button onClick={showBeppyo1} className="text-[11px] text-teal-700 bg-teal-50 px-3 py-1.5 rounded hover:bg-teal-100 border border-teal-200">別表1 (耐火建築物)</button>
-            <button onClick={showBeppyo2} className="text-[11px] text-teal-700 bg-teal-50 px-3 py-1.5 rounded hover:bg-teal-100 border border-teal-200">別表2 (用途地域)</button>
-            <button onClick={showBeppyo3} className="text-[11px] text-teal-700 bg-teal-50 px-3 py-1.5 rounded hover:bg-teal-100 border border-teal-200">別表3 (道路斜線)</button>
-            <button onClick={showBeppyo4} className="text-[11px] text-teal-700 bg-teal-50 px-3 py-1.5 rounded hover:bg-teal-100 border border-teal-200">別表4 (日影)</button>
-          </div>
+      {/* 法令 × 法・施行令・施行規則・別表/告示 の表。1 画面で全部見渡せるように */}
+      <div className="yy-law">
+        <div className="yy-law__row yy-law__row--head">
+          <span />
+          <span>法令</span>
+          <span>法</span>
+          <span>施行令</span>
+          <span>施行規則</span>
+          <span>別表・告示・通達</span>
         </div>
-
-        {/* iPhone/iPadアプリ情報 */}
-        <div className="bg-gradient-to-r from-blue-200 via-indigo-200 to-purple-200 border-2 border-blue-400 rounded-lg p-3 shadow-md">
-          <h3 className="font-bold mb-1.5 text-[13px] text-blue-900">📱 iPhone/iPadアプリ</h3>
-          <div className="flex flex-col md:flex-row gap-3 items-center md:items-start">
-            <div className="flex-shrink-0">
-              <img 
-                src="/qr-code.png" 
-                alt="アプリQRコード" 
-                className="w-32 h-32 md:w-36 md:h-36 border-2 border-white rounded-lg shadow-md"
-              />
+        {LAW_LINKS.map((law, i) => {
+          const pick = (label: string) => law.links.find((l) => l.label === label);
+          const rest = law.links.filter((l) => !['法', '施行令', '施行規則'].includes(l.label));
+          const cell = (label: string) => {
+            const l = pick(label);
+            return l ? (
+              <a href={l.href} target="_blank" rel="noopener noreferrer" className="yy-law__link" aria-label={`${law.name} ${label}`}>
+                {label}<span aria-hidden="true">↗</span>
+              </a>
+            ) : (
+              <span className="yy-law__none">—</span>
+            );
+          };
+          return (
+            <div key={law.name} className="yy-law__row">
+              <span className="yy-law__no yy-serif">{String(i + 1).padStart(2, '0')}</span>
+              <span className="yy-law__name">
+                <b className="yy-serif">{law.name}</b>
+                <small>{law.desc}</small>
+              </span>
+              {cell('法')}
+              {cell('施行令')}
+              {cell('施行規則')}
+              <span className="yy-law__extra">
+                {rest.map((l) => (
+                  <a key={l.href} href={l.href} target="_blank" rel="noopener noreferrer" className="yy-law__link">
+                    {l.label}<span aria-hidden="true">↗</span>
+                  </a>
+                ))}
+                {law.name === '建築基準法' && (
+                  <>
+                    <button type="button" onClick={showBeppyo1} className="yy-law__link">別表1 耐火</button>
+                    <button type="button" onClick={showBeppyo2} className="yy-law__link">別表2 用途地域</button>
+                    <button type="button" onClick={showBeppyo3} className="yy-law__link">別表3 道路斜線</button>
+                    <button type="button" onClick={showBeppyo4} className="yy-law__link">別表4 日影</button>
+                  </>
+                )}
+              </span>
             </div>
-            <div className="flex-1">
-              <p className="text-[11px] text-gray-800">
-                建築法規を確認できるアプリをリリースしました。iPhone / iPad対応。
-              </p>
-            </div>
-          </div>
-        </div>
+          );
+        })}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        
-        {/* 国土交通省告示 */}
-        <div className="bg-white p-4 rounded border border-gray-300">
-          <h3 className="font-bold mb-1 text-[13px] border-b pb-1 border-gray-100">国土交通省告示</h3>
-          <p className="text-[11px] mb-2 text-gray-500">技術的基準を定める告示の検索</p>
-          <div className="flex gap-2">
-            <a href="https://www.mlit.go.jp/notice/index.html" target="_blank" rel="noopener noreferrer" className="text-[11px] text-blue-700 bg-blue-50 px-3 py-1.5 rounded hover:bg-blue-100 border border-blue-200 font-bold no-underline inline-block">告示検索システム</a>
-            <a href="https://www.mlit.go.jp/jutakukentiku/build/jutakukentiku_house_fr_000074.html" target="_blank" rel="noopener noreferrer" className="text-[11px] text-gray-600 bg-gray-50 px-3 py-1.5 rounded hover:bg-gray-100 border border-gray-200 no-underline inline-block">技術的助言・通達</a>
-          </div>
-        </div>
-
-        {/* 建築物省エネ法 (追加) */}
-        <div className="bg-white p-4 rounded border border-gray-300">
-          <h3 className="font-bold mb-1 text-[13px] border-b pb-1 border-gray-100">建築物省エネ法</h3>
-          <p className="text-[11px] mb-2 text-gray-500">建築物のエネルギー消費性能の向上に関する法律</p>
-          <div className="flex gap-2">
-            <a href="https://elaws.e-gov.go.jp/document?lawid=427AC0000000053" target="_blank" rel="noopener noreferrer" className="text-[11px] text-blue-700 bg-blue-50 px-3 py-1.5 rounded hover:bg-blue-100 border border-blue-200 font-bold no-underline inline-block">法</a>
-            <a href="https://elaws.e-gov.go.jp/document?lawid=428CO0000000008" target="_blank" rel="noopener noreferrer" className="text-[11px] text-gray-600 bg-gray-50 px-3 py-1.5 rounded hover:bg-gray-100 border border-gray-200 no-underline inline-block">施行令</a>
-            <a href="https://elaws.e-gov.go.jp/document?lawid=428M60000800008" target="_blank" rel="noopener noreferrer" className="text-[11px] text-gray-600 bg-gray-50 px-3 py-1.5 rounded hover:bg-gray-100 border border-gray-200 no-underline inline-block">施行規則</a>
-          </div>
-        </div>
-
-        {/* 消防法 */}
-        <div className="bg-white p-4 rounded border border-gray-300">
-          <h3 className="font-bold mb-1 text-[13px] border-b pb-1 border-gray-100">消防法</h3>
-          <p className="text-[11px] mb-2 text-gray-500">火災予防・危険物規制・消防用設備等</p>
-          <div className="flex gap-2">
-            <a href="https://elaws.e-gov.go.jp/document?lawid=323AC1000000186" target="_blank" rel="noopener noreferrer" className="text-[11px] text-blue-700 bg-blue-50 px-3 py-1.5 rounded hover:bg-blue-100 border border-blue-200 font-bold no-underline inline-block">法</a>
-            <a href="https://elaws.e-gov.go.jp/document?lawid=336CO0000000037" target="_blank" rel="noopener noreferrer" className="text-[11px] text-gray-600 bg-gray-50 px-3 py-1.5 rounded hover:bg-gray-100 border border-gray-200 no-underline inline-block">施行令</a>
-            <a href="https://elaws.e-gov.go.jp/document?lawid=336M50000008006" target="_blank" rel="noopener noreferrer" className="text-[11px] text-gray-600 bg-gray-50 px-3 py-1.5 rounded hover:bg-gray-100 border border-gray-200 no-underline inline-block">施行規則</a>
-          </div>
-        </div>
-
-        {/* 都市計画法 */}
-        <div className="bg-white p-4 rounded border border-gray-300">
-          <h3 className="font-bold mb-1 text-[13px] border-b pb-1 border-gray-100">都市計画法</h3>
-          <p className="text-[11px] mb-2 text-gray-500">都市計画の内容及び決定手続、都市計画制限等</p>
-          <div className="flex gap-2">
-            <a href="https://elaws.e-gov.go.jp/document?lawid=343AC0000000100" target="_blank" rel="noopener noreferrer" className="text-[11px] text-blue-700 bg-blue-50 px-3 py-1.5 rounded hover:bg-blue-100 border border-blue-200 font-bold no-underline inline-block">法</a>
-            <a href="https://elaws.e-gov.go.jp/document?lawid=344CO0000000158" target="_blank" rel="noopener noreferrer" className="text-[11px] text-gray-600 bg-gray-50 px-3 py-1.5 rounded hover:bg-gray-100 border border-gray-200 no-underline inline-block">施行令</a>
-            <a href="https://elaws.e-gov.go.jp/document?lawid=344M50004000049" target="_blank" rel="noopener noreferrer" className="text-[11px] text-gray-600 bg-gray-50 px-3 py-1.5 rounded hover:bg-gray-100 border border-gray-200 no-underline inline-block">施行規則</a>
-          </div>
-        </div>
-
-        {/* バリアフリー法 */}
-        <div className="bg-white p-4 rounded border border-gray-300">
-          <h3 className="font-bold mb-1 text-[13px] border-b pb-1 border-gray-100">バリアフリー法</h3>
-          <p className="text-[11px] mb-2 text-gray-500">高齢者、障害者等の移動等の円滑化の促進</p>
-          <div className="flex gap-2">
-            <a href="https://elaws.e-gov.go.jp/document?lawid=418AC0000000091" target="_blank" rel="noopener noreferrer" className="text-[11px] text-blue-700 bg-blue-50 px-3 py-1.5 rounded hover:bg-blue-100 border border-blue-200 font-bold no-underline inline-block">法</a>
-            <a href="https://elaws.e-gov.go.jp/document?lawid=418CO0000000379" target="_blank" rel="noopener noreferrer" className="text-[11px] text-gray-600 bg-gray-50 px-3 py-1.5 rounded hover:bg-gray-100 border border-gray-200 no-underline inline-block">施行令</a>
-            <a href="https://elaws.e-gov.go.jp/document?lawid=418M60000800011" target="_blank" rel="noopener noreferrer" className="text-[11px] text-gray-600 bg-gray-50 px-3 py-1.5 rounded hover:bg-gray-100 border border-gray-200 no-underline inline-block">施行規則</a>
-        </div>
-      </div>
-
-        {/* 道路法 (追加) */}
-        <div className="bg-white p-4 rounded border border-gray-300">
-          <h3 className="font-bold mb-1 text-[13px] border-b pb-1 border-gray-100">道路法</h3>
-          <p className="text-[11px] mb-2 text-gray-500">道路の定義、整備手続き、管理、費用負担等</p>
-          <div className="flex gap-2">
-            <a href="https://elaws.e-gov.go.jp/document?lawid=327AC0000000180" target="_blank" rel="noopener noreferrer" className="text-[11px] text-blue-700 bg-blue-50 px-3 py-1.5 rounded hover:bg-blue-100 border border-blue-200 font-bold no-underline inline-block">法</a>
-            <a href="https://elaws.e-gov.go.jp/document?lawid=327CO0000000479" target="_blank" rel="noopener noreferrer" className="text-[11px] text-gray-600 bg-gray-50 px-3 py-1.5 rounded hover:bg-gray-100 border border-gray-200 no-underline inline-block">施行令</a>
-            <a href="https://elaws.e-gov.go.jp/document?lawid=327M50004000025" target="_blank" rel="noopener noreferrer" className="text-[11px] text-gray-600 bg-gray-50 px-3 py-1.5 rounded hover:bg-gray-100 border border-gray-200 no-underline inline-block">施行規則</a>
-          </div>
-        </div>
-
+      {/* iPhone/iPad アプリ：表の下に 1 行で */}
+      <div className="yy-law__app">
+        <img src="/qr-code.png" alt="アプリQRコード" width={64} height={64} />
+        <span>
+          <span className="yy-label">app — iPhone / iPad</span>
+          <br />
+          建築法規を確認できるアプリをリリースしました。QR コードから App Store を開けます。
+        </span>
       </div>
 
 

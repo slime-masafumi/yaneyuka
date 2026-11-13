@@ -91,17 +91,22 @@ const ROMAN = ['Ⅰ', 'Ⅱ', 'Ⅲ', 'Ⅳ', 'Ⅴ'];
  * Ⅱ〜Ⅴ は削除した UserpageBottomBar の項目をそのまま引き取ったもの。
  * bg = 左カラムの地色 / ac = 見出し下線と開いたアコーディオンの色。
  */
+// 5 段とも同じ黒にそろえた（2026-11-13）。段ごとに色を変えていたが、上の濃い緑の帯と並ぶと色が多すぎる。
+// どの段にいるかは下の Ⅰ〜Ⅴ の緑の〇と見出しで分かる。
+const RAIL_BG = '#121413';
+const RAIL_AC = '#52AA96';
+
 const RAIL_MODES: RailMode[] = [
-  { label: '建材検索', bg: '#000000', ac: '#52AA96', items: [] },
+  { label: '建材検索', bg: RAIL_BG, ac: RAIL_AC, items: [] },
   {
-    label: '設計情報', bg: '#0e2635', ac: '#5a9fd4',
+    label: '設計情報', bg: RAIL_BG, ac: RAIL_AC,
     items: [
       { label: '設計情報', menu: 'design-info' },
       { label: '材料情報', menu: 'material-info' },
     ],
   },
   {
-    label: '一般ツール', bg: '#241c33', ac: '#9b87d4',
+    label: '一般ツール', bg: RAIL_BG, ac: RAIL_AC,
     // 22本を性格で3つに寄せて並べる。見出しや畳み込みは付けない（並び順だけで伝える）。
     //   1. 手元で完結する道具（予定・メモ・計算・変換）
     //   2. 相手とやりとりする道具（メール・チャット・会議・日程調整・ファイルの受け渡し）
@@ -136,13 +141,13 @@ const RAIL_MODES: RailMode[] = [
     ],
   },
   {
-    label: '設計ツール', bg: '#2b2113', ac: '#c79a5a',
+    label: '設計ツール', bg: RAIL_BG, ac: RAIL_AC,
     items: [],
     // 分野7 ＞ ツール38。中央のタブ行は lg 以上では畳んであるので、ここが本体。
     tree: DESIGN_TOOL_MENU,
   },
   {
-    label: '外部ツール', bg: '#33141c', ac: '#d47b8c',
+    label: '外部ツール', bg: RAIL_BG, ac: RAIL_AC,
     // 自作アプリの入口。どれも新しいタブで開く。
     //   Web 版があるもの → Web 版（DayLine / Rules / PDFGap）。iOS 版もあれば右端に App Store を添える
     //   iOS だけのもの   → App Store
