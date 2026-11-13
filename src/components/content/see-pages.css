@@ -22,15 +22,17 @@
 .yy-np-list { margin: 0; padding: 0; list-style: none; }
 .yy-np-row {
   display: grid;
-  grid-template-columns: 28px 128px minmax(0, 1fr) 96px 14px;
-  grid-template-areas: "no src body photo ext";
+  /* 写真は左、記事元(配信元・日付・分類)は右(2026-11-14) */
+  grid-template-columns: 28px 96px minmax(0, 1fr) 132px 14px;
+  grid-template-areas: "no photo body src ext";
   column-gap: 14px;
-  align-items: baseline;
+  align-items: start;
   padding: 11px 0;
   border-bottom: 1px solid var(--yy-line);
 }
 .yy-np-no { grid-area: no; font-family: var(--yy-serif); font-size: 15px; font-weight: 500; color: var(--yy-t3); font-variant-numeric: lining-nums tabular-nums; }
-.yy-np-src { grid-area: src; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.yy-np-src { grid-area: src; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; min-width: 0; text-align: right; padding-top: 2px; }
+.yy-np-srcname { max-width: 100%; }
 .yy-np-srcname { font-family: var(--font-mono), monospace; font-size: 10.5px; color: var(--yy-t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .yy-np-date { font-family: var(--font-mono), monospace; font-size: 10.5px; color: var(--yy-t3); font-variant-numeric: tabular-nums; }
 .yy-np-cat { font-size: 11px; color: var(--yy-t2); }
@@ -43,13 +45,14 @@ button.yy-np-title:hover { color: var(--yy-acc-ink); }
 .yy-np-desc { font-size: 12px; line-height: 1.7; color: var(--yy-t2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .yy-np-row .yy-fmt { align-self: flex-start; }
 .yy-np-photo { grid-area: photo; align-self: start; }
-.yy-np-row.is-lead { grid-template-columns: 28px 128px minmax(0, 1fr) 200px 14px; }
+.yy-np-row.is-lead { grid-template-columns: 28px 200px minmax(0, 1fr) 132px 14px; }
+.yy-np-no { line-height: 1.4; }
+.yy-np-ext { align-self: start !important; padding-top: 2px; }
 .yy-np-ext { grid-area: ext; align-self: center; color: #b9b9b4; font-size: 12px; text-decoration: none; }
 a.yy-np-ext:hover { color: var(--yy-acc-ink); }
 @media (max-width: 767px) {
-  .yy-np-row { grid-template-columns: 24px minmax(0, 1fr) 14px; grid-template-areas: "no src ext" ". body ext"; row-gap: 3px; }
-  .yy-np-src { flex-direction: row; gap: 8px; }
-  .yy-np-row, .yy-np-row.is-lead { grid-template-columns: 24px minmax(0, 1fr) 72px; grid-template-areas: "no src photo" ". body photo"; }
+  .yy-np-row, .yy-np-row.is-lead { grid-template-columns: 22px 72px minmax(0, 1fr); grid-template-areas: "no photo src" "no photo body"; row-gap: 3px; }
+  .yy-np-src { flex-direction: row; align-items: baseline; gap: 8px; text-align: left; padding-top: 0; }
   .yy-np-ext { display: none; }
 }
 

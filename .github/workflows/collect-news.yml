@@ -1,13 +1,15 @@
 name: Collect News
 
-# NEWS の記事を集めて Firestore(news-archive)に貯める。/api/news はそれを読むだけ。
+# NEWS と新製品を集めて Firestore(news-archive / new-products-archive)に貯める。/api/news・/api/new-products はそれを読むだけ。
 # スクリプト: scripts/collect-news.ts(配信元は src/lib/newsSources.ts)
 # 実行結果の要約に配信元ごとの状態が出る。止まった配信元は warning になる。
 
 on:
   schedule:
-    # 30 分ごと(GitHub の都合で数分〜十数分遅れることがある)
+    # NEWS は 30 分ごと(GitHub の都合で数分〜十数分遅れることがある)
     - cron: '7,37 * * * *'
+    # 新製品は 3 時間ごと(メーカーの配信 約 150 本を読むので、相手の負担を考えて間を空ける)
+    - cron: '22 */3 * * *'
   workflow_dispatch:
 
 permissions:
@@ -21,7 +23,7 @@ concurrency:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
       - name: Checkout repository
@@ -41,10 +43,17 @@ jobs:
           npm install --no-audit --no-fund firebase-admin@13 > /dev/null
           ln -s "$RUNNER_TEMP/deps/node_modules" "$GITHUB_WORKSPACE/node_modules"
 
-      - name: Collect
+      - name: Collect news
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: node --import ./scripts/lib/register-ts.mjs scripts/collect-news.ts
+
+      # 新製品(scripts/collect-products.ts)。3 時間ごとの回と手動実行のときだけ
+      - name: Collect new products
+        if: ${{ github.event_name == 'workflow_dispatch' || github.event.schedule == '22 */3 * * *' }}
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: node --import ./scripts/lib/register-ts.mjs scripts/collect-products.ts
 
       - name: Keep workflow alive
         uses: actions/github-script@v7

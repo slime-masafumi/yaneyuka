@@ -174,10 +174,8 @@ const NewProducts: React.FC<NewProductsProps> = ({ onNavigateToRegistration }) =
     apiItems.forEach(item => {
       if (grouped[item.category]) grouped[item.category].push(item);
     });
-    // 空カテゴリはフォールバックで補完
-    (Object.keys(grouped) as Array<keyof typeof grouped>).forEach(k => {
-      if (grouped[k].length === 0 && FALLBACK_PRODUCTS[k]) grouped[k] = FALLBACK_PRODUCTS[k];
-    });
+    // 以前は空の分類を見本(サンプル)で埋めていたが、本物と見分けにくいのでやめた。
+    // 見本を出すのは API から 1 件も取れなかったときだけ(上の分岐)
     return grouped;
   }, [apiItems]);
 
@@ -207,6 +205,10 @@ const NewProducts: React.FC<NewProductsProps> = ({ onNavigateToRegistration }) =
 
   const getCurrentProducts = (): ProductCard[] => {
     if (activeCategory === 'all') {
+      // すべて = 新しい順(分類ごとに固めない)。分類できなかったもの(other)もここには出す
+      if (apiItems && apiItems.length) {
+        return [...apiItems].sort((a, b) => (Date.parse(b.pubDate || '') || 0) - (Date.parse(a.pubDate || '') || 0));
+      }
       return Object.values(newProductCategories).flat();
     } else {
       return newProductCategories[activeCategory] || [];
@@ -307,7 +309,7 @@ const NewProducts: React.FC<NewProductsProps> = ({ onNavigateToRegistration }) =
             <div className="yy-sec">
               <span className="yy-sec__no">I</span>
               <span className="yy-sec__title">{activeCategory === 'all' ? '新製品' : CATEGORY_LABEL[activeCategory]}</span>
-              <span className="yy-sec__right">PR TIMES 等の公式 RSS から自動で取得・分類</span>
+              <span className="yy-sec__right">メーカー各社の配信と業界紙から 3 時間ごとに集めて分類</span>
             </div>
             {renderContent()}
           </section>
@@ -327,12 +329,12 @@ const NewProducts: React.FC<NewProductsProps> = ({ onNavigateToRegistration }) =
                     <span className="yy-home__tocno">{String(i + 1).padStart(2, '0')}</span>
                     <span className="yy-home__toct">{label}</span>
                     <span className="yy-leader" />
-                    <span className="yy-home__n">{isLoading ? '—' : realCount(k) || '見本'}</span>
+                    <span className="yy-home__n">{isLoading ? '—' : realCount(k) || '—'}</span>
                   </button>
                 </li>
               ))}
             </ol>
-            <p className="yy-np-note">提案アイデアや仕様検討の入り口に。取得できなかった分類には見本を出しています。</p>
+            <p className="yy-np-note">提案アイデアや仕様検討の入り口に。各社の公式サイト・業界紙・リリース配信から 3 時間ごとに集めています。</p>
           </section>
           {sourceCounts.length > 0 && (
             <section>

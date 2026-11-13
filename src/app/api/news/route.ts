@@ -28,7 +28,7 @@ const IMAGE_CACHE = new Map<string, string>()
 // 応答のキャッシュ(キー: 'latest' か 'YYYY-MM')
 const CACHE = new Map<string, { items: NewsItem[]; ts: number; from: string }>()
 
-const headers = (sec: number) => ({ 'Cache-Control': `public, s-maxage=${sec}, stale-while-revalidate=${sec * 2}` })
+const headers = (sec: number) => ({ 'Cache-Control': `public, max-age=0, s-maxage=${sec}, stale-while-revalidate=${sec * 2}` })
 
 /** 貯めた分から読む。使えなければ null */
 async function fromArchive(month: string | null): Promise<NewsItem[] | null> {

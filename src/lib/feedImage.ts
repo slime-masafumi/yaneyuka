@@ -27,6 +27,8 @@ export function normalizeImageUrl(value: string | undefined, base?: string): str
     // 1px の計測画像・アイコン類は写真として使わない
     if (/(spacer|pixel|blank|1x1|favicon|logo|icon)[^/]*\.(gif|png|svg|ico)$/i.test(u.pathname)) return '';
     if (/\.(svg|ico)$/i.test(u.pathname)) return '';
+    // 配信サイト共通の画像(記事ごとの写真ではない)。PR TIMES は記事ページの og:image がサイトのロゴになる
+    if (u.hostname.endsWith('prtimes.jp') && u.pathname.startsWith('/common/')) return '';
     return u.toString();
   } catch {
     return '';
