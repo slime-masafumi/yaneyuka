@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import FeedPic from '@/components/ui/FeedPic';
 import { openScreen, screenHref } from '@/lib/openScreen';
 import type { UserpageTarget } from '@/lib/userpageUrl';
 import { Store, itemStatus } from '@/lib/karte/engine';
@@ -86,7 +87,7 @@ export function HomeCase() {
   );
 }
 
-type News = { title: string; link: string; pubDate: string; source: string };
+type News = { title: string; link: string; pubDate: string; source: string; image?: string };
 
 const md = (d: Date) => `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
 
@@ -107,21 +108,24 @@ export function HomeNews({ limit = 6 }: { limit?: number }) {
   return (
     <ul className="yy-home__news">
       {items.map((n) => (
-        <li key={n.link}>
-          <span className="yy-home__meta">
-            <span>{n.source.replace(/[（(]検索[)）]$/, '')}</span>
-            <span>{md(new Date(n.pubDate))}</span>
+        <li key={n.link} className="has-pic">
+          <span className="yy-home__newsbody">
+            <span className="yy-home__meta">
+              <span>{n.source.replace(/[（(]検索[)）]$/, '')}</span>
+              <span>{md(new Date(n.pubDate))}</span>
+            </span>
+            <a href={n.link} target="_blank" rel="noopener noreferrer" title={n.title}>
+              {n.title.replace(/\s-\s[^-]+$/, '')}
+            </a>
           </span>
-          <a href={n.link} target="_blank" rel="noopener noreferrer" title={n.title}>
-            {n.title.replace(/\s-\s[^-]+$/, '')}
-          </a>
+          <FeedPic src={n.image} size="mini" />
         </li>
       ))}
     </ul>
   );
 }
 
-type Ev = { id: string; title: string; startDate: string; endDate: string; venue: string; link: string };
+type Ev = { id: string; title: string; startDate: string; endDate: string; venue: string; link: string; image?: string };
 const dot = (iso: string) => iso.slice(5).replace('-', '.');
 
 export function HomeEvents({ limit = 4 }: { limit?: number }) {
@@ -157,6 +161,7 @@ export function HomeEvents({ limit = 4 }: { limit?: number }) {
                 {e.venue}
               </span>
             </span>
+            <FeedPic src={e.image} size="mini" />
           </li>
         ))}
       </ul>

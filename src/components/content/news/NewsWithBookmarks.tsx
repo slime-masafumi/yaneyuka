@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useEffect, useMemo, useState } from 'react'
+import { NEWS_SOURCES } from '@/lib/newsSources'
 import PageHead, { Stat } from '../../ui/PageHead'
 import { HomeEvents } from '@/components/home/HomeParts'
 import NewsFeed, { NewsItem } from './NewsFeed'
@@ -117,7 +118,7 @@ export default function NewsWithBookmarks() {
         desc="建設業界のニュースと、建材メーカーのお知らせ"
         right={
           <>
-            <Stat n={NEWS_SOURCES.length} label="配信元" />
+            <Stat n={NEWS_SOURCE_ROWS.length} label="配信元" />
             <Stat n={feedsTotal ?? '—'} label="メーカー" />
           </>
         }
@@ -149,9 +150,9 @@ export default function NewsWithBookmarks() {
             <HomeEvents limit={4} />
           </section>
           <section>
-            <div className="yy-sec"><span className="yy-sec__no">IV</span><span className="yy-sec__title">配信元</span><span className="yy-sec__right">{NEWS_SOURCES.length}</span></div>
+            <div className="yy-sec"><span className="yy-sec__no">IV</span><span className="yy-sec__title">配信元</span><span className="yy-sec__right">{NEWS_SOURCE_ROWS.length}</span></div>
             <ol className="yy-home__toc">
-              {NEWS_SOURCES.map(([name, kind], i) => (
+              {NEWS_SOURCE_ROWS.map(([name, kind], i) => (
                 <li key={name}>
                   <span className="yy-srcrow">
                     <span className="yy-home__tocno">{String(i + 1).padStart(2, '0')}</span>
@@ -186,19 +187,8 @@ export default function NewsWithBookmarks() {
   )
 }
 
-/** /api/news の配信元(src/app/api/news/route.ts の sources と同じ並び)。検索 = Google ニュースの検索経由 */
-const NEWS_SOURCES: Array<[string, string]> = [
-  ['国土交通省', 'RSS'],
-  ['KENPLASE', 'RSS'],
-  ['建設通信新聞', 'RSS'],
-  ['R.E.port 不動産ニュース', 'RSS'],
-  ['建設工業新聞', 'RSS'],
-  ["LIFULL HOME'S PRESS", 'RSS'],
-  ['日経 xTECH', '検索'],
-  ['Lmaga.jp', '検索'],
-  ['WSJ 日本版', '検索'],
-  ['ELLE Japan', '検索'],
-]
+/** /api/news の配信元(src/lib/newsSources.ts)。検索 = Google ニュースの検索経由 */
+const NEWS_SOURCE_ROWS: Array<[string, string]> = NEWS_SOURCES.map((x) => [x.source.replace(/[（(]検索[)）]$/, ''), x.kind])
 
 type Feed = { origin: string; name: string; categories: string[]; sample: string[]; newest: string }
 

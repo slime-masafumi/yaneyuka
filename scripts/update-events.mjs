@@ -49,6 +49,27 @@ function extractStructuredPeriod(html) {
   return { start: s[1], end: e ? e[1] : s[1], structured: true };
 }
 
+/**
+ * 公式ページの og:image(SNS で共有されたときに出る画像)を、一覧に添える写真として拾う。
+ * 相対パスは絶対化し、http は https に寄せる。取れなければ ''。
+ */
+function extractImage(html, pageUrl) {
+  const meta = (key) =>
+    html.match(new RegExp(`<meta[^>]+(?:property|name)=["']${key}["'][^>]*content=["']([^"']+)["']`, 'i'))?.[1] ||
+    html.match(new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]*(?:property|name)=["']${key}["']`, 'i'))?.[1] ||
+    '';
+  const raw = meta('og:image(?::secure_url|:url)?') || meta('twitter:image(?::src)?');
+  if (!raw) return '';
+  try {
+    const u = new URL(raw.replace(/&amp;/g, '&').trim(), pageUrl);
+    if (u.protocol === 'http:') u.protocol = 'https:';
+    if (u.protocol !== 'https:' || /\.(svg|ico)$/i.test(u.pathname)) return '';
+    return u.toString();
+  } catch {
+    return '';
+  }
+}
+
 function extractPeriod(html) {
   const text = html.replace(/<[^>]*>/g, ' ').replace(/&nbsp;|&#x?[0-9a-f]+;/gi, ' ').replace(/\s+/g, ' ');
   const candidates = [];
@@ -96,6 +117,7 @@ async function run() {
   let updated = 0;
   let unreachable = 0;
   let expired = 0;
+  let imaged = 0;
 
   for (const ev of events) {
     if (!ev.link) continue;
@@ -107,6 +129,13 @@ async function run() {
       continue;
     }
     ev.isLinkActive = true;
+
+    // 一覧に添える写真。取れたときだけ差し替える(取れなかった週に消さない)
+    const image = extractImage(html, ev.link);
+    if (image && image !== ev.image) {
+      ev.image = image;
+      imaged++;
+    }
 
     const period = extractStructuredPeriod(html) || extractPeriod(html);
     if (!period) {
@@ -173,6 +202,7 @@ async function run() {
 
   console.log('');
   console.log(`会期を更新   : ${updated} 件`);
+  console.log(`写真を更新   : ${imaged} 件`);
   console.log(`要確認       : ${review.length} 件（自動反映していない）`);
   review.forEach((r) => {
     console.log(`    ${r.title}`);

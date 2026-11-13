@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server'
+import { fillImages, imageFromFeedItem } from '@/lib/feedImage'
+import { NEWS_SOURCES, PER_SOURCE_CAP, type NewsSource } from '@/lib/newsSources'
 
 type NewsItem = {
   id: string
@@ -7,7 +9,12 @@ type NewsItem = {
   pubDate?: string
   source: string
   description?: string
+  /** 記事の写真(RSS か記事ページの og:image)。無ければ付けない */
+  image?: string
 }
+
+// 記事 URL → 写真 URL('' は「取りに行ったが無かった」)。インスタンスが生きている間は覚えておく
+const IMAGE_CACHE = new Map<string, string>()
 
 // メモリキャッシュ（5分）
 let CACHE: { items: NewsItem[]; ts: number } | null = null
@@ -54,21 +61,11 @@ function scoreText(title: string, description: string): number {
   return score
 }
 
-const sources: { url: string; source: string }[] = [
-  // 公式系を追加してボリューム確保
-  { url: 'https://www.mlit.go.jp/rss/mlit_rss.xml', source: '国土交通省' },
-  { url: 'https://ken-place.com/feed', source: 'KENPLASE' },
-  { url: 'https://www.kensetsunews.com/feeds', source: '建設通信新聞' },
-  { url: 'https://www.re-port.net/rss/', source: 'R.E.port 不動産ニュース' },
-  { url: 'https://www.decn.co.jp/?feed=rss2', source: '建設工業新聞' },
-  { url: "https://www.homes.co.jp/cont/press/rss/", source: "LIFULL HOME'S PRESS" },
-  { url: 'https://news.google.com/rss/search?q=site:xtech.nikkei.com+(%E5%BB%BA%E7%AF%89+OR+%E5%BB%BA%E8%A8%AD+OR+%E5%9C%9F%E6%9C%A8+OR+%E8%A8%AD%E8%A8%88)&hl=ja&gl=JP&ceid=JP:ja', source: '日経xTECH(検索)' },
-  { url: 'https://news.google.com/rss/search?q=site:lmaga.jp+(%E5%BB%BA%E7%AF%89+OR+%E5%BB%BA%E8%A8%AD+OR+%E8%A8%AD%E8%A8%88+OR+%E3%83%AA%E3%83%8E%E3%83%99%E3%83%BC%E3%82%B7%E3%83%A7%E3%83%B3)&hl=ja&gl=JP&ceid=JP:ja', source: 'Lmaga.jp(検索)' },
-  { url: 'https://news.google.com/rss/search?q=site:jp.wsj.com+(%E4%B8%8D%E5%8B%95%E7%94%A3+OR+%E5%BB%BA%E8%A8%AD+OR+%E5%BB%BA%E7%AF%89)&hl=ja&gl=JP&ceid=JP:ja', source: 'WSJ日本版(検索)' },
-  { url: 'https://news.google.com/rss/search?q=site:elle.com/jp+(%E5%BB%BA%E7%AF%89+OR+%E3%82%A4%E3%83%B3%E3%83%86%E3%83%AA%E3%82%A2+OR+%E5%BB%BA%E7%AF%89%E5%AE%B6)&hl=ja&gl=JP&ceid=JP:ja', source: 'ELLE Japan(検索)' }
-]
+// 配信元の一覧と採り方(trusted / must)は src/lib/newsSources.ts
+const sources = NEWS_SOURCES
 
-function parseRss(xml: string, source: string, minScore: number): NewsItem[] {
+function parseRss(xml: string, src: NewsSource, minScore: number): NewsItem[] {
+  const source = src.source
   const out: NewsItem[] = []
   const itemRegex = /<item[\s\S]*?<\/item>/g
   const titleRegex = /<title>([\s\S]*?)<\/title>/
@@ -79,21 +76,24 @@ function parseRss(xml: string, source: string, minScore: number): NewsItem[] {
   for (const raw of items) {
     const title = (raw.match(titleRegex)?.[1] || '').replace(/<!\[CDATA\[|\]\]>/g, '').trim()
     const link = (raw.match(linkRegex)?.[1] || '').replace(/<!\[CDATA\[|\]\]>/g, '').trim()
-    const pubDate = (raw.match(dateRegex)?.[1] || '').trim()
+    const pubDate = (raw.match(dateRegex)?.[1] || raw.match(/<dc:date>([\s\S]*?)<\/dc:date>/)?.[1] || '').trim()
     const descriptionRaw = (raw.match(descRegex)?.[1] || '').replace(/<!\[CDATA\[|\]\]>/g, '').trim()
     if (!title || !link) continue
     const text = `${title} ${descriptionRaw}`
     const s = scoreText(title, descriptionRaw || '')
-    if (s < minScore) continue
+    if (src.must) { if (!src.must.test(title)) continue }
+    else if (!src.trusted && s < minScore) continue
     if (negativeKeywords.some(k => text.includes(k))) continue
     if (/(殺人|強盗|暴行|傷害|逮捕|容疑者|死亡事故|事件|詐欺|略取|誘拐)/.test(text) && !/(工事|建設|施工|現場|安全|労災|墜落|是正|再発防止)/.test(text)) continue
     const description = cleanHtmlToText(descriptionRaw)
-    out.push({ id: link, title, link, pubDate, source, description })
+    const image = imageFromFeedItem(raw, link) || undefined
+    out.push({ id: link, title, link, pubDate, source, description, ...(image ? { image } : {}) })
   }
   return out
 }
 
-function parseAtom(xml: string, source: string, minScore: number): NewsItem[] {
+function parseAtom(xml: string, src: NewsSource, minScore: number): NewsItem[] {
+  const source = src.source
   const out: NewsItem[] = []
   const entryRegex = /<entry[\s\S]*?<\/entry>/g
   const titleRegex = /<title[^>]*>([\s\S]*?)<\/title>/
@@ -111,11 +111,13 @@ function parseAtom(xml: string, source: string, minScore: number): NewsItem[] {
     if (!title || !link) continue
     const text = `${title} ${descRaw}`
     const s = scoreText(title, descRaw || '')
-    if (s < minScore) continue
+    if (src.must) { if (!src.must.test(title)) continue }
+    else if (!src.trusted && s < minScore) continue
     if (negativeKeywords.some(k => text.includes(k))) continue
     if (/(殺人|強盗|暴行|傷害|逮捕|容疑者|死亡事故|事件|詐欺|略取|誘拐)/.test(text) && !/(工事|建設|施工|現場|安全|労災|墜落|是正|再発防止)/.test(text)) continue
     const description = cleanHtmlToText(descRaw)
-    out.push({ id: link, title, link, pubDate, source, description })
+    const image = imageFromFeedItem(raw, link) || undefined
+    out.push({ id: link, title, link, pubDate, source, description, ...(image ? { image } : {}) })
   }
   return out
 }
@@ -138,7 +140,11 @@ export async function GET() {
       const ac = new AbortController()
       const t = setTimeout(() => ac.abort(), 8000)
       try {
-        const res = await fetch(url, { cache: 'no-store', signal: ac.signal })
+        const res = await fetch(url, {
+          cache: 'no-store',
+          signal: ac.signal,
+          headers: { 'User-Agent': 'Mozilla/5.0 (compatible; yaneyuka-newsbot/1.0; +https://yaneyuka.com/)', Accept: 'application/rss+xml, application/xml, text/xml, */*' },
+        })
         if (!res.ok) return ''
         return await res.text()
       } catch { return '' } finally { clearTimeout(t) }
@@ -151,7 +157,7 @@ export async function GET() {
         const xml = r.value
         const s = sources[idx]
         const isAtom = /<entry[\s\S]*?<\/entry>/.test(xml)
-        results.push(...(isAtom ? parseAtom(xml, s.source, 3) : parseRss(xml, s.source, 3)))
+        results.push(...(isAtom ? parseAtom(xml, s, 3) : parseRss(xml, s, 3)))
       }
     })
     // 閾値3で0件なら2→1→0
@@ -162,7 +168,7 @@ export async function GET() {
           const xml = r.value
           const s = sources[idx]
           const isAtom = /<entry[\s\S]*?<\/entry>/.test(xml)
-          results.push(...(isAtom ? parseAtom(xml, s.source, 2) : parseRss(xml, s.source, 2)))
+          results.push(...(isAtom ? parseAtom(xml, s, 2) : parseRss(xml, s, 2)))
         }
       })
       list = results
@@ -173,7 +179,7 @@ export async function GET() {
           const xml = r.value
           const s = sources[idx]
           const isAtom = /<entry[\s\S]*?<\/entry>/.test(xml)
-          results.push(...(isAtom ? parseAtom(xml, s.source, 1) : parseRss(xml, s.source, 1)))
+          results.push(...(isAtom ? parseAtom(xml, s, 1) : parseRss(xml, s, 1)))
         }
       })
       list = results
@@ -184,7 +190,7 @@ export async function GET() {
           const xml = r.value
           const s = sources[idx]
           const isAtom = /<entry[\s\S]*?<\/entry>/.test(xml)
-          results.push(...(isAtom ? parseAtom(xml, s.source, 0) : parseRss(xml, s.source, 0)))
+          results.push(...(isAtom ? parseAtom(xml, s, 0) : parseRss(xml, s, 0)))
         }
       })
       list = results
@@ -193,7 +199,19 @@ export async function GET() {
 
     // sort & return
     list.sort((a, b) => (new Date(b.pubDate || 0).getTime() - new Date(a.pubDate || 0).getTime()))
+    const seen = new Set<string>()
+    const perSource = new Map<string, number>()
+    list = list.filter((it) => {
+      if (seen.has(it.link)) return false
+      seen.add(it.link)
+      const n = (perSource.get(it.source) || 0) + 1
+      perSource.set(it.source, n)
+      return n <= PER_SOURCE_CAP
+    })
     const trimmed = list.length > 0 ? list.slice(0, 40) : results.slice(0, 10)
+    // 写真の無い記事は記事ページの og:image を取りに行く。Google News 経由の記事は
+    // リンク先が Google のページで写真が取れないので行かない
+    await fillImages(trimmed, IMAGE_CACHE, { budgetMs: 3500, parallel: 12, skip: (link) => link.includes('news.google.com') })
     CACHE = { items: trimmed, ts: Date.now() }
     return NextResponse.json({ items: trimmed }, {
       headers: {

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from 'react';
+import FeedPic from '@/components/ui/FeedPic';
 import type { EventItem } from '../../content/EventInfo';
 import { listEventBookmarks, setEventBookmark, deleteEventBookmark } from '@/lib/firebaseUserData';
 import { useAuth } from '@/lib/AuthContext';
@@ -10,6 +11,7 @@ import PageHead, { Stat } from '../../ui/PageHead';
 
 // APIから返ってくるデータの型拡張
 type ApiEventItem = EventItem & {
+  image?: string;
   startDate?: string;
   endDate?: string;
   region?: 'tokyo' | 'osaka' | 'nagoya' | 'fukuoka' | 'chiba' | 'other';
@@ -227,6 +229,7 @@ export default function EventsWithBookmarks() {
   const row = (ev: ApiEventItem, i: number, done: boolean) => (
     <div key={ev.id} className={`yy-ev__row${done ? ' is-past' : ''}${!done && i === 0 ? ' is-next' : ''}`}>
       <span className="yy-ev__date">{yy(ev.startDate)}{md(ev.startDate)}{ev.endDate && ev.endDate !== ev.startDate ? <small> 〜 {md(ev.endDate)}</small> : null}</span>
+      <FeedPic src={ev.image} size="mini" className="yy-ev__pic" />
       <a className="yy-ev__title" href={ev.link} target="_blank" rel="noopener noreferrer" title={ev.description || ev.title}>{ev.title}</a>
       <span className="yy-ev__venue" title={ev.venue}>{ev.venue}</span>
       <span className="yy-ev__region">{regionName[ev.region || 'other'] || 'その他'}</span>
@@ -271,7 +274,7 @@ export default function EventsWithBookmarks() {
               <span className="yy-sec__no">I</span><span className="yy-sec__title">これから</span>
               <span className="yy-sec__right">{upcoming.length} 件{daysTo !== null ? ` · 次は ${daysTo <= 0 ? '開催中' : `${daysTo} 日後`}` : ''}</span>
             </div>
-            <div className="yy-ev__row yy-ev__row--head"><span>会期</span><span>名称</span><span>会場</span><span>地域</span><span /></div>
+            <div className="yy-ev__row yy-ev__row--head"><span>会期</span><span /><span>名称</span><span>会場</span><span>地域</span><span /></div>
             {upcoming.length === 0 ? <p className="yy-home__empty">該当するイベントはありません</p> : upcoming.map((ev, i) => row(ev, i, false))}
           </section>
           {past.length > 0 && (

@@ -22,7 +22,7 @@
 .yy-np-list { margin: 0; padding: 0; list-style: none; }
 .yy-np-row {
   display: grid;
-  grid-template-columns: 28px 128px minmax(0, 1fr) 44px 14px;
+  grid-template-columns: 28px 128px minmax(0, 1fr) 96px 14px;
   grid-template-areas: "no src body photo ext";
   column-gap: 14px;
   align-items: baseline;
@@ -42,13 +42,15 @@ button.yy-np-title:hover { color: var(--yy-acc-ink); }
 .yy-np-row.is-lead .yy-np-title { font-family: var(--yy-serif); font-size: 16px; font-weight: 500; }
 .yy-np-desc { font-size: 12px; line-height: 1.7; color: var(--yy-t2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .yy-np-row .yy-fmt { align-self: flex-start; }
-.yy-np-photo { grid-area: photo; align-self: center; }
+.yy-np-photo { grid-area: photo; align-self: start; }
+.yy-np-row.is-lead { grid-template-columns: 28px 128px minmax(0, 1fr) 200px 14px; }
 .yy-np-ext { grid-area: ext; align-self: center; color: #b9b9b4; font-size: 12px; text-decoration: none; }
 a.yy-np-ext:hover { color: var(--yy-acc-ink); }
 @media (max-width: 767px) {
   .yy-np-row { grid-template-columns: 24px minmax(0, 1fr) 14px; grid-template-areas: "no src ext" ". body ext"; row-gap: 3px; }
   .yy-np-src { flex-direction: row; gap: 8px; }
-  .yy-np-photo { display: none; }
+  .yy-np-row, .yy-np-row.is-lead { grid-template-columns: 24px minmax(0, 1fr) 72px; grid-template-areas: "no src photo" ". body photo"; }
+  .yy-np-ext { display: none; }
 }
 
 /* ── 書籍・ソフト:表紙は小さく(最大 44×58)。番号 / 表紙 / 題・説明 / 価格・種別 / 購入先 ── */

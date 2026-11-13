@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState } from 'react'
 import { sanitizeHtml } from '@/lib/sanitize'
+import FeedPic from '@/components/ui/FeedPic'
+import { NEWS_SOURCES } from '@/lib/newsSources'
 
 export type NewsItem = {
   id: string
@@ -10,6 +12,7 @@ export type NewsItem = {
   pubDate?: string
   source: string
   description?: string
+  image?: string
 }
 
 type NewsFeedProps = {
@@ -111,22 +114,8 @@ export default function NewsFeed({ onToggleBookmark, isBookmarked, selectedMonth
     return s
   }
 
-  const sources: { url: string; source: string }[] = [
-    { url: 'https://www.mlit.go.jp/rss/mlit_rss.xml', source: '国土交通省' },
-    // 建設・建築寄りのソースを優先
-    { url: 'https://ken-place.com/feed', source: 'KENPLASE' },
-    { url: 'https://www.kensetsunews.com/feeds', source: '建設通信新聞' },
-    { url: 'https://www.re-port.net/rss/', source: 'R.E.port 不動産ニュース' },
-    { url: 'https://www.decn.co.jp/?feed=rss2', source: '建設工業新聞' },
-    { url: 'https://www.homes.co.jp/cont/press/rss/', source: "LIFULL HOME'S PRESS" },
-    // ボリューム確保用の補助（厳格フィルタ適用）
-    { url: 'https://news.yahoo.co.jp/rss/topics/business.xml', source: 'Yahoo経済' },
-    // サイト限定のGoogle News RSS（業界語で検索）
-    { url: 'https://news.google.com/rss/search?q=site:xtech.nikkei.com+(%E5%BB%BA%E7%AF%89+OR+%E5%BB%BA%E8%A8%AD+OR+%E5%9C%9F%E6%9C%A8+OR+%E8%A8%AD%E8%A8%88)&hl=ja&gl=JP&ceid=JP:ja', source: '日経xTECH(検索)' },
-    { url: 'https://news.google.com/rss/search?q=site:lmaga.jp+(%E5%BB%BA%E7%AF%89+OR+%E5%BB%BA%E8%A8%AD+OR+%E8%A8%AD%E8%A8%88+OR+%E3%83%AA%E3%83%8E%E3%83%99%E3%83%BC%E3%82%B7%E3%83%A7%E3%83%B3)&hl=ja&gl=JP&ceid=JP:ja', source: 'Lmaga.jp(検索)' },
-    { url: 'https://news.google.com/rss/search?q=site:jp.wsj.com+(%E4%B8%8D%E5%8B%95%E7%94%A3+OR+%E5%BB%BA%E8%A8%AD+OR+%E5%BB%BA%E7%AF%89)&hl=ja&gl=JP&ceid=JP:ja', source: 'WSJ日本版(検索)' },
-    { url: 'https://news.google.com/rss/search?q=site:elle.com/jp+(%E5%BB%BA%E7%AF%89+OR+%E3%82%A4%E3%83%B3%E3%83%86%E3%83%AA%E3%82%A2+OR+%E5%BB%BA%E7%AF%89%E5%AE%B6)&hl=ja&gl=JP&ceid=JP:ja', source: 'ELLE Japan(検索)' }
-  ]
+  // 配信元は /api/news と同じ一覧(src/lib/newsSources.ts)
+  const sources = NEWS_SOURCES
 
   const fetchViaProxy = async (rssUrl: string) => {
     // CORS回避のためテキストプロキシを利用（スキーム保持）
@@ -327,6 +316,7 @@ export default function NewsFeed({ onToggleBookmark, isBookmarked, selectedMonth
                 <div className="yy-news__desc line-clamp-2" dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.description) }} />
               )}
             </div>
+            <FeedPic src={item.image} size={i === 0 ? 'lead' : 'row'} className="yy-news__pic" />
             <button
               type="button"
               onClick={() => onToggleBookmark && onToggleBookmark(item)}

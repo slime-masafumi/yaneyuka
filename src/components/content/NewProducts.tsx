@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import FeedPic from '@/components/ui/FeedPic';
 import PageHead, { Stat } from '../ui/PageHead';
 import './see-pages.css';
 
@@ -88,28 +89,14 @@ function isGenericLocalFallback(url: string): boolean {
   return url.startsWith('/image/NewProduct/') || url.startsWith('/image/掲載募集中');
 }
 
-// 小さな写真(44×32・白黒 + 緑)。実画像が無い/失敗時は何も出さない
-const ProductPhoto: React.FC<{ product: ProductCard }> = ({ product }) => {
-  const [imgFailed, setImgFailed] = useState(false);
-  if (!product.image || imgFailed || isGenericLocalFallback(product.image)) {
-    return <span className="yy-np-photo" aria-hidden="true" />;
-  }
-  return (
-    <span className="yy-photo yy-np-photo">
-      <img
-        src={product.image}
-        alt=""
-        width={44}
-        height={32}
-        loading="lazy"
-        decoding="async"
-        draggable={false}
-        onContextMenu={(e) => e.preventDefault()}
-        onError={() => setImgFailed(true)}
-      />
-    </span>
-  );
-};
+// 記事の写真。取得できなかった分類の見本画像(ローカルの汎用画像)は出さない
+const ProductPhoto: React.FC<{ product: ProductCard; lead: boolean }> = ({ product, lead }) => (
+  <FeedPic
+    src={product.image && !isGenericLocalFallback(product.image) ? product.image : undefined}
+    size={lead ? 'lead' : 'row'}
+    className="yy-np-photo"
+  />
+);
 
 type ApiItem = {
   id: string;
@@ -265,7 +252,7 @@ const NewProducts: React.FC<NewProductsProps> = ({ onNavigateToRegistration }) =
                 {product.description && <span className="yy-np-desc">{product.description}</span>}
                 {isSample && <span className="yy-fmt">見本 · {product.price}</span>}
               </div>
-              <ProductPhoto product={product} />
+              <ProductPhoto product={product} lead={index === 0 && !isSample} />
               {product.link ? (
                 <a href={product.link} target="_blank" rel="noopener noreferrer" className="yy-np-ext" aria-label={`${product.title}の詳細を見る`}>↗</a>
               ) : (

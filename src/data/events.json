@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-08",
+  "updatedAt": "2026-11-13",
   "events": [
     {
       "id": "nikkei-architecture-materials-2026",
@@ -11,7 +11,8 @@
       "venue": "東京ビッグサイト 西",
       "region": "tokyo",
       "link": "https://messe.nikkei.co.jp/ac/",
-      "isLinkActive": true
+      "isLinkActive": true,
+      "image": "https://messe.nikkei.co.jp/common/images/ogp_ac.gif"
     },
     {
       "id": "japan-shop-2026",
@@ -23,7 +24,8 @@
       "venue": "東京ビッグサイト",
       "region": "tokyo",
       "link": "https://messe.nikkei.co.jp/js/",
-      "isLinkActive": true
+      "isLinkActive": true,
+      "image": "https://messe.nikkei.co.jp/common/images/ogp_js.gif"
     },
     {
       "id": "lighting-fair-2026",
@@ -35,7 +37,8 @@
       "venue": "東京ビッグサイト",
       "region": "tokyo",
       "link": "https://messe.nikkei.co.jp/lf/",
-      "isLinkActive": true
+      "isLinkActive": true,
+      "image": "https://messe.nikkei.co.jp/common/images/ogp_lf.gif"
     },
     {
       "id": "building-maintenance-connect-2026",
@@ -59,7 +62,8 @@
       "venue": "東京ビッグサイト 西",
       "region": "tokyo",
       "link": "https://www.publicweek.jp/",
-      "isLinkActive": true
+      "isLinkActive": true,
+      "image": "https://www.publicweek.jp/content/dam/sitebuilder/rxjp/government/images/ja/common/gpw_smn_seo.png/_jcr_content/renditions/original"
     },
     {
       "id": "cspi-expo-2026",
@@ -71,7 +75,8 @@
       "venue": "幕張メッセ",
       "region": "chiba",
       "link": "https://cspi-expo.com/",
-      "isLinkActive": true
+      "isLinkActive": true,
+      "image": "https://cspi-expo.com/common/images/withcpy.png"
     },
     {
       "id": "kyushu-home-building-2026",
@@ -95,7 +100,8 @@
       "venue": "インテックス大阪 4号館",
       "region": "osaka",
       "link": "https://messe.nikkei.co.jp/as/",
-      "isLinkActive": true
+      "isLinkActive": true,
+      "image": "https://messe.nikkei.co.jp/common/images/ogp_as.gif"
     },
     {
       "id": "maintenance-resilience-tokyo-2026",
@@ -119,7 +125,8 @@
       "venue": "インテックス大阪",
       "region": "osaka",
       "link": "https://www.japan-build.jp/osaka/ja-jp.html",
-      "isLinkActive": true
+      "isLinkActive": true,
+      "image": "https://www.japan-build.jp/content/dam/sitebuilder/rxjp/japan-build/images/jp/hub/common/header/japan-build-thumb-osaka.png/_jcr_content/renditions/original"
     },
     {
       "id": "hokkaido-construction-2026",
@@ -167,7 +174,8 @@
       "venue": "東京ビッグサイト",
       "region": "tokyo",
       "link": "https://www.japan-build.jp/tokyo/ja-jp.html",
-      "isLinkActive": true
+      "isLinkActive": true,
+      "image": "https://www.japan-build.jp/content/dam/sitebuilder/rxjp/japan-build/images/jp/hub/common/header/japan-build-thumb-tokyo.png/_jcr_content/renditions/original"
     }
   ]
 }
