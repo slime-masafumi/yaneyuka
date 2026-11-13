@@ -126,10 +126,19 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
   // URLパスからactiveContentを決定
   // ブラウザ更新時は常にトップページに戻る
   const getInitialContent = () => {
-    // トップページ（/）の場合はinitialContentを使用、それ以外は常に'topix'を返す
+    // トップページ（/）の場合はinitialContentを使用
     const normalizedPathname = pathname.endsWith('/') && pathname !== '/' ? pathname.slice(0, -1) : pathname;
-    return normalizedPathname === '/' ? initialContent : 'topix';
+    if (normalizedPathname === '/') return initialContent;
+    // 建材の 16 分類（/roof/ など）は、サーバーの時点で建材の画面を組む。
+    // 以前は 'topix'（中身は空の children）をサーバーで出し、読み込み後に建材へ切り替えていたため、
+    // 配信 HTML にメーカー表が 1 行も無く、検索エンジンから見えていなかった（2026-11-14）。
+    const content = PATH_TO_CONTENT[normalizedPathname];
+    if (content && CATEGORY_SUBCATEGORIES[content]) return content;
+    return 'topix';
   };
+  // 建材ページをサーバーで組むときの小分類は先頭のもの（?subcategory= は読み込み後に SearchParamsWatcher が反映）
+  const initialMaterialSub = (category: string) =>
+    getInitialContent() === category ? CATEGORY_SUBCATEGORIES[category]?.[0] ?? '' : '';
   
   // 中央カラムを全面に使う画面。余白と角丸を外して、ナビ直下・左右いっぱいに広げる。
   // 左カラム Ⅲ（一般ツール）から開くものはすべてこの扱いに揃える。
@@ -426,22 +435,22 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
   useEffect(() => {
     applyRouteFromUrl(pathname);
   }, [pathname, applyRouteFromUrl]);
-  const [roofSubcategory, setRoofSubcategory] = useState<string>('');
-  const [exteriorWallSubcategory, setExteriorWallSubcategory] = useState<string>('');
-  const [openingSubcategory, setOpeningSubcategory] = useState<string>('');
-  const [externalFloorSubcategory, setExternalFloorSubcategory] = useState<string>('');
-  const [exteriorOtherSubcategory, setExteriorOtherSubcategory] = useState<string>('');
-  const [internalFloorSubcategory, setInternalFloorSubcategory] = useState<string>('');
-  const [internalWallSubcategory, setInternalWallSubcategory] = useState<string>('');
-  const [internalCeilingSubcategory, setInternalCeilingSubcategory] = useState<string>('');
-  const [internalOtherSubcategory, setInternalOtherSubcategory] = useState<string>('');
-  const [waterproofSubcategory, setWaterproofSubcategory] = useState<string>('');
-  const [hardwareSubcategory, setHardwareSubcategory] = useState<string>('');
-  const [furnitureSubcategory, setFurnitureSubcategory] = useState<string>('');
-  const [electricalSystemsSubcategory, setElectricalSystemsSubcategory] = useState<string>('');
-  const [mechanicalSystemsSubcategory, setMechanicalSystemsSubcategory] = useState<string>('');
-  const [exteriorInfrastructureSubcategory, setExteriorInfrastructureSubcategory] = useState<string>('');
-  const [exteriorSubcategory, setExteriorSubcategory] = useState<string>('');
+  const [roofSubcategory, setRoofSubcategory] = useState<string>(() => initialMaterialSub('roof'));
+  const [exteriorWallSubcategory, setExteriorWallSubcategory] = useState<string>(() => initialMaterialSub('exterior-wall'));
+  const [openingSubcategory, setOpeningSubcategory] = useState<string>(() => initialMaterialSub('opening'));
+  const [externalFloorSubcategory, setExternalFloorSubcategory] = useState<string>(() => initialMaterialSub('external-floor'));
+  const [exteriorOtherSubcategory, setExteriorOtherSubcategory] = useState<string>(() => initialMaterialSub('exterior-other'));
+  const [internalFloorSubcategory, setInternalFloorSubcategory] = useState<string>(() => initialMaterialSub('internal-floor'));
+  const [internalWallSubcategory, setInternalWallSubcategory] = useState<string>(() => initialMaterialSub('internal-wall'));
+  const [internalCeilingSubcategory, setInternalCeilingSubcategory] = useState<string>(() => initialMaterialSub('internal-ceiling'));
+  const [internalOtherSubcategory, setInternalOtherSubcategory] = useState<string>(() => initialMaterialSub('internal-other'));
+  const [waterproofSubcategory, setWaterproofSubcategory] = useState<string>(() => initialMaterialSub('waterproof'));
+  const [hardwareSubcategory, setHardwareSubcategory] = useState<string>(() => initialMaterialSub('hardware'));
+  const [furnitureSubcategory, setFurnitureSubcategory] = useState<string>(() => initialMaterialSub('furniture'));
+  const [electricalSystemsSubcategory, setElectricalSystemsSubcategory] = useState<string>(() => initialMaterialSub('electrical-systems'));
+  const [mechanicalSystemsSubcategory, setMechanicalSystemsSubcategory] = useState<string>(() => initialMaterialSub('mechanical-systems'));
+  const [exteriorInfrastructureSubcategory, setExteriorInfrastructureSubcategory] = useState<string>(() => initialMaterialSub('exterior-infrastructure'));
+  const [exteriorSubcategory, setExteriorSubcategory] = useState<string>(() => initialMaterialSub('exterior'));
   const [selectedSubcategory, setSelectedSubcategory] = useState<string>('');
   // ★修正: ハイドレーションエラー対策
   // 初期値は必ず false にして、useEffect でクライアントのみ設定を読み込む
@@ -1130,7 +1139,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
 
     // サーバーで出すのは children（各ページ本文）だけ。ツールや掲載情報の画面は
     // ログイン状態を前提に読み書きするので、確認が終わるまで組み立てない。
-    if (!authReady && activeContent !== 'topix') {
+    if (!authReady && activeContent !== 'topix' && !CATEGORY_SUBCATEGORIES[activeContent]) {
       return <ToolLoading />;
     }
 
