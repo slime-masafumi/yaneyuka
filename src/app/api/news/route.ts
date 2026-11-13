@@ -1,237 +1,92 @@
-import { NextResponse } from 'next/server'
-import { fillImages, imageFromFeedItem } from '@/lib/feedImage'
-import { NEWS_SOURCES, PER_SOURCE_CAP, type NewsSource } from '@/lib/newsSources'
+import { NextResponse, type NextRequest } from 'next/server'
+import { getAdminDb } from '@/lib/firebaseAdmin'
+import { fillImages } from '@/lib/feedImage'
+import { collectNews, pickForList, pubTime, type NewsItem } from '@/lib/newsCollect'
+import { ARCHIVE, META, STATUS_DOC, docToItem, monthRange, type ArchiveDoc, type CollectStatus } from '@/lib/newsArchive'
 
-type NewsItem = {
-  id: string
-  title: string
-  link: string
-  pubDate?: string
-  source: string
-  description?: string
-  /** 記事の写真(RSS か記事ページの og:image)。無ければ付けない */
-  image?: string
-}
+/**
+ * NEWS の一覧。
+ *
+ * 記事は GitHub Actions(.github/workflows/collect-news.yml)が 30 分ごとに集めて
+ * Firestore の news-archive に貯めている。ここはそれを読むだけ(写真も収集側で取ってある)。
+ *   GET /api/news/              … 最新 40 件(1 配信元 8 件まで)
+ *   GET /api/news/?month=2026-10 … その月の記事(最大 120 件)
+ *
+ * 貯めた分が使えないとき(開発サーバーは firebase-admin を読めない / 収集が 3 時間以上止まっている)は、
+ * 以前と同じくその場で RSS を読んで返す。表示が空になるより、遅くても出すほうを選ぶ。
+ */
 
-// 記事 URL → 写真 URL('' は「取りに行ったが無かった」)。インスタンスが生きている間は覚えておく
+export const dynamic = 'force-dynamic'
+
+const LIST_LIMIT = 40
+const MONTH_LIMIT = 120
+const STALE_MS = 3 * 3600_000
+const CACHE_TTL_MS = 5 * 60_000
+
+// 記事 URL → 写真 URL(その場で集めるときだけ使う)。インスタンスが生きている間は覚えておく
 const IMAGE_CACHE = new Map<string, string>()
+// 応答のキャッシュ(キー: 'latest' か 'YYYY-MM')
+const CACHE = new Map<string, { items: NewsItem[]; ts: number; from: string }>()
 
-// メモリキャッシュ（5分）
-let CACHE: { items: NewsItem[]; ts: number } | null = null
-const CACHE_TTL_MS = 5 * 60 * 1000
+const headers = (sec: number) => ({ 'Cache-Control': `public, s-maxage=${sec}, stale-while-revalidate=${sec * 2}` })
 
-const strongKeywords = [
-  '建築','建設','土木','施工','ゼネコン','国交省','国土交通省','建築基準法','確認申請',
-  '耐震','断熱','BIM','CIM','構造','設備','意匠','設計','法改正','告示','基準改定'
-]
-const domainKeywords = [
-  '外壁','屋根','サッシ','タイル','防水','改修','リフォーム','仕上げ','耐火','防火',
-  '鉄骨','RC','木造','基礎','地盤','杭','鉄筋','型枠','足場','仮設','現場','工期','施工管理',
-  '入札','公共工事','都市計画','用途地域','容積率','建蔽率','ZEH','ZEB','省エネ基準','建材',
-  '建設業','建設費','建設投資','建設会社','設計事務所','不動産','インフラ','道路','橋梁','耐震改修'
-]
-const negativeKeywords = [
-  '芸能','アイドル','タレント','俳優','女優','歌手','アニメ','ゲーム','マンガ','グルメ','レシピ','スイーツ',
-  'ファッション','コスメ','美容','ダイエット','恋愛','占い','旅行','観光','温泉','ホテル','テーマパーク','水族館','動物園',
-  '犬','猫','ペット','スマホ','ガジェット','家電','PCゲーム','スポーツ','野球','サッカー','ゴルフ','テニス','相撲',
-  '芸術','音楽','ライブ','コンサート','映画','ドラマ','アイス','ラーメン','カレー','居酒屋','ビール',
-  '選挙','芸能人','暴力','殺人','事件','不祥事','炎上','youtuber','YouTuber','VTuber'
-]
-
-function cleanHtmlToText(html: string): string {
-  if (!html) return ''
-  let s = html
-  s = s.replace(/&nbsp;/g, ' ')
-       .replace(/&amp;/g, '&')
-       .replace(/&lt;/g, '<')
-       .replace(/&gt;/g, '>')
-       .replace(/&quot;/g, '"')
-       .replace(/&#39;/g, "'")
-  s = s.replace(/<[^>]*>/g, '')
-  s = s.replace(/\s+/g, ' ').trim()
-  return s
-}
-
-function scoreText(title: string, description: string): number {
-  const t = `${title} ${description}`
-  let score = 0
-  strongKeywords.forEach(k => { if (title.includes(k)) score += 3; else if (t.includes(k)) score += 2 })
-  domainKeywords.forEach(k => { if (title.includes(k)) score += 2; else if (t.includes(k)) score += 1 })
-  if (negativeKeywords.some(k => t.includes(k))) score -= 8
-  return score
-}
-
-// 配信元の一覧と採り方(trusted / must)は src/lib/newsSources.ts
-const sources = NEWS_SOURCES
-
-function parseRss(xml: string, src: NewsSource, minScore: number): NewsItem[] {
-  const source = src.source
-  const out: NewsItem[] = []
-  const itemRegex = /<item[\s\S]*?<\/item>/g
-  const titleRegex = /<title>([\s\S]*?)<\/title>/
-  const linkRegex = /<link>([\s\S]*?)<\/link>/
-  const dateRegex = /<pubDate>([\s\S]*?)<\/pubDate>/
-  const descRegex = /<description>([\s\S]*?)<\/description>/
-  const items = xml.match(itemRegex) || []
-  for (const raw of items) {
-    const title = (raw.match(titleRegex)?.[1] || '').replace(/<!\[CDATA\[|\]\]>/g, '').trim()
-    const link = (raw.match(linkRegex)?.[1] || '').replace(/<!\[CDATA\[|\]\]>/g, '').trim()
-    const pubDate = (raw.match(dateRegex)?.[1] || raw.match(/<dc:date>([\s\S]*?)<\/dc:date>/)?.[1] || '').trim()
-    const descriptionRaw = (raw.match(descRegex)?.[1] || '').replace(/<!\[CDATA\[|\]\]>/g, '').trim()
-    if (!title || !link) continue
-    const text = `${title} ${descriptionRaw}`
-    const s = scoreText(title, descriptionRaw || '')
-    if (src.must) { if (!src.must.test(title)) continue }
-    else if (!src.trusted && s < minScore) continue
-    if (negativeKeywords.some(k => text.includes(k))) continue
-    if (/(殺人|強盗|暴行|傷害|逮捕|容疑者|死亡事故|事件|詐欺|略取|誘拐)/.test(text) && !/(工事|建設|施工|現場|安全|労災|墜落|是正|再発防止)/.test(text)) continue
-    const description = cleanHtmlToText(descriptionRaw)
-    const image = imageFromFeedItem(raw, link) || undefined
-    out.push({ id: link, title, link, pubDate, source, description, ...(image ? { image } : {}) })
-  }
-  return out
-}
-
-function parseAtom(xml: string, src: NewsSource, minScore: number): NewsItem[] {
-  const source = src.source
-  const out: NewsItem[] = []
-  const entryRegex = /<entry[\s\S]*?<\/entry>/g
-  const titleRegex = /<title[^>]*>([\s\S]*?)<\/title>/
-  const linkHrefRegex = /<link[^>]*href=["']([^"']+)["'][^>]*\/>/
-  const updatedRegex = /<updated>([\s\S]*?)<\/updated>/
-  const publishedRegex = /<published>([\s\S]*?)<\/published>/
-  const summaryRegex = /<summary[^>]*>([\s\S]*?)<\/summary>/
-  const contentRegex = /<content[^>]*>([\s\S]*?)<\/content>/
-  const entries = xml.match(entryRegex) || []
-  for (const raw of entries) {
-    const title = (raw.match(titleRegex)?.[1] || '').replace(/<!\[CDATA\[|\]\]>/g, '').trim()
-    const link = (raw.match(linkHrefRegex)?.[1] || '').trim()
-    const pubDate = ((raw.match(publishedRegex)?.[1]) || (raw.match(updatedRegex)?.[1]) || '').trim()
-    const descRaw = (raw.match(summaryRegex)?.[1] || raw.match(contentRegex)?.[1] || '').replace(/<!\[CDATA\[|\]\]>/g, '').trim()
-    if (!title || !link) continue
-    const text = `${title} ${descRaw}`
-    const s = scoreText(title, descRaw || '')
-    if (src.must) { if (!src.must.test(title)) continue }
-    else if (!src.trusted && s < minScore) continue
-    if (negativeKeywords.some(k => text.includes(k))) continue
-    if (/(殺人|強盗|暴行|傷害|逮捕|容疑者|死亡事故|事件|詐欺|略取|誘拐)/.test(text) && !/(工事|建設|施工|現場|安全|労災|墜落|是正|再発防止)/.test(text)) continue
-    const description = cleanHtmlToText(descRaw)
-    const image = imageFromFeedItem(raw, link) || undefined
-    out.push({ id: link, title, link, pubDate, source, description, ...(image ? { image } : {}) })
-  }
-  return out
-}
-
-export async function GET() {
+/** 貯めた分から読む。使えなければ null */
+async function fromArchive(month: string | null): Promise<NewsItem[] | null> {
+  const db = getAdminDb()
+  if (!db) return null
   try {
-    if (CACHE && Date.now() - CACHE.ts < CACHE_TTL_MS) {
-      return NextResponse.json({ items: CACHE.items }, {
-        headers: {
-          'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
-        },
-      });
+    if (month) {
+      const r = monthRange(month)
+      if (!r) return []
+      const snap = await db.collection(ARCHIVE).where('ts', '>=', r.start).where('ts', '<', r.end).orderBy('ts', 'desc').limit(MONTH_LIMIT).get()
+      return snap.docs.map((d) => docToItem(d.data() as ArchiveDoc))
     }
-
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 15000)
-
-    // 並列取得（軽量化＆安定性）
-    const fetchXML = async (url: string) => {
-      const ac = new AbortController()
-      const t = setTimeout(() => ac.abort(), 8000)
-      try {
-        const res = await fetch(url, {
-          cache: 'no-store',
-          signal: ac.signal,
-          headers: { 'User-Agent': 'Mozilla/5.0 (compatible; yaneyuka-newsbot/1.0; +https://yaneyuka.com/)', Accept: 'application/rss+xml, application/xml, text/xml, */*' },
-        })
-        if (!res.ok) return ''
-        return await res.text()
-      } catch { return '' } finally { clearTimeout(t) }
+    const status = (await db.collection(META).doc(STATUS_DOC).get()).data() as CollectStatus | undefined
+    if (!status || Date.now() - status.lastRun > STALE_MS) {
+      console.warn('[news] 収集が止まっているか未実行。その場で集めます', status?.lastRun ? new Date(status.lastRun).toISOString() : '')
+      return null
     }
-
-    const xmlList = await Promise.allSettled(sources.map(s => fetchXML(s.url)))
-    const results: NewsItem[] = []
-    xmlList.forEach((r, idx) => {
-      if (r.status === 'fulfilled' && r.value) {
-        const xml = r.value
-        const s = sources[idx]
-        const isAtom = /<entry[\s\S]*?<\/entry>/.test(xml)
-        results.push(...(isAtom ? parseAtom(xml, s, 3) : parseRss(xml, s, 3)))
-      }
-    })
-    // 閾値3で0件なら2→1→0
-    let list = results
-    if (list.length === 0) {
-      xmlList.forEach((r, idx) => {
-        if (r.status === 'fulfilled' && r.value) {
-          const xml = r.value
-          const s = sources[idx]
-          const isAtom = /<entry[\s\S]*?<\/entry>/.test(xml)
-          results.push(...(isAtom ? parseAtom(xml, s, 2) : parseRss(xml, s, 2)))
-        }
-      })
-      list = results
-    }
-    if (list.length === 0) {
-      xmlList.forEach((r, idx) => {
-        if (r.status === 'fulfilled' && r.value) {
-          const xml = r.value
-          const s = sources[idx]
-          const isAtom = /<entry[\s\S]*?<\/entry>/.test(xml)
-          results.push(...(isAtom ? parseAtom(xml, s, 1) : parseRss(xml, s, 1)))
-        }
-      })
-      list = results
-    }
-    if (list.length === 0) {
-      xmlList.forEach((r, idx) => {
-        if (r.status === 'fulfilled' && r.value) {
-          const xml = r.value
-          const s = sources[idx]
-          const isAtom = /<entry[\s\S]*?<\/entry>/.test(xml)
-          results.push(...(isAtom ? parseAtom(xml, s, 0) : parseRss(xml, s, 0)))
-        }
-      })
-      list = results
-    }
-    clearTimeout(timeout)
-
-    // sort & return
-    list.sort((a, b) => (new Date(b.pubDate || 0).getTime() - new Date(a.pubDate || 0).getTime()))
-    const seen = new Set<string>()
-    const perSource = new Map<string, number>()
-    list = list.filter((it) => {
-      if (seen.has(it.link)) return false
-      seen.add(it.link)
-      const n = (perSource.get(it.source) || 0) + 1
-      perSource.set(it.source, n)
-      return n <= PER_SOURCE_CAP
-    })
-    const trimmed = list.length > 0 ? list.slice(0, 40) : results.slice(0, 10)
-    // 写真の無い記事は記事ページの og:image を取りに行く。Google News 経由の記事は
-    // リンク先が Google のページで写真が取れないので行かない
-    await fillImages(trimmed, IMAGE_CACHE, { budgetMs: 3500, parallel: 12, skip: (link) => link.includes('news.google.com') })
-    CACHE = { items: trimmed, ts: Date.now() }
-    return NextResponse.json({ items: trimmed }, {
-      headers: {
-        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
-      },
-    });
+    // 1 配信元の上限をかけるので、多めに読んでから絞る
+    const snap = await db.collection(ARCHIVE).orderBy('ts', 'desc').limit(LIST_LIMIT * 3).get()
+    const items = snap.docs.map((d) => docToItem(d.data() as ArchiveDoc))
+    return items.length ? pickForList(items, LIST_LIMIT) : null
   } catch (e) {
-    if (CACHE) {
-      return NextResponse.json({ items: CACHE.items }, { 
-        status: 200,
-        headers: {
-          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
-        },
-      });
-    }
-    return NextResponse.json({ items: [] }, { 
-      status: 200,
-      headers: {
-        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
-      },
-    });
+    console.error('[news] 保管庫の読み出しに失敗。その場で集めます', e)
+    return null
+  }
+}
+
+/** 予備: その場で RSS を読む */
+async function live(month: string | null): Promise<NewsItem[]> {
+  const { items } = await collectNews()
+  if (month) {
+    const r = monthRange(month)
+    return r ? items.filter((it) => { const t = pubTime(it.pubDate); return t >= r.start && t < r.end }) : []
+  }
+  const list = pickForList(items, LIST_LIMIT)
+  // 写真の無い記事は記事ページの og:image を取りに行く(待つのは 3.5 秒まで。残りは裏で取り、次の集計で出る)。
+  // Google News 経由の記事はリンク先が Google のページで写真が取れないので行かない
+  await fillImages(list, IMAGE_CACHE, { budgetMs: 3500, parallel: 12, skip: (link) => link.includes('news.google.com') })
+  return list
+}
+
+export async function GET(req: NextRequest) {
+  const monthParam = req.nextUrl.searchParams.get('month')
+  const month = monthParam && /^\d{4}-\d{2}$/.test(monthParam) ? monthParam : null
+  const key = month || 'latest'
+  const hit = CACHE.get(key)
+  if (hit && Date.now() - hit.ts < CACHE_TTL_MS) {
+    return NextResponse.json({ items: hit.items, from: hit.from }, { headers: headers(300) })
+  }
+  try {
+    const stored = await fromArchive(month)
+    const from = stored ? 'archive' : 'live'
+    const items = stored ?? (await live(month))
+    CACHE.set(key, { items, ts: Date.now(), from })
+    return NextResponse.json({ items, from }, { headers: headers(300) })
+  } catch (e) {
+    console.error('[news] error', e)
+    if (hit) return NextResponse.json({ items: hit.items, from: hit.from }, { headers: headers(60) })
+    return NextResponse.json({ items: [] }, { headers: headers(60) })
   }
 }

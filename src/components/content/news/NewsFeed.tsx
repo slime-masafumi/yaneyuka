@@ -278,22 +278,30 @@ export default function NewsFeed({ onToggleBookmark, isBookmarked, selectedMonth
     return () => { canceled = true }
   }, [minScoreUsed])
 
+  // 月のタブ: 貯めてある記事(Firestore の news-archive)からその月の分を読む
+  const [monthItems, setMonthItems] = useState<Record<string, NewsItem[]>>({})
+  useEffect(() => {
+    if (selectedMonth === 'all' || monthItems[selectedMonth]) return
+    let canceled = false
+    fetch(`/api/news/?month=${selectedMonth}`)
+      .then((r) => (r.ok ? r.json() : { items: [] }))
+      .then((j) => { if (!canceled) setMonthItems((prev) => ({ ...prev, [selectedMonth]: (j.items || []) as NewsItem[] })) })
+      .catch(() => { if (!canceled) setMonthItems((prev) => ({ ...prev, [selectedMonth]: [] })) })
+    return () => { canceled = true }
+  }, [selectedMonth, monthItems])
+
   if (loading) {
     return <div className="text-[12px] text-gray-500">読み込み中...</div>
   }
 
+  const shown: NewsItem[] | undefined = selectedMonth === 'all' ? items.slice(0, 30) : monthItems[selectedMonth]
+  if (!shown) {
+    return <div className="text-[12px] text-gray-500">{selectedMonth} の記事を読み込み中...</div>
+  }
+
   return (
     <div className="yy-news">
-      {items
-        .filter(item => {
-          if (selectedMonth === 'all') return true
-          if (!item.pubDate) return false
-          const d = new Date(item.pubDate)
-          if (isNaN(d.getTime())) return false
-          const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-          return ym === selectedMonth
-        })
-        .slice(0, 30)
+      {shown
         .map((item, i) => {
         const bookmarked = isBookmarked ? isBookmarked(item.id) : false
         // 配信元ごとの色は、色の帯ではなく小さな点で示す（本文は組版の白のまま）
@@ -329,8 +337,8 @@ export default function NewsFeed({ onToggleBookmark, isBookmarked, selectedMonth
           </div>
         )
       })}
-      {items.length === 0 && (
-        <div className="text-[12px] text-gray-500">現在表示できるNEWSがありません。</div>
+      {shown.length === 0 && (
+        <div className="text-[12px] text-gray-500">{selectedMonth === 'all' ? '現在表示できるNEWSがありません。' : `${selectedMonth} の記事はまだありません(2026-11-14 から貯めています)。`}</div>
       )}
     </div>
   )

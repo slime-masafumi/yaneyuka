@@ -21,7 +21,7 @@ export type NewsSource = {
 const AEC = /建築|建設|土木|住宅|住まい|施工|ゼネコン|設計事務所|不動産|都市計画|再開発|BIM|耐震|木造|建材|インフラ/;
 
 export const NEWS_SOURCES: NewsSource[] = [
-  { url: 'https://www.mlit.go.jp/index.rdf', source: '国土交通省', kind: 'RSS' },
+  { url: 'https://www.mlit.go.jp/index.rdf', source: '国土交通省', kind: 'RSS', must: /建築|建設|住宅|都市|土地|不動産|公共工事|インフラ|道路|河川|下水道|技能|技術者|入札|空き家|まちづくり|耐震|省エネ/ },
   { url: 'https://www.kensetsunews.com/feed', source: '建設通信新聞', kind: 'RSS', trusted: true },
   { url: 'https://www.decn.co.jp/?feed=rss2', source: '建設工業新聞', kind: 'RSS', trusted: true },
   { url: 'https://www.housenews.jp/feed', source: 'ハウジング・トリビューン', kind: 'RSS', trusted: true },
