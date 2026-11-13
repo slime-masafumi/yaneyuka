@@ -2580,9 +2580,15 @@ nav {
 .yy-pic--lead { width: 200px; height: 125px; }
 .yy-pic--mini { width: 56px; height: 38px; }
 a:hover + .yy-pic img, .yy-pic:hover img { opacity: 0.85; }
-.yy-news__row { grid-template-columns: 28px 120px minmax(0, 1fr) 96px auto !important; }
-.yy-news__row.is-lead { grid-template-columns: 28px 120px minmax(0, 1fr) 200px auto !important; }
+/* NEWS の行: 番号 / 写真(左) / 配信元 · 日時 · 掲載サイト → 題 → 要約 / 保存 */
+.yy-news__row { grid-template-columns: 28px 96px minmax(0, 1fr) auto !important; align-items: start !important; }
+.yy-news__row.is-lead { grid-template-columns: 28px 200px minmax(0, 1fr) auto !important; }
+.yy-news__row .yy-news__no { line-height: 1.4; }
+.yy-news__piclink { display: block; align-self: start; }
 .yy-news__pic { align-self: start; }
+.yy-news__body .yy-news__src { flex-direction: row; align-items: baseline; gap: 10px; }
+.yy-news__host { font-family: var(--font-mono), monospace; font-size: 10.5px; color: var(--yy-t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.yy-news__host::before { content: '↗ '; color: #b9b9b4; }
 .yy-ev__row { grid-template-columns: 112px 56px minmax(0, 1fr) 190px 52px 28px; min-height: 46px; padding: 4px 0; }
 .yy-ev__row--head { min-height: 24px; padding: 0; }
 .yy-ev__row.is-past { min-height: 28px; }
@@ -2591,11 +2597,10 @@ a:hover + .yy-pic img, .yy-pic:hover img { opacity: 0.85; }
 .yy-home__newsbody { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .yy-home__events li .yy-pic { align-self: center; }
 @media (max-width: 767px) {
-  .yy-news__row, .yy-news__row.is-lead { grid-template-columns: 24px minmax(0, 1fr) 72px !important; }
-  .yy-news__src { grid-column: 2; grid-row: 1; }
-  .yy-news__row .yy-news__body { grid-column: 2; grid-row: 2; }
-  .yy-news__pic { grid-column: 3; grid-row: 1 / span 2; }
-  .yy-news__row .yy-news__bm { grid-column: 2; grid-row: 3; justify-self: start; }
+  .yy-news__row, .yy-news__row.is-lead { grid-template-columns: 22px 72px minmax(0, 1fr) !important; }
+  .yy-news__row .yy-news__bm { grid-column: 3; grid-row: 2; justify-self: start; }
+  .yy-news__body .yy-news__src { flex-wrap: wrap; gap: 2px 8px; }
+  .yy-news__host { display: none; }
   .yy-pic--row, .yy-pic--lead { width: 72px; height: 48px; }
   .yy-ev__row { grid-template-columns: 90px 56px minmax(0, 1fr) 28px; }
 }

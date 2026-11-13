@@ -15,6 +15,16 @@ export type NewsItem = {
   image?: string
 }
 
+// 元記事のサイト名(www. を外したホスト名)。Google ニュース経由は元のサイトが分からないので出さない
+const hostOf = (link: string) => {
+  try {
+    const h = new URL(link).hostname.replace(/^www./, '')
+    return h.endsWith('google.com') ? '' : h
+  } catch {
+    return ''
+  }
+}
+
 type NewsFeedProps = {
   onToggleBookmark?: (item: NewsItem) => void
   isBookmarked?: (id: string) => boolean
@@ -309,14 +319,20 @@ export default function NewsFeed({ onToggleBookmark, isBookmarked, selectedMonth
         return (
           <div key={`${item.source}-${item.id}`} className={`yy-news__row${i === 0 ? ' is-lead' : ''}`}>
             <span className="yy-news__no yy-serif">{String(i + 1).padStart(2, '0')}</span>
-            <span className="yy-news__src">
-              <span className="yy-news__srcname">
-                <span className={`yy-news__dot ${highlight.bg}`} aria-hidden="true" />
-                {item.source.replace(/[（(]検索[)）]$/, '')}
-              </span>
-              <span className="yy-news__time">{item.pubDate ? new Date(item.pubDate).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}</span>
-            </span>
+            {/* 写真は左。押すと元記事へ */}
+            <a href={item.link} target="_blank" rel="noopener noreferrer" className="yy-news__piclink" tabIndex={-1} aria-hidden="true">
+              <FeedPic src={item.image} size={i === 0 ? 'lead' : 'row'} className="yy-news__pic" />
+            </a>
             <div className="yy-news__body">
+              {/* 元記事の出どころ: 配信元 · 日時 · 掲載サイト */}
+              <span className="yy-news__src">
+                <span className="yy-news__srcname">
+                  <span className={`yy-news__dot ${highlight.bg}`} aria-hidden="true" />
+                  {item.source.replace(/[（(]検索[)）]$/, '')}
+                </span>
+                <span className="yy-news__time">{item.pubDate ? new Date(item.pubDate).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}</span>
+                {hostOf(item.link) && <span className="yy-news__host">{hostOf(item.link)}</span>}
+              </span>
               <a href={item.link} target="_blank" rel="noopener noreferrer" className="yy-news__title">
                 {item.title}
               </a>
@@ -324,7 +340,6 @@ export default function NewsFeed({ onToggleBookmark, isBookmarked, selectedMonth
                 <div className="yy-news__desc line-clamp-2" dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.description) }} />
               )}
             </div>
-            <FeedPic src={item.image} size={i === 0 ? 'lead' : 'row'} className="yy-news__pic" />
             <button
               type="button"
               onClick={() => onToggleBookmark && onToggleBookmark(item)}
