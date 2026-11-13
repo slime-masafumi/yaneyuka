@@ -1,7 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import SampleNotice from '@/components/SampleNotice';
+import React, { useState } from 'react';
+import PageHead, { Stat } from '../ui/PageHead';
+import { CountList, Photo, RequestPanel, SampleLine, Sec, countBy, regionOf } from './ConnectParts';
+import './connect-pages.css';
 
 interface OfficeItem {
   id: string;
@@ -22,31 +24,6 @@ interface DesignOfficesProps {
 const DesignOffices: React.FC<DesignOfficesProps> = ({ onNavigateToRegistration }) => {
   const [activeCategory, setActiveCategory] = useState<string>('isho');
   const [isTransitioning, setIsTransitioning] = useState<boolean>(false);
-  const [activeList, setActiveList] = useState<boolean[]>([]);
-
-  // カテゴリ切り替え時にactiveListをリセットし、左から順にactive化
-  useEffect(() => {
-    if (isTransitioning) return; // トランジション中はアニメーションを開始しない
-    
-    const items = getCurrentItems();
-    setActiveList(Array(items.length).fill(false));
-    
-    // 少し遅延させてからアニメーションを開始（トランジション完了後）
-    const timer = setTimeout(() => {
-      items.forEach((_, i) => {
-        setTimeout(() => {
-          setActiveList(prev => {
-            const copy = [...prev];
-            copy[i] = true;
-            return copy;
-          });
-        }, i * 80);
-      });
-    }, 50);
-    
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeCategory, isTransitioning]);
 
   // 設計事務所データの定義
   const officeData: Record<string, OfficeItem[]> = {
@@ -204,10 +181,8 @@ const DesignOffices: React.FC<DesignOfficesProps> = ({ onNavigateToRegistration 
 
   const displayOfficeSubType = (category: string) => {
     if (category === activeCategory) return; // 同じカテゴリーがクリックされた場合は何もしない
-    
+
     setIsTransitioning(true);
-    setActiveList([]); // activeListを即座にリセット
-    
     setTimeout(() => {
       setActiveCategory(category);
       setIsTransitioning(false);
@@ -216,14 +191,6 @@ const DesignOffices: React.FC<DesignOfficesProps> = ({ onNavigateToRegistration 
 
   const getCurrentItems = (): OfficeItem[] => {
     return officeData[activeCategory] || [];
-  };
-
-  const getButtonClass = (category: string) => {
-    const baseClass = "px-4 py-1 text-xs rounded focus:outline-none office-sub-button transition";
-    if (activeCategory === category) {
-      return `${baseClass} bg-gray-700 text-white`;
-    }
-    return `${baseClass} bg-gray-200 hover:bg-gray-700 hover:text-white`;
   };
 
   const getCategoryName = (category: string) => {
@@ -236,97 +203,116 @@ const DesignOffices: React.FC<DesignOfficesProps> = ({ onNavigateToRegistration 
     return names[category] || category;
   };
 
+  // ---- モック「高級感 3」:専門は下線タブ、事務所は 1 行の索引(写真は小さな四角)、右に地域ごとの件数と掲載希望 ----
+  const CATS = ['isho', 'kozo', 'setsubi', 'kankyo'];
+  const all = CATS.flatMap((c) => officeData[c] || []);
+  const regions = countBy(all, (x) => regionOf(x.location));
+  const items = getCurrentItems();
+  const sampleAlert = () => alert('こちらはサンプルになります。\n掲載希望の方は「掲載希望はコチラ」よりご連絡下さい。');
 
   return (
     <div>
-      <div className="mb-2 content-title-wrapper">
-        <h2 className="text-xl font-semibold inline">設計事務所</h2>
-        <a href="#" onClick={showContactForm} className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]">掲載希望はコチラ</a>
-      </div>
-      <p className="text-[12px] text-gray-600 mb-3">
-        意匠・構造・設備など専門分野ごとに設計事務所の事例と得意領域を整理しています。外部パートナーの探索や提携検討にご活用ください。
-      </p>
-      <div id="office-navigation" className="mb-4 flex gap-2">
-        <button 
-          className={getButtonClass('isho')}
-          onClick={() => displayOfficeSubType('isho')}
-          data-office-type="isho"
-        >
-          意匠設計
-        </button>
-        <button 
-          className={getButtonClass('kozo')}
-          onClick={() => displayOfficeSubType('kozo')}
-          data-office-type="kozo"
-        >
-          構造設計
-        </button>
-        <button 
-          className={getButtonClass('setsubi')}
-          onClick={() => displayOfficeSubType('setsubi')}
-          data-office-type="setsubi"
-        >
-          設備設計
-        </button>
-        <button 
-          className={getButtonClass('kankyo')}
-          onClick={() => displayOfficeSubType('kankyo')}
-          data-office-type="kankyo"
-        >
-          環境設計
-        </button>
-      </div>
-      <div 
-        id="design-office-content-area"
-        className={`transition-opacity duration-250 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}
-      >
-        <SampleNotice target="設計事務所" onRequest={onNavigateToRegistration} />
-        {getCurrentItems().length === 0 ? (
-          <p className="text-gray-700 text-xs">該当する設計事務所がありません。</p>
-        ) : (
-          <div className="grid gap-3 grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-            {getCurrentItems().map((item, idx) => (
-            <div 
-              key={item.id || idx}
-              className={`border rounded p-3 bg-white text-sm w-full h-[350px] shadow dynamic-card transition-all duration-500 flex flex-col justify-between ${
-                activeList[idx] ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
-              }`}
-            >
-            <img
-              src={item.image}
-              alt={item.name}
-              className="w-full h-32 object-contain bg-gray-50 rounded mb-2"
-              onError={e => {
-                const target = e.target as HTMLImageElement;
-                target.src = '/image/demo company.webp?v=1';
-              }}
-            />
-            <div className="font-bold text-sm mb-1">{item.name}</div>
-            <p className="text-xs text-gray-600 mb-2 line-clamp-2">{item.description}</p>
-            <div className="space-y-1 text-xs mb-2">
-              <div><span className="font-medium">専門:</span> {item.speciality}</div>
-              <div><span className="font-medium">所在地:</span> {item.location}</div>
-              <div><span className="font-medium">設立:</span> {item.established}</div>
-              <div><span className="font-medium">従業員:</span> {item.employees}</div>
-            </div>
-            <div className="flex justify-between items-center mt-auto">
-              <span className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-600">
-                {getCategoryName(item.category)}
-              </span>
-              <button
-                className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 transition"
-                onClick={() => alert('こちらはサンプルになります。\n掲載希望の方は「掲載希望はコチラ」よりご連絡下さい。')}
-              >
-                詳細
-              </button>
-            </div>
-          </div>
+      <PageHead
+        no="21"
+        en="design offices"
+        title="設計事務所"
+        desc="意匠・構造・設備など専門分野ごとの設計事務所"
+        right={
+          <>
+            <Stat n={all.length} label="事務所" />
+            <Stat n={CATS.length} label="分野" />
+            <Stat n={regions.length} label="地域" />
+            <a href="#" onClick={showContactForm} className="yy-stat" style={{ textDecoration: 'none' }}>
+              掲載希望はコチラ ↗
+            </a>
+          </>
+        }
+      />
+
+      <div id="office-navigation" className="yy-tabs">
+        {CATS.map((c) => (
+          <button
+            key={c}
+            type="button"
+            className="yy-tab"
+            aria-pressed={activeCategory === c}
+            onClick={() => displayOfficeSubType(c)}
+            data-office-type={c}
+          >
+            {getCategoryName(c)}
+            <small>{(officeData[c] || []).length}</small>
+          </button>
         ))}
+      </div>
+
+      <div className="yy-newspage">
+        <div id="design-office-content-area" className={`yy-newspage__main yy-cn-fade${isTransitioning ? ' is-out' : ''}`}>
+          <section className="yy-cn-list">
+            <Sec no="I" title={getCategoryName(activeCategory)} right={`${items.length} 事務所`} />
+            <SampleLine target="設計事務所" onRequest={onNavigateToRegistration} />
+            {items.length === 0 ? (
+              <p className="yy-home__empty">該当する設計事務所がありません。</p>
+            ) : (
+              <>
+                <div className="yy-of-row yy-of-row--head">
+                  <span />
+                  <span />
+                  <span>事務所名 · 紹介</span>
+                  <span className="yy-of-spec">得意領域</span>
+                  <span>所在地</span>
+                  <span className="yy-of-est yy-cn-r">設立</span>
+                  <span className="yy-of-emp yy-cn-r">従業員</span>
+                  <span />
+                </div>
+                {items.map((item, idx) => (
+                  <div key={item.id || idx} className="yy-of-row">
+                    <span className="yy-cn-no">{String(idx + 1).padStart(2, '0')}</span>
+                    <Photo src={item.image} alt={item.name} fallback="/image/demo company.webp?v=1" />
+                    <span className="yy-cn-body">
+                      <span className="yy-cn-title is-serif" title={item.name}>{item.name}</span>
+                      <span className="yy-cn-sub" title={item.description}>{item.description}</span>
+                    </span>
+                    <span className="yy-cn-cell yy-of-spec" title={`専門: ${item.speciality}`}>{item.speciality}</span>
+                    <span className="yy-cn-cell" title={`所在地: ${item.location}`}>{item.location}</span>
+                    <span className="yy-cn-num yy-of-est">{item.established.replace('年', '')}</span>
+                    <span className="yy-cn-num yy-of-emp">
+                      {item.employees.replace('名', '')}
+                      <small>名</small>
+                    </span>
+                    <button type="button" className="yy-linkbtn yy-cn-act" onClick={sampleAlert}>
+                      詳細
+                    </button>
+                  </div>
+                ))}
+              </>
+            )}
+          </section>
         </div>
-        )}
+        <aside className="yy-newspage__side">
+          <section>
+            <Sec no="II" title="地域ごとの件数" right="全分野" />
+            <CountList rows={regions.map(([k, n]) => ({ key: k, label: k, n }))} />
+          </section>
+          <section>
+            <Sec no="III" title="分野" right="件数" />
+            <CountList
+              rows={CATS.map((c) => ({ key: c, label: getCategoryName(c), n: (officeData[c] || []).length }))}
+              active={activeCategory}
+              onPick={displayOfficeSubType}
+            />
+          </section>
+          <section>
+            <Sec no="IV" title="掲載希望" />
+            <RequestPanel
+              what="設計事務所"
+              text="外部パートナーの探索や提携検討に使われる一覧です。得意領域・所在地・実績を掲載できます。"
+              onRequest={onNavigateToRegistration}
+            />
+          </section>
+        </aside>
       </div>
     </div>
   );
 };
 
-export default DesignOffices; 
+export default DesignOffices;

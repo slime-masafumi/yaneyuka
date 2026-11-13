@@ -1,0 +1,115 @@
+/* ─────────── 「03 つながる」の 5 画面(モック「高級感 3」) ───────────
+   Projects.tsx(.yy-pj-) / Competitions.tsx(.yy-cp-) / ConstructionCompanies.tsx(.yy-co-)
+   DesignOffices.tsx(.yy-of-) / JobInfo.tsx(.yy-jb-)。共有の部品は ConnectParts.tsx(.yy-cn-)。
+   一覧は本の索引のような 1 行(番号 / 名前 / 補足 / 地域 / 明朝の数字 / 詳細)。区切りは 1px の線だけ。 */
+
+/* 一覧の箱:幅で列を落とす(本文の幅は左カラム・広告列の有無で変わるので container query) */
+.yy-cn-list { container-type: inline-size; min-width: 0; }
+.yy-cn-fade { transition: opacity 250ms ease; }
+.yy-cn-fade.is-out { opacity: 0; }
+
+/* 架空のサンプルである旨(色帯にしない) */
+.yy-cn-sample { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 0 0 6px; font-size: 11px; line-height: 1.6; color: var(--yy-t2); }
+.yy-cn-sample strong { font-weight: 700; color: var(--yy-ink); }
+.yy-cn-sample .yy-linkbtn { margin-left: auto; font-size: 11px; }
+
+/* 行の共通セル */
+.yy-cn-no { font-family: var(--yy-serif); font-size: 13px; color: var(--yy-t3); font-variant-numeric: lining-nums tabular-nums; }
+.yy-cn-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding-right: 10px; }
+.yy-cn-title { min-width: 0; font-size: 13px; color: var(--yy-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.yy-cn-title.is-serif { font-family: var(--yy-serif); font-size: 14.5px; font-weight: 500; }
+.yy-cn-sub { min-width: 0; font-size: 11px; color: var(--yy-t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.yy-cn-cell { min-width: 0; padding-right: 8px; font-size: 11.5px; color: var(--yy-t2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.yy-cn-num { min-width: 0; padding-right: 8px; font-family: var(--yy-serif); font-size: 14px; font-weight: 500; color: var(--yy-ink); font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; text-align: right; }
+.yy-cn-num small { margin-left: 2px; font-family: var(--font-sans, inherit); font-size: 10.5px; font-weight: 400; color: var(--yy-t3); }
+.yy-linkbtn.yy-cn-act { justify-self: end; font-size: 11.5px; white-space: nowrap; }
+.yy-linkbtn.yy-cn-act:hover { color: var(--yy-ink); }
+.yy-cn-photo--m { width: 64px; height: 44px; }
+
+/* 見出し行 */
+.yy-pj-row--head, .yy-cp-row--head, .yy-co-row--head, .yy-of-row--head, .yy-jb-row--head {
+  min-height: 26px !important;
+  font-size: 11px;
+  color: var(--yy-t3);
+}
+.yy-pj-row--head > span, .yy-cp-row--head > span, .yy-co-row--head > span, .yy-of-row--head > span, .yy-jb-row--head > span { white-space: nowrap; }
+.yy-cn-r { text-align: right; padding-right: 8px; }
+
+/* 右列の索引(押せる行は選択中を緑に) */
+.yy-cn-count .yy-srcrow--btn.is-on .yy-home__toct { color: var(--yy-acc-ink); }
+.yy-cn-count .yy-home__toct { max-width: 190px; }
+
+/* 右列:締切が近いもの / 新しい掲載 */
+.yy-cn-due { margin: 0; padding: 0; list-style: none; }
+.yy-cn-due li { display: flex; align-items: baseline; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--yy-line); }
+.yy-cn-due__d { flex: 0 0 auto; width: 44px; font-family: var(--yy-serif); font-size: 15px; font-weight: 500; color: var(--yy-acc-ink); font-variant-numeric: lining-nums tabular-nums; }
+.yy-cn-due li.is-past .yy-cn-due__d { color: var(--yy-t3); }
+.yy-cn-due__b { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.yy-cn-due__t { font-size: 12px; color: var(--yy-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.yy-cn-due li.is-past .yy-cn-due__t { color: var(--yy-t2); }
+.yy-cn-due__s { font-size: 10.5px; color: var(--yy-t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* 公共工事(PublicWorksList)は中身をそのまま、上に章の頭だけ置く */
+.yy-pj-public { min-width: 0; }
+
+/* ─── プロジェクト:番号 / 写真 / 件名・概要 / 場所 / 予算 / 状況 / 詳細 ─── */
+.yy-pj-row {
+  display: grid;
+  grid-template-columns: 24px 52px minmax(0, 1fr) 104px 74px 76px 34px;
+  align-items: center;
+  min-height: 52px;
+  border-bottom: 1px solid var(--yy-line);
+}
+@container (max-width: 640px) {
+  .yy-pj-row { grid-template-columns: 24px 52px minmax(0, 1fr) 70px 34px; }
+  .yy-pj-loc, .yy-pj-st { display: none !important; }
+}
+
+/* ─── コンペ:番号 / 写真 / 名称・概要 / 主催 / 募集期間 / 締切まで / 詳細 ─── */
+.yy-cp-row {
+  display: grid;
+  grid-template-columns: 24px 52px minmax(0, 1fr) 124px 112px 64px 34px;
+  align-items: center;
+  min-height: 52px;
+  border-bottom: 1px solid var(--yy-line);
+}
+.yy-cp-left { font-size: 11px; white-space: nowrap; color: var(--yy-acc-ink); }
+.yy-cp-left.is-past { color: var(--yy-t3); }
+@container (max-width: 640px) {
+  .yy-cp-row { grid-template-columns: 24px 52px minmax(0, 1fr) 64px 34px; }
+  .yy-cp-org, .yy-cp-term { display: none !important; }
+}
+
+/* ─── 施工会社・設計事務所:番号 / 写真 / 社名・紹介 / 専門 / 所在地 / 設立 / 従業員 / 詳細 ─── */
+.yy-co-row, .yy-of-row {
+  display: grid;
+  grid-template-columns: 24px 52px minmax(0, 1.2fr) minmax(0, 1fr) 104px 52px 56px 34px;
+  align-items: center;
+  min-height: 52px;
+  border-bottom: 1px solid var(--yy-line);
+}
+@container (max-width: 680px) {
+  .yy-co-row, .yy-of-row { grid-template-columns: 24px 52px minmax(0, 1fr) 96px 34px; }
+  .yy-co-spec, .yy-co-est, .yy-co-emp, .yy-of-spec, .yy-of-est, .yy-of-emp { display: none !important; }
+}
+
+/* ─── 求人:掲載日 / 職種・会社・要件 / 勤務地 / 給与・雇用 / 応募 ─── */
+.yy-jb-row {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr) 104px 156px 48px;
+  align-items: center;
+  min-height: 62px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--yy-line);
+}
+.yy-jb-date { font-family: var(--yy-serif); font-size: 15px; font-weight: 500; color: var(--yy-ink); font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
+.yy-jb-date small { display: block; font-size: 10.5px; font-weight: 400; color: var(--yy-t3); }
+.yy-jb-pay { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding-right: 8px; }
+.yy-jb-pay b { font-weight: 400; font-size: 12px; color: var(--yy-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.yy-jb-pay span { font-size: 10.5px; color: var(--yy-t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.yy-jb-req { color: var(--yy-t2); }
+.yy-jb-req i { font-style: normal; color: var(--yy-t3); margin-right: 4px; }
+@container (max-width: 620px) {
+  .yy-jb-row { grid-template-columns: 50px minmax(0, 1fr) 48px; }
+  .yy-jb-loc, .yy-jb-pay { display: none !important; }
+}

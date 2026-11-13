@@ -1,7 +1,9 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import SampleNotice from '@/components/SampleNotice';
+import React, { useState } from 'react';
+import PageHead, { Stat } from '../ui/PageHead';
+import { CountList, Photo, RequestPanel, SampleLine, Sec, countBy, regionOf } from './ConnectParts';
+import './connect-pages.css';
 
 interface ConstructionCompaniesProps {
   onNavigateToRegistration?: () => void;
@@ -23,15 +25,6 @@ interface CompanyItem {
 
 const ConstructionCompanies: React.FC<ConstructionCompaniesProps> = ({ onNavigateToRegistration }) => {
   const [activeCategory, setActiveCategory] = useState<CompanyCategory>('building');
-  const [activeList, setActiveList] = useState<boolean[]>([]);
-
-  const showContactForm = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (onNavigateToRegistration) {
-      onNavigateToRegistration();
-    }
-  };
 
   const data: Record<CompanyCategory, CompanyItem[]> = {
     building: [
@@ -61,11 +54,6 @@ const ConstructionCompanies: React.FC<ConstructionCompaniesProps> = ({ onNavigat
     ],
   };
 
-  const getButtonClass = (category: CompanyCategory) => {
-    const base = 'px-4 py-1 text-xs rounded focus:outline-none company-sub-button transition w-28';
-    return activeCategory === category ? `${base} bg-gray-700 text-white` : `${base} bg-gray-200 hover:bg-gray-700 hover:text-white`;
-  };
-
   const getCategoryName = (category: CompanyCategory) => {
     const map: Record<CompanyCategory, string> = {
       building: '建築一式',
@@ -77,73 +65,100 @@ const ConstructionCompanies: React.FC<ConstructionCompaniesProps> = ({ onNavigat
     return map[category];
   };
 
-  // カテゴリ切り替え時にactiveListをリセットし、左から順にactive化
-  useEffect(() => {
-    const items = data[activeCategory] || [];
-    setActiveList(Array(items.length).fill(false));
-    
-    items.forEach((_, i) => {
-      setTimeout(() => {
-        setActiveList(prev => {
-          const copy = [...prev];
-          copy[i] = true;
-          return copy;
-        });
-      }, i * 80);
-    });
-  }, [activeCategory]);
+  // ---- モック「高級感 3」:分類は下線タブ、会社は 1 行の索引(写真は小さな四角)、右に地域ごとの件数と掲載希望 ----
+  const CATS: CompanyCategory[] = ['building', 'civil', 'equipment', 'interior', 'exterior'];
+  const all = CATS.flatMap((c) => data[c] || []);
+  const regions = countBy(all, (x) => regionOf(x.location));
+  const items = data[activeCategory] || [];
+  const sampleAlert = () => alert('こちらはサンプルになります。\n掲載希望の方は「掲載希望はコチラ」よりご連絡下さい。');
 
   return (
     <div>
-      <div className="mb-2 content-title-wrapper">
-        <h2 className="text-xl font-semibold inline">施工会社</h2>
-        <a href="/register" className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]">掲載希望はコチラ</a>
-      </div>
-      <p className="text-[12px] text-gray-600 mb-3">
-        建築・土木・設備など各専門分野の施工会社をピックアップしています。協力会社の検討や見積依頼先リスト作成にお役立てください。
-      </p>
+      <PageHead
+        no="20"
+        en="contractors"
+        title="施工会社"
+        desc="建築・土木・設備など各専門分野の施工会社"
+        right={
+          <>
+            <Stat n={all.length} label="社" />
+            <Stat n={CATS.length} label="分類" />
+            <Stat n={regions.length} label="地域" />
+            <a href="/register" className="yy-stat" style={{ textDecoration: 'none' }}>
+              掲載希望はコチラ ↗
+            </a>
+          </>
+        }
+      />
 
-      <div className="mb-4 flex gap-2">
-        <button className={getButtonClass('building')} onClick={() => setActiveCategory('building')}>建築一式</button>
-        <button className={getButtonClass('civil')} onClick={() => setActiveCategory('civil')}>土木工事</button>
-        <button className={getButtonClass('equipment')} onClick={() => setActiveCategory('equipment')}>設備工事</button>
-        <button className={getButtonClass('interior')} onClick={() => setActiveCategory('interior')}>内装仕上</button>
-        <button className={getButtonClass('exterior')} onClick={() => setActiveCategory('exterior')}>外構工事</button>
-      </div>
-
-      <SampleNotice target="施工会社" onRequest={onNavigateToRegistration} />
-
-      <div className="grid gap-3 grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-        {(data[activeCategory] || []).map((item, index) => (
-          <div 
-            key={item.id} 
-            className={`border rounded p-3 bg-white text-sm w-full h-[350px] shadow dynamic-card transition-all duration-500 flex flex-col justify-between ${
-              activeList[index] ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
-            }`}
-          >
-            <img
-              src={item.image}
-              alt={item.name}
-              className="w-full h-32 object-contain bg-gray-50 rounded mb-2"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.src = '/image/demo company.webp?v=1';
-              }}
-            />
-            <div className="font-bold text-sm mb-1">{item.name}</div>
-            <p className="text-xs text-gray-600 mb-2 line-clamp-2">{item.description}</p>
-            <div className="space-y-1 text-xs mb-2">
-              <div><span className="font-medium">専門:</span> {item.speciality}</div>
-              <div><span className="font-medium">所在地:</span> {item.location}</div>
-              <div><span className="font-medium">設立:</span> {item.established}</div>
-              <div><span className="font-medium">従業員:</span> {item.employees}</div>
-            </div>
-            <div className="flex justify-between items-center mt-auto">
-              <span className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-600">{getCategoryName(item.category)}</span>
-              <button className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 transition" onClick={() => alert('こちらはサンプルになります。\n掲載希望の方は「掲載希望はコチラ」よりご連絡下さい。')}>詳細</button>
-            </div>
-          </div>
+      <div className="yy-tabs">
+        {CATS.map((c) => (
+          <button key={c} type="button" className="yy-tab" aria-pressed={activeCategory === c} onClick={() => setActiveCategory(c)}>
+            {getCategoryName(c)}
+            <small>{(data[c] || []).length}</small>
+          </button>
         ))}
+      </div>
+
+      <div className="yy-newspage">
+        <div className="yy-newspage__main">
+          <section className="yy-cn-list">
+            <Sec no="I" title={getCategoryName(activeCategory)} right={`${items.length} 社`} />
+            <SampleLine target="施工会社" onRequest={onNavigateToRegistration} />
+            <div className="yy-co-row yy-co-row--head">
+              <span />
+              <span />
+              <span>社名 · 紹介</span>
+              <span className="yy-co-spec">専門</span>
+              <span>所在地</span>
+              <span className="yy-co-est yy-cn-r">設立</span>
+              <span className="yy-co-emp yy-cn-r">従業員</span>
+              <span />
+            </div>
+            {items.map((item, index) => (
+              <div key={item.id} className="yy-co-row">
+                <span className="yy-cn-no">{String(index + 1).padStart(2, '0')}</span>
+                <Photo src={item.image} alt={item.name} fallback="/image/demo company.webp?v=1" />
+                <span className="yy-cn-body">
+                  <span className="yy-cn-title is-serif" title={item.name}>{item.name}</span>
+                  <span className="yy-cn-sub" title={item.description}>{item.description}</span>
+                </span>
+                <span className="yy-cn-cell yy-co-spec" title={`専門: ${item.speciality}`}>{item.speciality}</span>
+                <span className="yy-cn-cell" title={`所在地: ${item.location}`}>{item.location}</span>
+                <span className="yy-cn-num yy-co-est">{item.established.replace('年', '')}</span>
+                <span className="yy-cn-num yy-co-emp">
+                  {item.employees.replace('名', '')}
+                  <small>名</small>
+                </span>
+                <button type="button" className="yy-linkbtn yy-cn-act" onClick={sampleAlert}>
+                  詳細
+                </button>
+              </div>
+            ))}
+          </section>
+        </div>
+        <aside className="yy-newspage__side">
+          <section>
+            <Sec no="II" title="地域ごとの件数" right="全分類" />
+            <CountList rows={regions.map(([k, n]) => ({ key: k, label: k, n }))} />
+          </section>
+          <section>
+            <Sec no="III" title="分類" right="件数" />
+            <CountList
+              rows={CATS.map((c) => ({ key: c, label: getCategoryName(c), n: (data[c] || []).length }))}
+              active={activeCategory}
+              onPick={(k) => setActiveCategory(k as CompanyCategory)}
+            />
+          </section>
+          <section>
+            <Sec no="IV" title="掲載希望" />
+            <RequestPanel
+              what="施工会社"
+              text="協力会社の検討や見積依頼先リスト作成に使われる一覧です。専門・所在地・実績を掲載できます。"
+              onRequest={onNavigateToRegistration}
+            />
+          </section>
+        </aside>
       </div>
     </div>
   );

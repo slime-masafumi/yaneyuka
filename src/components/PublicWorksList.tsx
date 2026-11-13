@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { collection, query, orderBy, getDocs, where, limit, startAfter, QueryDocumentSnapshot, DocumentData, getCountFromServer } from 'firebase/firestore'
 import { db } from '@/lib/firebaseClient'
+import './public-works.css'
 import { Building2, Calendar, ExternalLink, MapPin } from 'lucide-react'
 
 interface PublicWork {
@@ -477,7 +478,7 @@ export default function PublicWorksList() {
   }
 
   return (
-    <div>
+    <div className="yy-pw">
       {/* インデックスエラーの警告 */}
       {indexError && (
         <div className="mb-4 p-3 bg-yellow-100 border border-yellow-400 rounded text-sm">
@@ -491,61 +492,31 @@ export default function PublicWorksList() {
         </div>
       )}
       
-      {/* フィルターコントロールバー */}
-      <div className="mb-6 bg-white p-5 rounded-xl shadow-sm border border-gray-200">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          {/* 上段（または左側）: エリア選択と件数表示 */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 flex-1">
-            {/* エリアフィルター（モーダル形式） */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs font-bold">エリア</span>
-              <span className="text-sm text-slate-800 font-medium">{getSelectedAreasText()}</span>
-              <button
-                onClick={() => setIsAreaModalOpen(true)}
-                className="text-xs bg-white border border-slate-300 hover:bg-slate-50 text-slate-600 px-3 py-1 rounded-full transition-colors"
-              >
-                エリア変更
-              </button>
-              {selectedAreas.size > 10 && (
-                <span className="text-xs text-orange-600">
-                  （10個を超える選択はクライアントサイドでフィルタリングされます）
-                </span>
-              )}
-            </div>
-            
-            {/* 総件数表示 */}
-            <div className="text-xs text-slate-500">
-              {loadingCount ? '集計中...' : totalCount !== null ? `${totalCount.toLocaleString()}件中 ${works.length.toLocaleString()}件` : `${works.length.toLocaleString()}件`}
-            </div>
-          </div>
-          
-          {/* 下段（または右側）: 工事内容と並び順 */}
-          <div className="flex items-center gap-3">
-            {/* 工事内容フィルター */}
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm cursor-pointer"
-            >
-              <option value="all">全カテゴリ</option>
-              {WORK_CATEGORIES.map(category => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
-            
-            {/* 並び順 */}
-            <select
-              value={sortOrder}
-              onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')}
-              className="bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm cursor-pointer"
-            >
-              <option value="newest">新しい順</option>
-              <option value="oldest">古い順</option>
-            </select>
-          </div>
-        </div>
+      {/* フィルター(高級感 3:箱をやめ、罫線 1 本の行に) */}
+      <div className="yy-pw__bar">
+        <span className="yy-label">area</span>
+        <span className="yy-pw__areas">{getSelectedAreasText()}</span>
+        <button type="button" className="yy-linkbtn" onClick={() => setIsAreaModalOpen(true)}>
+          エリア変更
+        </button>
+        {selectedAreas.size > 10 && <span className="yy-pw__note">(10 個を超える選択は画面側で絞り込みます)</span>}
+        <span className="yy-pw__count">
+          {loadingCount ? '集計中…' : totalCount !== null ? `${totalCount.toLocaleString()} 件中 ${works.length.toLocaleString()} 件` : `${works.length.toLocaleString()} 件`}
+        </span>
+        <span className="yy-pw__sel">
+          <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} aria-label="工事内容">
+            <option value="all">全カテゴリ</option>
+            {WORK_CATEGORIES.map((category) => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
+          </select>
+          <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')} aria-label="並び順">
+            <option value="newest">新しい順</option>
+            <option value="oldest">古い順</option>
+          </select>
+        </span>
       </div>
 
         {/* エリア選択モーダル */}
@@ -612,79 +583,39 @@ export default function PublicWorksList() {
           </div>
         )}
 
-      {/* カード式グリッドレイアウト */}
+      {/* 一覧(高級感 3:カードをやめ、番号 / 分類 / 件名 / 発注者 / 地域 / 公告日 の行に) */}
       {works.length === 0 ? (
-        <p className="text-gray-500 text-xs">データがありません</p>
+        <p className="yy-home__empty">データがありません</p>
       ) : (
         <>
-          {/* グリッド設定を元のコード（最大5列）に戻しました */}
-          <div className="grid gap-3 grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-            {works.map((work, index) => {
-              const isNew = isNewArrival(work.date)
-              const category = getWorkCategory(work)
-              // デフォルトスタイル
-              const categoryStyle = CATEGORY_STYLES[category] || 'bg-gray-50 text-gray-600 border-gray-100'
-
-              return (
-              <a
-                key={work.id}
-                href={work.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`
-                  group relative bg-white rounded border border-gray-200 
-                  p-3 flex flex-col justify-between
-                  shadow-sm transition-all duration-300
-                  hover:shadow-xl hover:-translate-y-1 hover:border-blue-400
-                  ${activeList[index] ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'}
-                `}
-                style={{ minHeight: '160px' }} 
-              >
-                <div>
-                  {/* ヘッダー: カテゴリとエリア */}
-                  <div className="flex justify-between items-start mb-2">
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded border ${categoryStyle}`}>
-                      {category}
-                    </span>
-                    <div className="flex items-center gap-1">
-                      {isNew && (
-                        <span className="text-[10px] font-bold text-red-500 border border-red-200 px-1 rounded bg-red-50">
-                          NEW
-                        </span>
-                      )}
-                      <span className="text-[10px] text-gray-500 flex items-center gap-0.5">
-                        <MapPin size={10} />
-                        {work.area}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* タイトル: 13px, text-gray-600 */}
-                  <h3 className="font-semibold text-[13px] leading-relaxed text-gray-600 group-hover:text-blue-600 transition-colors mb-2 line-clamp-3">
-                    {work.title}
-                  </h3>
-                </div>
-
-                {/* フッター情報 */}
-                <div className="pt-2 mt-2 border-t border-gray-50">
-                  <div className="space-y-1">
-                    <div className="flex items-start gap-1.5 text-[10px] text-gray-500">
-                      <Building2 size={12} className="text-gray-400 mt-0.5 flex-shrink-0" />
-                      <span className="line-clamp-1">{work.organization || '---'}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-[10px] text-gray-400">
-                      <div className="flex items-center gap-1.5">
-                        <Calendar size={12} />
-                        <span>{formatDate(work.date)}</span>
-                      </div>
-                      <ExternalLink size={12} className="opacity-0 group-hover:opacity-100 text-blue-400 transition-opacity" />
-                    </div>
-                  </div>
-                </div>
-              </a>
-              );
-            })}
+          <div className="yy-pw__row yy-pw__row--head">
+            <span />
+            <span>分類</span>
+            <span>件名 · 発注者</span>
+            <span>地域</span>
+            <span>公告日</span>
+            <span />
           </div>
+          {works.map((work, index) => {
+            const isNew = isNewArrival(work.date)
+            const category = getWorkCategory(work)
+            return (
+              <a key={work.id} href={work.link} target="_blank" rel="noopener noreferrer" className="yy-pw__row">
+                <span className="yy-pw__no">{String(index + 1).padStart(2, '0')}</span>
+                <span className="yy-fmt yy-pw__cat">{category}</span>
+                <span className="yy-pw__body">
+                  <span className="yy-pw__title" title={work.title}>
+                    {isNew && <i className="yy-dot" aria-label="新着" />}
+                    {work.title}
+                  </span>
+                  <span className="yy-pw__org">{work.organization || '---'}</span>
+                </span>
+                <span className="yy-pw__area">{work.area}</span>
+                <span className="yy-pw__date">{formatDate(work.date)}</span>
+                <span className="yy-pw__ext" aria-hidden="true">↗</span>
+              </a>
+            )
+          })}
 
           {/* もっと見るボタン */}
           {hasMore && totalCount !== null && works.length < totalCount && (
@@ -692,7 +623,7 @@ export default function PublicWorksList() {
               <button
                 onClick={loadMore}
                 disabled={loadingMore}
-                className="px-4 py-1.5 bg-white border border-gray-300 text-gray-600 text-xs rounded hover:bg-gray-50 hover:text-gray-800 disabled:opacity-50"
+                className="yy-btn"
               >
                 {loadingMore ? '読み込み中...' : 'もっと見る'}
               </button>

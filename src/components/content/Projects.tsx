@@ -1,7 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import PublicWorksList from '../PublicWorksList';
+import PageHead, { Stat } from '../ui/PageHead';
+import { CountList, Photo, RequestPanel, Sec, countBy, regionOf } from './ConnectParts';
+import './connect-pages.css';
 
 interface ProjectItem {
   id: string;
@@ -23,7 +26,6 @@ interface ProjectsProps {
 const Projects: React.FC<ProjectsProps> = ({ onNavigateToRegistration, initialCategory = 'public' }) => {
   const [activeCategory, setActiveCategory] = useState<string>(initialCategory);
   const [isTransitioning, setIsTransitioning] = useState<boolean>(false);
-  const [activeList, setActiveList] = useState<boolean[]>([]);
 
   // プロジェクトデータの定義
   const projectData: Record<string, ProjectItem[]> = {
@@ -180,9 +182,8 @@ const Projects: React.FC<ProjectsProps> = ({ onNavigateToRegistration, initialCa
   };
 
   const displayProjectCategory = (category: string) => {
+    if (category === activeCategory) return;
     setIsTransitioning(true);
-    setActiveList([]); // activeListを即座にリセット
-    
     setTimeout(() => {
       setActiveCategory(category);
       setIsTransitioning(false);
@@ -193,158 +194,144 @@ const Projects: React.FC<ProjectsProps> = ({ onNavigateToRegistration, initialCa
     return projectData[activeCategory] || [];
   };
 
-  // カテゴリ切り替え時にactiveListをリセットし、左から順にactive化
-  useEffect(() => {
-    if (isTransitioning) return; // トランジション中はアニメーションを開始しない
-    
-    const items = getCurrentItems();
-    setActiveList(Array(items.length).fill(false));
-    
-    // 少し遅延させてからアニメーションを開始（トランジション完了後）
-    const timer = setTimeout(() => {
-      items.forEach((_, i) => {
-        setTimeout(() => {
-          setActiveList(prev => {
-            const copy = [...prev];
-            copy[i] = true;
-            return copy;
-          });
-        }, i * 80);
-      });
-    }, 50);
-    
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeCategory, isTransitioning]);
-
-  const getButtonClass = (category: string) => {
-    const baseClass = "text-xs px-2 py-1 rounded transition";
-    const widthClass = category === 'partner' ? 'w-28' : 'w-24';
-    if (activeCategory === category) {
-      return `${baseClass} ${widthClass} bg-gray-700 text-white`;
-    }
-    return `${baseClass} ${widthClass} bg-gray-300 text-black hover:bg-gray-700 hover:text-white`;
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case '施工中':
-      case '実施中':
-        return 'text-green-600 bg-green-100';
-      case '募集中':
-        return 'text-blue-600 bg-blue-100';
-      case '設計段階':
-      case '計画中':
-      case '準備中':
-        return 'text-yellow-600 bg-yellow-100';
-      case '入札準備中':
-        return 'text-purple-600 bg-purple-100';
-      default:
-        return 'text-gray-600 bg-gray-100';
-    }
-  };
+  // ---- モック「高級感 3」:分類は下線タブ、一覧は 1 行の索引、右に分類・地域の件数と掲載希望 ----
+  const TABS: { key: string; label: string }[] = [
+    { key: 'public', label: '公共工事' },
+    { key: 'private', label: '民間工事' },
+    { key: 'partner', label: 'パートナー募集' },
+    { key: 'survey', label: '現地調査' },
+  ];
+  // 公共工事のタブは入札情報(PublicWorksList)を出すので、件数は他の 3 分類だけ数える
+  const listed = TABS.filter((t) => t.key !== 'public').flatMap((t) => projectData[t.key] || []);
+  const regions = countBy(listed, (x) => regionOf(x.location));
+  const isActive = (st: string) => ['施工中', '実施中', '募集中'].includes(st);
+  const current = TABS.find((t) => t.key === activeCategory);
 
   const renderContent = () => {
     // 公共工事タブの場合はPublicWorksListを表示
     if (activeCategory === 'public') {
-      return <PublicWorksList />;
+      return (
+        <section className="yy-pj-public">
+          <Sec no="I" title="公共工事 · 入札情報" right="各発注機関の公告から" />
+          <PublicWorksList />
+        </section>
+      );
     }
-    
+
     const items = getCurrentItems();
-    
+
     if (items.length === 0) {
-      return <p className="text-gray-700 text-xs">上のボタンを選択してプロジェクトを表示してください。</p>;
+      return <p className="yy-home__empty">上のタブを選択してプロジェクトを表示してください。</p>;
     }
 
     return (
-      <div className="grid gap-3 grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+      <section className="yy-cn-list">
+        <Sec no="I" title={current?.label} right={`${items.length} 件`} />
+        <div className="yy-pj-row yy-pj-row--head">
+          <span />
+          <span />
+          <span>件名 · 概要 · 期間</span>
+          <span className="yy-pj-loc">場所</span>
+          <span className="yy-cn-r">予算</span>
+          <span className="yy-pj-st">状況</span>
+          <span />
+        </div>
         {items.map((item, index) => (
-          <div 
-            key={item.id}
-            className={`border rounded p-3 bg-white text-sm w-full h-[350px] dynamic-card transition-all duration-500 ${
-              activeList[index] ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
-            }`}
-          >
-            <img 
-              src={item.image} 
-              alt={item.title}
-              className="w-full h-32 object-contain bg-gray-50 rounded mb-2"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.src = '/image/demo project.webp?v=1';
-              }}
-            />
-            <div className="font-bold text-sm mb-1">{item.title}</div>
-            <p className="text-xs text-gray-600 mb-2 line-clamp-2">{item.description}</p>
-            
-            <div className="space-y-1 text-xs mb-2">
-              <div><span className="font-medium">場所:</span> {item.location}</div>
-              <div><span className="font-medium">予算:</span> {item.budget}</div>
-              <div><span className="font-medium">期間:</span> {item.period}</div>
-            </div>
-            
-            <div className="flex justify-between items-center">
-              <span className={`text-xs px-2 py-1 rounded ${getStatusColor(item.status)}`}>
-                {item.status}
+          <div key={item.id} className="yy-pj-row">
+            <span className="yy-cn-no">{String(index + 1).padStart(2, '0')}</span>
+            <Photo src={item.image} alt={item.title} fallback="/image/demo project.webp?v=1" />
+            <span className="yy-cn-body">
+              <span className="yy-cn-title" title={item.title}>{item.title}</span>
+              <span className="yy-cn-sub" title={`${item.description} · ${item.period}`}>
+                {item.description} · {item.period}
               </span>
-              <button 
-                className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 transition"
-                onClick={() => alert(`${item.title}の詳細を表示します（実装予定）`)}
-              >
-                詳細
-              </button>
-            </div>
+            </span>
+            <span className="yy-cn-cell yy-pj-loc" title={item.location}>{item.location}</span>
+            <span className="yy-cn-num">{item.budget}</span>
+            <span className={`yy-st yy-pj-st${isActive(item.status) ? ' is-done' : ' is-mute'}`}>
+              <i className={`yy-dot${isActive(item.status) ? '' : ' is-none'}`} />
+              {item.status}
+            </span>
+            <button
+              type="button"
+              className="yy-linkbtn yy-cn-act"
+              onClick={() => alert(`${item.title}の詳細を表示します（実装予定）`)}
+            >
+              詳細
+            </button>
           </div>
         ))}
-      </div>
+      </section>
     );
   };
 
   return (
     <div>
-      <div className="flex items-baseline mb-2">
-        <h2 className="text-xl font-semibold">プロジェクト</h2>
-        <a href="#" onClick={showContactForm} className="text-blue-600 hover:text-blue-800 text-[11px] ml-4">掲載希望はコチラ</a>
-      </div>
-      <p className="text-[12px] text-gray-600 mb-3">
-        公共・民間の建設案件やパートナー募集、現地調査案件の情報をまとめています。案件の優先度付けや社内共有に役立ててください。
-      </p>
-      
-      <div className="flex gap-2 flex-wrap mb-4">
-        <button 
-          onClick={() => displayProjectCategory('public')}
-          className={getButtonClass('public')}
-        >
-          公共工事
-        </button>
-        <button 
-          onClick={() => displayProjectCategory('private')}
-          className={getButtonClass('private')}
-        >
-          民間工事
-        </button>
-        <button 
-          onClick={() => displayProjectCategory('partner')}
-          className={getButtonClass('partner')}
-        >
-          パートナー募集
-        </button>
-        <button 
-          onClick={() => displayProjectCategory('survey')}
-          className={getButtonClass('survey')}
-        >
-          現地調査
-        </button>
+      <PageHead
+        no="18"
+        en="projects"
+        title="プロジェクト"
+        desc="公共・民間の建設案件、パートナー募集、現地調査案件の情報"
+        right={
+          <>
+            <Stat n={TABS.length} label="分類" />
+            <Stat n={listed.length} label="件 民間・募集・調査" />
+            <Stat n={regions.length} label="地域" />
+            <a href="#" onClick={showContactForm} className="yy-stat" style={{ textDecoration: 'none' }}>
+              掲載希望はコチラ ↗
+            </a>
+          </>
+        }
+      />
+
+      <div className="yy-tabs">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => displayProjectCategory(t.key)}
+            aria-pressed={activeCategory === t.key}
+            className="yy-tab"
+          >
+            {t.label}
+            {t.key !== 'public' && <small>{(projectData[t.key] || []).length}</small>}
+          </button>
+        ))}
       </div>
 
-      <div 
-        id="project-content-area"
-        className={`mt-4 transition-opacity duration-250 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}
-      >
-        {renderContent()}
+      <div className="yy-newspage">
+        <div id="project-content-area" className={`yy-newspage__main yy-cn-fade${isTransitioning ? ' is-out' : ''}`}>
+          {renderContent()}
+        </div>
+        <aside className="yy-newspage__side">
+          <section>
+            <Sec no="II" title="分類" right="件数" />
+            <CountList
+              rows={TABS.map((t) => ({
+                key: t.key,
+                label: t.label,
+                n: t.key === 'public' ? '入札' : (projectData[t.key] || []).length,
+              }))}
+              active={activeCategory}
+              onPick={displayProjectCategory}
+            />
+          </section>
+          <section>
+            <Sec no="III" title="地域ごとの件数" right="民間・募集・調査" />
+            <CountList rows={regions.map(([k, n]) => ({ key: k, label: k, n }))} />
+          </section>
+          <section>
+            <Sec no="IV" title="掲載希望" />
+            <RequestPanel
+              what="プロジェクト"
+              text="建設案件・パートナー募集・調査業務の情報を、この一覧に掲載できます。"
+              onRequest={onNavigateToRegistration}
+            />
+          </section>
+        </aside>
       </div>
     </div>
   );
 };
 
-export default Projects; 
+export default Projects;

@@ -1,7 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import SampleNotice from '@/components/SampleNotice';
+import React, { useState } from 'react';
+import PageHead, { Stat } from '../ui/PageHead';
+import { CountList, RequestPanel, SampleLine, Sec, countBy, regionOf, todayJST } from './ConnectParts';
+import './connect-pages.css';
 
 interface JobItem {
   id: string;
@@ -25,7 +27,6 @@ interface JobInfoProps {
 const JobInfo: React.FC<JobInfoProps> = ({ onNavigateToRegistration }) => {
   const [activeCategory, setActiveCategory] = useState<string>('isho');
   const [isTransitioning, setIsTransitioning] = useState<boolean>(false);
-  const [activeList, setActiveList] = useState<boolean[]>([]);
 
   // 求人情報データの定義
   const jobData: Record<string, JobItem[]> = {
@@ -262,9 +263,8 @@ const JobInfo: React.FC<JobInfoProps> = ({ onNavigateToRegistration }) => {
   };
 
   const displayJobSubType = (category: string) => {
+    if (category === activeCategory) return;
     setIsTransitioning(true);
-    setActiveList([]); // activeListを即座にリセット
-    
     setTimeout(() => {
       setActiveCategory(category);
       setIsTransitioning(false);
@@ -274,38 +274,6 @@ const JobInfo: React.FC<JobInfoProps> = ({ onNavigateToRegistration }) => {
   const getCurrentItems = (): JobItem[] => {
     if (!activeCategory) return [];
     return jobData[activeCategory] || [];
-  };
-
-  // カテゴリ切り替え時にactiveListをリセットし、左から順にactive化
-  useEffect(() => {
-    if (isTransitioning) return; // トランジション中はアニメーションを開始しない
-    
-    const items = getCurrentItems();
-    setActiveList(Array(items.length).fill(false));
-    
-    // 少し遅延させてからアニメーションを開始（トランジション完了後）
-    const timer = setTimeout(() => {
-      items.forEach((_, i) => {
-        setTimeout(() => {
-          setActiveList(prev => {
-            const copy = [...prev];
-            copy[i] = true;
-            return copy;
-          });
-        }, i * 80);
-      });
-    }, 50);
-    
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeCategory, isTransitioning]);
-
-  const getButtonClass = (category: string) => {
-    const baseClass = "text-xs px-2 py-1 rounded w-24 transition job-sub-button";
-    if (activeCategory === category) {
-      return `${baseClass} bg-gray-700 text-white`;
-    }
-    return `${baseClass} bg-gray-300 text-black hover:bg-gray-700 hover:text-white`;
   };
 
   const getCategoryName = (category: string) => {
@@ -319,130 +287,139 @@ const JobInfo: React.FC<JobInfoProps> = ({ onNavigateToRegistration }) => {
     return names[category] || category;
   };
 
+  // ---- モック「高級感 3」:職種は下線タブ、求人は 1 行の索引(掲載日は明朝の数字)、右に新しい掲載・地域ごとの件数・掲載希望 ----
+  const CATS = ['isho', 'kozo', 'setsubi', 'sekou', 'koshubetsu'];
+  const all = CATS.flatMap((c) => jobData[c] || []);
+  const regions = countBy(all, (x) => regionOf(x.location));
+  const latest = [...all].sort((a, b) => b.postedDate.localeCompare(a.postedDate));
+  const today = todayJST();
+  const md = (iso: string) => iso.slice(5).replace('-', '.');
+  const yr = (iso: string) => (iso.slice(0, 4) !== today.slice(0, 4) ? iso.slice(0, 4) : '');
+  const sampleAlert = () => alert('こちらはサンプルになります。\n掲載希望の方は「掲載希望はコチラ」よりご連絡下さい。');
+
   const renderContent = () => {
     if (!activeCategory) {
-      return <p className="text-xs text-gray-700">上のボタンから表示する内容を選択してください。</p>;
+      return <p className="yy-home__empty">上のタブから表示する内容を選択してください。</p>;
     }
 
     const items = getCurrentItems();
-    
+
     if (items.length === 0) {
-      return <p className="text-gray-700 text-xs">該当する求人情報がありません。</p>;
+      return <p className="yy-home__empty">該当する求人情報がありません。</p>;
     }
 
     return (
       <>
-      <SampleNotice target="求人" onRequest={onNavigateToRegistration} />
-      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-        {items.map((item, index) => (
-          <div 
-            key={item.id}
-            className={`border rounded p-3 bg-white text-sm w-full h-[400px] dynamic-card transition-all duration-500 ${
-              activeList[index] ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
-            }`}
-          >
-            <div className="flex justify-between items-start mb-2">
-              <div className="font-bold text-sm">{item.title}</div>
-              <span className="text-xs px-2 py-1 rounded bg-green-100 text-green-600">
-                {getCategoryName(item.category)}
+        <SampleLine target="求人" onRequest={onNavigateToRegistration} />
+        <div className="yy-jb-row yy-jb-row--head">
+          <span>掲載日</span>
+          <span>職種 · 会社 · 応募要件 · 待遇</span>
+          <span className="yy-jb-loc">勤務地</span>
+          <span className="yy-jb-pay">給与 · 雇用形態 · 経験</span>
+          <span />
+        </div>
+        {items.map((item) => (
+          <div key={item.id} className="yy-jb-row">
+            <span className="yy-jb-date" title={`掲載日: ${item.postedDate}`}>
+              {md(item.postedDate)}
+              {yr(item.postedDate) && <small>{yr(item.postedDate)}</small>}
+            </span>
+            <span className="yy-cn-body">
+              <span className="yy-cn-title" title={item.title}>{item.title}</span>
+              <span className="yy-cn-sub" title={`${item.company} · ${item.description}`}>
+                {item.company} · {item.description}
               </span>
-            </div>
-            
-            <div className="text-xs text-gray-600 mb-2">{item.company}</div>
-            <p className="text-xs text-gray-700 mb-2 line-clamp-2">{item.description}</p>
-            
-            <div className="space-y-1 text-xs mb-2">
-              <div><span className="font-medium">勤務地:</span> {item.location}</div>
-              <div><span className="font-medium">給与:</span> {item.salary}</div>
-              <div><span className="font-medium">雇用形態:</span> {item.employment}</div>
-              <div><span className="font-medium">経験:</span> {item.experience}</div>
-            </div>
-            
-            <div className="mb-2">
-              <div className="font-medium text-xs mb-1">応募要件:</div>
-              <ul className="text-xs text-gray-600 list-disc list-inside">
-                {item.requirements.slice(0, 2).map((req, idx) => (
-                  <li key={idx} className="line-clamp-1">{req}</li>
-                ))}
-              </ul>
-            </div>
-            
-            <div className="mb-3">
-              <div className="font-medium text-xs mb-1">待遇・福利厚生:</div>
-              <div className="text-xs text-gray-600">
+              <span className="yy-cn-sub yy-jb-req" title={`応募要件: ${item.requirements.join('、')} / 待遇・福利厚生: ${item.benefits.join('、')}`}>
+                <i>要件</i>
+                {item.requirements.slice(0, 2).join('、')}
+                <i style={{ marginLeft: 8 }}>待遇</i>
                 {item.benefits.slice(0, 2).join('、')}
-              </div>
-            </div>
-            
-            <div className="flex justify-between items-center">
-              <div className="text-xs text-gray-500">
-                掲載日: {item.postedDate}
-              </div>
-              <button 
-                className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition"
-                onClick={() => alert('こちらはサンプルになります。\n掲載希望の方は「掲載希望はコチラ」よりご連絡下さい。')}
-              >
-                応募する
-              </button>
-            </div>
+              </span>
+            </span>
+            <span className="yy-cn-cell yy-jb-loc" title={`勤務地: ${item.location}`}>{item.location}</span>
+            <span className="yy-jb-pay">
+              <b title={item.salary}>{item.salary}</b>
+              <span title={`${item.employment} · ${item.experience}`}>
+                {item.employment} · {item.experience}
+              </span>
+            </span>
+            <button type="button" className="yy-linkbtn yy-cn-act" onClick={sampleAlert}>
+              応募する
+            </button>
           </div>
         ))}
-      </div>
       </>
     );
   };
 
   return (
     <div>
-      <div className="flex items-baseline mb-2">
-        <h2 className="text-xl font-semibold">求人情報</h2>
-        <a href="#" onClick={showContactForm} className="text-blue-600 hover:text-blue-800 text-[11px] ml-4">掲載希望はコチラ</a>
-      </div>
-      <p className="text-[12px] text-gray-600 mb-3">
-        建築・設備・施工分野の求人情報を職種別に掲載しています。採用動向の把握や転職検討、社内共有にご活用ください。
-      </p>
-      
-      <div id="job-navigation" className="mb-4 flex gap-2 flex-wrap">
-        <button 
-          className={getButtonClass('isho')}
-          onClick={() => displayJobSubType('isho')}
-        >
-          意匠設計
-        </button>
-        <button 
-          className={getButtonClass('kozo')}
-          onClick={() => displayJobSubType('kozo')}
-        >
-          構造設計
-        </button>
-        <button 
-          className={getButtonClass('setsubi')}
-          onClick={() => displayJobSubType('setsubi')}
-        >
-          設備設計
-        </button>
-        <button 
-          className={getButtonClass('sekou')}
-          onClick={() => displayJobSubType('sekou')}
-        >
-          施工管理
-        </button>
-        <button 
-          className={getButtonClass('koshubetsu')}
-          onClick={() => displayJobSubType('koshubetsu')}
-        >
-          工種別
-        </button>
+      <PageHead
+        no="22"
+        en="jobs"
+        title="求人情報"
+        desc="建築・設備・施工分野の求人を職種別に"
+        right={
+          <>
+            <Stat n={all.length} label="件" />
+            <Stat n={CATS.length} label="職種" />
+            <Stat n={regions.length} label="地域" />
+            <a href="#" onClick={showContactForm} className="yy-stat" style={{ textDecoration: 'none' }}>
+              掲載希望はコチラ ↗
+            </a>
+          </>
+        }
+      />
+
+      <div id="job-navigation" className="yy-tabs">
+        {CATS.map((c) => (
+          <button key={c} type="button" className="yy-tab" aria-pressed={activeCategory === c} onClick={() => displayJobSubType(c)}>
+            {getCategoryName(c)}
+            <small>{(jobData[c] || []).length}</small>
+          </button>
+        ))}
       </div>
 
-      <div 
-        id="job-subtype-content"
-        className={`content-visible transition-opacity duration-250 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}
-      >
-        {renderContent()}
+      <div className="yy-newspage">
+        <div id="job-subtype-content" className={`yy-newspage__main yy-cn-fade${isTransitioning ? ' is-out' : ''}`}>
+          <section className="yy-cn-list">
+            <Sec no="I" title={getCategoryName(activeCategory)} right={`${getCurrentItems().length} 件`} />
+            {renderContent()}
+          </section>
+        </div>
+        <aside className="yy-newspage__side">
+          <section>
+            <Sec no="II" title="新しい掲載" right="全職種" />
+            <ul className="yy-cn-due">
+              {latest.slice(0, 5).map((x) => (
+                <li key={x.id}>
+                  <span className="yy-cn-due__d">{md(x.postedDate)}</span>
+                  <span className="yy-cn-due__b">
+                    <span className="yy-cn-due__t" title={x.title}>{x.title}</span>
+                    <span className="yy-cn-due__s">
+                      {getCategoryName(x.category)} · {regionOf(x.location)}
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+          <section>
+            <Sec no="III" title="地域ごとの件数" right="全職種" />
+            <CountList rows={regions.map(([k, n]) => ({ key: k, label: k, n }))} />
+          </section>
+          <section>
+            <Sec no="IV" title="掲載希望" />
+            <RequestPanel
+              what="求人"
+              text="採用動向の把握や転職検討に使われる一覧です。職種・勤務地・給与・待遇を掲載できます。"
+              onRequest={onNavigateToRegistration}
+            />
+          </section>
+        </aside>
       </div>
     </div>
   );
 };
 
-export default JobInfo; 
+export default JobInfo;

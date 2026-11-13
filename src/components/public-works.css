@@ -1,0 +1,32 @@
+/* 公共工事の一覧(PublicWorksList.tsx。プロジェクトの最初のタブ)。高級感 3:カードをやめて索引の行に */
+.yy-pw__bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 8px 0; margin-bottom: 4px; border-bottom: 1px solid var(--yy-line); font-size: 12px; }
+.yy-pw__areas { color: var(--yy-ink); }
+.yy-pw__note { font-size: 11px; color: var(--yy-t3); }
+.yy-pw__count { font-size: 11px; color: var(--yy-t3); font-variant-numeric: tabular-nums; }
+.yy-pw__sel { margin-left: auto; display: inline-flex; gap: 10px; }
+.yy-pw__sel select { height: 26px; padding: 0 4px; border: 0; border-bottom: 1px solid var(--yy-line); background: transparent; font-size: 12px; color: var(--yy-ink); cursor: pointer; }
+.yy-pw__sel select:focus { outline: 0; border-bottom-color: var(--yy-acc); }
+.yy-pw__row { display: grid; grid-template-columns: 26px 92px minmax(0, 1fr) 70px 78px 16px; align-items: center; column-gap: 10px; min-height: 40px; padding: 3px 0; border-bottom: 1px solid var(--yy-line); color: var(--yy-ink); text-decoration: none; }
+.yy-pw__row--head { min-height: 26px; font-size: 11px; color: var(--yy-t3); }
+a.yy-pw__row:hover .yy-pw__title { color: var(--yy-acc-ink); }
+.yy-pw__no { font-family: var(--yy-serif); font-size: 13px; color: var(--yy-t3); font-variant-numeric: lining-nums tabular-nums; }
+.yy-pw__cat { justify-self: start; max-width: 92px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.yy-pw__body { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.yy-pw__title { display: flex; align-items: center; gap: 6px; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.yy-pw__title .yy-dot { margin-right: 0; }
+.yy-pw__org { font-size: 10.5px; color: var(--yy-t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.yy-pw__area { font-size: 11px; color: var(--yy-t2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.yy-pw__date { font-family: var(--yy-serif); font-size: 13px; color: var(--yy-ink); font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
+.yy-pw__ext { font-size: 11px; color: #b9b9b4; }
+@media (max-width: 767px) {
+  .yy-pw__row { grid-template-columns: 22px minmax(0, 1fr) 70px; }
+  .yy-pw__cat, .yy-pw__area, .yy-pw__ext { display: none; }
+}
+/* エリア選択の窓:角丸・青をやめる */
+.yy-pw .fixed .bg-white { border-radius: 0 !important; }
+.yy-pw .fixed .border.rounded { border-radius: 0; border-color: var(--yy-line); }
+.yy-pw .fixed .text-blue-600 { color: var(--yy-acc-ink) !important; }
+.yy-pw .fixed input[type='checkbox'] { accent-color: var(--yy-acc); }
+.yy-pw .fixed h2 { font-family: var(--yy-serif); font-weight: 500; }
+.yy-pw .fixed h3 { font-family: var(--yy-serif); font-weight: 500; }
+.yy-pw .bg-yellow-100 { background: none !important; border: 0 !important; border-left: 2px solid #c8432f !important; border-radius: 0 !important; }

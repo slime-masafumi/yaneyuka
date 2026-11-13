@@ -5,6 +5,9 @@ import { addForumPost, deleteForumBookmark, listForumBookmarks, listForumPosts, 
 import { useAuth } from '@/lib/AuthContext'
 import { db } from '@/lib/firebaseClient'
 import { collection, onSnapshot } from 'firebase/firestore'
+import PageHead, { Stat } from '../ui/PageHead'
+import { SecHead } from '../ui/Sheet'
+import './connect-pages-2.css'
 
 type ForumPost = {
   id: string
@@ -43,11 +46,36 @@ function checkInappropriateContent(text: string): string | null {
   return null
 }
 
-/* ─── Shared sub-components to eliminate PC / mobile duplication ─── */
+/* ─── 表示用の小さな関数（モック「高級感 3」：日時は等幅・灰） ─── */
+
+const pad2 = (n: number) => String(n).padStart(2, '0')
+/** 'YYYY-MM-DD' → 'YYYY.MM.DD' */
+const dotDate = (iso: string) => (iso || '').replace(/-/g, '.')
+/** ミリ秒 → 'YYYY.MM.DD HH:mm'（端末の時刻） */
+const dotDateTime = (ms: number) => {
+  const d = new Date(ms)
+  return `${d.getFullYear()}.${pad2(d.getMonth() + 1)}.${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+}
+/** 投稿日と返信のうち、いちばん新しい時刻（ミリ秒） */
+const lastTouched = (p: ForumPost) => {
+  const base = Date.parse(p.date || '') || 0
+  return (p.replies || []).reduce((m, r) => Math.max(m, r.createdAt || 0), base)
+}
+/** 最終更新の短い表記。今年なら 'MM.DD'、それ以外は 'YY.MM.DD' */
+const shortDate = (ms: number) => {
+  if (!ms) return '—'
+  const d = new Date(ms)
+  const md = `${pad2(d.getMonth() + 1)}.${pad2(d.getDate())}`
+  return d.getFullYear() === new Date().getFullYear() ? md : `${String(d.getFullYear()).slice(2)}.${md}`
+}
+
+/* ─── 分類の下線タブと、質問する / 並べ替え ─── */
 
 function CategoryButtons({
   activeCategory,
   setActiveCategory,
+  counts,
+  total,
   uid,
   showForm,
   setShowForm,
@@ -56,6 +84,8 @@ function CategoryButtons({
 }: {
   activeCategory: string
   setActiveCategory: (c: string) => void
+  counts: Record<string, number>
+  total: number
   uid: string | null
   showForm: boolean
   setShowForm: React.Dispatch<React.SetStateAction<boolean>>
@@ -63,55 +93,32 @@ function CategoryButtons({
   setSortMode: (m: SortMode) => void
 }) {
   return (
-    <div className="flex flex-wrap gap-2 mb-2 items-center">
-      <div className="mr-auto">
+    <>
+      <div className="yy-tabs yy-fr-tabs">
+        <button type="button" className="yy-tab" aria-pressed={activeCategory === 'ALL'} onClick={() => setActiveCategory('ALL')}>
+          すべて<small>{total}</small>
+        </button>
+        {CATEGORIES.map(cat => (
+          <button key={cat} type="button" className="yy-tab" aria-pressed={activeCategory === cat} onClick={() => setActiveCategory(cat)}>
+            {cat}<small>{counts[cat] || 0}</small>
+          </button>
+        ))}
+      </div>
+      <div className="yy-fr-tools">
         {uid ? (
-          <button
-            type="button"
-            onClick={() => setShowForm(prev => !prev)}
-            className="text-xs px-4 py-1 rounded bg-gray-700 text-white hover:bg-gray-800 min-w-[90px]"
-          >
+          <button type="button" onClick={() => setShowForm(prev => !prev)} className="yy-btn" aria-expanded={showForm}>
             {showForm ? '閉じる' : '質問する'}
           </button>
         ) : (
-          <div className="text-[11px] text-white bg-gray-500 rounded px-2 py-1 min-w-[120px] text-center">閲覧のみ可（投稿・回答はログインが必要）</div>
+          <span className="yy-fr-note">閲覧のみ可（投稿・回答はログインが必要）</span>
         )}
+        <span className="yy-fr-sort">
+          <span className="yy-label">並替</span>
+          <button type="button" className="yy-fr-sortbtn" aria-pressed={sortMode === 'newest'} onClick={() => setSortMode('newest')}>新着順</button>
+          <button type="button" className="yy-fr-sortbtn" aria-pressed={sortMode === 'replies'} onClick={() => setSortMode('replies')}>返信数順</button>
+        </span>
       </div>
-      <div className="w-full flex gap-2 flex-wrap items-center">
-        <button
-          key="ALL"
-          onClick={() => setActiveCategory('ALL')}
-          className={`text-xs py-1 rounded transition min-w-[72px] text-center ${activeCategory === 'ALL' ? 'bg-gray-700 text-white' : 'bg-gray-300 text-black hover:bg-gray-700 hover:text-white'}`}
-        >
-          ALL
-        </button>
-        {CATEGORIES.map(cat => (
-          <button
-            key={cat}
-            onClick={() => setActiveCategory(cat)}
-            className={`text-xs py-1 rounded transition min-w-[72px] text-center ${activeCategory === cat ? 'bg-gray-700 text-white' : 'bg-gray-300 text-black hover:bg-gray-700 hover:text-white'}`}
-          >
-            {cat}
-          </button>
-        ))}
-        {/* Sort buttons */}
-        <span className="text-[11px] text-gray-500 ml-auto">並替:</span>
-        <button
-          type="button"
-          onClick={() => setSortMode('newest')}
-          className={`text-[11px] px-2 py-0.5 rounded border ${sortMode === 'newest' ? 'bg-gray-700 text-white border-gray-700' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'}`}
-        >
-          新着順
-        </button>
-        <button
-          type="button"
-          onClick={() => setSortMode('replies')}
-          className={`text-[11px] px-2 py-0.5 rounded border ${sortMode === 'replies' ? 'bg-gray-700 text-white border-gray-700' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'}`}
-        >
-          返信数順
-        </button>
-      </div>
-    </div>
+    </>
   )
 }
 
@@ -133,7 +140,6 @@ function ReportButton({
   uid,
   postId,
   replyId,
-  small,
 }: {
   uid: string
   postId: string
@@ -164,39 +170,24 @@ function ReportButton({
     }
   }
 
-  const size = small ? 'text-[11px]' : 'text-[12px]'
   if (sent) {
-    return <span className={`shrink-0 ${size} px-2 py-1 text-gray-400`}>通報済</span>
+    return <span className="yy-fr-act is-done">通報済</span>
   }
 
   return (
-    <span className="relative shrink-0">
-      <button
-        type="button"
-        onClick={() => setOpen(v => !v)}
-        className={`${size} px-2 py-1 rounded border bg-white border-gray-300 text-gray-600 hover:bg-gray-50`}
-      >
+    <span className="yy-fr-popwrap">
+      <button type="button" onClick={() => setOpen(v => !v)} className="yy-fr-act" aria-expanded={open}>
         通報
       </button>
       {open && (
-        <div className="absolute right-0 z-20 mt-1 w-56 rounded border border-gray-300 bg-white p-2 shadow-lg">
-          <div className="mb-1 text-[11px] text-gray-500">理由を選んでください</div>
+        <div className="yy-fr-pop">
+          <div className="yy-label yy-fr-pophead">理由を選んでください</div>
           {REPORT_REASONS.map(r => (
-            <button
-              key={r}
-              type="button"
-              disabled={busy}
-              onClick={() => submit(r)}
-              className="block w-full rounded px-2 py-1 text-left text-[12px] text-gray-700 hover:bg-gray-100 disabled:opacity-50"
-            >
+            <button key={r} type="button" disabled={busy} onClick={() => submit(r)} className="yy-fr-popitem">
               {r}
             </button>
           ))}
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            className="mt-1 block w-full rounded px-2 py-1 text-center text-[11px] text-gray-500 hover:bg-gray-100"
-          >
+          <button type="button" onClick={() => setOpen(false)} className="yy-fr-popitem is-cancel">
             キャンセル
           </button>
         </div>
@@ -205,8 +196,13 @@ function ReportButton({
   )
 }
 
+/* ─── 1 行の索引 + 開くと本のような読む欄 ─── */
+
 function PostCard({
   p,
+  no,
+  open,
+  onToggle,
   uid,
   isAdmin,
   toggleBookmark,
@@ -215,6 +211,9 @@ function PostCard({
   setRawPosts,
 }: {
   p: ForumPost
+  no: number
+  open: boolean
+  onToggle: (id: string) => void
   uid: string | null
   isAdmin: boolean
   toggleBookmark: (id: string) => void
@@ -224,100 +223,96 @@ function PostCard({
 }) {
   const replyCount = (p.replies || []).length
   return (
-    <div className="p-3 border rounded bg-white">
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <div className="flex items-center gap-2 text-[12px] text-gray-500">
-            <span className="inline-flex items-center px-2 py-0.5 rounded bg-gray-200 text-gray-700 text-[11px]">{p.category}</span>
-            <span>{p.author}・{p.date}</span>
-            {replyCount > 0 && (
-              <span className="inline-flex items-center text-[11px] text-gray-500">返信 {replyCount}件</span>
-            )}
-          </div>
-          <div className="text-[14px] font-medium text-blue-700 mt-1">{p.title}</div>
-        </div>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => toggleBookmark(p.id)}
-            className={`shrink-0 text-[12px] px-2 py-1 rounded border ${p.bookmarked ? 'bg-yellow-100 border-yellow-300 text-yellow-700' : 'bg-white hover:bg-gray-50 border-gray-300 text-gray-700'}`}
-          >
-            {p.bookmarked ? '★ 保存済' : '☆ ブクマ'}
-          </button>
-          {/* 自分の投稿は通報できない（誤操作防止） */}
-          {uid && p.uid !== uid && (
-            <ReportButton uid={uid} postId={p.id} />
-          )}
-          {uid && (p.uid === uid || isAdmin) && (
-            <button
-              type="button"
-              onClick={() => handleDeletePost(p.id)}
-              className="shrink-0 text-[12px] px-2 py-1 rounded border bg-red-50 border-red-200 text-red-600 hover:bg-red-100"
-            >
-              削除
-            </button>
-          )}
-        </div>
-      </div>
-      <div className="text-[12px] text-gray-700 mt-1 whitespace-pre-line">{p.content}</div>
-      {/* 回答一覧 */}
-      <div className="mt-2 space-y-2">
-        {(p.replies || []).map(r => (
-          <div key={r.id} className="text-[12px] text-gray-700 bg-gray-50 border rounded p-2">
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex-1">
-                <div className="text-[11px] text-gray-500">{r.author}・{new Date(r.createdAt).toLocaleString('ja-JP')}</div>
-                <div className="whitespace-pre-line">{r.content}</div>
-              </div>
-              <div className="flex shrink-0 gap-1">
-                {uid && r.uid !== uid && (
-                  <ReportButton uid={uid} postId={p.id} replyId={r.id} small />
-                )}
-                {uid && (r.uid === uid || isAdmin) && (
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteReply(p.id, r.id)}
-                    className="shrink-0 text-[11px] px-2 py-1 rounded border bg-red-50 border-red-200 text-red-600 hover:bg-red-100"
-                  >
-                    削除
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-      {/* 回答フォーム */}
-      {uid ? (
-        <ReplyForm postId={p.id} onAdded={(reply) => setRawPosts(prev => prev.map(pp => pp.id === p.id ? { ...pp, replies: [...(pp.replies || []), reply] } : pp))} />
-      ) : (
-        <div className="mt-2 text-[12px] text-gray-500">回答するにはログインが必要です。</div>
-      )}
-    </div>
-  )
-}
-
-function BookmarkCard({ b, toggleBookmark }: { b: ForumPost; toggleBookmark: (id: string) => void }) {
-  return (
-    <div className="p-3 border rounded bg-white">
-      <div className="text-[11px] text-gray-500">{b.author}・{b.date}</div>
-      <div className="text-[13px] font-medium text-blue-700">{b.title}</div>
-      <div className="mt-1 flex gap-2">
+    <article id={`forum-post-${p.id}`} className={`yy-fr-thread${open ? ' is-open' : ''}`}>
+      <div className="yy-fr-row">
+        <span className="yy-fr-no">{pad2(no)}</span>
+        <button type="button" className="yy-fr-title" onClick={() => onToggle(p.id)} aria-expanded={open} title={p.title}>
+          <span className="yy-fmt">{p.category}</span>
+          <span className="yy-fr-titletext">{p.title}</span>
+        </button>
+        <span className="yy-fr-by" title={`${p.author}・${p.date}`}>{p.author} · {dotDate(p.date)}</span>
+        <span className={`yy-fr-rep${replyCount === 0 ? ' is-zero' : ''}`} title={`返信 ${replyCount}件`}>{replyCount}</span>
+        <span className="yy-fr-last">{shortDate(lastTouched(p))}</span>
         <button
           type="button"
-          onClick={() => toggleBookmark(b.id)}
-          className="text-[11px] px-2 py-1 rounded border bg-white hover:bg-gray-50 border-gray-300 text-gray-700"
+          onClick={() => toggleBookmark(p.id)}
+          className={`yy-news__bm yy-fr-bm${p.bookmarked ? ' is-on' : ''}`}
+          aria-pressed={!!p.bookmarked}
+          title={p.bookmarked ? '保存済' : 'ブクマ'}
         >
-          解除
+          {p.bookmarked ? '★' : '☆'}
         </button>
       </div>
-    </div>
+
+      {open && (
+        <div className="yy-fr-read">
+          <div className="yy-fr-meta">
+            <span>{p.author}</span>
+            <span>{dotDate(p.date)}</span>
+            <span>{p.category}</span>
+            <span className="yy-fr-acts">
+              {/* 自分の投稿は通報できない（誤操作防止） */}
+              {uid && p.uid !== uid && (
+                <ReportButton uid={uid} postId={p.id} />
+              )}
+              {uid && (p.uid === uid || isAdmin) && (
+                <button type="button" onClick={() => handleDeletePost(p.id)} className="yy-fr-act is-danger">
+                  削除
+                </button>
+              )}
+            </span>
+          </div>
+          <h3 className="yy-fr-readtitle">{p.title}</h3>
+          <div className="yy-fr-body">{p.content}</div>
+
+          {/* 回答一覧 */}
+          <div className="yy-fr-replyhead">
+            <span className="yy-label">回答</span>
+            <span className="yy-serif">{replyCount}</span>
+          </div>
+          {replyCount > 0 && (
+            <ol className="yy-fr-replies">
+              {(p.replies || []).map((r, i) => (
+                <li key={r.id}>
+                  <div className="yy-fr-meta">
+                    <span className="yy-fr-rno">{i + 1}</span>
+                    <span>{r.author}</span>
+                    <span>{dotDateTime(r.createdAt)}</span>
+                    <span className="yy-fr-acts">
+                      {uid && r.uid !== uid && (
+                        <ReportButton uid={uid} postId={p.id} replyId={r.id} small />
+                      )}
+                      {uid && (r.uid === uid || isAdmin) && (
+                        <button type="button" onClick={() => handleDeleteReply(p.id, r.id)} className="yy-fr-act is-danger">
+                          削除
+                        </button>
+                      )}
+                    </span>
+                  </div>
+                  <div className="yy-fr-body yy-fr-body--reply">{r.content}</div>
+                </li>
+              ))}
+            </ol>
+          )}
+          {/* 回答フォーム */}
+          {uid ? (
+            <ReplyForm postId={p.id} onAdded={(reply) => setRawPosts(prev => prev.map(pp => pp.id === p.id ? { ...pp, replies: [...(pp.replies || []), reply] } : pp))} />
+          ) : (
+            <p className="yy-fr-hint">回答するにはログインが必要です。</p>
+          )}
+        </div>
+      )}
+    </article>
   )
 }
 
 function PostList({
   filtered,
   loadError,
+  openIds,
+  onToggle,
+  allOpen,
+  setAllOpen,
   uid,
   isAdmin,
   toggleBookmark,
@@ -327,6 +322,10 @@ function PostList({
 }: {
   filtered: ForumPost[]
   loadError: string
+  openIds: Set<string>
+  onToggle: (id: string) => void
+  allOpen: boolean
+  setAllOpen: (v: boolean) => void
   uid: string | null
   isAdmin: boolean
   toggleBookmark: (id: string) => void
@@ -335,17 +334,33 @@ function PostList({
   setRawPosts: React.Dispatch<React.SetStateAction<Omit<ForumPost, 'bookmarked'>[]>>
 }) {
   return (
-    <div className="space-y-3 mt-4">
-      {loadError && (
-        <div className="text-[12px] text-red-600">{loadError}</div>
-      )}
+    <section>
+      <SecHead
+        no="I"
+        title="スレッド"
+        right={
+          <>
+            {filtered.length} 件 ·{' '}
+            <button type="button" className="yy-linkbtn" onClick={() => setAllOpen(!allOpen)}>
+              {allOpen ? 'すべて閉じる' : 'すべて開く'}
+            </button>
+          </>
+        }
+      />
+      {loadError && <p className="yy-fr-error">{loadError}</p>}
+      <div className="yy-fr-row yy-fr-row--head" aria-hidden="true">
+        <span>No.</span><span>題</span><span>投稿者・日時</span><span>返信</span><span>最終更新</span><span />
+      </div>
       {filtered.length === 0 && (
-        <div className="text-[12px] text-gray-500">このカテゴリの投稿はまだありません。</div>
+        <p className="yy-home__empty">このカテゴリの投稿はまだありません。</p>
       )}
-      {filtered.map(p => (
+      {filtered.map((p, i) => (
         <PostCard
           key={p.id}
           p={p}
+          no={i + 1}
+          open={allOpen || openIds.has(p.id)}
+          onToggle={onToggle}
           uid={uid}
           isAdmin={isAdmin}
           toggleBookmark={toggleBookmark}
@@ -354,23 +369,7 @@ function PostList({
           setRawPosts={setRawPosts}
         />
       ))}
-    </div>
-  )
-}
-
-function BookmarkSection({ bookmarkedList, toggleBookmark }: { bookmarkedList: ForumPost[]; toggleBookmark: (id: string) => void }) {
-  return (
-    <>
-      <div className="text-sm font-semibold">ブックマーク</div>
-      {bookmarkedList.length === 0 && (
-        <div className="text-[12px] text-gray-500">ブックマークはまだありません。</div>
-      )}
-      <div className="space-y-2">
-        {bookmarkedList.map(b => (
-          <BookmarkCard key={`bm-${b.id}`} b={b} toggleBookmark={toggleBookmark} />
-        ))}
-      </div>
-    </>
+    </section>
   )
 }
 
@@ -384,6 +383,9 @@ export default function Forum() {
   // ブックマークID集合（イベント情報の方式に合わせ、状態を独立保持＋localStorageキャッシュ）
   const [bookmarkIds, setBookmarkIds] = useState<Set<string>>(new Set())
   const [showForm, setShowForm] = useState<boolean>(false)
+  // 開いているスレッド（索引の行を押すと、その下に本文と回答を開く）
+  const [openIds, setOpenIds] = useState<Set<string>>(new Set())
+  const [allOpen, setAllOpen] = useState<boolean>(false)
   const { currentUser } = useAuth()
   const uid = currentUser?.uid || null
   const isAdmin = currentUser?.email === 'slime-a@outlook.com'
@@ -449,6 +451,16 @@ export default function Forum() {
     return list
   }, [posts, activeCategory, sortMode])
   const bookmarkedList = useMemo(() => posts.filter(p => p.bookmarked), [posts])
+
+  // 右列と見出しの数字
+  const counts = useMemo(() => {
+    const m: Record<string, number> = {}
+    posts.forEach(p => { m[p.category] = (m[p.category] || 0) + 1 })
+    return m
+  }, [posts])
+  const replyTotal = useMemo(() => posts.reduce((s, p) => s + (p.replies || []).length, 0), [posts])
+  const unanswered = useMemo(() => posts.filter(p => (p.replies || []).length === 0).length, [posts])
+  const recent = useMemo(() => [...posts].sort((a, b) => lastTouched(b) - lastTouched(a)).slice(0, 6), [posts])
 
   useEffect(() => {
     if (!uid) return
@@ -563,48 +575,60 @@ export default function Forum() {
     }
   }
 
-  // Shared props for PostList
-  const postListProps = {
-    filtered,
-    loadError,
-    uid,
-    isAdmin,
-    toggleBookmark,
-    handleDeletePost,
-    handleDeleteReply,
-    setRawPosts,
+  const toggleOpen = (id: string) => {
+    if (allOpen) {
+      // 「すべて開く」中に 1 本を閉じたら、その 1 本以外を開いたままにする
+      setAllOpen(false)
+      setOpenIds(new Set(filtered.map(p => p.id).filter(x => x !== id)))
+      return
+    }
+    setOpenIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
   }
 
-  const categoryProps = {
-    activeCategory,
-    setActiveCategory,
-    uid,
-    showForm,
-    setShowForm,
-    sortMode,
-    setSortMode,
+  // 右列（新着・ブックマーク）から開く：分類を外し、開いて、そこまで送る
+  const openFromSide = (id: string) => {
+    const post = posts.find(p => p.id === id)
+    if (post && activeCategory !== 'ALL' && post.category !== activeCategory) setActiveCategory('ALL')
+    setOpenIds(prev => new Set(prev).add(id))
+    setTimeout(() => {
+      document.getElementById(`forum-post-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 60)
   }
 
   return (
-    <div>
-      <div className="flex items-baseline mb-2">
-        <h2 className="text-xl font-semibold">掲示板</h2>
-      </div>
-      <p className="text-[12px] text-gray-600 mb-3">
-        業務の疑問や事例共有、協力先探しなどに使えるコミュニティスペースです。気になるトピックはカテゴリで絞り込み、必要に応じてブックマークしてください。
-      </p>
+    <div className="yy-fr">
+      <PageHead
+        no="23"
+        en="forum"
+        title="掲示板"
+        desc="業務の疑問・事例共有・協力先探し"
+        right={
+          <>
+            <Stat n={posts.length} label="件 投稿" />
+            <Stat n={replyTotal} label="件 回答" />
+            <Stat n={unanswered} label="件 未回答" />
+          </>
+        }
+      />
 
-      {/* スマホ: ブックマークを最上段に表示 */}
-      <div className="lg:hidden mb-4">
-        <div className="space-y-3">
-          <BookmarkSection bookmarkedList={bookmarkedList} toggleBookmark={toggleBookmark} />
-        </div>
-      </div>
-      {/* PC: 2列表示 */}
-      <div className="hidden lg:grid grid-cols-3 gap-4 items-start">
-        <div className="col-span-2">
-          <CategoryButtons {...categoryProps} />
+      <CategoryButtons
+        activeCategory={activeCategory}
+        setActiveCategory={setActiveCategory}
+        counts={counts}
+        total={posts.length}
+        uid={uid}
+        showForm={showForm}
+        setShowForm={setShowForm}
+        sortMode={sortMode}
+        setSortMode={setSortMode}
+      />
 
+      <div className="yy-newspage">
+        <div className="yy-newspage__main">
           {/* 投稿フォーム（トグル表示） */}
           {uid && showForm && (
             <PostForm
@@ -614,28 +638,93 @@ export default function Forum() {
             />
           )}
 
-          <PostList {...postListProps} />
-        </div>
-        <div className="col-span-1">
-          <div className="sticky top-4 space-y-3">
-            <BookmarkSection bookmarkedList={bookmarkedList} toggleBookmark={toggleBookmark} />
-          </div>
-        </div>
-      </div>
-      {/* スマホ: 本文エリア（1列表示） */}
-      <div className="lg:hidden">
-        <CategoryButtons {...categoryProps} />
-
-        {/* 投稿フォーム（トグル表示） */}
-        {uid && showForm && (
-          <PostForm
-            categories={CATEGORIES}
-            defaultCategory={activeCategory === 'ALL' ? CATEGORIES[0] : activeCategory}
-            onSubmit={(data) => { addPost(data); setShowForm(false) }}
+          <PostList
+            filtered={filtered}
+            loadError={loadError}
+            openIds={openIds}
+            onToggle={toggleOpen}
+            allOpen={allOpen}
+            setAllOpen={(v) => { setAllOpen(v); if (!v) setOpenIds(new Set()) }}
+            uid={uid}
+            isAdmin={isAdmin}
+            toggleBookmark={toggleBookmark}
+            handleDeletePost={handleDeletePost}
+            handleDeleteReply={handleDeleteReply}
+            setRawPosts={setRawPosts}
           />
-        )}
+        </div>
 
-        <PostList {...postListProps} />
+        <aside className="yy-newspage__side">
+          <section>
+            <SecHead no="II" title="カテゴリ別の件数" right={`${CATEGORIES.length} 分類`} />
+            <ol className="yy-home__toc yy-fr-count">
+              {CATEGORIES.map(cat => (
+                <li key={cat}>
+                  <button
+                    type="button"
+                    className={`yy-srcrow yy-srcrow--btn${activeCategory === cat ? ' is-on' : ''}`}
+                    aria-pressed={activeCategory === cat}
+                    onClick={() => setActiveCategory(activeCategory === cat ? 'ALL' : cat)}
+                  >
+                    <span className="yy-home__toct">{cat}</span>
+                    <span className="yy-leader" />
+                    <span className={`yy-serif${counts[cat] ? '' : ' yy-fr-zero'}`}>{counts[cat] || 0}</span>
+                  </button>
+                </li>
+              ))}
+            </ol>
+          </section>
+
+          <section>
+            <SecHead no="III" title="新着" />
+            {recent.length === 0 ? (
+              <p className="yy-home__empty">投稿はまだありません。</p>
+            ) : (
+              <ul className="yy-home__news">
+                {recent.map(p => (
+                  <li key={`nw-${p.id}`}>
+                    <span className="yy-home__meta"><span>{lastTouched(p) ? dotDateTime(lastTouched(p)).slice(0, 10) : '—'}</span><span>{p.category}</span><span>返信 {(p.replies || []).length}</span></span>
+                    <button type="button" className="yy-fr-sidelink" onClick={() => openFromSide(p.id)} title={p.title}>{p.title}</button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section>
+            <SecHead no="IV" title="投稿のきまり" />
+            <p className="yy-fr-rulelead">
+              業務の疑問や事例共有、協力先探しなどに使えるコミュニティスペースです。気になるトピックはカテゴリで絞り込み、必要に応じてブックマークしてください。
+            </p>
+            <ol className="yy-fr-rules">
+              <li><span className="yy-serif">1</span>閲覧は誰でもできます。質問・回答の投稿はログインが必要です。</li>
+              <li><span className="yy-serif">2</span>意見の対立があっても、暴力的な言葉遣いや、相手を威圧・攻撃する書き込みはお断りします。互いの立場や経験を尊重してください。</li>
+              <li><span className="yy-serif">3</span>悪口・不適切な表現を含む投稿は送信できません。</li>
+              <li><span className="yy-serif">4</span>不適切な投稿は「通報」で管理者に知らせてください（理由を選んで送信）。</li>
+              <li><span className="yy-serif">5</span>自分の投稿・回答はいつでも削除できます。</li>
+              <li><span className="yy-serif">6</span>ブックマークには会員登録（無料）が必要です。</li>
+            </ol>
+          </section>
+
+          <section>
+            <SecHead no="V" title="ブックマーク" right={`${bookmarkedList.length} 件`} />
+            {bookmarkedList.length === 0 ? (
+              <p className="yy-home__empty">ブックマークはまだありません。</p>
+            ) : (
+              <ul className="yy-home__news">
+                {bookmarkedList.map(b => (
+                  <li key={`bm-${b.id}`}>
+                    <span className="yy-home__meta">
+                      <span>{b.author}・{dotDate(b.date)}</span>
+                      <button type="button" className="yy-linkbtn" onClick={() => toggleBookmark(b.id)}>解除</button>
+                    </span>
+                    <button type="button" className="yy-fr-sidelink" onClick={() => openFromSide(b.id)} title={b.title}>{b.title}</button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </aside>
       </div>
     </div>
   )
@@ -671,34 +760,37 @@ function PostForm({ onSubmit, categories, defaultCategory }: { onSubmit: (data: 
   }
 
   return (
-    <form onSubmit={submit} className="bg-white border rounded p-3">
-      <div className="flex items-end gap-3 flex-wrap md:flex-nowrap">
-        <div className="flex-1 min-w-[240px]">
-          <label htmlFor="forum-title" className="block text-[12px] text-gray-700 mb-1">タイトル</label>
-          <input id="forum-title" name="title" className="w-full border p-2 rounded text-sm" value={title} onChange={e=>setTitle(e.target.value)} placeholder="質問の要点を簡潔に" />
+    <section>
+      <SecHead no="—" title="質問する" right="投稿はすぐに公開されます" />
+      <form onSubmit={submit} className="yy-fr-form">
+        <div className="yy-fr-formrow">
+          <div className="yy-fr-field yy-fr-field--grow">
+            <label htmlFor="forum-title" className="yy-label">タイトル</label>
+            <input id="forum-title" name="title" className="yy-fr-input" value={title} onChange={e=>setTitle(e.target.value)} placeholder="質問の要点を簡潔に" />
+          </div>
+          <div className="yy-fr-field yy-fr-field--cat">
+            <label htmlFor="forum-category-select" className="yy-label">カテゴリー</label>
+            <select id="forum-category-select" name="category" className="yy-fr-input" value={category} onChange={e=>setCategory(e.target.value)}>
+              {categories.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
+          <div className="yy-fr-field yy-fr-field--name">
+            <label htmlFor="forum-author" className="yy-label">質問者</label>
+            <input id="forum-author" name="author" className="yy-fr-input" value={author} onChange={e=>setAuthor(e.target.value)} placeholder="お名前（ニックネーム可）" />
+          </div>
         </div>
-        <div className="w-[140px]">
-          <label htmlFor="forum-category-select" className="block text-[12px] text-gray-700 mb-1">カテゴリー</label>
-          <select id="forum-category-select" name="category" className="w-full border p-2 rounded text-sm" value={category} onChange={e=>setCategory(e.target.value)}>
-            {categories.map(cat => (
-              <option key={cat} value={cat}>{cat}</option>
-            ))}
-          </select>
+        <div className="yy-fr-field">
+          <label htmlFor="forum-content" className="yy-label">質問内容</label>
+          <textarea id="forum-content" name="content" className="yy-fr-input yy-fr-textarea" value={content} onChange={e=>setContent(e.target.value)} placeholder="詳細を記載してください" />
         </div>
-        <div className="w-[200px]">
-          <label htmlFor="forum-author" className="block text-[12px] text-gray-700 mb-1">質問者</label>
-          <input id="forum-author" name="author" className="w-full border p-2 rounded text-sm" value={author} onChange={e=>setAuthor(e.target.value)} placeholder="お名前（ニックネーム可）" />
+        <div className="yy-fr-formfoot">
+          {message && <span className={`yy-fr-msg${message.includes('投稿しました') ? ' is-ok' : ' is-ng'}`}>{message}</span>}
+          <button type="submit" className="yy-pill">投稿する</button>
         </div>
-      </div>
-      <div className="mt-2">
-        <label htmlFor="forum-content" className="block text-[12px] text-gray-700 mb-1">質問内容</label>
-        <textarea id="forum-content" name="content" className="w-full border p-2 rounded text-sm h-28" value={content} onChange={e=>setContent(e.target.value)} placeholder="詳細を記載してください" />
-      </div>
-      {message && <div className={`text-[11px] mt-2 ${message.includes('投稿しました') ? 'text-green-600' : 'text-red-600'}`}>{message}</div>}
-      <div className="mt-3">
-        <button type="submit" className="px-3 py-1 bg-gray-700 text-white rounded text-sm">投稿する</button>
-      </div>
-    </form>
+      </form>
+    </section>
   )
 }
 
@@ -734,13 +826,13 @@ function ReplyForm({ postId, onAdded }: { postId: string; onAdded: (r: { id: str
   }
 
   return (
-    <form onSubmit={submit} className="mt-2 border-t pt-2">
-      <div className="flex gap-2 flex-wrap">
-        <input className="border rounded px-2 py-1 text-[12px]" placeholder="お名前（任意）" value={author} onChange={e=>setAuthor(e.target.value)} />
-        <input className="flex-1 border rounded px-2 py-1 text-[12px] min-w-[200px]" placeholder="回答を書く" value={content} onChange={e=>setContent(e.target.value)} />
-        <button type="submit" className="px-2 py-1 text-[12px] rounded bg-gray-700 text-white hover:bg-gray-800">回答する</button>
+    <form onSubmit={submit} className="yy-fr-replyform">
+      <div className="yy-fr-replyrow">
+        <input className="yy-fr-input yy-fr-input--name" placeholder="お名前（任意）" value={author} onChange={e=>setAuthor(e.target.value)} aria-label="お名前" />
+        <input className="yy-fr-input yy-fr-input--grow" placeholder="回答を書く" value={content} onChange={e=>setContent(e.target.value)} aria-label="回答" />
+        <button type="submit" className="yy-btn">回答する</button>
       </div>
-      {msg && <div className={`text-[11px] mt-1 ${msg.includes('失敗') ? 'text-red-600' : 'text-green-600'}`}>{msg}</div>}
+      {msg && <div className={`yy-fr-msg${msg.includes('失敗') || msg.includes('未入力') || msg.includes('不適切') ? ' is-ng' : ' is-ok'}`}>{msg}</div>}
     </form>
   )
 }

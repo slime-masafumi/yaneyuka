@@ -3,6 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { decorateAffiliateLink, fetchAmazonItemImage } from '@/lib/affiliate';
 import { sanitizeEmbed } from '@/lib/sanitize';
+import PageHead, { Stat } from '../ui/PageHead';
+import { SecHead } from '../ui/Sheet';
+import './connect-pages-2.css';
 
 // 商品カテゴリーの型定義
 interface ProductCategory {
@@ -950,6 +953,273 @@ const PRODUCT_CATEGORIES: ProductCategory[] = [
   }
 ];
 
+// デジタルデバイス選定ガイドの見出し（右列の目次と、本文の h5 の id に使う）
+const GUIDE_TOC = [
+  'モバイルバッテリー',
+  'USB充電器（ACアダプタ）',
+  '充電ケーブル',
+  '高負荷PCの電源運用',
+  '電源タップ',
+  '外付けGPU（eGPU）',
+  '映像ケーブル（HDMI）',
+  '外付けストレージ',
+];
+
+// 楽天の画像とリンクで出す商品（従来の条件をそのまま）
+const RAKUTEN_IMAGE_IDS = new Set([
+  'st1', 'st5', 'st7', 'st8', 'st9', 'st10', 'st11', 'st12', 'st13', 'st14',
+  'd1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'd8', 'd9', 'd10', 'd11', 'd12', 'd13', 'd14', 'd15', 'd16', 'd17',
+  'f5', 'f6', 'f7', 'f8', 'f9',
+  'a5', 'a6', 'a7', 'a8', 'a9', 'a10', 'a11', 'a12', 'a13', 'a14', 'a15',
+  'e3', 'e4', 'e5', 'e6', 'e7', 'e8', 'e9', 'e10', 'e11', 'e12', 'e13', 'e14',
+  't3', 't5', 't6', 't7', 't8',
+]);
+
+/** 【保存版】建築・設計業務におけるデジタルデバイス選定ガイドライン（本文は従来のまま、組み方だけ本の体裁に） */
+function DeviceGuide({ onClose }: { onClose: () => void }) {
+  return (
+    <section id="shop-guide" className="yy-sh-guide">
+      <SecHead
+        no="—"
+        title="デジタルデバイス選定ガイド"
+        right={<button type="button" className="yy-linkbtn" onClick={onClose}>閉じる</button>}
+      />
+      <div className="yy-sh-guidebody">
+          <h3 className="yy-sh-gtitle">【保存版】建築・設計業務におけるデジタルデバイス選定ガイドライン</h3>
+          <p className="yy-sh-gsub"><strong>〜仕様数値（スペック）に基づく適正機材の選定基準〜</strong></p>
+          
+          <p>
+            感覚的な判断やデザインのみで機材を選定した場合、現場における電力不足、描画遅延、データ転送の遅滞など、業務効率を著しく低下させるトラブルが発生し得る。
+          </p>
+          <p>
+            本稿では、CAD/BIM/レンダリング等の高負荷業務に耐えうるデジタルデバイス選定において、遵守すべき<strong>「数値的基準」</strong>について解説する。
+          </p>
+          
+          <h4>1. 電源・給電仕様：電圧（V）・電流（A）・電力（W）の整合性</h4>
+          
+          <h5 id="shop-guide-1">① モバイルバッテリー：容量（mAh）と実用性の相関</h5>
+          <p>
+            単に大容量であれば良いわけではなく、携帯性と用途のバランスを考慮し選定する必要がある。
+          </p>
+          
+          <div className="yy-sh-tblwrap">
+            <table className="yy-tbl">
+              <thead>
+                <tr>
+                  <th>容量クラス</th>
+                  <th>実効充電回数（目安）</th>
+                  <th>推奨用途</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>5,000mAh</strong></td>
+                  <td>スマートフォン 約1回</td>
+                  <td><strong>【緊急予備】</strong> 最軽量クラス。緊急時の連絡手段確保用。</td>
+                </tr>
+                <tr>
+                  <td><strong>10,000mAh</strong></td>
+                  <td>スマートフォン 約2.5回</td>
+                  <td><strong>【標準運用】</strong> 終日の現場巡回・連絡業務における最適解。</td>
+                </tr>
+                <tr>
+                  <td><strong>20,000mAh〜</strong></td>
+                  <td>PC 約0.8回 / スマホ 約5回</td>
+                  <td><strong>【PC給電・BCP対策】</strong> ノートPCへの給電や災害時の電源確保用。</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          
+          <h5 id="shop-guide-2">② USB充電器（ACアダプタ）：多ポート接続時の電力配分仕様</h5>
+          <p>
+            「最大〇〇W」の表記は単ポート出力時の最大値であり、複数ポート使用時は<strong>総電力が分散</strong>される点に留意されたい。
+          </p>
+          
+          <div className="yy-sh-tblwrap">
+            <table className="yy-tbl">
+              <thead>
+                <tr>
+                  <th>出力クラス</th>
+                  <th>適合デバイス</th>
+                  <th>選定基準</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>20W 〜 30W</strong></td>
+                  <td>スマホ・タブレット</td>
+                  <td>急速充電（PD）に必要な最低ライン。</td>
+                </tr>
+                <tr>
+                  <td><strong>65W</strong></td>
+                  <td>一般ノートPC ＋ スマホ</td>
+                  <td>モバイルノートPCの標準的な出力要件。</td>
+                </tr>
+                <tr>
+                  <td><strong>100W</strong></td>
+                  <td>ハイスペックPC</td>
+                  <td><strong>建築・設計業務推奨。</strong> 複数接続時もPCへの高出力を維持可能。</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          
+          <div className="yy-sh-note">
+            <p><strong>【注意】電力分散による供給不足</strong></p>
+            <p>
+              例：最大65Wの充電器にてPCとスマートフォンを同時充電した場合<br />
+              → PCへの出力が<strong>45Wに制限</strong>され、残りの20Wがスマートフォンへ配分される仕様が一般的である。<br />
+              → 結果として、PC側の充電速度低下や低電圧警告が発生する要因となる。
+            </p>
+          </div>
+          
+          <h5 id="shop-guide-3">③ 充電ケーブル：電流定格「5A」の要件</h5>
+          <p>
+            ケーブルには通電可能な電流上限が存在する。ここがボトルネックとなり、充電器の性能が生かされない事例が散見される。
+          </p>
+          <ul>
+            <li><span>・</span><strong>60Wケーブル（3A定格）</strong>: 一般的な付属品。100W充電器に接続しても<strong>最大60W</strong>に制限される。</li>
+            <li><span>・</span><strong>100W対応ケーブル（5A定格）</strong>: <strong>必須要件。</strong> 製品仕様に「5A」「100W」「E-Marker搭載」の表記がある製品を選定すること。</li>
+          </ul>
+          
+          <h5 id="shop-guide-4">④ 高負荷PC（CAD/BIM機）の電源運用</h5>
+          <p>
+            Zenbook ProやゲーミングPC等、純正ACアダプタが<strong>150W〜200W超</strong>の機種における運用規定。
+          </p>
+          
+          <div className="yy-sh-tblwrap">
+            <table className="yy-tbl">
+              <thead>
+                <tr>
+                  <th>電源ソース</th>
+                  <th>供給電力</th>
+                  <th>挙動・リスク</th>
+                  <th>推奨運用</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>純正ACアダプタ</strong></td>
+                  <td><strong>150W〜300W</strong></td>
+                  <td><strong>最大性能発揮</strong>。レンダリング等の高負荷時も安定動作する。</td>
+                  <td>事務所内作業・高負荷演算時</td>
+                </tr>
+                <tr>
+                  <td><strong>USB-C充電器</strong></td>
+                  <td><strong>Max 100W</strong></td>
+                  <td><strong>電力不足</strong>。高負荷時はバッテリー残量が減少（消費電力＞供給電力）する。</td>
+                  <td>移動時・メール確認等の軽作業</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          
+          <h4>2. 周辺機器仕様：帯域幅（Gbps）と転送速度（MB/s）の閾値</h4>
+          
+          <h5 id="shop-guide-5">⑤ 電源タップ：筐体形状による物理的干渉の回避</h5>
+          <p>
+            電気的仕様に加え、ACアダプタの物理形状に起因する干渉問題を回避可能な製品を選定する。
+          </p>
+          <ul>
+            <li><span>・</span><strong>タワー型</strong>: 四方向への差込が可能なため、大型アダプタ同士の干渉を防ぐ。デスク上への設置に適する。</li>
+            <li><span>・</span><strong>回転式</strong>: 差込口が個別に回転し、壁面コンセントにおいてもアダプタの角度調整が可能。</li>
+          </ul>
+          
+          <h5 id="shop-guide-6">⑥ 外付けGPU（eGPU）：通信帯域（40Gbps）による性能制約</h5>
+          <p>
+            ノートPCの描画性能を拡張するeGPUボックスは、接続インターフェース（Thunderbolt 3/4）の帯域幅がボトルネックとなる。
+          </p>
+          <ul>
+            <li><span>・</span><strong>通信帯域</strong>: <strong>最大40Gbps</strong>（デスクトップPC内部接続の約1/6相当）。</li>
+            <li><span>・</span><strong>選定指針</strong>: ハイエンドGPU（RTX 4090等）を搭載しても帯域制限により性能の20〜30%が損失するため、費用対効果が低い。<strong>ミドルハイ（RTX 4060Ti 〜 4070）</strong>クラスが帯域幅とのバランスにおいて最適である。</li>
+            <li><span>・</span><strong>電源容量</strong>: `BOX電源容量 ＞ GPU消費電力(TGP) ＋ PC給電(PD) ＋ 100W(マージン)` を満たす製品を選定すること。</li>
+          </ul>
+          
+          <h5 id="shop-guide-7">⑦ 映像ケーブル（HDMI）：リフレッシュレート（Hz）の規格要件</h5>
+          <p>
+            単に映像が表示されるだけでなく、CAD操作における追従性を確保するための規格選定が必要である。
+          </p>
+          
+          <div className="yy-sh-tblwrap">
+            <table className="yy-tbl">
+              <thead>
+                <tr>
+                  <th>HDMI規格</th>
+                  <th>帯域幅</th>
+                  <th>4K出力時の限界</th>
+                  <th>業務への影響</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>HDMI 1.4</strong></td>
+                  <td>10.2Gbps</td>
+                  <td><strong>30Hz</strong></td>
+                  <td><strong>不適</strong>。カーソルの追従性が著しく低下し、精密な製図作業に支障をきたす。</td>
+                </tr>
+                <tr>
+                  <td><strong>HDMI 2.0</strong></td>
+                  <td>18Gbps</td>
+                  <td><strong>60Hz</strong></td>
+                  <td><strong>必須</strong>。標準的な滑らかさが確保され、作業ストレスがない。</td>
+                </tr>
+                <tr>
+                  <td><strong>HDMI 2.1</strong></td>
+                  <td>48Gbps</td>
+                  <td><strong>120Hz〜</strong></td>
+                  <td>高リフレッシュレート対応モニターや8K出力時に必要。</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          
+          <p>
+            <strong>確認方法</strong>: ケーブル被覆やパッケージに「Premium High Speed (HDMI 2.0相当)」以上の表記があることを確認すること。
+          </p>
+          
+          <h5 id="shop-guide-8">⑧ 外付けストレージ：転送速度（MB/s）とインターフェース規格</h5>
+          <p>
+            現場写真のバックアップやBIMデータ等の大容量ファイル移動において、転送速度は作業時間に直結する。
+          </p>
+          
+          <div className="yy-sh-tblwrap">
+            <table className="yy-tbl">
+              <thead>
+                <tr>
+                  <th>デバイス種別</th>
+                  <th>転送速度（理論値）</th>
+                  <th>実務所要時間目安（10GBデータ）</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>USBメモリ</strong></td>
+                  <td>約 100 MB/s</td>
+                  <td>約 2分</td>
+                </tr>
+                <tr>
+                  <td><strong>SATA SSD</strong></td>
+                  <td>約 500 MB/s</td>
+                  <td>約 25秒</td>
+                </tr>
+                <tr>
+                  <td><strong>NVMe SSD</strong></td>
+                  <td><strong>1,000 MB/s 〜</strong></td>
+                  <td><strong>約 5〜10秒</strong></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          
+          <p>
+            <strong>推奨仕様</strong>: パッケージ等に<strong>「読出速度 1050MB/s」</strong>等の4桁表記があるNVMe接続のSSDを選定すること。これにより、Revit等のプロジェクトファイルを外部ストレージ上で直接編集する場合も遅延なく作業可能となる。
+          </p>
+      </div>
+    </section>
+  );
+}
+
 const ShopContent: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('desk');
   const [isTransitioning, setIsTransitioning] = useState<boolean>(false);
@@ -961,7 +1231,7 @@ const ShopContent: React.FC = () => {
   const displayCategory = (category: string) => {
     setIsTransitioning(true);
     setActiveList([]); // activeListを即座にリセット
-    
+
     setTimeout(() => {
       setSelectedCategory(category);
       setIsTransitioning(false);
@@ -971,11 +1241,11 @@ const ShopContent: React.FC = () => {
   // カテゴリ切り替え時にactiveListをリセットし、左から順にactive化
   useEffect(() => {
     if (isTransitioning) return; // トランジション中はアニメーションを開始しない
-    
+
     const category = PRODUCT_CATEGORIES.find(c => c.id === selectedCategory);
     const items = category?.items || [];
     setActiveList(Array(items.length).fill(false));
-    
+
     // 少し遅延させてからアニメーションを開始（トランジション完了後）
     const timer = setTimeout(() => {
       items.forEach((_, i) => {
@@ -985,481 +1255,311 @@ const ShopContent: React.FC = () => {
             copy[i] = true;
             return copy;
           });
-        }, i * 80);
+        }, i * 40);
       });
     }, 50);
-    
+
     return () => clearTimeout(timer);
   }, [selectedCategory, isTransitioning]);
 
-  const getButtonClass = (category: string) => {
-    const baseClass = "text-xs px-2 py-1 rounded transition";
-    const widthClass = "w-24";
-    if (selectedCategory === category) {
-      return `${baseClass} ${widthClass} bg-gray-700 text-white`;
-    }
-    return `${baseClass} ${widthClass} bg-gray-300 text-black hover:bg-gray-700 hover:text-white`;
+  const current = PRODUCT_CATEGORIES.find(c => c.id === selectedCategory);
+  const totalItems = PRODUCT_CATEGORIES.reduce((s, c) => s + c.items.length, 0);
+  const brandCount = new Set(PRODUCT_CATEGORIES.flatMap(c => c.items.map(p => p.brand))).size;
+
+  // ガイドを開いて、その見出しまで送る（n なしはガイドの頭）
+  const openGuide = (n?: number) => {
+    setShowDeviceGuide(true);
+    setTimeout(() => {
+      document.getElementById(n ? `shop-guide-${n}` : 'shop-guide')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 60);
   };
 
-  return (
-    <div>
-      <div className="flex items-baseline mb-2">
-        <h2 className="text-xl font-semibold">Shop</h2>
-        <a href="/register" className="text-gray-600 hover:text-gray-800 text-[11px] ml-4">掲載希望はコチラ</a>
+  // 商品名の下の 1 行：説明（押すと全文）
+  const descBlock = (product: Product) => (
+    <>
+      <p
+        className={`yy-sh-desc${expandedDescriptions[product.id] ? ' is-open' : ''}`}
+        onClick={() => setExpandedDescriptions(prev => ({ ...prev, [product.id]: !prev[product.id] }))}
+      >
+        {product.description}
+      </p>
+      {product.description.length > 100 && (
         <button
-          onClick={() => setShowDeviceGuide(!showDeviceGuide)}
-          className="ml-2 align-baseline text-blue-600 hover:text-blue-800 text-[11px] underline"
+          type="button"
+          onClick={() => setExpandedDescriptions(prev => ({ ...prev, [product.id]: !prev[product.id] }))}
+          className="yy-linkbtn yy-sh-more"
         >
-          <span className={`inline-block transition-transform ${showDeviceGuide ? 'rotate-90' : ''}`}>&gt;</span> デジタルデバイス選定ガイド
+          {expandedDescriptions[product.id] ? '折りたたむ' : '続きを読む'}
         </button>
-      </div>
-      
-      {/* デジタルデバイス選定ガイドトグル */}
-      {showDeviceGuide && (
-        <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg text-xs">
-          <h3 className="font-bold text-[13px] mb-1.5">【保存版】建築・設計業務におけるデジタルデバイス選定ガイドライン</h3>
-          <p className="text-[11px] text-gray-700 mb-2"><strong>〜仕様数値（スペック）に基づく適正機材の選定基準〜</strong></p>
-          
-          <p className="mb-2 text-xs ml-3">
-            感覚的な判断やデザインのみで機材を選定した場合、現場における電力不足、描画遅延、データ転送の遅滞など、業務効率を著しく低下させるトラブルが発生し得る。
-          </p>
-          <p className="mb-3 text-xs ml-3">
-            本稿では、CAD/BIM/レンダリング等の高負荷業務に耐えうるデジタルデバイス選定において、遵守すべき<strong>「数値的基準」</strong>について解説する。
-          </p>
-          
-          <h4 className="font-bold text-[12px] mb-1">1. 電源・給電仕様：電圧（V）・電流（A）・電力（W）の整合性</h4>
-          
-          <h5 className="font-bold text-[11px] mb-1 mt-2">① モバイルバッテリー：容量（mAh）と実用性の相関</h5>
-          <p className="mb-1 text-xs ml-3">
-            単に大容量であれば良いわけではなく、携帯性と用途のバランスを考慮し選定する必要がある。
-          </p>
-          
-          <div className="mb-2 ml-3 overflow-x-auto">
-            <table className="min-w-full text-[10px] border-collapse border border-gray-300">
-              <thead>
-                <tr className="bg-gray-100">
-                  <th className="border border-gray-300 p-1 text-left">容量クラス</th>
-                  <th className="border border-gray-300 p-1 text-left">実効充電回数（目安）</th>
-                  <th className="border border-gray-300 p-1 text-left">推奨用途</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td className="border border-gray-300 p-1"><strong>5,000mAh</strong></td>
-                  <td className="border border-gray-300 p-1">スマートフォン 約1回</td>
-                  <td className="border border-gray-300 p-1"><strong>【緊急予備】</strong> 最軽量クラス。緊急時の連絡手段確保用。</td>
-                </tr>
-                <tr>
-                  <td className="border border-gray-300 p-1"><strong>10,000mAh</strong></td>
-                  <td className="border border-gray-300 p-1">スマートフォン 約2.5回</td>
-                  <td className="border border-gray-300 p-1"><strong>【標準運用】</strong> 終日の現場巡回・連絡業務における最適解。</td>
-                </tr>
-                <tr>
-                  <td className="border border-gray-300 p-1"><strong>20,000mAh〜</strong></td>
-                  <td className="border border-gray-300 p-1">PC 約0.8回 / スマホ 約5回</td>
-                  <td className="border border-gray-300 p-1"><strong>【PC給電・BCP対策】</strong> ノートPCへの給電や災害時の電源確保用。</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          
-          <h5 className="font-bold text-[11px] mb-1 mt-2">② USB充電器（ACアダプタ）：多ポート接続時の電力配分仕様</h5>
-          <p className="mb-1 text-xs ml-3">
-            「最大〇〇W」の表記は単ポート出力時の最大値であり、複数ポート使用時は<strong>総電力が分散</strong>される点に留意されたい。
-          </p>
-          
-          <div className="mb-2 ml-3 overflow-x-auto">
-            <table className="min-w-full text-[10px] border-collapse border border-gray-300">
-              <thead>
-                <tr className="bg-gray-100">
-                  <th className="border border-gray-300 p-1 text-left">出力クラス</th>
-                  <th className="border border-gray-300 p-1 text-left">適合デバイス</th>
-                  <th className="border border-gray-300 p-1 text-left">選定基準</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td className="border border-gray-300 p-1"><strong>20W 〜 30W</strong></td>
-                  <td className="border border-gray-300 p-1">スマホ・タブレット</td>
-                  <td className="border border-gray-300 p-1">急速充電（PD）に必要な最低ライン。</td>
-                </tr>
-                <tr>
-                  <td className="border border-gray-300 p-1"><strong>65W</strong></td>
-                  <td className="border border-gray-300 p-1">一般ノートPC ＋ スマホ</td>
-                  <td className="border border-gray-300 p-1">モバイルノートPCの標準的な出力要件。</td>
-                </tr>
-                <tr>
-                  <td className="border border-gray-300 p-1"><strong>100W</strong></td>
-                  <td className="border border-gray-300 p-1">ハイスペックPC</td>
-                  <td className="border border-gray-300 p-1"><strong>建築・設計業務推奨。</strong> 複数接続時もPCへの高出力を維持可能。</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          
-          <div className="mb-2 ml-3 p-2 bg-yellow-50 border-l-4 border-yellow-400">
-            <p className="text-[10px] text-gray-700"><strong>【注意】電力分散による供給不足</strong></p>
-            <p className="text-[10px] text-gray-700 mt-1">
-              例：最大65Wの充電器にてPCとスマートフォンを同時充電した場合<br />
-              → PCへの出力が<strong>45Wに制限</strong>され、残りの20Wがスマートフォンへ配分される仕様が一般的である。<br />
-              → 結果として、PC側の充電速度低下や低電圧警告が発生する要因となる。
-            </p>
-          </div>
-          
-          <h5 className="font-bold text-[11px] mb-1 mt-2">③ 充電ケーブル：電流定格「5A」の要件</h5>
-          <p className="mb-1 text-xs ml-3">
-            ケーブルには通電可能な電流上限が存在する。ここがボトルネックとなり、充電器の性能が生かされない事例が散見される。
-          </p>
-          <ul className="mb-2 space-y-0.5 text-xs ml-3 list-none">
-            <li><span className="mr-1">・</span><strong>60Wケーブル（3A定格）</strong>: 一般的な付属品。100W充電器に接続しても<strong>最大60W</strong>に制限される。</li>
-            <li><span className="mr-1">・</span><strong>100W対応ケーブル（5A定格）</strong>: <strong>必須要件。</strong> 製品仕様に「5A」「100W」「E-Marker搭載」の表記がある製品を選定すること。</li>
-          </ul>
-          
-          <h5 className="font-bold text-[11px] mb-1 mt-2">④ 高負荷PC（CAD/BIM機）の電源運用</h5>
-          <p className="mb-1 text-xs ml-3">
-            Zenbook ProやゲーミングPC等、純正ACアダプタが<strong>150W〜200W超</strong>の機種における運用規定。
-          </p>
-          
-          <div className="mb-2 ml-3 overflow-x-auto">
-            <table className="min-w-full text-[10px] border-collapse border border-gray-300">
-              <thead>
-                <tr className="bg-gray-100">
-                  <th className="border border-gray-300 p-1 text-left">電源ソース</th>
-                  <th className="border border-gray-300 p-1 text-left">供給電力</th>
-                  <th className="border border-gray-300 p-1 text-left">挙動・リスク</th>
-                  <th className="border border-gray-300 p-1 text-left">推奨運用</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td className="border border-gray-300 p-1"><strong>純正ACアダプタ</strong></td>
-                  <td className="border border-gray-300 p-1"><strong>150W〜300W</strong></td>
-                  <td className="border border-gray-300 p-1"><strong>最大性能発揮</strong>。レンダリング等の高負荷時も安定動作する。</td>
-                  <td className="border border-gray-300 p-1">事務所内作業・高負荷演算時</td>
-                </tr>
-                <tr>
-                  <td className="border border-gray-300 p-1"><strong>USB-C充電器</strong></td>
-                  <td className="border border-gray-300 p-1"><strong>Max 100W</strong></td>
-                  <td className="border border-gray-300 p-1"><strong>電力不足</strong>。高負荷時はバッテリー残量が減少（消費電力＞供給電力）する。</td>
-                  <td className="border border-gray-300 p-1">移動時・メール確認等の軽作業</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          
-          <h4 className="font-bold text-[12px] mb-1 mt-3">2. 周辺機器仕様：帯域幅（Gbps）と転送速度（MB/s）の閾値</h4>
-          
-          <h5 className="font-bold text-[11px] mb-1 mt-2">⑤ 電源タップ：筐体形状による物理的干渉の回避</h5>
-          <p className="mb-1 text-xs ml-3">
-            電気的仕様に加え、ACアダプタの物理形状に起因する干渉問題を回避可能な製品を選定する。
-          </p>
-          <ul className="mb-2 space-y-0.5 text-xs ml-3 list-none">
-            <li><span className="mr-1">・</span><strong>タワー型</strong>: 四方向への差込が可能なため、大型アダプタ同士の干渉を防ぐ。デスク上への設置に適する。</li>
-            <li><span className="mr-1">・</span><strong>回転式</strong>: 差込口が個別に回転し、壁面コンセントにおいてもアダプタの角度調整が可能。</li>
-          </ul>
-          
-          <h5 className="font-bold text-[11px] mb-1 mt-2">⑥ 外付けGPU（eGPU）：通信帯域（40Gbps）による性能制約</h5>
-          <p className="mb-1 text-xs ml-3">
-            ノートPCの描画性能を拡張するeGPUボックスは、接続インターフェース（Thunderbolt 3/4）の帯域幅がボトルネックとなる。
-          </p>
-          <ul className="mb-2 space-y-0.5 text-xs ml-3 list-none">
-            <li><span className="mr-1">・</span><strong>通信帯域</strong>: <strong>最大40Gbps</strong>（デスクトップPC内部接続の約1/6相当）。</li>
-            <li><span className="mr-1">・</span><strong>選定指針</strong>: ハイエンドGPU（RTX 4090等）を搭載しても帯域制限により性能の20〜30%が損失するため、費用対効果が低い。<strong>ミドルハイ（RTX 4060Ti 〜 4070）</strong>クラスが帯域幅とのバランスにおいて最適である。</li>
-            <li><span className="mr-1">・</span><strong>電源容量</strong>: `BOX電源容量 ＞ GPU消費電力(TGP) ＋ PC給電(PD) ＋ 100W(マージン)` を満たす製品を選定すること。</li>
-          </ul>
-          
-          <h5 className="font-bold text-[11px] mb-1 mt-2">⑦ 映像ケーブル（HDMI）：リフレッシュレート（Hz）の規格要件</h5>
-          <p className="mb-1 text-xs ml-3">
-            単に映像が表示されるだけでなく、CAD操作における追従性を確保するための規格選定が必要である。
-          </p>
-          
-          <div className="mb-2 ml-3 overflow-x-auto">
-            <table className="min-w-full text-[10px] border-collapse border border-gray-300">
-              <thead>
-                <tr className="bg-gray-100">
-                  <th className="border border-gray-300 p-1 text-left">HDMI規格</th>
-                  <th className="border border-gray-300 p-1 text-left">帯域幅</th>
-                  <th className="border border-gray-300 p-1 text-left">4K出力時の限界</th>
-                  <th className="border border-gray-300 p-1 text-left">業務への影響</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td className="border border-gray-300 p-1"><strong>HDMI 1.4</strong></td>
-                  <td className="border border-gray-300 p-1">10.2Gbps</td>
-                  <td className="border border-gray-300 p-1"><strong>30Hz</strong></td>
-                  <td className="border border-gray-300 p-1"><strong>不適</strong>。カーソルの追従性が著しく低下し、精密な製図作業に支障をきたす。</td>
-                </tr>
-                <tr>
-                  <td className="border border-gray-300 p-1"><strong>HDMI 2.0</strong></td>
-                  <td className="border border-gray-300 p-1">18Gbps</td>
-                  <td className="border border-gray-300 p-1"><strong>60Hz</strong></td>
-                  <td className="border border-gray-300 p-1"><strong>必須</strong>。標準的な滑らかさが確保され、作業ストレスがない。</td>
-                </tr>
-                <tr>
-                  <td className="border border-gray-300 p-1"><strong>HDMI 2.1</strong></td>
-                  <td className="border border-gray-300 p-1">48Gbps</td>
-                  <td className="border border-gray-300 p-1"><strong>120Hz〜</strong></td>
-                  <td className="border border-gray-300 p-1">高リフレッシュレート対応モニターや8K出力時に必要。</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          
-          <p className="mb-2 text-xs ml-3">
-            <strong>確認方法</strong>: ケーブル被覆やパッケージに「Premium High Speed (HDMI 2.0相当)」以上の表記があることを確認すること。
-          </p>
-          
-          <h5 className="font-bold text-[11px] mb-1 mt-2">⑧ 外付けストレージ：転送速度（MB/s）とインターフェース規格</h5>
-          <p className="mb-1 text-xs ml-3">
-            現場写真のバックアップやBIMデータ等の大容量ファイル移動において、転送速度は作業時間に直結する。
-          </p>
-          
-          <div className="mb-2 ml-3 overflow-x-auto">
-            <table className="min-w-full text-[10px] border-collapse border border-gray-300">
-              <thead>
-                <tr className="bg-gray-100">
-                  <th className="border border-gray-300 p-1 text-left">デバイス種別</th>
-                  <th className="border border-gray-300 p-1 text-left">転送速度（理論値）</th>
-                  <th className="border border-gray-300 p-1 text-left">実務所要時間目安（10GBデータ）</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td className="border border-gray-300 p-1"><strong>USBメモリ</strong></td>
-                  <td className="border border-gray-300 p-1">約 100 MB/s</td>
-                  <td className="border border-gray-300 p-1">約 2分</td>
-                </tr>
-                <tr>
-                  <td className="border border-gray-300 p-1"><strong>SATA SSD</strong></td>
-                  <td className="border border-gray-300 p-1">約 500 MB/s</td>
-                  <td className="border border-gray-300 p-1">約 25秒</td>
-                </tr>
-                <tr>
-                  <td className="border border-gray-300 p-1"><strong>NVMe SSD</strong></td>
-                  <td className="border border-gray-300 p-1"><strong>1,000 MB/s 〜</strong></td>
-                  <td className="border border-gray-300 p-1"><strong>約 5〜10秒</strong></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          
-          <p className="mb-2 text-xs ml-3">
-            <strong>推奨仕様</strong>: パッケージ等に<strong>「読出速度 1050MB/s」</strong>等の4桁表記があるNVMe接続のSSDを選定すること。これにより、Revit等のプロジェクトファイルを外部ストレージ上で直接編集する場合も遅延なく作業可能となる。
-          </p>
-        </div>
       )}
-      <p className="text-[12px] text-gray-600 mb-2">
-        設計・現場で役立つ文具や家具、デバイスなどの新商品をカテゴリ別にピックアップしています。チームの備品検討や個人のアップデートにご活用ください。
-      </p>
-      <p className="text-[11px] text-gray-500 mb-3">
-        当サイトはアフィリエイト広告を利用しています。Amazonのアソシエイトとして、適格販売により収入を得ています。
-      </p>
-      {/* カテゴリーボタン */}
-      <div className="flex gap-2 flex-wrap mb-4">
+    </>
+  );
+
+  return (
+    <div className="yy-sh">
+      <PageHead
+        no="24"
+        en="shop"
+        title="Shop"
+        desc="設計・現場で役立つ道具"
+        right={
+          <>
+            <Stat n={totalItems} label="品" />
+            <Stat n={PRODUCT_CATEGORIES.length} label="分類" />
+            <Stat n={brandCount} label="ブランド" />
+            <a href="/register" className="yy-stat" style={{ textDecoration: 'none' }}>掲載希望 ↗</a>
+          </>
+        }
+      />
+
+      {/* カテゴリー：下線タブ */}
+      <div className="yy-tabs">
         {PRODUCT_CATEGORIES.map((category) => (
           <button
             key={category.id}
+            type="button"
             onClick={() => displayCategory(category.id)}
-            className={getButtonClass(category.id)}
+            aria-pressed={selectedCategory === category.id}
+            className="yy-tab"
           >
             {category.name}
+            <small>{category.items.length}</small>
           </button>
         ))}
+        <button
+          type="button"
+          onClick={() => (showDeviceGuide ? setShowDeviceGuide(false) : openGuide())}
+          aria-expanded={showDeviceGuide}
+          className="yy-tab yy-sh-guidetab"
+        >
+          <span className={`yy-sh-caret${showDeviceGuide ? ' is-open' : ''}`}>›</span> デジタルデバイス選定ガイド
+        </button>
       </div>
 
-      {/* 選択されたカテゴリーの商品一覧 */}
-      <div
-        id="shop-content-area"
-        className={`mt-4 transition-opacity duration-250 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}
-      >
-        <h2 className="text-sm font-bold text-gray-900 mb-2">
-          {PRODUCT_CATEGORIES.find(c => c.id === selectedCategory)?.name}
-        </h2>
-        <p className="text-xs text-gray-600 mb-4">
-          {PRODUCT_CATEGORIES.find(c => c.id === selectedCategory)?.description}
-        </p>
+      <div className="yy-newspage">
+        <div className="yy-newspage__main">
+          {/* デジタルデバイス選定ガイドトグル */}
+          {showDeviceGuide && <DeviceGuide onClose={() => setShowDeviceGuide(false)} />}
 
-        <div className="grid gap-3 grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-          {PRODUCT_CATEGORIES.find(c => c.id === selectedCategory)?.items.map((product, index) => (
-            <div 
-              key={product.id} 
-              className={`border rounded p-3 bg-white text-sm w-full h-[380px] dynamic-card transition-all duration-500 ${
-                activeList[index] ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
-              } flex flex-col`}
-            >
-              {/* 画像枠: 1:1（正方形）に統一し、Amazon画像をobject-containで収める */}
-              {(product.id === 'st1' || product.id === 'st5' || product.id === 'st7' || product.id === 'st8' || product.id === 'st9' || product.id === 'st10' || product.id === 'st11' || product.id === 'st12' || product.id === 'st13' || product.id === 'st14' || product.id === 'd1' || product.id === 'd2' || product.id === 'd3' || product.id === 'd4' || product.id === 'd5' || product.id === 'd6' || product.id === 'd7' || product.id === 'd8' || product.id === 'd9' || product.id === 'd10' || product.id === 'd11' || product.id === 'd12' || product.id === 'd13' || product.id === 'd14' || product.id === 'd15' || product.id === 'd16' || product.id === 'd17' || product.id === 'f5' || product.id === 'f6' || product.id === 'f7' || product.id === 'f8' || product.id === 'f9' || product.id === 'a5' || product.id === 'a6' || product.id === 'a7' || product.id === 'a8' || product.id === 'a9' || product.id === 'a10' || product.id === 'a11' || product.id === 'a12' || product.id === 'a13' || product.id === 'a14' || product.id === 'a15' || product.id === 'e3' || product.id === 'e4' || product.id === 'e5' || product.id === 'e6' || product.id === 'e7' || product.id === 'e8' || product.id === 'e9' || product.id === 'e10' || product.id === 'e11' || product.id === 'e12' || product.id === 'e13' || product.id === 'e14' || product.id === 't3' || product.id === 't5' || product.id === 't6' || product.id === 't7' || product.id === 't8') && product.rakutenImage && product.rakutenLink ? (
-                <>
-                  <div className="w-full aspect-square bg-white rounded mb-2 overflow-hidden flex items-center justify-center cursor-pointer">
-                    {(() => {
-                      // 複数の画像がある場合は配列から選択、ない場合は単一画像を使用
-                      const images = product.rakutenImages && product.rakutenImages.length > 0 
-                        ? product.rakutenImages 
-                        : [product.rakutenImage];
-                      const currentIndex = productImageIndices[product.id] || 0;
-                      const currentImage = images[currentIndex] || images[0];
-                      
-                      return (
+          <div className="yy-sh-intro">
+            <p>
+              設計・現場で役立つ文具や家具、デバイスなどの新商品をカテゴリ別にピックアップしています。チームの備品検討や個人のアップデートにご活用ください。
+            </p>
+            <p className="yy-sh-pr">
+              <span className="yy-fmt">PR</span>
+              当サイトはアフィリエイト広告を利用しています。Amazonのアソシエイトとして、適格販売により収入を得ています。
+            </p>
+          </div>
+
+          {/* 選択されたカテゴリーの商品一覧 */}
+          <section
+            id="shop-content-area"
+            className={`yy-sh-area${isTransitioning ? ' is-out' : ''}`}
+          >
+            <SecHead no="I" title={current?.name} right={`${current?.items.length ?? 0} 品 · ${current?.description ?? ''}`} />
+
+            <ol className="yy-sh-list">
+              {current?.items.map((product, index) => {
+                const useRakuten = RAKUTEN_IMAGE_IDS.has(product.id) && !!product.rakutenImage && !!product.rakutenLink;
+                // 複数の画像がある場合は配列から選択、ない場合は単一画像を使用
+                const images = product.rakutenImages && product.rakutenImages.length > 0
+                  ? product.rakutenImages
+                  : [product.rakutenImage];
+                const currentIndex = productImageIndices[product.id] || 0;
+                const currentImage = images[currentIndex] || images[0];
+
+                return (
+                  <li
+                    key={product.id}
+                    className={`yy-sh-item${activeList[index] ? ' is-in' : ''}`}
+                  >
+                    <span className="yy-sh-no">{String(index + 1).padStart(2, '0')}</span>
+                    {useRakuten ? (
+                      <>
+                        {/* 画像枠: 1:1（正方形）。押すと次の画像へ */}
+                        <div className="yy-sh-img is-cycle" title={images.length > 1 ? '押すと次の画像' : undefined}>
+                          <img
+                            src={`https:${currentImage}`}
+                            alt={product.name}
+                            className="yy-sh-imgel"
+                            style={{ border: 'none' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              // 次の画像に切り替え（最後の画像の場合は最初に戻る）
+                              const nextIndex = (currentIndex + 1) % images.length;
+                              setProductImageIndices(prev => ({
+                                ...prev,
+                                [product.id]: nextIndex
+                              }));
+                            }}
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.src = "/image/shop/placeholder_480x384.png";
+                              target.onerror = null;
+                            }}
+                          />
+                        </div>
                         <img
-                          src={`https:${currentImage}`}
-                          alt={product.name}
-                          className="w-full h-full object-contain rounded transition-opacity duration-300"
-                          style={{ border: 'none' }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            // 次の画像に切り替え（最後の画像の場合は最初に戻る）
-                            const nextIndex = (currentIndex + 1) % images.length;
-                            setProductImageIndices(prev => ({
-                              ...prev,
-                              [product.id]: nextIndex
-                            }));
-                          }}
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.src = "/image/shop/placeholder_480x384.png";
-                            target.onerror = null;
-                          }}
+                          src={`https://i.moshimo.com/af/i/impression?a_id=5277132&p_id=54&pc_id=54&pl_id=616`}
+                          alt=""
+                          loading="lazy"
+                          width="1"
+                          height="1"
+                          style={{ border: 0, display: 'none' }}
                         />
-                      );
-                    })()}
-                  </div>
-                  <img 
-                    src={`https://i.moshimo.com/af/i/impression?a_id=5277132&p_id=54&pc_id=54&pl_id=616`}
-                    alt=""
-                    loading="lazy"
-                    width="1"
-                    height="1"
-                    style={{ border: 0, display: 'none' }}
-                  />
-                  <div className="text-xs text-gray-500 mb-1">{product.brand}</div>
-                  <h3 className="font-bold text-sm mb-1">{product.name}</h3>
-                  <div className="mb-3">
-                    <p 
-                      className={`text-xs text-gray-600 cursor-pointer hover:text-gray-800 transition-colors ${expandedDescriptions[product.id] ? '' : 'line-clamp-2'}`}
-                      onClick={() => setExpandedDescriptions(prev => ({ ...prev, [product.id]: !prev[product.id] }))}
-                    >
-                      {product.description}
-                    </p>
-                    {product.description.length > 100 && (
-                      <button
-                        onClick={() => setExpandedDescriptions(prev => ({ ...prev, [product.id]: !prev[product.id] }))}
-                        className="text-xs text-blue-600 hover:text-blue-800 mt-1"
-                      >
-                        {expandedDescriptions[product.id] ? '折りたたむ' : '続きを読む'}
-                      </button>
-                    )}
-                  </div>
-                  {/* ボタン 行（右下固定配置） */}
-                  <div className="mt-auto">
-                    {product.price > 0 && (
-                      <div className="text-sm font-bold text-gray-900 mb-2">¥{product.price.toLocaleString()}</div>
-                    )}
-                    <div className="mt-2 flex gap-2">
-                      <a
-                        href={`https:${product.rakutenLink}`}
-                        target="_blank"
-                        rel="nofollow noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="flex-1 px-3 py-1.5 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 transition-colors text-center hidden"
-                      >
-                        楽天で購入
-                      </a>
-                      {product.amazonLink && (
-                        <a
-                          href={decorateAffiliateLink(product.amazonLink)}
-                          target="_blank"
-                          rel="nofollow noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          className="flex-1 px-3 py-1.5 bg-cyan-500 text-white text-xs rounded hover:bg-cyan-600 transition-colors text-center"
-                        >
-                          Amazonで購入
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="w-full aspect-square bg-white rounded mb-2 overflow-hidden flex items-center justify-center">
-                    {product.embedHtml ? (
-                      <div
-                        className="shop-embed-container w-full h-full flex items-center justify-center"
-                        dangerouslySetInnerHTML={{ __html: sanitizeEmbed(product.embedHtml) }}
-                      />
+                        <div className="yy-sh-body">
+                          <span className="yy-sh-brand">{product.brand}</span>
+                          <h3 className="yy-sh-name">{product.name}</h3>
+                          {descBlock(product)}
+                          <div className="yy-sh-foot">
+                            {images.length > 1 && <span className="yy-fmt">写真 {currentIndex + 1}/{images.length}</span>}
+                            {product.price > 0 && (
+                              <span className="yy-sh-price">¥{product.price.toLocaleString()}</span>
+                            )}
+                            <span className="yy-sh-links">
+                              <a
+                                href={`https:${product.rakutenLink}`}
+                                target="_blank"
+                                rel="nofollow noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="yy-sh-buy hidden"
+                              >
+                                楽天で購入
+                              </a>
+                              {product.amazonLink && (
+                                <a
+                                  href={decorateAffiliateLink(product.amazonLink)}
+                                  target="_blank"
+                                  rel="nofollow noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="yy-sh-buy"
+                                >
+                                  Amazonで購入 ↗
+                                </a>
+                              )}
+                            </span>
+                          </div>
+                        </div>
+                      </>
                     ) : (
-                      <img
-                        src={product.imageUrl}
-                        alt={product.name}
-                        className="w-full h-full object-contain rounded"
-                        width={400}
-                        height={400}
-                        loading="lazy"
-                        style={{ objectFit: 'contain', maxWidth: '100%', maxHeight: '100%' }}
-                        onError={async (e) => {
-                          const target = e.target as HTMLImageElement;
-                          const asinMatch = product.affiliateLink.match(/([A-Z0-9]{10})(?:[/?]|$)/);
-                          if (asinMatch) {
-                            const url = await fetchAmazonItemImage(asinMatch[1]);
-                            if (url) { target.src = url; return; }
-                          }
-                          target.src = "/image/shop/placeholder_480x384.png";
-                          target.onerror = null;
-                        }}
-                      />
+                      <>
+                        <div className="yy-sh-img">
+                          {product.embedHtml ? (
+                            <div
+                              className="shop-embed-container yy-sh-embed"
+                              dangerouslySetInnerHTML={{ __html: sanitizeEmbed(product.embedHtml) }}
+                            />
+                          ) : (
+                            <img
+                              src={product.imageUrl}
+                              alt={product.name}
+                              className="yy-sh-imgel"
+                              width={400}
+                              height={400}
+                              loading="lazy"
+                              style={{ objectFit: 'contain', maxWidth: '100%', maxHeight: '100%' }}
+                              onError={async (e) => {
+                                const target = e.target as HTMLImageElement;
+                                const asinMatch = product.affiliateLink.match(/([A-Z0-9]{10})(?:[/?]|$)/);
+                                if (asinMatch) {
+                                  const url = await fetchAmazonItemImage(asinMatch[1]);
+                                  if (url) { target.src = url; return; }
+                                }
+                                target.src = "/image/shop/placeholder_480x384.png";
+                                target.onerror = null;
+                              }}
+                            />
+                          )}
+                        </div>
+                        <div className="yy-sh-body">
+                          <span className="yy-sh-brand">{product.brand}</span>
+                          <h3 className="yy-sh-name">{product.name}</h3>
+                          {descBlock(product)}
+                          <div className="yy-sh-foot">
+                            {product.price > 0 && (
+                              <span className="yy-sh-price">¥{product.price.toLocaleString()}</span>
+                            )}
+                            <span className="yy-sh-links">
+                              {product.amazonLink ? (
+                                <a
+                                  href={decorateAffiliateLink(product.amazonLink)}
+                                  target="_blank"
+                                  rel="nofollow noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="yy-sh-buy"
+                                >
+                                  Amazonで購入 ↗
+                                </a>
+                              ) : (
+                                <a
+                                  href={decorateAffiliateLink(product.affiliateLink)}
+                                  target="_blank"
+                                  rel="noopener noreferrer nofollow sponsored"
+                                  className="yy-sh-buy"
+                                >
+                                  商品を見る ↗
+                                </a>
+                              )}
+                            </span>
+                          </div>
+                        </div>
+                      </>
                     )}
-                  </div>
-                  <div className="text-xs text-gray-500 mb-1">{product.brand}</div>
-                  <h3 className="font-bold text-sm mb-1">{product.name}</h3>
-                  <div className="mb-3">
-                    <p 
-                      className={`text-xs text-gray-600 cursor-pointer hover:text-gray-800 transition-colors ${expandedDescriptions[product.id] ? '' : 'line-clamp-2'}`}
-                      onClick={() => setExpandedDescriptions(prev => ({ ...prev, [product.id]: !prev[product.id] }))}
-                    >
-                      {product.description}
-                    </p>
-                    {product.description.length > 100 && (
-                      <button
-                        onClick={() => setExpandedDescriptions(prev => ({ ...prev, [product.id]: !prev[product.id] }))}
-                        className="text-xs text-blue-600 hover:text-blue-800 mt-1"
-                      >
-                        {expandedDescriptions[product.id] ? '折りたたむ' : '続きを読む'}
-                      </button>
-                    )}
-                  </div>
-                  {/* ボタン 行（右下固定配置） */}
-                  <div className="mt-auto">
-                    {product.price > 0 && (
-                      <div className="text-sm font-bold text-gray-900 mb-2">¥{product.price.toLocaleString()}</div>
-                    )}
-                    <div className="mt-2 flex justify-end">
-                      {product.amazonLink ? (
-                        <a
-                          href={decorateAffiliateLink(product.amazonLink)}
-                          target="_blank"
-                          rel="nofollow noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          className="text-xs px-3 py-1.5 bg-cyan-500 text-white rounded hover:bg-cyan-600 transition-colors whitespace-nowrap"
-                        >
-                          Amazonで購入
-                        </a>
-                      ) : (
-                        <a
-                          href={decorateAffiliateLink(product.affiliateLink)}
-                          target="_blank"
-                          rel="noopener noreferrer nofollow sponsored"
-                          className="text-xs px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors whitespace-nowrap"
-                        >
-                          商品を見る
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-          ))}
+                  </li>
+                );
+              })}
+            </ol>
+          </section>
         </div>
+
+        <aside className="yy-newspage__side">
+          <section>
+            <SecHead no="II" title="分類" right={`${totalItems} 品`} />
+            <ol className="yy-home__toc">
+              {PRODUCT_CATEGORIES.map((c, i) => (
+                <li key={c.id}>
+                  <button
+                    type="button"
+                    className={`yy-srcrow yy-srcrow--btn${selectedCategory === c.id ? ' is-on' : ''}`}
+                    aria-pressed={selectedCategory === c.id}
+                    onClick={() => displayCategory(c.id)}
+                  >
+                    <span className="yy-home__tocno">{i + 1}</span>
+                    <span className="yy-home__toct">{c.name}</span>
+                    <span className="yy-leader" />
+                    <span className="yy-serif">{c.items.length}</span>
+                  </button>
+                </li>
+              ))}
+            </ol>
+            <p className="yy-sh-catdesc">{current?.description}</p>
+          </section>
+
+          <section>
+            <SecHead no="III" title="選定ガイド" right="数値で選ぶ" />
+            <ol className="yy-home__toc">
+              {GUIDE_TOC.map((t, i) => (
+                <li key={t}>
+                  <button type="button" className="yy-srcrow yy-srcrow--btn" onClick={() => openGuide(i + 1)}>
+                    <span className="yy-home__tocno">{'①②③④⑤⑥⑦⑧'[i]}</span>
+                    <span className="yy-home__toct yy-sh-toct">{t}</span>
+                    <span className="yy-leader" />
+                    <span className="yy-sh-arrow">→</span>
+                  </button>
+                </li>
+              ))}
+            </ol>
+          </section>
+
+          <section>
+            <SecHead no="IV" title="掲載について" />
+            <div className="yy-gray yy-sh-gray">
+              <span className="yy-gray__title">掲載希望</span>
+              <span className="yy-gray__text">商品・ブランドの掲載をご希望の方は、登録ページからご連絡ください。</span>
+              <a href="/register" className="yy-linkbtn yy-sh-reg">掲載希望はコチラ ↗</a>
+            </div>
+          </section>
+        </aside>
       </div>
     </div>
   );
