@@ -9,6 +9,7 @@ import { requestGeneralTool, onGeneralTool, type GeneralToolId } from '@/lib/gen
 import { useAuth } from '@/lib/AuthContext';
 import { TOP_NAV_SCREENS, screenPath, screensInGroup } from '@/lib/siteScreens';
 import { useForumUnread } from '@/lib/useForumUnread';
+import VisitCounter from './VisitCounter';
 
 interface SidebarProps {
   onItemClick?: () => void;
@@ -767,6 +768,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onItemClick, onPageChange, onLogoClic
         >
           プライバシーポリシー
         </button>
+        {/* 訪問者数。数えるのは全員、表示は管理者だけ（VisitCounter.tsx） */}
+        <VisitCounter />
       </div>
       </div>{/* left-column__foot */}
     </aside>

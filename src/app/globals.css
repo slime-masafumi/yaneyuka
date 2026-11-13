@@ -506,6 +506,18 @@ nav.yy-topnav {
   font-size: 10px;
 }
 
+/* 訪問者数（管理者だけに出る）。目立たせない: 等幅の小さな灰色 1 行 */
+.yy-visits {
+  display: flex;
+  gap: 8px;
+  padding: 2px 2px 0;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.02em;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
 /* lg 以上は下のアプリシェルで左カラム自体が画面高になるので、
    フッター（Ⅰ〜Ⅴ ＋ アカウント行）は通常フローのまま最下部に付く。 */
 @media (min-width: 1024px) {
