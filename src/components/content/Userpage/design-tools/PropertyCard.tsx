@@ -446,13 +446,13 @@ const PropertyCard: React.FC<{ hideHeader?: boolean }> = ({ hideHeader }) => {
 
   // --- Render ---
   return (
-    <div className="bg-white rounded-b-lg shadow-sm pc-print-area">
+    <div className="bg-white pc-print-area">
       {/* Upper bar */}
-      <div className="bg-gray-50 border-b px-4 py-3">
+      <div className="border-b px-4 py-3">
         <div className="flex flex-wrap items-center gap-2">
           {/* Property selector */}
           <select
-            className="border rounded px-2 py-1.5 text-sm bg-white min-w-[180px] pc-no-print"
+            className="px-2 py-1.5 text-[12px] min-w-[180px] pc-no-print"
             value={activeCardId || ''}
             onChange={e => setActiveCardId(e.target.value)}
           >
@@ -464,16 +464,16 @@ const PropertyCard: React.FC<{ hideHeader?: boolean }> = ({ hideHeader }) => {
             ))}
           </select>
 
-          <button onClick={handleNew} className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 whitespace-nowrap pc-no-print">
+          <button onClick={handleNew} className="yy-btn whitespace-nowrap pc-no-print">
             新規作成
           </button>
-          <button onClick={handleSave} disabled={!activeCard || isSaving} className="px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-40 whitespace-nowrap pc-no-print">
+          <button onClick={handleSave} disabled={!activeCard || isSaving} className="yy-btn is-primary whitespace-nowrap pc-no-print">
             {isSaving ? '保存中...' : '保存'}
           </button>
-          <button onClick={handleDelete} disabled={!activeCard} className="px-3 py-1.5 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-40 whitespace-nowrap pc-no-print">
+          <button onClick={handleDelete} disabled={!activeCard} className="yy-btn is-danger whitespace-nowrap pc-no-print">
             削除
           </button>
-          <button onClick={handlePrint} disabled={!activeCard} className="px-3 py-1.5 text-xs bg-gray-600 text-white rounded hover:bg-gray-700 disabled:opacity-40 whitespace-nowrap pc-no-print">
+          <button onClick={handlePrint} disabled={!activeCard} className="yy-btn whitespace-nowrap pc-no-print">
             PDF出力
           </button>
           <span className="text-xs text-gray-500 ml-auto pc-no-print">{cards.length}/{MAX_CARDS}件</span>
@@ -513,8 +513,8 @@ const PropertyCard: React.FC<{ hideHeader?: boolean }> = ({ hideHeader }) => {
         <div className="px-4 py-3">
           {/* Expand/Collapse all */}
           <div className="flex gap-2 mb-2 pc-no-print">
-            <button onClick={() => toggleAllSections(true)} className="text-xs text-blue-600 hover:underline">すべて開く</button>
-            <button onClick={() => toggleAllSections(false)} className="text-xs text-blue-600 hover:underline">すべて閉じる</button>
+            <button onClick={() => toggleAllSections(true)} className="yy-dt-link text-[11px]">すべて開く</button>
+            <button onClick={() => toggleAllSections(false)} className="yy-dt-link text-[11px]">すべて閉じる</button>
           </div>
 
           {SECTIONS.map((section) => {
@@ -522,13 +522,13 @@ const PropertyCard: React.FC<{ hideHeader?: boolean }> = ({ hideHeader }) => {
             const filledCount = section.items.filter(item => activeCard.fields[item.key]?.trim()).length;
 
             return (
-              <div key={section.id} className="mb-2 border rounded pc-section">
+              <div key={section.id} className="mb-3 pc-section">
                 {/* Section header */}
                 <button
                   onClick={() => toggleSection(section.id)}
-                  className="w-full flex items-center justify-between px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-t text-left"
+                  className="w-full flex items-baseline justify-between py-1.5 text-left border-b border-[#141414]"
                 >
-                  <span className="text-sm font-semibold text-gray-800">{section.title}</span>
+                  <span className="yy-serif text-[15px] text-gray-800">{section.title}</span>
                   <span className="flex items-center gap-2">
                     <span className="text-xs text-gray-500">{filledCount}/{section.items.length}</span>
                     <svg className={`w-4 h-4 text-gray-500 transition-transform ${isOpen ? 'rotate-180' : ''} pc-no-print`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -539,7 +539,7 @@ const PropertyCard: React.FC<{ hideHeader?: boolean }> = ({ hideHeader }) => {
 
                 {/* Section content (CSS grid) */}
                 {isOpen && (
-                  <div className="px-3 py-2 pc-section-body">
+                  <div className="py-2 pc-section-body">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-4 gap-y-1">
                       {section.items.map((item) => {
                         const isFullWidth = !item.half || item.type === 'textarea';
@@ -578,15 +578,10 @@ const PropertyCard: React.FC<{ hideHeader?: boolean }> = ({ hideHeader }) => {
           <PropertyFlowStudies propertyId={activeCard.id} />
         </div>
       ) : (
-        <div className="p-8 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
-            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          </div>
-          <h3 className="text-lg font-medium text-gray-800 mb-2">物件カルテ</h3>
+        <div className="py-8">
+          <h3 className="yy-serif text-[15px] text-gray-800 mb-2">物件カルテ</h3>
           <p className="text-sm text-gray-500 mb-4">建築設計の事前確認項目を物件ごとに管理します。</p>
-          <button onClick={handleNew} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">
+          <button onClick={handleNew} className="yy-btn is-primary">
             新規作成
           </button>
         </div>

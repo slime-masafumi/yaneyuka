@@ -376,7 +376,7 @@ const ColorProposal: React.FC<ColorProposalProps> = ({ defaultTab, hideTabBar })
                       className="absolute inset-0 opacity-0 w-12 h-12 cursor-pointer"
                     />
                     <div
-                      className="w-12 h-12 rounded border-2 border-white shadow-md group-hover:scale-105 transition-transform"
+                      className="w-12 h-12 border border-gray-300"
                       style={{ backgroundColor: customMainColor }}
                     />
                   </label>
@@ -408,14 +408,14 @@ const ColorProposal: React.FC<ColorProposalProps> = ({ defaultTab, hideTabBar })
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
               {Object.values(colorHarmony).map((scheme, idx) => (
                 <div 
                   key={idx} 
-                  className={`border rounded-lg p-4 flex flex-col ${scheme.name.includes('Square') ? 'md:col-span-2 lg:col-span-3' : ''}`}
+                  className={`border-t border-gray-200 pt-3 pb-1 flex flex-col ${scheme.name.includes('Square') ? 'md:col-span-2 lg:col-span-3' : ''}`}
                 >
                   <div className="mb-3">
-                    <h5 className="text-[13px] font-bold text-gray-800">{scheme.name}</h5>
+                    <h5 className="yy-serif text-[14px] font-normal text-gray-800"><span className="text-gray-400 mr-2">{String(idx + 1).padStart(2, '0')}</span>{scheme.name}</h5>
                     <p className="text-[10px] text-gray-500 mt-0.5">{scheme.description}</p>
                   </div>
                   
@@ -423,7 +423,7 @@ const ColorProposal: React.FC<ColorProposalProps> = ({ defaultTab, hideTabBar })
                     {scheme.colors.map((color, cIdx) => (
                       <div key={cIdx} className="group relative">
                         <div
-                          className="w-12 h-12 rounded border border-gray-200 cursor-pointer shadow-sm hover:shadow-md transition-shadow"
+                          className="w-12 h-12 border border-gray-200 cursor-pointer"
                           style={{ backgroundColor: color }}
                           onClick={() => copyToClipboard(color)}
                         />
@@ -449,7 +449,7 @@ const ColorProposal: React.FC<ColorProposalProps> = ({ defaultTab, hideTabBar })
 
         {/* --- 日塗工番号検索タブ --- */}
         {activeTab === 'jpma' && (
-          <div className="animate-fadeIn max-w-2xl mx-auto">
+          <div className="animate-fadeIn max-w-2xl">
             <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
               <label className="block text-sm font-bold text-gray-800 mb-2">
                 日塗工番号を入力
@@ -465,7 +465,7 @@ const ColorProposal: React.FC<ColorProposalProps> = ({ defaultTab, hideTabBar })
                 />
                 <button 
                   onClick={handleJpmaSearch}
-                  className="bg-blue-600 text-white px-6 py-2 rounded text-sm hover:bg-blue-700 transition"
+                  className="yy-btn is-primary"
                 >
                   検索
                 </button>
@@ -483,10 +483,10 @@ const ColorProposal: React.FC<ColorProposalProps> = ({ defaultTab, hideTabBar })
               )}
 
               {jpmaResult && (
-                <div className="mt-6 p-4 bg-white border border-gray-200 rounded-lg shadow-sm animate-fadeIn">
-                  <div className="flex justify-between items-center mb-4 border-b pb-2">
-                     <h4 className="text-sm font-bold text-gray-800">検索結果</h4>
-                     <span className="text-[10px] bg-gray-100 px-2 py-0.5 rounded text-gray-500">近似値</span>
+                <div className="mt-6 animate-fadeIn">
+                  <div className="yy-sec mb-4">
+                     <span className="yy-sec__title">検索結果</span>
+                     <span className="yy-sec__right">近似値</span>
                   </div>
                   
                   <div className="flex items-start gap-6">
@@ -531,9 +531,8 @@ const ColorProposal: React.FC<ColorProposalProps> = ({ defaultTab, hideTabBar })
                       <div className="pt-2">
                         <button
                           onClick={applyJpmaColor}
-                          className="w-full sm:w-auto text-xs bg-gray-800 text-white px-4 py-2 rounded hover:bg-gray-700 transition flex items-center justify-center gap-2"
+                          className="yy-btn"
                         >
-                          <span>🎨</span>
                           この色を基準色にして配色を見る
                         </button>
                       </div>
@@ -544,7 +543,7 @@ const ColorProposal: React.FC<ColorProposalProps> = ({ defaultTab, hideTabBar })
             </div>
             
             <div className="mt-8">
-               <h5 className="text-xs font-bold text-gray-600 mb-2">収録データ例（クリックで検索）</h5>
+               <h5 className="yy-dt-sec mb-2">収録データ例（クリックで検索）</h5>
                <div className="flex flex-wrap gap-2">
                  {jpmaDatabase.slice(0, 10).map((d, i) => (
                    <button 

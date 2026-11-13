@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { ResultRow } from '@/components/ui/Sheet';
+import DtResult from './DtResult';
 import { 
   solveDiameter, 
   snapToStandard, 
@@ -126,7 +128,7 @@ const DuctMeasure: React.FC<DuctMeasureProps> = ({ defaultTab, hideTabBar }) => 
           
           {/* === TAB 1: ダクト選定 === */}
           {activeTab === 'duct' && ductResult && (
-            <div className="animate-fadeIn grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="animate-fadeIn yy-dt-split">
               
               {/* 入力フォーム */}
               <div className="space-y-4">
@@ -167,51 +169,33 @@ const DuctMeasure: React.FC<DuctMeasureProps> = ({ defaultTab, hideTabBar }) => 
                 </div>
               </div>
 
-              {/* 計算結果 */}
-              <div className="space-y-4">
-                <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
-                  <h4 className="text-[12px] font-bold text-blue-800 mb-3 border-b border-blue-200 pb-1">推奨サイズ</h4>
-                  
-                  <div className="flex items-center justify-between mb-4 bg-white p-3 rounded shadow-sm border border-blue-100">
-                    <div>
-                      <p className="text-[10px] text-gray-500">丸ダクト径</p>
-                      <p className="text-2xl font-bold text-blue-600">Φ{ductResult.stdD}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[10px] text-gray-500">理論径</p>
-                      <p className="text-[12px] font-mono text-gray-700">{ductResult.exactD.toFixed(1)} mm</p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 text-center text-[11px] mb-4">
-                    <div className="bg-white/60 p-1.5 rounded">
-                      <p className="text-gray-500 text-[9px]">実風速</p>
-                      <p className="font-medium">{ductResult.velocity.toFixed(2)} m/s</p>
-                    </div>
-                    <div className="bg-white/60 p-1.5 rounded">
-                      <p className="text-gray-500 text-[9px]">実摩擦損失</p>
-                      <p className="font-medium">{ductResult.realLoss.toFixed(2)} Pa/m</p>
-                    </div>
-                  </div>
-
-                  <h5 className="text-[10px] font-bold text-blue-800 mb-2">角ダクト換算候補</h5>
-                  <div className="grid grid-cols-2 gap-2">
-                    {ductResult.rects.slice(0,4).map((r: any, i: number) => (
-                      <div key={i} className="bg-white border border-blue-100 p-1.5 rounded flex justify-between items-center text-[11px]">
-                        <span className="font-bold text-gray-700">{r.h} x {r.w}</span>
-                        <span className="text-[9px] text-gray-400">{(r.w/r.h).toFixed(2)}:1</span>
-                      </div>
-                    ))}
-                  </div>
+              {/* 計算結果(深い緑の答え) */}
+              <aside className="space-y-4">
+                <DtResult label="推奨サイズ · 丸ダクト径" value={`Φ${ductResult.stdD}`} sub={`理論径 ${ductResult.exactD.toFixed(1)} mm`}>
+                  <ResultRow k="実風速" v={`${ductResult.velocity.toFixed(2)} m/s`} />
+                  <ResultRow k="実摩擦損失" v={`${ductResult.realLoss.toFixed(2)} Pa/m`} />
+                </DtResult>
+                <div>
+                  <h5 className="yy-dt-sec">角ダクト換算候補</h5>
+                  <table className="w-full text-[12px]">
+                    <tbody>
+                      {ductResult.rects.slice(0,4).map((r: any, i: number) => (
+                        <tr key={i} className="border-b">
+                          <td className="py-1.5">{r.h} x {r.w}</td>
+                          <td className="py-1.5 text-right text-[11px] text-gray-500">{(r.w/r.h).toFixed(2)}:1</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              </div>
+              </aside>
 
             </div>
           )}
 
           {/* === TAB 2: 保温・結露判定 === */}
           {activeTab === 'insulation' && insulationRes && (
-            <div className="animate-fadeIn grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="animate-fadeIn yy-dt-split">
               
               <div className="space-y-4">
                 <div className="bg-gray-50 p-3 rounded border border-gray-200">
@@ -263,43 +247,24 @@ const DuctMeasure: React.FC<DuctMeasureProps> = ({ defaultTab, hideTabBar }) => 
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <div className={`rounded-lg p-4 border ${
-                  insulationRes.isSafe ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
-                }`}>
-                  <h4 className={`text-[12px] font-bold mb-3 border-b pb-1 ${
-                    insulationRes.isSafe ? 'text-green-800 border-green-200' : 'text-red-800 border-red-200'
-                  }`}>判定結果</h4>
-                  
-                  <div className="text-center bg-white/60 p-4 rounded mb-4">
-                    {insulationRes.isSafe ? (
-                      <p className="text-2xl font-bold text-green-600">結露なし (OK)</p>
-                    ) : (
-                      <p className="text-2xl font-bold text-red-600">結露注意 (NG)</p>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 text-center text-[11px]">
-                    <div className="bg-white/60 p-1.5 rounded">
-                      <p className="text-gray-500 text-[9px]">露点温度</p>
-                      <p className="font-medium">{insulationRes.dewPoint.toFixed(1)}℃</p>
-                    </div>
-                    <div className="bg-white/60 p-1.5 rounded">
-                      <p className="text-gray-500 text-[9px]">表面温度</p>
-                      <p className={`font-bold ${insulationRes.isSafe ? 'text-green-700' : 'text-red-700'}`}>
-                        {insulationRes.surfaceTemp.toFixed(1)}℃
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <aside className="space-y-4">
+                <DtResult
+                  label="判定結果"
+                  value={insulationRes.isSafe ? 'OK' : 'NG'}
+                  unit={insulationRes.isSafe ? '結露なし' : '結露注意'}
+                  ng={!insulationRes.isSafe}
+                >
+                  <ResultRow k="露点温度" v={`${insulationRes.dewPoint.toFixed(1)}℃`} />
+                  <ResultRow k="表面温度" v={`${insulationRes.surfaceTemp.toFixed(1)}℃`} />
+                </DtResult>
+              </aside>
 
             </div>
           )}
 
           {/* === TAB 3: 吹出口・NC値 === */}
           {activeTab === 'outlet' && outletRes && (
-            <div className="animate-fadeIn grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="animate-fadeIn yy-dt-split">
               
               <div className="space-y-4">
                  <div className="bg-gray-50 p-3 rounded border border-gray-200">
@@ -335,27 +300,14 @@ const DuctMeasure: React.FC<DuctMeasureProps> = ({ defaultTab, hideTabBar }) => 
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
-                   <h4 className="text-[12px] font-bold text-blue-800 mb-3 border-b border-blue-200 pb-1">推奨アネモスタット</h4>
-                   <div className="text-center bg-white p-4 rounded shadow-sm border border-blue-100 mb-3">
-                      <div className="flex justify-center items-end gap-2">
-                        <span className="text-3xl font-bold text-gray-800">#{outletRes.neckDia / 50}</span>
-                        <span className="text-[12px] text-gray-500 mb-1.5">型</span>
-                      </div>
-                      <p className="text-[11px] text-gray-500 mt-1">(ネック径 φ{outletRes.neckDia})</p>
-                   </div>
-                   
-                   <div className="bg-white/60 p-2 rounded text-center">
-                     <p className="text-[10px] text-gray-500">想定ネック風速</p>
-                     <p className="text-[12px] font-bold text-blue-700">{outletRes.velocity.toFixed(2)} m/s</p>
-                   </div>
-
-                   <div className="mt-3 p-2 bg-yellow-50 border border-yellow-100 rounded text-[10px] text-yellow-800 leading-tight">
-                    <strong>設計メモ:</strong> NC-{targetNC} を満たす推奨サイズです。ネック風速 {targetNC <= 30 ? '3.0' : '4.5'}m/s 以下を目安としています。
-                   </div>
-                </div>
-              </div>
+              <aside className="space-y-3">
+                <DtResult label="推奨アネモスタット" value={`#${outletRes.neckDia / 50}`} unit="型" sub={`(ネック径 φ${outletRes.neckDia})`}>
+                  <ResultRow k="想定ネック風速" v={`${outletRes.velocity.toFixed(2)} m/s`} />
+                </DtResult>
+                <p className="yy-dt-note">
+                  設計メモ: NC-{targetNC} を満たす推奨サイズです。ネック風速 {targetNC <= 30 ? '3.0' : '4.5'}m/s 以下を目安としています。
+                </p>
+              </aside>
 
             </div>
           )}

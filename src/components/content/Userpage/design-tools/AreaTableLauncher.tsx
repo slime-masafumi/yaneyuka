@@ -17,19 +17,19 @@ export default function AreaTableLauncher() {
     window.location.href = '/?m=general-tools&t=sheet';
   };
   return (
-    <div className="p-6 text-[12px] text-gray-700 space-y-3 max-w-[640px]">
+    <div className="p-4 text-[12px] leading-relaxed text-gray-700 space-y-3 max-w-[640px]">
       <p>
         面積表は<b>表計算のテンプレート</b>で作れます。室ごとの幅×奥行から面積と坪を出し、延べ面積・建蔽率・容積率まで式が入っています。
         Excel での書き出し・印刷も表計算の機能がそのまま使えます。
       </p>
       <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={() => open('area')} className="px-4 py-2 bg-[#3b3b3b] text-white">
+        <button type="button" onClick={() => open('area')} className="yy-btn is-primary">
           表計算で面積表を開く
         </button>
-        <button type="button" onClick={() => open('finish')} className="px-4 py-2 border border-[#3b3b3b] bg-white">
+        <button type="button" onClick={() => open('finish')} className="yy-btn">
           仕上表
         </button>
-        <button type="button" onClick={() => open('door')} className="px-4 py-2 border border-[#3b3b3b] bg-white">
+        <button type="button" onClick={() => open('door')} className="yy-btn">
           建具表
         </button>
       </div>

@@ -856,12 +856,12 @@ const Schedule: React.FC = () => {
       </div>
 
       {/* 工程表の選択・保存 */}
-      <div className="bg-[#3b3b3b] text-[#ece9e2] px-3 py-2 flex flex-wrap items-center gap-2 text-[11px]">
-        <span className={`${mono} text-[#9a978f]`}>PROJECT</span>
+      <div className="yy-dt-schbar">
+        <span className="yy-label">project</span>
         <select
           value={currentId ?? ''}
           onChange={(e) => e.target.value && openProject(e.target.value)}
-          className="px-2 py-1 bg-white text-gray-900 min-w-[200px] max-w-[320px]"
+          className="px-1"
           disabled={!uid}
           aria-label="工程表を選ぶ"
         >
@@ -872,14 +872,14 @@ const Schedule: React.FC = () => {
             </option>
           ))}
         </select>
-        <button type="button" onClick={newProject} className="px-2 py-1 border border-[#8c8a85] hover:border-white">新規</button>
-        <button type="button" onClick={duplicateProject} disabled={!currentId} className="px-2 py-1 border border-[#8c8a85] hover:border-white disabled:opacity-40">複製</button>
-        <button type="button" onClick={renameProject} disabled={!currentId} className="px-2 py-1 border border-[#8c8a85] hover:border-white disabled:opacity-40">名前</button>
-        <button type="button" onClick={removeProject} disabled={!currentId} className="px-2 py-1 border border-[#8c8a85] hover:border-red-400 hover:text-red-300 disabled:opacity-40">削除</button>
-        <span className="mx-1 h-4 w-px bg-[#5a5a5a]" />
-        <button type="button" onClick={undo} disabled={!past.length} title="元に戻す（Ctrl+Z）" className="px-2 py-1 border border-[#8c8a85] hover:border-white disabled:opacity-40">↶ 戻す</button>
-        <button type="button" onClick={redo} disabled={!future.length} title="やり直す（Ctrl+Y）" className="px-2 py-1 border border-[#8c8a85] hover:border-white disabled:opacity-40">↷ やり直す</button>
-        <span className={`ml-auto ${mono} ${saveState === 'error' ? 'text-red-300' : 'text-[#9a978f]'}`}>
+        <button type="button" onClick={newProject} className={btn}>新規</button>
+        <button type="button" onClick={duplicateProject} disabled={!currentId} className={btn}>複製</button>
+        <button type="button" onClick={renameProject} disabled={!currentId} className={btn}>名前</button>
+        <button type="button" onClick={removeProject} disabled={!currentId} className={`${btn} yy-btn--danger`}>削除</button>
+        <span className="yy-dt-sep" />
+        <button type="button" onClick={undo} disabled={!past.length} title="元に戻す（Ctrl+Z）" className={btn}>↶ 戻す</button>
+        <button type="button" onClick={redo} disabled={!future.length} title="やり直す（Ctrl+Y）" className={btn}>↷ やり直す</button>
+        <span className={`ml-auto ${mono} ${saveState === 'error' ? 'text-[#c8432f]' : 'text-[#9a9a96]'}`}>
           {!uid
             ? 'SAMPLE — 会員登録で編集・保存'
             : saveState === 'saving'
@@ -897,7 +897,7 @@ const Schedule: React.FC = () => {
       </div>
 
       {/* 題（印刷に出る） */}
-      <div className="border-x border-b border-[#3b3b3b] bg-[#f9fafb] px-3 py-2 grid grid-cols-1 md:grid-cols-[1.2fr_1.2fr_1fr_1fr] gap-2 items-end">
+      <div className="border-b border-[#e6e6e2] py-2.5 grid grid-cols-1 md:grid-cols-[1.2fr_1.2fr_1fr_1fr] gap-x-4 gap-y-2 items-end">
         <label className="block">
           <span className="yy-label">工程表の名前（題）</span>
           <CellText value={data.name} onCommit={(v) => patch({ name: v || '無題の工程表' })} className={inputCls} placeholder="例: 山田邸 新築工事" disabled={!uid} />
@@ -922,7 +922,7 @@ const Schedule: React.FC = () => {
       </div>
 
       {/* 全体の数字 */}
-      <div className="border-x border-b border-[#3b3b3b] px-3 py-2 flex flex-wrap gap-x-6 gap-y-1 text-[11px] bg-white">
+      <div className="border-b border-[#e6e6e2] py-2 flex flex-wrap gap-x-6 gap-y-1 text-[11px] bg-white">
         <span><span className={`${mono} text-gray-500 mr-2`}>START</span>{startAll ?? '—'}</span>
         <span><span className={`${mono} text-gray-500 mr-2`}>FINISH</span>{endAll ?? '—'}</span>
         <span>
@@ -945,8 +945,8 @@ const Schedule: React.FC = () => {
       </div>
 
       {/* パネル */}
-      <div className="border-x border-b border-[#3b3b3b] bg-white">
-        <div className="flex overflow-x-auto border-b border-[#3b3b3b] text-[11px]">
+      <div className="bg-white">
+        <div className="yy-tabs yy-dt-schtabs">
           {(
             [
               ['list', `工程リスト（${tasks.length}）`],
@@ -960,7 +960,8 @@ const Schedule: React.FC = () => {
               key={id}
               type="button"
               onClick={() => setTab(id)}
-              className={`px-4 py-2 whitespace-nowrap border-r border-[#d6d3cc] ${tab === id ? 'bg-[#3b3b3b] text-white' : 'hover:bg-gray-50'}`}
+              className="yy-tab"
+              aria-pressed={tab === id}
             >
               {label}
             </button>
@@ -1292,8 +1293,8 @@ const Schedule: React.FC = () => {
       </div>
 
       {/* 図 */}
-      <div ref={previewWrap} className="mt-4 border border-[#3b3b3b]">
-        <div className="bg-[#f9fafb] border-b border-[#3b3b3b] px-3 py-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px]">
+      <div ref={previewWrap} className="mt-5">
+        <div className="border-t border-[#141414] border-b border-b-[#e6e6e2] py-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px]">
           <span className={`${mono} text-gray-500`}>PREVIEW</span>
           <label className="flex items-center gap-1">
             単位
@@ -1340,7 +1341,7 @@ const Schedule: React.FC = () => {
           </div>
           <button type="button" className={`${btn} yy-btn--primary ml-auto`} onClick={print}>印刷 / PDF</button>
         </div>
-        <div className="px-3 py-1.5 border-b border-[#d6d3cc] flex flex-wrap gap-x-4 gap-y-1 text-[11px] bg-white">
+        <div className="py-1.5 border-b border-[#e6e6e2] flex flex-wrap gap-x-4 gap-y-1 text-[11px] bg-white">
           {(
             [
               ['showDateCol', '期間の列'],
@@ -1362,7 +1363,7 @@ const Schedule: React.FC = () => {
           ))}
         </div>
         {tasks.length === 0 ? (
-          <p className="p-8 text-center text-[12px] text-gray-500 bg-[#2b2b2b]">工程を入れるとここに工程表が出ます。</p>
+          <p className="p-8 text-center text-[12px] text-gray-500 bg-[#ECECE8]">工程を入れるとここに工程表が出ます。</p>
         ) : (
           <GanttPreview
             tasks={tasks}

@@ -8,6 +8,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   BACKFILLS, BEDDINGS, PIPE_KINDS, SURFACES, VEHICLES, checkPipe, coverRange, isRigid, outerDiameter, sizesOf, SOIL_UNIT_WEIGHT, type PipeKind,
 } from '@/lib/pipeLoad';
+import { ResultRow } from '@/components/ui/Sheet';
+import DtResult from './DtResult';
 
 const field = 'w-full text-[12px] px-2 py-1.5';
 const label = 'block text-[11px] font-bold text-gray-700 mb-1';
@@ -22,7 +24,7 @@ function Section({ cover, od, vehicle, ok }: { cover: number; od: number; vehicl
   const y = ground + cover * scale;
   const r = Math.max(6, (od * scale) / 2);
   const hasCar = vehicle !== 'none';
-  const color = ok === null ? '#9ca3af' : ok ? '#16a34a' : '#dc2626';
+  const color = ok === null ? '#9ca3af' : ok ? '#52AA96' : '#c8432f';
   return (
     <svg viewBox={`0 0 ${W} ${Hpx}`} className="w-full max-w-[300px]" aria-label="断面図">
       <rect x={0} y={ground} width={W} height={Hpx - ground} fill="#f3efe6" />
@@ -204,46 +206,46 @@ export default function PipeLoadCheck() {
         {/* 結果 */}
         <div className="space-y-3">
           {result ? (
-            <div className={`border-2 p-4 ${result.ok ? 'border-green-600 bg-green-50' : 'border-red-600 bg-red-50'}`}>
+            <div>
               <div className="flex flex-wrap items-start gap-4">
-                <div className="flex-1 min-w-[220px]">
-                  <div className={`text-[28px] font-bold leading-none ${result.ok ? 'text-green-700' : 'text-red-700'}`}>
-                    {result.ok ? 'OK' : 'NG'}
-                  </div>
-                  <p className="text-[11px] mt-1 text-gray-600">
-                    {PIPE_KINDS.find((p) => p.id === kind)?.label} 呼び{size}・土被り {H.toFixed(2)} m・{VEHICLES.find((v) => v.id === vehicle)?.label}
-                  </p>
-                  <div className="mt-3 space-y-2">
+                <div className="flex-1 min-w-[240px] max-w-[380px]">
+                  <DtResult
+                    label="判定 · 管の耐荷重"
+                    value={result.ok ? 'OK' : 'NG'}
+                    ng={!result.ok}
+                    sub={`${PIPE_KINDS.find((p) => p.id === kind)?.label} 呼び${size}・土被り ${H.toFixed(2)} m・${VEHICLES.find((v) => v.id === vehicle)?.label}`}
+                  >
                     {result.checks.map((c) => (
-                      <div key={c.label}>
-                        <div className="flex justify-between text-[11px]">
-                          <span>{c.label}</span>
-                          <span className={`font-bold ${c.ok ? 'text-green-700' : 'text-red-700'}`}>
-                            {c.unit ? `${c.value.toFixed(2)} ${c.unit}（許容 ${c.limit} ${c.unit}）` : `${c.value.toFixed(2)}（1.0 以上で OK）`}
-                          </span>
-                        </div>
+                      <div key={c.label} className="space-y-1">
+                        <ResultRow
+                          k={c.label}
+                          v={<span className={c.ok ? undefined : 'text-red-700'}>{c.unit ? `${c.value.toFixed(2)} ${c.unit}（許容 ${c.limit} ${c.unit}）` : `${c.value.toFixed(2)}（1.0 以上で OK）`}</span>}
+                        />
                         <div className="w-full bg-gray-200 h-1.5">
                           <div className={`h-full ${c.ok ? 'bg-green-600' : 'bg-red-600'}`} style={{ width: `${Math.min(c.ratio, 1) * 100}%` }} />
                         </div>
                       </div>
                     ))}
-                  </div>
+                  </DtResult>
                 </div>
                 <Section cover={H} od={od} vehicle={vehicle} ok={result.ok} />
               </div>
 
-              <dl className="grid grid-cols-3 gap-2 mt-3 text-[11px]">
-                <div className="bg-white/70 p-2">
-                  <dt className="text-gray-500">鉛直土圧（仕上げ層を含む）</dt>
-                  <dd className="font-bold">{result.earth.toFixed(1)} kN/m²</dd>
+              <dl className="mt-3 max-w-[560px]">
+                <div className="yy-kv">
+                  <dt className="yy-kv__k">鉛直土圧（仕上げ層を含む）</dt>
+                  <span className="yy-leader" />
+                  <dd className="yy-kv__v">{result.earth.toFixed(1)} kN/m²</dd>
                 </div>
-                <div className="bg-white/70 p-2">
-                  <dt className="text-gray-500">車両による鉛直荷重</dt>
-                  <dd className="font-bold">{result.live.toFixed(1)} kN/m²</dd>
+                <div className="yy-kv">
+                  <dt className="yy-kv__k">車両による鉛直荷重</dt>
+                  <span className="yy-leader" />
+                  <dd className="yy-kv__v">{result.live.toFixed(1)} kN/m²</dd>
                 </div>
-                <div className="bg-white/70 p-2">
-                  <dt className="text-gray-500">後輪荷重（1輪）</dt>
-                  <dd className="font-bold">{result.wheel.toFixed(0)} kN</dd>
+                <div className="yy-kv">
+                  <dt className="yy-kv__k">後輪荷重（1輪）</dt>
+                  <span className="yy-leader" />
+                  <dd className="yy-kv__v">{result.wheel.toFixed(0)} kN</dd>
                 </div>
               </dl>
 
@@ -272,8 +274,10 @@ export default function PipeLoadCheck() {
             <p className="text-gray-500">土被りを入れてください。</p>
           )}
 
-          <div className="border border-[#3b3b3b]">
-            <div className="px-3 py-1.5 bg-gray-100 text-[11px] font-bold border-b">同じ管・同じ土被りで車種を変えると</div>
+          <div>
+            <div className="yy-sec">
+              <span className="yy-sec__title">同じ管・同じ土被りで車種を変えると</span>
+            </div>
             <table className="w-full text-[11px]">
               <tbody>
                 {byVehicle.map(({ v, r }) => (

@@ -87,7 +87,7 @@ export default function GanttPreview({ tasks, cal, holidays, view, title, sub, a
   return (
     <div
       ref={box}
-      className="overflow-auto bg-[#2b2b2b]"
+      className="overflow-auto bg-[#ECECE8]"
       style={{ height, cursor: pan ? 'grabbing' : 'grab' }}
       onMouseDown={(e) => {
         if (e.button !== 0 || !box.current) return;
@@ -96,7 +96,7 @@ export default function GanttPreview({ tasks, cal, holidays, view, title, sub, a
     >
       <div className="flex flex-col items-start gap-6 p-6 w-max">
         {pages.map((rows, i) => (
-          <div key={i} className="shadow-[0_2px_12px_rgba(0,0,0,0.4)]">
+          <div key={i} className="shadow-[0_0_0_1px_#d8d8d3]">
             <GanttPage
               svgRef={(el) => {
                 if (el) refs.current[i] = el;

@@ -180,14 +180,16 @@ const FireEquipment: React.FC<FireEquipmentProps> = ({ hideHeader }) => {
   };
 
   return (
-    <div className="w-full bg-white rounded-lg shadow-sm border border-gray-100 max-w-2xl mx-auto my-8">
+    <div className="w-full bg-white">
       {!hideHeader && (
       <div className="px-4 py-1.5 border-b border-gray-100 bg-[#3b3b3b] text-white rounded-t-lg">
         <h3 className="text-[13px] font-medium">消防設備判定ツール (Beta)</h3>
       </div>
       )}
-      <div className="p-6">
-        <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded text-xs text-red-800">
+      <div className="p-4">
+        <div className="grid grid-cols-1 lg:grid-cols-[360px_minmax(0,1fr)] gap-7 items-start">
+        <div>
+        <div className="mb-5 p-3 bg-red-50 border border-red-200 rounded text-[11px] leading-relaxed text-red-800">
           <strong>重要:</strong> 建築構造（耐火・準耐火）や無窓階の有無により基準は大きく異なります。
           このツールは目安であり、法的効力はありません。必ず所轄消防署へ相談してください。
         </div>
@@ -286,40 +288,46 @@ const FireEquipment: React.FC<FireEquipmentProps> = ({ hideHeader }) => {
                 </div>
             </div>
 
-            <div className="text-center pt-2">
+            <div className="pt-2">
               <button 
                 onClick={checkRequirements}
-                className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 text-xs font-bold shadow-sm"
+                className="yy-btn is-primary"
               >
                 判定を実行
               </button>
             </div>
         </div>
+        </div>
 
-        {/* 結果表示 */}
-        {showResults && (
-            <div className="mt-6 border-t pt-4">
-              <h2 className="text-xs font-bold mb-3">判定結果</h2>
-              <div className="grid grid-cols-1 gap-2">
+        {/* 結果表示(索引の組み方。設置が必要な行は薄い緑) */}
+        <div>
+          <h2 className="yy-dt-sec">判定結果</h2>
+          {showResults ? (
+            <table className="w-full text-[12px]">
+              <tbody>
                 {results.map((result, index) => (
-                  <div key={index} className={`p-2 rounded border flex justify-between items-center ${result.required === '〇' ? 'bg-red-50 border-red-100' : 'bg-gray-50 border-gray-100'}`}>
-                    <div className="w-1/3">
-                      <span className="text-xs font-bold text-gray-800">{result.name}</span>
-                    </div>
-                    <div className="w-2/3 pl-2 border-l border-gray-200">
-                        <div className="flex items-center mb-1">
-                            <span className={`text-sm font-bold mr-2 ${result.required === '〇' ? 'text-red-600' : 'text-gray-400'}`}>
-                                {result.required === '〇' ? '設置が必要' : '対象外の可能性'}
-                            </span>
-                            {result.law && <span className="text-[10px] bg-gray-200 px-1 rounded text-gray-600">{result.law}</span>}
-                        </div>
-                        <p className="text-[10px] text-gray-600 leading-tight">{result.condition}</p>
-                    </div>
-                  </div>
+                  <tr key={index} className={`border-b${result.required === '〇' ? ' yy-dt-hi' : ''}`}>
+                    <td className="py-2 pr-3 align-top whitespace-nowrap text-gray-800">{result.name}</td>
+                    <td className="py-2 pr-3 align-top whitespace-nowrap">
+                      {result.required === '〇' ? (
+                        <span className="yy-dt-req"><i className="yy-dot" />設置が必要</span>
+                      ) : (
+                        <span className="text-gray-400">対象外の可能性</span>
+                      )}
+                    </td>
+                    <td className="py-2 align-top text-[11px] leading-snug text-gray-600">
+                      {result.condition}
+                      {result.law && <span className="yy-fmt ml-2 whitespace-nowrap">{result.law}</span>}
+                    </td>
+                  </tr>
                 ))}
-              </div>
-            </div>
+              </tbody>
+            </table>
+          ) : (
+            <p className="yy-dt-note pt-3">左の条件を入れて「判定を実行」を押すと、ここに設備ごとの判定が出ます。</p>
           )}
+        </div>
+        </div>
       </div>
     </div>
   );

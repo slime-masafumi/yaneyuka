@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { ResultRow } from '@/components/ui/Sheet';
+import DtResult from './DtResult';
 
 interface UnitVolumeCalculationProps {
   defaultTab?: 'calculator' | 'reference';
@@ -144,7 +146,7 @@ const UnitVolumeCalculation: React.FC<UnitVolumeCalculationProps> = ({ defaultTa
       <div className="p-4 text-[12px] text-gray-700">
         {/* === TAB 1: 計算機能 === */}
         {activeTab === 'calculator' && (
-          <div className="animate-fadeIn grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="animate-fadeIn yy-dt-split">
             {/* 入力フォーム */}
             <div className="space-y-4">
               <div>
@@ -204,83 +206,56 @@ const UnitVolumeCalculation: React.FC<UnitVolumeCalculationProps> = ({ defaultTa
 
               <button
                 onClick={calculateMaterialWeight}
-                className="w-full bg-blue-600 text-white px-4 py-2.5 rounded text-[12px] font-bold hover:bg-blue-700 transition shadow-sm"
+                className="yy-btn is-primary"
               >
                 計算実行
               </button>
             </div>
 
             {/* 計算結果表示 */}
-            <div className="space-y-4">
+            <aside className="space-y-4">
               {weightResult ? (
-                <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 animate-fadeIn">
-                  <h4 className="text-[12px] font-bold text-blue-800 mb-3 border-b border-blue-200 pb-1">計算結果</h4>
-                  
-                  <div className="grid grid-cols-2 gap-4 mb-4">
-                    <div className="text-center bg-white p-2 rounded shadow-sm border border-blue-50">
-                      <p className="text-[10px] text-gray-500">総重量 (kg)</p>
-                      <p className="text-xl font-bold text-blue-700">
-                        {weightResult.weightKg.toLocaleString(undefined, { maximumFractionDigits: 1 })}
-                        <span className="text-xs ml-1 font-normal text-gray-500">kg</span>
-                      </p>
-                    </div>
-                    <div className="text-center bg-white p-2 rounded shadow-sm border border-blue-50">
-                      <p className="text-[10px] text-gray-500">総重量 (t)</p>
-                      <p className="text-xl font-bold text-gray-800">
-                        {weightResult.weightTon.toFixed(3)}
-                        <span className="text-xs ml-1 font-normal text-gray-500">t</span>
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2 text-center text-[11px]">
-                    <div className="bg-white/60 p-1.5 rounded">
-                      <p className="text-gray-500 text-[9px]">体積</p>
-                      <p className="font-medium">{weightResult.volume.toFixed(4)} m³</p>
-                    </div>
-                    <div className="bg-white/60 p-1.5 rounded">
-                      <p className="text-gray-500 text-[9px]">面積 (WxD)</p>
-                      <p className="font-medium">{weightResult.area.toFixed(2)} m²</p>
-                    </div>
-                    <div className="bg-white/60 p-1.5 rounded">
-                      <p className="text-gray-500 text-[9px]">単位重量</p>
-                      <p className="font-medium">{weightResult.unitWeight} t/m³</p>
-                    </div>
-                  </div>
-                </div>
+                <DtResult
+                  label="計算結果 · 総重量"
+                  value={weightResult.weightKg.toLocaleString(undefined, { maximumFractionDigits: 1 })}
+                  unit="kg"
+                  sub={`${weightResult.weightTon.toFixed(3)} t`}
+                >
+                  <ResultRow k="体積" v={`${weightResult.volume.toFixed(4)} m³`} />
+                  <ResultRow k="面積 (WxD)" v={`${weightResult.area.toFixed(2)} m²`} />
+                  <ResultRow k="単位重量" v={`${weightResult.unitWeight} t/m³`} />
+                </DtResult>
               ) : (
-                <div className="h-full flex items-center justify-center bg-gray-50 rounded-lg border border-dashed border-gray-300 text-gray-400 text-[11px] min-h-[180px]">
-                  <div className="text-center">
-                    <p>左側のフォームに入力して</p>
-                    <p>計算ボタンを押してください</p>
-                  </div>
+                <div className="yy-dt-soon">
+                  <span className="yy-label">result — 計算結果</span>
+                  <p className="yy-dt-soon__text">左側のフォームに入力して、計算ボタンを押してください</p>
                 </div>
               )}
-            </div>
+            </aside>
           </div>
         )}
 
         {/* === TAB 2: 参考データ一覧 === */}
         {activeTab === 'reference' && (
           <div className="animate-fadeIn">
-            <div className="flex justify-between items-center mb-3">
-              <h4 className="text-[12px] font-bold text-gray-700">📚 単位体積重量 参考データ一覧</h4>
-              <span className="text-[10px] bg-gray-100 px-2 py-0.5 rounded text-gray-600">単位: t/m³</span>
-            </div>
-            
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {Object.keys(groupedMaterials).map((category) => (
-                <div key={category} className="bg-gray-50 p-2.5 rounded border border-gray-200">
-                  <h5 className="text-[10px] font-bold text-blue-800 mb-2 border-b border-gray-200 pb-1">{category}</h5>
-                  <ul className="space-y-1.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-5">
+              {Object.keys(groupedMaterials).map((category, ci) => (
+                <section key={category}>
+                  <div className="yy-sec">
+                    <span className="yy-sec__no">{String(ci + 1).padStart(2, '0')}</span>
+                    <span className="yy-sec__title">{category}</span>
+                    {ci === 0 && <span className="yy-sec__right">単位 t/m³</span>}
+                  </div>
+                  <ul>
                     {groupedMaterials[category].map((mat) => (
-                      <li key={mat.key} className="flex justify-between items-baseline text-[10px]">
-                        <span className="text-gray-700 truncate mr-2">{mat.name.split(' ')[0]}</span>
-                        <span className="font-mono font-bold text-gray-900 bg-white px-1.5 py-0.5 rounded border border-gray-100">{mat.density}</span>
+                      <li key={mat.key} className="yy-kv">
+                        <span className="yy-kv__k truncate">{mat.name.split(' ')[0]}</span>
+                        <span className="yy-leader" />
+                        <span className="yy-kv__v">{mat.density}</span>
                       </li>
                     ))}
                   </ul>
-                </div>
+                </section>
               ))}
             </div>
 

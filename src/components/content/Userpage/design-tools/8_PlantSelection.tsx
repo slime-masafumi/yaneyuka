@@ -630,7 +630,7 @@ const PlantSelection: React.FC<PlantSelectionProps> = ({ hideHeader }) => {
       
       <div className="p-4">
         {/* 検索・フィルタエリア */}
-        <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-6">
+        <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-5">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
 
             {/* カテゴリ */}
@@ -758,7 +758,7 @@ const PlantSelection: React.FC<PlantSelectionProps> = ({ hideHeader }) => {
                   setSelectedSunlight('all');
                   setToleranceFilters({ heat: false, cold: false, salt: false });
                 }}
-                className="text-xs text-gray-500 underline hover:text-blue-600"
+                className="yy-dt-link text-[11px]"
               >
                 条件をリセット
               </button>
@@ -767,72 +767,67 @@ const PlantSelection: React.FC<PlantSelectionProps> = ({ hideHeader }) => {
 
         {/* 検索結果リスト */}
         <div className="space-y-4">
-          <h4 className="text-xs font-bold text-gray-700 border-b pb-1">
-            検索結果: {filteredPlants.length}件
-          </h4>
+          <div className="yy-sec">
+            <span className="yy-sec__title">検索結果</span>
+            <span className="yy-sec__right">{filteredPlants.length} 件 / 収録 {MASTER_PLANT_DATA.length} 種</span>
+          </div>
           
           {filteredPlants.length === 0 ? (
             <div className="text-center py-10 text-gray-400 text-xs">
               条件に一致する植栽が見つかりませんでした。
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {filteredPlants.map((plant, index) => (
-                <div key={index} className="border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow bg-white flex flex-col h-full relative group">
-                  <div className="flex justify-between items-start mb-2">
-                    <h5 className="text-sm font-bold text-gray-800 flex-1 pr-2">{plant.name}</h5>
-                    <div className="flex gap-1 flex-shrink-0">
-                         {/* 種類バッジ */}
-                        <span className={`text-[9px] px-1.5 py-0.5 rounded text-white whitespace-nowrap ${
-                        plant.type.includes('常緑') ? 'bg-green-600' : 
-                        plant.type.includes('落葉') ? 'bg-orange-500' : 
-                        plant.type.includes('地被') ? 'bg-emerald-500' :
-                        plant.type.includes('つる') ? 'bg-purple-500' : 'bg-blue-500'
-                        }`}>
-                        {plant.type.replace('常緑','').replace('落葉','').substring(0,4)}
-                        </span>
-                    </div>
-                  </div>
-                  
-                  <p className="text-[11px] text-gray-600 mb-2 flex-grow">
-                    {plant.description}
-                  </p>
-                  
-                  <div className="bg-gray-50 rounded p-2 text-[10px] space-y-1 mt-auto">
-                    {/* 耐性バッジ表示 */}
-                    {(plant.tolerance.heat || plant.tolerance.cold || plant.tolerance.salt) && (
-                      <div className="flex gap-1 mb-1.5 flex-wrap">
-                        {plant.tolerance.heat && <span className="bg-orange-100 text-orange-700 px-1 rounded border border-orange-200 text-[9px]">耐暑</span>}
-                        {plant.tolerance.cold && <span className="bg-blue-100 text-blue-700 px-1 rounded border border-blue-200 text-[9px]">耐寒</span>}
-                        {plant.tolerance.salt && <span className="bg-cyan-100 text-cyan-700 px-1 rounded border border-cyan-200 text-[9px]">耐潮</span>}
-                      </div>
-                    )}
-                    
-                    <div className="flex flex-wrap gap-x-3 gap-y-1">
-                      <span><span className="font-bold text-gray-500">高さ:</span> {plant.height}</span>
-                      <span><span className="font-bold text-gray-500">管理:</span> {plant.maintenance}</span>
-                    </div>
-                    <div className="flex flex-wrap gap-x-3 gap-y-1">
-                      <span><span className="font-bold text-gray-500">日照:</span> {plant.sunlight}</span>
-                      <span><span className="font-bold text-gray-500">見頃:</span> {plant.season}</span>
-                    </div>
-                    <div className="pt-1 border-t border-gray-200 mt-1 truncate" title={plant.features}>
-                      <span className="font-bold text-gray-500">特徴:</span> {plant.features}
-                    </div>
-                    </div>
-
-                  {/* Google画像検索ボタン（常時表示） */}
-                  <div className="absolute top-2 right-12">
-                     <button
-                        onClick={() => searchGoogleImage(plant.name)}
-                        className="text-[10px] bg-white text-blue-600 border border-blue-200 px-2 py-0.5 rounded shadow-sm hover:bg-blue-50 transition-colors"
-                        title="Google画像検索を開く"
-                     >
-                       画像検索
-                     </button>
-                  </div>
-                </div>
-              ))}
+            <div className="overflow-x-auto">
+              <table className="yy-dt-plants w-full">
+                <thead>
+                  <tr>
+                    <th>No.</th>
+                    <th>名前 · 種類</th>
+                    <th>特徴</th>
+                    <th>高さ</th>
+                    <th>日照</th>
+                    <th>見頃</th>
+                    <th>管理</th>
+                    <th>耐性</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredPlants.map((plant, index) => (
+                    <tr key={index}>
+                      <td className="no">{String(index + 1).padStart(3, '0')}</td>
+                      <td className="name">
+                        {plant.name}
+                        <small>{plant.type}</small>
+                      </td>
+                      <td className="desc">
+                        {plant.description}
+                        <span title={plant.features}>{plant.features}</span>
+                      </td>
+                      <td className="whitespace-nowrap">{plant.height}</td>
+                      <td className="whitespace-nowrap">{plant.sunlight}</td>
+                      <td className="whitespace-nowrap">{plant.season}</td>
+                      <td className="whitespace-nowrap">{plant.maintenance}</td>
+                      <td className="whitespace-nowrap">
+                        {plant.tolerance.heat && <span className="tag">耐暑</span>}
+                        {plant.tolerance.cold && <span className="tag">耐寒</span>}
+                        {plant.tolerance.salt && <span className="tag">耐潮</span>}
+                      </td>
+                      <td className="whitespace-nowrap text-right">
+                        {/* Google画像検索ボタン（常時表示） */}
+                        <button
+                          type="button"
+                          onClick={() => searchGoogleImage(plant.name)}
+                          className="yy-dt-link text-[11px]"
+                          title="Google画像検索を開く"
+                        >
+                          画像 ↗
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>

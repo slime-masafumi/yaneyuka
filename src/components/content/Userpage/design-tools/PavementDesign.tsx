@@ -6,6 +6,8 @@
 import React, { useMemo, useState } from 'react';
 import { FiPlus, FiX, FiZap } from 'react-icons/fi';
 import { MATERIALS, SITE_PRESETS, TRAFFIC, checkPavement, materialOf, requiredTA, suggestLayers, type Layer } from '@/lib/pavement';
+import { ResultRow } from '@/components/ui/Sheet';
+import DtResult from './DtResult';
 
 const field = 'w-full text-[12px] px-2 py-1.5';
 const label = 'block text-[11px] font-bold text-gray-700 mb-1';
@@ -147,12 +149,14 @@ export default function PavementDesign() {
 
         {/* 構成と判定 */}
         <div className="space-y-3">
-          <div className="border border-[#3b3b3b]">
-            <div className="flex items-center justify-between px-3 py-1.5 bg-gray-100 border-b">
-              <span className="text-[11px] font-bold">舗装の構成（上から）</span>
-              <button type="button" onClick={() => suggest()} className="px-2 py-1 text-[11px] bg-[#3b3b3b] text-white flex items-center gap-1">
-                <FiZap /> 標準構成を提案
-              </button>
+          <div>
+            <div className="yy-sec">
+              <span className="yy-sec__title">舗装の構成（上から）</span>
+              <span className="yy-sec__right">
+                <button type="button" onClick={() => suggest()} className="yy-btn">
+                  <FiZap /> 標準構成を提案
+                </button>
+              </span>
             </div>
             <table className="w-full text-[11px]">
               <thead>
@@ -197,34 +201,30 @@ export default function PavementDesign() {
                 })}
               </tbody>
             </table>
-            <button type="button" onClick={() => setLayers((ls) => [...ls, { material: 'crusher', cm: 15 }])} className="w-full py-1 text-[11px] text-gray-600 border-t hover:bg-gray-50 flex items-center justify-center gap-1">
+            <button type="button" onClick={() => setLayers((ls) => [...ls, { material: 'crusher', cm: 15 }])} className="yy-dt-link mt-2 flex items-center gap-1">
               <FiPlus /> 層を足す
             </button>
           </div>
 
           {result && (
-            <div className={`border-2 p-4 ${result.ok ? 'border-green-600 bg-green-50' : 'border-red-600 bg-red-50'}`}>
-              <div className="flex flex-wrap gap-4 items-start">
-                <div className="flex-1 min-w-[220px] space-y-2">
-                  <div className={`text-[28px] font-bold leading-none ${result.ok ? 'text-green-700' : 'text-red-700'}`}>{result.ok ? 'OK' : 'NG'}</div>
-                  <div>
-                    <div className="flex justify-between text-[11px]">
-                      <span>構成の等値換算厚 TA′</span>
-                      <b className={result.actualTA >= result.requiredTA ? 'text-green-700' : 'text-red-700'}>
-                        {result.actualTA.toFixed(1)} cm（必要 {result.requiredTA.toFixed(1)} cm）
-                      </b>
-                    </div>
-                    <div className="w-full bg-gray-200 h-1.5">
-                      <div className={`h-full ${result.actualTA >= result.requiredTA ? 'bg-green-600' : 'bg-red-600'}`} style={{ width: `${Math.min(result.actualTA / result.requiredTA, 1) * 100}%` }} />
-                    </div>
+            <div className="flex flex-wrap gap-4 items-start">
+              <div className="flex-1 min-w-[240px] max-w-[360px]">
+                <DtResult
+                  label="判定 · TA 法"
+                  value={result.ok ? 'OK' : 'NG'}
+                  ng={!result.ok}
+                  sub={`舗装の合計厚 ${result.totalCm} cm（路床面までの掘削深さの目安）`}
+                >
+                  <ResultRow k="構成の等値換算厚 TA′" v={`${result.actualTA.toFixed(1)} cm（必要 ${result.requiredTA.toFixed(1)} cm）`} />
+                  <div className="w-full bg-gray-200 h-1.5">
+                    <div className={`h-full ${result.actualTA >= result.requiredTA ? 'bg-green-600' : 'bg-red-600'}`} style={{ width: `${Math.min(result.actualTA / result.requiredTA, 1) * 100}%` }} />
                   </div>
-                  <div className="text-[11px]">舗装の合計厚 <b>{result.totalCm} cm</b>（路床面までの掘削深さの目安）</div>
                   {result.issues.map((s) => (
                     <p key={s} className="text-[11px] text-red-700">・{s}</p>
                   ))}
-                </div>
-                <Section layers={layers} />
+                </DtResult>
               </div>
+              <Section layers={layers} />
             </div>
           )}
 

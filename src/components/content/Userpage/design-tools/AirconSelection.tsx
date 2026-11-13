@@ -1,18 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { FiCopy, FiInfo } from 'react-icons/fi';
+import { FiCopy } from 'react-icons/fi';
+import { ResultPanel, ResultRow } from '@/components/ui/Sheet';
 
 // --- アイコン (タブからは削除しましたが、結果表示などで使用するため残しています) ---
 const CopyIcon = () => <FiCopy className="h-4 w-4" />;
 
-const BoltIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-yellow-500" viewBox="0 0 20 20" fill="currentColor">
-    <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
-  </svg>
-);
 
-const InfoIcon = () => <FiInfo className="h-4 w-4 text-gray-400 inline" />;
 
 // --- 定数定義 ---
 const TATAMI_UNIT = 1.6562; 
@@ -207,8 +202,10 @@ const AirconSelection: React.FC<AirconSelectionProps> = ({ defaultTab, hideTabBa
       </div>
       )}
 
-      <div className="bg-white overflow-hidden p-4 text-[12px] text-gray-700 space-y-4 animate-fadeIn">
-        
+      <div className="bg-white p-4 text-[12px] text-gray-700 animate-fadeIn">
+      <div className="yy-dt-split">
+      <div className="space-y-4">
+
         {/* 1. 面積入力 (共通) */}
         <div>
            <label className="block text-xs font-bold text-gray-500 mb-1">対象エリアの広さ</label>
@@ -259,13 +256,13 @@ const AirconSelection: React.FC<AirconSelectionProps> = ({ defaultTab, hideTabBa
               <div className="flex gap-2">
                 <button 
                   onClick={() => setStructure('wood')} 
-                  className={`flex-1 py-2 px-2 rounded border text-xs transition-colors ${structure === 'wood' ? 'bg-blue-600 text-white font-bold border-blue-600 shadow-sm' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}
+                  className={`yy-dt-opt flex-1 py-2 px-2 text-xs${structure === 'wood' ? ' is-on' : ''}`}
                 >
                   木造・鉄骨<br/><span className="text-[9px] font-normal opacity-90">(戸建・アパート・S造)</span>
                 </button>
                 <button 
                   onClick={() => setStructure('rc')} 
-                  className={`flex-1 py-2 px-2 rounded border text-xs transition-colors ${structure === 'rc' ? 'bg-blue-600 text-white font-bold border-blue-600 shadow-sm' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}
+                  className={`yy-dt-opt flex-1 py-2 px-2 text-xs${structure === 'rc' ? ' is-on' : ''}`}
                 >
                   RC造<br/><span className="text-[9px] font-normal opacity-90">(マンション等)</span>
                 </button>
@@ -313,81 +310,60 @@ const AirconSelection: React.FC<AirconSelectionProps> = ({ defaultTab, hideTabBa
           </div>
         )}
 
-        <hr className="my-4 border-gray-100" />
+      </div>
 
-        {/* 3. 結果表示 */}
-        <div className={`rounded-lg p-4 relative border transition-colors ${mode === 'home' ? 'bg-blue-50 border-blue-100' : 'bg-indigo-50 border-indigo-100'}`}>
-           <button 
-             onClick={copyResult} 
-             disabled={(!homeResult && mode === 'home') || (!bizResult && mode === 'business')}
-             className={`absolute top-3 right-3 flex items-center gap-1 px-2 py-1 text-[10px] rounded transition-all border ${(!homeResult && mode === 'home') || (!bizResult && mode === 'business') ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' : 'bg-white hover:bg-gray-50 border-gray-300 text-gray-600 shadow-sm'}`}
-           >
-             {copyFeedback ? <span className="text-green-600 font-bold">OK!</span> : <><CopyIcon /> コピー</>}
-           </button>
-
-           <div className="grid grid-cols-1 gap-4">
-             <div className="flex justify-between items-end border-b pb-3 border-gray-200/50">
-               <div>
-                 <p className="text-[10px] font-bold text-gray-500 mb-1 flex items-center gap-1">
-                   推奨能力 <InfoIcon />
-                 </p>
-                 {mode === 'home' && homeResult && (
-                   <p className="text-2xl font-bold font-mono tracking-tight leading-none text-blue-700">
-                     {homeResult.label} <span className="text-base ml-1 text-blue-600">({homeResult.kw}kW)</span>
-                   </p>
-                 )}
-                 {mode === 'business' && bizResult && (
-                   <p className="text-2xl font-bold font-mono tracking-tight leading-none text-indigo-700">
-                     {bizResult.kw} <span className="text-base ml-1 text-indigo-600">kW</span>
-                   </p>
-                 )}
-               </div>
-               <div className="text-right pr-16 sm:pr-0">
-                 {mode === 'home' && homeResult && (
-                   <div>
-                     <p className="text-[10px] text-gray-500 mb-0.5">電源目安</p>
-                     <p className="text-[11px] font-bold font-mono text-gray-700 bg-white px-2 py-0.5 rounded border border-gray-200">{homeResult.volt}</p>
-                   </div>
-                 )}
-                 {mode === 'business' && bizResult && (
-                   <div>
-                     <p className="text-[10px] text-gray-500 mb-0.5">相当馬力</p>
-                     <p className="text-[11px] font-bold font-mono text-gray-700 bg-white px-2 py-0.5 rounded border border-gray-200">約 {bizResult.hp.toFixed(1)} 馬力</p>
-                   </div>
-                 )}
-               </div>
-             </div>
-
-             {mode === 'home' && homeResult && (
-               <div className="bg-white/80 rounded p-2.5 text-[11px] border border-blue-100 shadow-sm">
-                 <p className="text-[10px] font-bold text-blue-800 mb-1.5 flex items-center gap-1"><BoltIcon /> 電源確認</p>
-                 <div className="text-gray-700 pl-1">
-                   コンセント電圧目安: <strong>{homeResult.volt}</strong>
-                   {homeResult.volt.includes('200V') && <span className="text-red-500 font-bold ml-1 text-[10px]">※200V工事必要</span>}
-                 </div>
-                 <p className="text-[9px] text-gray-400 mt-2 pl-1">※構造: {structure==='rc'?'RC造':'木造・鉄骨造'}として選定</p>
-               </div>
-             )}
-
-             {mode === 'business' && bizResult && (
-               <div className="bg-white/80 rounded p-2.5 text-[11px] border border-indigo-100 shadow-sm">
-                 <p className="text-[10px] font-bold text-indigo-800 mb-1.5">機器選定の目安</p>
-                 <ul className="list-disc list-inside ml-1 space-y-1 text-gray-700">
-                   {bizResult.hp <= 3 && <li>3馬力シングル (パッケージエアコン)</li>}
-                   {bizResult.hp > 3 && bizResult.hp <= 6 && <li>{Math.ceil(bizResult.hp)}馬力シングル または ツイン</li>}
-                   {bizResult.hp > 6 && bizResult.hp <= 10 && <li>5馬力 × 2台 (ツイン/個別) 推奨</li>}
-                   {bizResult.hp > 10 && <li>10馬力クラス複数台 または ビル用マルチ検討</li>}
-                 </ul>
-               </div>
-             )}
-
-             {(!areaM2) && (
-               <div className="h-20 flex items-center justify-center text-gray-400 text-[11px]">
-                 面積を入力してください
-               </div>
-             )}
-           </div>
-        </div>
+        {/* 3. 結果表示(深い緑の答え。1 画面に 1 つ) */}
+        <aside className="space-y-3">
+          {mode === 'home' ? (
+            <ResultPanel
+              label="推奨能力"
+              value={homeResult ? homeResult.label : '—'}
+              unit={homeResult ? `(${homeResult.kw}kW)` : undefined}
+              sub={!areaM2 ? '面積を入力してください' : `構造: ${structure === 'rc' ? 'RC造' : '木造・鉄骨造'}として選定`}
+            >
+              {homeResult && (
+                <>
+                  <ResultRow k="電源目安(コンセント電圧)" v={homeResult.volt} />
+                  {homeResult.volt.includes('200V') && <ResultRow k="電源工事" v="※200V工事必要" />}
+                </>
+              )}
+            </ResultPanel>
+          ) : (
+            <ResultPanel
+              label="推奨能力"
+              value={bizResult ? bizResult.kw : '—'}
+              unit="kW"
+              sub={!areaM2 ? '面積を入力してください' : `設定基準: ${COMM_LOADS[commType].unitLoad} W/㎡`}
+            >
+              {bizResult && (
+                <>
+                  <ResultRow k="相当馬力" v={`約 ${bizResult.hp.toFixed(1)} 馬力`} />
+                  <ResultRow
+                    k="機器選定の目安"
+                    v={
+                      bizResult.hp <= 3
+                        ? '3馬力シングル (パッケージエアコン)'
+                        : bizResult.hp <= 6
+                          ? `${Math.ceil(bizResult.hp)}馬力シングル または ツイン`
+                          : bizResult.hp <= 10
+                            ? '5馬力 × 2台 (ツイン/個別) 推奨'
+                            : '10馬力クラス複数台 または ビル用マルチ検討'
+                    }
+                  />
+                </>
+              )}
+            </ResultPanel>
+          )}
+          <button
+            type="button"
+            onClick={copyResult}
+            disabled={(!homeResult && mode === 'home') || (!bizResult && mode === 'business')}
+            className="yy-btn"
+          >
+            <CopyIcon /> {copyFeedback ? 'コピーしました' : '結果をコピー'}
+          </button>
+        </aside>
+      </div>
       </div>
     </div>
   );

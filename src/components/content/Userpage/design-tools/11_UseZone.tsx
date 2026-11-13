@@ -189,9 +189,9 @@ const UseZone: React.FC<UseZoneProps> = ({ hideHeader }) => {
       )}
       
       <div className="p-4">
-        <div className="flex space-x-8 items-start">
+        <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-start">
           {/* 左側：用途地域選択 */}
-          <div className="space-y-4 w-1/2">
+          <div className="space-y-4 w-full lg:w-1/2">
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">
                 用途地域を選択
@@ -221,8 +221,8 @@ const UseZone: React.FC<UseZoneProps> = ({ hideHeader }) => {
 
           {/* 右側：結果表示 */}
           {selectedData ? (
-            <div className="w-1/2">
-              <h2 className="text-xs font-bold mb-4 border-b pb-2">建築物制限</h2>
+            <div className="w-full lg:w-1/2">
+              <h2 className="yy-label mb-2">restriction — 建築物制限</h2>
               <div className="bg-gray-50 p-3 rounded mb-3">
                 <h4 className="text-[13px] font-semibold text-gray-800 mb-1">
                   {selectedData.name}
@@ -234,12 +234,12 @@ const UseZone: React.FC<UseZoneProps> = ({ hideHeader }) => {
                 </p>
               </div>
               
-              <div className="max-h-96 overflow-y-auto text-[12px] text-gray-700 whitespace-pre-line">
+              <div className="max-h-96 overflow-y-auto text-[12px] leading-[1.9] text-gray-700 whitespace-pre-line">
                 {selectedData.items.join('\n')}
               </div>
             </div>
           ) : (
-            <div className="w-1/2">
+            <div className="w-full lg:w-1/2">
               <div className="text-center py-8 text-gray-400 text-xs">
                 用途地域を選択すると、建築物の制限内容が表示されます
               </div>

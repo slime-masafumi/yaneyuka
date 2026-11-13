@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ResultPanel, ResultRow } from '@/components/ui/Sheet';
 
 // 用途地域の定義
 interface ZoningRegulation {
@@ -222,17 +223,14 @@ const BuildingRegulations: React.FC<BuildingRegulationsProps> = ({ hideHeader })
       </div>
       )}
       <div className="p-4">
-        <div className="flex gap-4">
+        <div className="yy-dt-split">
           {/* 左側：入力エリア */}
-          <div className="w-[700px] space-y-4">
+          <div className="space-y-4">
             {/* 全体敷地面積の表示 */}
-            <div className="w-1/4">
-              <label className="block text-[12px] font-medium text-gray-600 mb-1">
-                全体敷地面積 (m²)
-              </label>
-              <div className="w-full px-3 py-1.5 text-[12px] bg-gray-50 border border-gray-200 rounded text-right">
-                {zoningAreas.reduce((sum, area) => sum + (area.area || 0), 0).toFixed(2)} m²
-              </div>
+            <div className="yy-kv max-w-[320px]">
+              <span className="yy-kv__k">全体敷地面積</span>
+              <span className="yy-leader" />
+              <span className="yy-kv__v">{zoningAreas.reduce((sum, area) => sum + (area.area || 0), 0).toFixed(2)} m²</span>
             </div>
 
             {/* 緩和条件のチェックボックス */}
@@ -299,7 +297,7 @@ const BuildingRegulations: React.FC<BuildingRegulationsProps> = ({ hideHeader })
                 <button
                   onClick={addZoningArea}
                   disabled={zoningAreas.length >= 3}
-                  className="px-2 py-1 text-[10px] bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300"
+                  className="yy-btn"
                 >
                   追加
                 </button>
@@ -371,7 +369,7 @@ const BuildingRegulations: React.FC<BuildingRegulationsProps> = ({ hideHeader })
                     <button
                       onClick={() => removeZoningArea(index)}
                       disabled={zoningAreas.length <= 1}
-                      className="w-full px-2 py-1.5 text-[10px] bg-red-500 text-white rounded hover:bg-red-600 disabled:bg-gray-300"
+                      className="yy-dt-link is-danger w-full text-center disabled:opacity-40 disabled:cursor-default"
                     >
                       削除
                     </button>
@@ -382,34 +380,17 @@ const BuildingRegulations: React.FC<BuildingRegulationsProps> = ({ hideHeader })
           </div>
 
           {/* 右側：計算結果 */}
-          <div className="w-72 space-y-4 border-l border-gray-100 pl-4">
-            <div>
-              <div className="mb-4">
-                <p className="text-[12px] text-gray-600">許容建蔽率:</p>
-                <p className="text-lg font-bold text-gray-800">
-                  {calculationResults?.averageBCR.toFixed(2) ?? '-'}%
-                </p>
-              </div>
-              <div className="mb-4">
-                <p className="text-[12px] text-gray-600">許容容積率:</p>
-                <p className="text-lg font-bold text-gray-800">
-                  {calculationResults?.averageFAR.toFixed(2) ?? '-'}%
-                </p>
-              </div>
-              <div className="mb-4">
-                <p className="text-[12px] text-gray-600">可能建築面積:</p>
-                <p className="text-lg font-bold text-gray-800">
-                  {calculationResults?.maxBuildingFootprint.toFixed(2) ?? '-'} m²
-                </p>
-              </div>
-              <div>
-                <p className="text-[12px] text-gray-600">可能延床面積:</p>
-                <p className="text-lg font-bold text-gray-800">
-                  {calculationResults?.maxFloorArea.toFixed(2) ?? '-'} m²
-                </p>
-              </div>
-            </div>
-          </div>
+          <aside className="space-y-4">
+            <ResultPanel
+              label="可能延床面積"
+              value={calculationResults?.maxFloorArea.toFixed(2) ?? '-'}
+              unit="m²"
+            >
+              <ResultRow k="許容建蔽率" v={`${calculationResults?.averageBCR.toFixed(2) ?? '-'}%`} />
+              <ResultRow k="許容容積率" v={`${calculationResults?.averageFAR.toFixed(2) ?? '-'}%`} />
+              <ResultRow k="可能建築面積" v={`${calculationResults?.maxBuildingFootprint.toFixed(2) ?? '-'} m²`} />
+            </ResultPanel>
+          </aside>
         </div>
       </div>
     </div>

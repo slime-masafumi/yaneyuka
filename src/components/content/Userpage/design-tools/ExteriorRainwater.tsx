@@ -14,20 +14,13 @@ export default function ExteriorRainwater() {
   const [mode, setMode] = useState<Mode>('flow');
   return (
     <div className="w-full bg-white">
-      <div className="px-4 pt-3">
-        <div className="flex gap-2">
+      <div className="px-4 pt-2">
+        <div className="yy-tabs" style={{ marginBottom: 0 }}>
           {([
             { id: 'flow', label: '排水能力', icon: <FiDroplet /> },
             { id: 'load', label: '管渠の耐荷重', icon: <FiTruck /> },
           ] as const).map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setMode(t.id)}
-              className={`px-4 py-1.5 text-xs border transition-colors flex items-center gap-1.5 ${
-                mode === t.id ? 'bg-[#3b3b3b] text-white border-[#3b3b3b] font-bold' : 'bg-white text-gray-700 border-[#3b3b3b] hover:bg-gray-100'
-              }`}
-            >
+            <button key={t.id} type="button" className="yy-tab" aria-pressed={mode === t.id} onClick={() => setMode(t.id)}>
               {t.icon} {t.label}
             </button>
           ))}

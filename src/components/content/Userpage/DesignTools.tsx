@@ -23,12 +23,15 @@ import BuildingRegulations from '@/components/content/Userpage/design-tools/7_Bu
 import PropertyCard from '@/components/content/Userpage/design-tools/PropertyCard';
 import ForceFlowTool from '@/components/forceflow/ForceFlowTool';
 import { ModeBar, SheetHead } from '@/components/ui/Sheet';
+import '@/components/content/Userpage/design-tools/dt-premium.css';
 
 /**
  * 計算書の組版(モック「高級感 3」Q3 / Q7 / Q8)に作り替えたツール。
  * これらは自分で ModeBar と見出し(ボタンつき)を出すので、ここでは出さない。
  */
 const SHEET_TOOLS = new Set(['glass-thickness', 'condensation', 'vent-24h']);
+/** 共通の組版(dt-premium.css の .yy-dt)を当てないツール。計算書型と、構造設計者のレビュー中の構造フロー */
+const OWN_STYLE_TOOLS = new Set([...SHEET_TOOLS, 'force-flow']);
 /** ツールの通し番号(一覧と同じ 01〜) */
 const TOOL_NO: Record<string, string> = Object.fromEntries(
   DESIGN_TOOL_MENU.flatMap((c) => c.subTabs).map((t, i) => [t.id, String(i + 1).padStart(2, '0')]),
@@ -41,16 +44,10 @@ const TOOL_NO: Record<string, string> = Object.fromEntries(
 // プレースホルダーコンポーネント
 function PlaceholderTool({ name, description }: { name: string; description: string }) {
   return (
-    <div className="bg-white rounded-b-lg shadow-sm border-b border-gray-100">
-      <div className="p-8 text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
-          <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-          </svg>
-        </div>
-        <h3 className="text-lg font-medium text-gray-800 mb-2">{name}</h3>
-        <p className="text-sm text-gray-500">{description}</p>
-      </div>
+    <div className="yy-dt-soon">
+      <span className="yy-label">soon — 準備中</span>
+      <p className="yy-dt-soon__title">{name}</p>
+      <p className="yy-dt-soon__text">{description}</p>
     </div>
   );
 }
@@ -143,7 +140,7 @@ const DesignTools: React.FC = () => {
   };
 
   return (
-    <div className="p-0 bg-white rounded-lg">
+    <div className="p-0 bg-white">
       {/* lg 以上：モック「高級感 3」の頭。案件の切替 + 1 行の見出し(計算書型のツールは自分で出す) */}
       {!SHEET_TOOLS.has(activeSubTab) && (
         <div className="hidden lg:block">
@@ -156,68 +153,43 @@ const DesignTools: React.FC = () => {
           />
         </div>
       )}
-      <div className="flex items-baseline mb-2 lg:hidden">
-        <h2 className="text-xl font-semibold">設計ツール</h2>
-        <span className="text-red-600 font-bold text-sm ml-4">※この機能は現在β版です。ご意見をぜひお聞かせください。</span>
-      </div>
-
-      {/* 1段目: カテゴリ選択ボタン
-          lg 以上では左カラムの Ⅳ が分野もツールも出すので畳む。
-          左カラムは hidden lg:block なので、狭い画面ではここが唯一のナビになる。 */}
-      <div className="bg-[#3b3b3b] w-full overflow-x-auto lg:hidden">
-        <div className="flex">
+      {/* lg 未満:左カラム(hidden lg:block)が無いので、ここが唯一のナビ。
+          1 行の見出し + 分野とツールの下線タブ + いま開いているツールの説明 */}
+      <div className="lg:hidden">
+        <div className="yy-pagehead">
+          <div className="yy-pagehead__row">
+            <span className="yy-label">{`${TOOL_NO[activeSubTab] ?? ''} — tool · ${currentCategory.label}`}</span>
+            <h2 className="yy-pagehead__title">設計ツール</h2>
+            <span className="yy-pagehead__desc">β版です。ご意見をぜひお聞かせください。</span>
+          </div>
+          <div className="yy-rule2" />
+        </div>
+        <div className="yy-tabs yy-dt-mtabs" aria-label="分野">
           {categories.map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => handleCategoryChange(cat.id)}
-              className={`flex-1 px-2 py-2 text-xs font-medium focus:outline-none transition whitespace-nowrap ${
-                activeCategory === cat.id
-                  ? 'bg-[#1dad95] text-white'
-                  : 'bg-[#3b3b3b] text-white hover:bg-gray-700'
-              }`}
-            >
+            <button key={cat.id} type="button" className="yy-tab" aria-pressed={activeCategory === cat.id} onClick={() => handleCategoryChange(cat.id)}>
               {cat.label}
             </button>
           ))}
         </div>
-      </div>
-
-      {/* 2段目: 選択中ツールの説明文。
-          lg 以上はタブ行を畳むので、いまどこにいるかをパンくずで出す。 */}
-      <div className="px-4 py-3 bg-[#3b3b3b] lg:hidden">
-        <p className="hidden lg:block text-[10.5px] text-gray-400 mb-1">
-          設計ツール ＞ {currentCategory.label} ＞ {currentSubTab?.label}
-        </p>
-        <h3 className="text-[13px] font-medium text-white">{currentSubTab?.title}</h3>
-        <p className="text-[11px] text-gray-300 mt-0.5">{currentSubTab?.description}</p>
-      </div>
-
-      {/* 3段目: サブタブ（ダークバー・角丸タブ・アクティブ白）
-          lg 以上では左カラムの Ⅳ が同じ並びを出すので畳む。 */}
-      <div className="bg-[#3b3b3b] w-full overflow-x-auto lg:hidden">
-        <div className="flex gap-1 px-2 pt-2">
+        <div className="yy-tabs yy-dt-mtabs" aria-label="ツール">
           {currentCategory.subTabs.map((sub) => (
-            <button
-              key={sub.id}
-              onClick={() => setActiveSubTab(sub.id)}
-              className={`px-4 py-2 text-xs rounded-t-lg transition-colors whitespace-nowrap ${
-                activeSubTab === sub.id
-                  ? 'bg-white text-gray-800 font-bold'
-                  : 'bg-gray-600 text-gray-200 hover:bg-gray-500'
-              }`}
-            >
+            <button key={sub.id} type="button" className="yy-tab" aria-pressed={activeSubTab === sub.id} onClick={() => setActiveSubTab(sub.id)}>
               {sub.label}
             </button>
           ))}
         </div>
+        <p className="yy-dt-mdesc">
+          <b>{currentSubTab?.title}</b>
+          {currentSubTab?.description && <span>{currentSubTab.description}</span>}
+        </p>
       </div>
 
-      {/* コンテンツ */}
-      <div className="w-full">
+      {/* コンテンツ。計算書型・構造フロー以外は .yy-dt で共通の組版(dt-premium.css)をかぶせる */}
+      <div className={OWN_STYLE_TOOLS.has(activeSubTab) ? 'w-full' : 'w-full yy-dt'}>
         {currentSubTab ? currentSubTab.component : (
-          <div className="p-8 text-center border-2 border-dashed border-gray-300 rounded-lg m-4">
-            <h3 className="text-lg font-medium mb-2">ツールを選択してください</h3>
-            <p className="text-gray-600">上記のタブから使用したいツールを選択してください</p>
+          <div className="yy-dt-soon">
+            <span className="yy-label">select — ツール</span>
+            <p className="yy-dt-soon__text">左の一覧から使うツールを選んでください</p>
           </div>
         )}
       </div>

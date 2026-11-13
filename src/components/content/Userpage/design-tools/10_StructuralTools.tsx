@@ -1,5 +1,7 @@
 'use client';
 
+import { ResultRow } from '@/components/ui/Sheet';
+import DtResult from './DtResult';
 import React, { useMemo, useState, useEffect } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 
@@ -2058,7 +2060,7 @@ type HBeamCatalogEntry = {
                       "series,label,H,B,tw,tf,r,A_cm2,unitWeightKgPerM,Ix_cm4,Iy_cm4,ix_cm,iy_cm,Zx_cm3,Zy_cm3,ib,eta,lb_m,wtClassColumn,wtClassBeam,Zxe_cm3,Zye_cm3,Ae_cm2,Zpx_cm3,Zpy_cm3,callName\n" +
                       "HW,H-300×300×10×15,300,300,10,15,13,118.5,93.0,1350,1350,10.7,10.7,450,683,1.10(1.05),1.03(1.01),8.5(7.8),B-1,B-1,420,420,110.0,480,480,H-300×300"
                     } className="w-full border rounded p-2 text-[11px]" rows={3} />
-                    <button onClick={importCsv} className="px-3 py-1 text-[11px] bg-gray-700 text-white rounded">CSVインポート</button>
+                    <button onClick={importCsv} className="yy-btn">CSVインポート</button>
                   </div>
                 )}
                 <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
@@ -2229,23 +2231,24 @@ type HBeamCatalogEntry = {
           </div>
         )}
 
+        {active === 'section' && (<>
         <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px]">
           <button
             onClick={() => captureComparison('A')}
-            className="px-3 py-1 rounded bg-green-600 hover:bg-green-700 text-white"
+            className="yy-btn"
           >
             現在の断面を比較Aに保存
           </button>
           <button
             onClick={() => captureComparison('B')}
-            className="px-3 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white"
+            className="yy-btn"
           >
             現在の断面を比較Bに保存
           </button>
           {(compareSlots.A || compareSlots.B) && (
             <button
               onClick={() => clearComparison()}
-              className="px-3 py-1 rounded border border-gray-300 hover:bg-gray-100 text-gray-700"
+              className="yy-dt-link"
             >
               比較データをクリア
             </button>
@@ -2309,9 +2312,11 @@ type HBeamCatalogEntry = {
           </div>
         )}
 
+        </>)}
+
         {active === 'portal' && (
           <div className="space-y-4 animate-fadeIn">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="yy-dt-split">
                 
                 {/* Input Area */}
                 <div className="space-y-4">
@@ -2365,13 +2370,13 @@ type HBeamCatalogEntry = {
                       <div className="flex gap-2">
                         <button
                           onClick={() => setColBase('fixed')}
-                          className={`flex-1 py-1 px-2 rounded border text-[11px] transition-colors ${colBase==='fixed' ? 'bg-gray-600 text-white border-gray-600' : 'bg-white border-gray-300 hover:bg-gray-50'}`}
+                          className={`flex-1 py-1 px-2 rounded border text-[11px] transition-colors ${colBase==='fixed' ? 'text-white' : 'bg-white'}`}
                         >
                           固定
                         </button>
                         <button
                           onClick={() => setColBase('pin')}
-                          className={`flex-1 py-1 px-2 rounded border text-[11px] transition-colors ${colBase==='pin' ? 'bg-gray-600 text-white border-gray-600' : 'bg-white border-gray-300 hover:bg-gray-50'}`}
+                          className={`flex-1 py-1 px-2 rounded border text-[11px] transition-colors ${colBase==='pin' ? 'text-white' : 'bg-white'}`}
                         >
                           ピン
                         </button>
@@ -2392,48 +2397,18 @@ type HBeamCatalogEntry = {
 
                 {/* Result Area */}
                 <div className="space-y-4">
-                  <div className="border border-indigo-200 bg-indigo-50 rounded-lg p-4">
-                    <h4 className="font-bold text-indigo-800 mb-3 border-b border-indigo-200 pb-1">解析結果 (D値法近似)</h4>
-                    
-                    <div className="flex justify-between items-center bg-white/60 p-2 rounded mb-3">
-                      <span className="text-[11px] text-gray-600">剛比 <span className="font-serif italic">k̄</span> (kb/kc)</span>
-                      <span className="font-mono font-bold text-lg">{portalResults.k_bar.toFixed(2)}</span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                      <div>
-                        <div className="text-[10px] text-gray-500">層間変形 δ</div>
-                        <div className="text-xl font-bold text-indigo-700">
-                          {portalResults.drift_mm.toFixed(2)} <span className="text-xs font-normal text-gray-500">mm</span>
-                        </div>
-                        <div className="text-[9px] text-gray-400">変形角 1/{portalResults.ratio.toFixed(0)}</div>
-                      </div>
-                      <div>
-                        <div className="text-[10px] text-gray-500">柱せん断 Qc</div>
-                        <div className="text-xl font-bold text-gray-800">
-                          {portalResults.Qc.toFixed(1)} <span className="text-xs font-normal text-gray-500">kN</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-white p-3 rounded border border-indigo-100">
-                      <p className="text-[10px] font-bold text-gray-500 mb-2">部材応力 (kN·m)</p>
-                      <div className="grid grid-cols-3 gap-2 text-center text-[11px]">
-                        <div className="bg-gray-50 p-1 rounded">
-                          <div className="text-gray-400 text-[9px]">柱頭</div>
-                          <div className="font-bold">{portalResults.Mc_top.toFixed(1)}</div>
-                        </div>
-                        <div className="bg-gray-50 p-1 rounded">
-                          <div className="text-gray-400 text-[9px]">柱脚</div>
-                          <div className="font-bold">{portalResults.Mc_btm.toFixed(1)}</div>
-                        </div>
-                        <div className="bg-gray-50 p-1 rounded">
-                          <div className="text-gray-400 text-[9px]">梁端</div>
-                          <div className="font-bold">{portalResults.Mb_end.toFixed(1)}</div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  <DtResult
+                    label="解析結果 (D値法近似) · 層間変形 δ"
+                    value={portalResults.drift_mm.toFixed(2)}
+                    unit="mm"
+                    sub={`変形角 1/${portalResults.ratio.toFixed(0)}`}
+                  >
+                    <ResultRow k={<>剛比 <span className="font-serif italic">k̄</span> (kb/kc)</>} v={portalResults.k_bar.toFixed(2)} />
+                    <ResultRow k="柱せん断 Qc" v={`${portalResults.Qc.toFixed(1)} kN`} />
+                    <ResultRow k="部材応力 柱頭" v={`${portalResults.Mc_top.toFixed(1)} kN·m`} />
+                    <ResultRow k="部材応力 柱脚" v={`${portalResults.Mc_btm.toFixed(1)} kN·m`} />
+                    <ResultRow k="部材応力 梁端" v={`${portalResults.Mb_end.toFixed(1)} kN·m`} />
+                  </DtResult>
                   
                   <div className="text-[10px] text-gray-400 leading-tight">
                     ※ 本計算は完全対称な門型ラーメンを想定したD値法による略算です。
@@ -2459,7 +2434,7 @@ type HBeamCatalogEntry = {
               </label>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="yy-dt-split">
               
               {/* Input Area */}
               <div className="space-y-4">
@@ -2608,68 +2583,39 @@ type HBeamCatalogEntry = {
 
               {/* Result Area */}
               <div className="space-y-4">
-                <div className="border border-blue-200 bg-blue-50 rounded-lg p-4">
-                  <h4 className="font-bold text-blue-800 mb-3 border-b border-blue-200 pb-1">計算結果</h4>
-                  
-                  {useAutoSection && beamSectionResults && (
-                    <div className="mb-3 text-[10px] text-gray-600 bg-white p-2 rounded">
-                      断面性能： I = {Math.round(beamSectionResults.I).toLocaleString()} mm⁴ / Z = {Math.round(beamSectionResults.Z).toLocaleString()} mm³
-                    </div>
-                  )}
-                  
-                  <div className="grid grid-cols-2 gap-4 mb-4">
-                    <div className="bg-white p-2 rounded shadow-sm">
-                      <div className="text-[10px] text-gray-500">最大曲げモーメント Mmax</div>
-                      <div className="text-xl font-bold text-gray-800">
-                        {beamResults.M_kNm.toFixed(2)} <span className="text-xs font-normal text-gray-500">kN·m</span>
-                      </div>
-                    </div>
-                    <div className="bg-white p-2 rounded shadow-sm">
-                      <div className="text-[10px] text-gray-500">最大せん断力 Qmax</div>
-                      <div className="text-xl font-bold text-gray-800">
-                        {beamResults.Q_kN.toFixed(2)} <span className="text-xs font-normal text-gray-500">kN</span>
-                      </div>
-                    </div>
-                  </div>
-
+                <DtResult
+                  label={useAutoSection ? '計算結果 · たわみ δ' : '計算結果 · 最大たわみ δmax'}
+                  value={beamResults.Delta_mm.toFixed(2)}
+                  unit="mm"
+                  ng={useAutoSection && (!beamResults.isDeltaSafe || !beamResults.isSigmaSafe)}
+                  sub={
+                    useAutoSection
+                      ? `許容値: ${beamResults.limitDelta.toFixed(2)} mm (L/300)`
+                      : `たわみ比: 1 / ${beamResults.Delta_mm > 0 ? (beamSpan / beamResults.Delta_mm).toFixed(0) : '—'}`
+                  }
+                >
+                  <ResultRow k="最大曲げモーメント Mmax" v={`${beamResults.M_kNm.toFixed(2)} kN·m`} />
+                  <ResultRow k="最大せん断力 Qmax" v={`${beamResults.Q_kN.toFixed(2)} kN`} />
                   {useAutoSection && (
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                      <div className="bg-white p-2 rounded shadow-sm">
-                        <div className="text-[10px] text-gray-500">たわみ (δ)</div>
-                        <div className={`text-xl font-bold ${beamResults.isDeltaSafe ? 'text-green-600' : 'text-red-600'}`}>
-                          {beamResults.Delta_mm.toFixed(2)} <span className="text-xs font-normal text-gray-500">mm</span>
-                        </div>
-                        <div className="text-[9px] text-gray-400">許容値: {beamResults.limitDelta.toFixed(2)} mm (L/300)</div>
-                      </div>
-                      <div className="bg-white p-2 rounded shadow-sm">
-                        <div className="text-[10px] text-gray-500">曲げ応力度 (σ)</div>
-                        <div className={`text-xl font-bold ${beamResults.isSigmaSafe ? 'text-green-600' : 'text-red-600'}`}>
-                          {beamResults.sigma.toFixed(1)} <span className="text-xs font-normal text-gray-500">N/mm²</span>
-                        </div>
-                        <div className="text-[9px] text-gray-400">目安許容値: {beamResults.limitSigma} N/mm²</div>
-                      </div>
-                    </div>
+                    <ResultRow
+                      k={`曲げ応力度 σ (目安許容値 ${beamResults.limitSigma})`}
+                      v={<span className={beamResults.isSigmaSafe ? undefined : 'text-red-700'}>{beamResults.sigma.toFixed(1)} N/mm²</span>}
+                    />
                   )}
-
-                  {!useAutoSection && (
-                    <div className="bg-white p-3 rounded shadow-sm flex items-center justify-between mb-4">
-                      <div>
-                        <div className="text-[10px] text-gray-500">最大たわみ δmax</div>
-                        <div className="text-2xl font-bold text-blue-600">
-                          {beamResults.Delta_mm.toFixed(2)} <span className="text-sm font-normal text-gray-500">mm</span>
-                        </div>
-                      </div>
-                      <div className="text-right text-[10px] text-gray-400">
-                        たわみ比: 1 / {beamResults.Delta_mm > 0 ? (beamSpan / beamResults.Delta_mm).toFixed(0) : '—'}
-                      </div>
-                    </div>
+                  {useAutoSection && (
+                    <ResultRow k="たわみ判定" v={<span className={beamResults.isDeltaSafe ? undefined : 'text-red-700'}>{beamResults.isDeltaSafe ? 'OK' : 'NG'}</span>} />
                   )}
-                </div>
+                </DtResult>
+                {useAutoSection && beamSectionResults && (
+                  <p className="yy-dt-note">
+                    断面性能： I = {Math.round(beamSectionResults.I).toLocaleString()} mm⁴ / Z = {Math.round(beamSectionResults.Z).toLocaleString()} mm³
+                  </p>
+                )}
                 
                 {/* Diagram Placeholder */}
-                <div className="h-24 bg-gray-100 rounded border border-dashed border-gray-300 flex items-center justify-center text-gray-400 text-[10px]">
+                <p className="yy-dt-note font-mono">
                   モデル図: {beamSupport === 'simple' ? '△------△' : beamSupport === 'fixed' ? '|------|' : '|------'}
-                </div>
+                </p>
               </div>
             </div>
           </div>
@@ -2740,16 +2686,12 @@ type HBeamCatalogEntry = {
               </div>
 
               {/* 結果 */}
-              <div className={`p-6 rounded-lg text-center border-2 ${nValueResult.resultHardware.color} border-gray-300`}>
-                <p className="text-gray-600 font-bold mb-2 text-[12px]">算出 N値: {nValueResult.nValue.toFixed(2)}</p>
-                <div className="text-2xl font-bold text-gray-800 mb-2">
-                  判定: {nValueResult.resultHardware.label}
-                </div>
-                <div className="text-[10px] text-gray-500 mt-2 space-y-1">
-                  <div>係数B: {nValueResult.coef.toFixed(2)}</div>
-                  <div>補正係数L: {nValueResult.L_correction.toFixed(2)}</div>
-                </div>
-                <p className="text-[9px] text-gray-400 mt-3">
+              <div className="max-w-[420px]">
+                <DtResult label={`判定 · 算出 N値 ${nValueResult.nValue.toFixed(2)}`} value={nValueResult.resultHardware.label} text>
+                  <ResultRow k="係数B" v={nValueResult.coef.toFixed(2)} />
+                  <ResultRow k="補正係数L" v={nValueResult.L_correction.toFixed(2)} />
+                </DtResult>
+                <p className="yy-dt-note mt-2">
                   ※あくまで簡易計算です。正式な設計には詳細なN値計算書を使用してください。
                 </p>
               </div>
@@ -2763,7 +2705,7 @@ type HBeamCatalogEntry = {
             {/* 1. 簡略図の選択エリア */}
             {!selectedPattern && (
               <div>
-                <h3 className="text-lg font-bold mb-4 text-gray-700">計算パターンを選択してください</h3>
+                <h3 className="yy-dt-sec mb-4">計算パターンを選択してください</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                   <div 
                     onClick={() => setSelectedPattern('simple_point')}
@@ -2789,7 +2731,7 @@ type HBeamCatalogEntry = {
             {/* 2 & 3 & 4. 詳細表示・入力・結果エリア */}
             {selectedPattern === 'simple_point' && (
               <div className="animate-fadeIn">
-                <button onClick={() => setSelectedPattern(null)} className="mb-4 text-blue-600 text-sm hover:underline">← パターン選択に戻る</button>
+                <button onClick={() => setSelectedPattern(null)} className="yy-dt-link mb-4">← パターン選択に戻る</button>
                 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                   {/* 左側：詳細図（SVG） */}
@@ -2868,20 +2810,16 @@ type HBeamCatalogEntry = {
                       </div>
                     </div>
 
-                    <div className="bg-blue-50 p-4 border border-blue-200 rounded">
-                      <h4 className="font-bold text-blue-800 mb-3 text-sm border-b border-blue-100 pb-1">計算結果</h4>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between"><span>反力 RA:</span> <strong>{plResults.RA.toFixed(2)} kN</strong></div>
-                        <div className="flex justify-between"><span>反力 RB:</span> <strong>{plResults.RB.toFixed(2)} kN</strong></div>
-                        <div className="flex justify-between"><span>最大モーメント MC:</span> <strong>{plResults.MC.toFixed(2)} kNm</strong></div>
-                        <div className="flex justify-between border-t pt-2 mt-2 text-blue-900">
-                          <span>荷重直下のたわみ δC:</span> <strong>{plResults.deltaC.toFixed(2)} mm</strong>
-                        </div>
-                        <div className="text-[11px] text-gray-500 mt-1 italic">
-                          ※最大たわみ δmax = {plResults.deltaMax.toFixed(2)} mm (x={plResults.x0.toFixed(0)}mm)
-                        </div>
-                      </div>
-                    </div>
+                    <DtResult
+                      label="計算結果 · 荷重直下のたわみ δC"
+                      value={plResults.deltaC.toFixed(2)}
+                      unit="mm"
+                      sub={`※最大たわみ δmax = ${plResults.deltaMax.toFixed(2)} mm (x=${plResults.x0.toFixed(0)}mm)`}
+                    >
+                      <ResultRow k="反力 RA" v={`${plResults.RA.toFixed(2)} kN`} />
+                      <ResultRow k="反力 RB" v={`${plResults.RB.toFixed(2)} kN`} />
+                      <ResultRow k="最大モーメント MC" v={`${plResults.MC.toFixed(2)} kNm`} />
+                    </DtResult>
                   </div>
                 </div>
               </div>

@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { FiCopy, FiInfo } from 'react-icons/fi';
+import { FiCopy } from 'react-icons/fi';
 import VentSheet from './VentSheet';
+import { ResultPanel, ResultRow } from '@/components/ui/Sheet';
 
 // --- アイコンコンポーネント ---
-const InfoIcon = () => <FiInfo className="h-4 w-4 text-gray-400 inline" />;
-const CopyIcon = () => <FiCopy className="h-4 w-4" />;
+const CopyIcon = () => <FiCopy className="h-3.5 w-3.5" />;
 
 // --- 定数定義 ---
 const TATAMI_UNIT = 1.6562; // 中京間
@@ -232,9 +232,9 @@ const VentilationCalculation: React.FC<VentilationCalculationProps> = ({ default
       </div>
       )}
 
-      <div className="bg-white overflow-hidden p-4 text-[12px] text-gray-700 space-y-4 animate-fadeIn">
-        
-        
+      <div className="bg-white p-4 text-[12px] text-gray-700 animate-fadeIn">
+      <div className="yy-dt-split">
+      <div className="space-y-4">
         {/* --- モード A: 24時間換気 --- */}
         {activeTab === 'sickhouse' && (
           <div className="space-y-4">
@@ -313,7 +313,7 @@ const VentilationCalculation: React.FC<VentilationCalculationProps> = ({ default
                   <button
                     key={f.label}
                     onClick={() => setFuelIndex(i)}
-                    className={`py-2 px-1 text-[11px] rounded border transition-colors ${fuelIndex === i ? 'bg-red-50 border-red-500 text-red-700 font-bold' : 'bg-white text-gray-600 hover:bg-gray-50 border-gray-300'}`}
+                    className={`yy-dt-opt py-2 px-1 text-[11px]${fuelIndex === i ? ' is-on' : ''}`}
                   >
                     {f.label}<br/><span className="text-[9px] font-normal">{f.note}</span>
                   </button>
@@ -341,7 +341,7 @@ const VentilationCalculation: React.FC<VentilationCalculationProps> = ({ default
                   <button
                     key={t.n}
                     onClick={() => setHoodType(t.n)}
-                    className={`py-2 px-2 text-[12px] rounded border transition-colors ${hoodType === t.n ? 'bg-red-50 border-red-500 text-red-700 font-bold' : 'bg-white text-gray-600 hover:bg-gray-50 border-gray-300'}`}
+                    className={`yy-dt-opt py-2 px-2 text-[12px]${hoodType === t.n ? ' is-on' : ''}`}
                   >
                     {t.label}<br/><span className="text-[10px] font-normal">N={t.n}／{t.note}</span>
                   </button>
@@ -379,67 +379,37 @@ const VentilationCalculation: React.FC<VentilationCalculationProps> = ({ default
           </div>
         )}
 
-        <hr className="my-4 border-gray-100" />
+      </div>
 
-        {/* 結果表示エリア */}
-        <div className={`rounded-lg p-4 relative transition-colors border ${activeTab === 'sickhouse' ? 'bg-blue-50 border-blue-100' : activeTab === 'fire' ? 'bg-red-50 border-red-100' : 'bg-green-50 border-green-100'}`}>
-          
-          <button 
-            onClick={copyResult} 
-            disabled={resultVal === 0} 
-            className={`absolute top-2 right-2 flex items-center gap-1 px-2 py-1 text-[10px] rounded transition-all ${resultVal === 0 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-white hover:bg-gray-100 border border-gray-200'} ${activeTab === 'sickhouse' ? 'text-blue-600' : activeTab === 'fire' ? 'text-red-600' : 'text-green-600'}`}
-          >
-            {copyFeedback ? <span className="text-green-600 font-bold">OK!</span> : <><CopyIcon /> コピー</>}
-          </button>
-
-          <div className="space-y-3">
-            <div className="flex justify-between items-end border-b pb-3 border-gray-200/50">
-               <div>
-                  <p className="text-[10px] font-bold text-gray-500 mb-1 flex items-center gap-1">
-                    必要換気量 <InfoIcon />
-                  </p>
-                  <p className={`text-3xl font-bold font-mono tracking-tight leading-none ${activeTab === 'sickhouse' ? 'text-blue-700' : activeTab === 'fire' ? 'text-red-700' : 'text-green-700'}`}>
-                    {resultVal}<span className="text-base ml-1">㎥/h</span>
-                  </p>
-               </div>
-               <div className="text-right">
-                  <p className="text-[10px] text-gray-500 mb-1">計算根拠</p>
-                  <p className="text-[11px] font-mono text-gray-700">{subResult || '-'}</p>
-               </div>
-            </div>
-
+        {/* 結果表示エリア(深い緑の答え。1 画面に 1 つ) */}
+        <aside className="space-y-3">
+          <ResultPanel label="必要換気量" value={resultVal} unit="㎥/h" sub={subResult || '-'}>
             {/* 給気口の目安表示 (24時間換気のみ表示) */}
             {activeTab === 'sickhouse' && (
-              <div className="bg-white/70 rounded p-2 text-[11px] border border-blue-200 shadow-sm">
-                <p className="text-[10px] font-bold text-gray-600 mb-1">推奨給気口 (有効開口面積)</p>
-                <div className="flex items-center justify-between">
-                   <span className="font-mono text-base font-bold text-gray-700">
-                     {reqInletArea} <span className="text-[10px] font-normal">c㎡</span>
-                   </span>
-                   <span className="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
-                     100φ(約35c㎡) × <strong>{Math.ceil(reqInletArea / 35)}</strong> 個
-                   </span>
-                </div>
-                {/*
-                  「必要換気量 × 2.0」は法令や特定の規格に基づく式ではなく社内の目安。
-                  実際の必要開口面積は給気口の有効開口率と設計圧力差で決まるため、
-                  根拠がない値であることを明示しておく。
-                */}
-                <p className="mt-1 text-[9px] text-gray-500 leading-snug">
-                  ※「必要換気量×2.0」による概算です。法令・規格に基づく値ではありません。実際は給気口の有効開口率と設計圧力差からメーカー資料で確認してください。
-                </p>
-              </div>
+              <>
+                <ResultRow k="推奨給気口(有効開口面積)" v={`${reqInletArea} c㎡`} />
+                <ResultRow k="100φ(約35c㎡)" v={`× ${Math.ceil(reqInletArea / 35)} 個`} />
+              </>
             )}
-
-            <div className="text-[10px] text-gray-600 space-y-1">
-               <p className="font-bold">■ 換気扇選定目安:</p>
-               <ul className="list-disc list-inside ml-2 space-y-0.5">
-                 <li>100φパイプファン(約50㎥/h): <strong>{Math.ceil(resultVal / 50)}</strong> 台</li>
-                 <li>150φシロッコ(約300㎥/h): <strong>{(resultVal / 300).toFixed(1)}</strong> 台分</li>
-               </ul>
-            </div>
-          </div>
-        </div>
+            <ResultRow k="100φパイプファン(約50㎥/h)" v={`${Math.ceil(resultVal / 50)} 台`} />
+            <ResultRow k="150φシロッコ(約300㎥/h)" v={`${(resultVal / 300).toFixed(1)} 台分`} />
+          </ResultPanel>
+          <button type="button" onClick={copyResult} disabled={resultVal === 0} className="yy-btn">
+            <CopyIcon /> {copyFeedback ? 'コピーしました' : '結果をコピー'}
+          </button>
+          {/*
+            「必要換気量 × 2.0」は法令や特定の規格に基づく式ではなく社内の目安。
+            実際の必要開口面積は給気口の有効開口率と設計圧力差で決まるため、
+            根拠がない値であることを明示しておく。
+          */}
+          {activeTab === 'sickhouse' && (
+            <p className="yy-dt-note">
+              ※給気口は「必要換気量×2.0」による概算です。法令・規格に基づく値ではありません。実際は給気口の有効開口率と設計圧力差からメーカー資料で確認してください。
+            </p>
+          )}
+          <p className="yy-dt-note">※換気扇の台数は選定の目安です。</p>
+        </aside>
+      </div>
       </div>
     </div>
   );

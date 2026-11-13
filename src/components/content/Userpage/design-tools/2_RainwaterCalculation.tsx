@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
+import { ResultRow } from '@/components/ui/Sheet';
+import DtResult from './DtResult';
 
 interface RainwaterCalculationProps {
   defaultTab?: 'eaves' | 'roof' | 'pipe';
@@ -183,8 +185,22 @@ const RainwaterCalculation: React.FC<RainwaterCalculationProps> = ({ defaultTab,
       )}
       
       <div className="p-4 text-[12px] text-gray-700">
+        {/* 建築側(軒樋・ドレン)は上のタブ帯を畳んでいるので、切り替えはここで出す */}
+        {hideTabBar && mode !== 'exterior' && (
+          <div className="yy-tabs">
+            <button type="button" className="yy-tab" aria-pressed={activeTab === 'eaves'} onClick={() => setActiveTab('eaves')}>
+              勾配屋根 (軒樋)
+            </button>
+            <button type="button" className="yy-tab" aria-pressed={activeTab === 'roof'} onClick={() => setActiveTab('roof')}>
+              陸屋根 (ドレン)
+            </button>
+          </div>
+        )}
+
+        <div className="yy-dt-split">
+        <div className="space-y-4">
         {/* 共通設定 (降雨強度) */}
-        <div className="mb-6 bg-gray-50 p-3 rounded border border-gray-200 flex flex-wrap gap-4 items-center">
+        <div className="bg-gray-50 p-3 rounded border border-gray-200 flex flex-wrap gap-4 items-center">
           <div>
             <label className="block text-[11px] font-bold text-gray-700 mb-1">降雨強度 (mm/h)</label>
             <select
@@ -203,22 +219,22 @@ const RainwaterCalculation: React.FC<RainwaterCalculationProps> = ({ defaultTab,
           </div>
         </div>
 
-        {/* === 軒樋システム計算 === */}
+        {/* === 軒樋システム計算(入力) === */}
         {activeTab === 'eaves' && (
           <div className="space-y-4 animate-fadeIn">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">屋根水平投影面積 (m²)</label>
-                <input 
-                  type="number" 
-                  value={eavesRoofArea} 
-                  onChange={(e) => setEavesRoofArea(e.target.value)} 
-                  className="w-full text-[12px] border rounded px-2 py-1.5 focus:border-blue-500 outline-none" 
-                  placeholder="例: 60" 
+                <input
+                  type="number"
+                  value={eavesRoofArea}
+                  onChange={(e) => setEavesRoofArea(e.target.value)}
+                  className="w-full text-[12px] border rounded px-2 py-1.5 focus:border-blue-500 outline-none"
+                  placeholder="例: 60"
                 />
               </div>
-              <div className="bg-blue-50 p-2 rounded border border-blue-100">
-                <label className="block text-[11px] font-bold text-blue-800 mb-1">竪樋(たてどい)の設定</label>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">竪樋(たてどい)の設定</label>
                 <div className="flex gap-2 items-center">
                   <select value={downspoutSize} onChange={(e) => setDownspoutSize(e.target.value)} className="flex-1 text-[12px] border rounded px-2 py-1.5">
                     <option value="60">φ60</option><option value="75">φ75</option><option value="100">φ100</option><option value="125">φ125</option><option value="150">φ150</option>
@@ -229,47 +245,21 @@ const RainwaterCalculation: React.FC<RainwaterCalculationProps> = ({ defaultTab,
                 </div>
               </div>
             </div>
-            {eavesSystemResult && (
-              <div className="border rounded-lg p-4 bg-white shadow-sm mt-2">
-                <h4 className="text-[12px] font-bold mb-3 border-b pb-1 text-gray-700">判定結果</h4>
-                <div className="mb-4">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-[11px] font-bold text-gray-600">竪樋の排水能力</span>
-                    <span className={`text-[12px] font-bold ${eavesSystemResult.isDrainageSafe ? 'text-green-600' : 'text-red-600'}`}>{eavesSystemResult.isDrainageSafe ? 'OK' : '能力不足'}</span>
-                  </div>
-                  <div className="flex justify-between text-[10px] text-gray-500 mb-1">
-                    <span>発生雨量: {eavesSystemResult.totalRainFlow.toFixed(1)} L/min</span>
-                    <span>排水能力: {eavesSystemResult.totalDrainCapacity} L/min</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-1.5">
-                    <div className={`h-full rounded-full transition-all ${eavesSystemResult.isDrainageSafe ? 'bg-green-500' : 'bg-red-500'}`} style={{ width: `${Math.min(eavesSystemResult.drainageUsageRate, 100)}%` }} />
-                  </div>
-                </div>
-                <div className="bg-gray-50 p-3 rounded border border-gray-200">
-                  <span className="text-[11px] font-bold text-gray-600 block mb-1">軒樋の必要有効断面積</span>
-                  <div className="flex items-end gap-2"><span className="text-xl font-bold text-blue-700">{Math.ceil(eavesSystemResult.requiredSectionArea)}</span><span className="text-[12px] text-gray-600 mb-1">cm² 以上</span></div>
-                  <p className="text-[10px] text-gray-400 mt-1">
-                    ※竪樋1本あたりへの負荷から算出しています。<br/>
-                    ※各メーカーカタログの「有効断面積」と比較して選定してください。
-                  </p>
-                </div>
-              </div>
-            )}
           </div>
         )}
 
-        {/* === 陸屋根ルーフドレン計算 === */}
+        {/* === 陸屋根ルーフドレン計算(入力) === */}
         {activeTab === 'roof' && (
           <div className="space-y-4 animate-fadeIn">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">負担面積 (m²)</label>
-                <input 
-                  type="number" 
-                  value={drainRoofArea} 
-                  onChange={(e) => setDrainRoofArea(e.target.value)} 
-                  className="w-full text-[12px] border rounded px-2 py-1.5 focus:border-blue-500 outline-none" 
-                  placeholder="例: 100" 
+                <input
+                  type="number"
+                  value={drainRoofArea}
+                  onChange={(e) => setDrainRoofArea(e.target.value)}
+                  className="w-full text-[12px] border rounded px-2 py-1.5 focus:border-blue-500 outline-none"
+                  placeholder="例: 100"
                 />
               </div>
               <div>
@@ -290,24 +280,10 @@ const RainwaterCalculation: React.FC<RainwaterCalculationProps> = ({ defaultTab,
                 <span className="text-[11px]">本</span>
               </div>
             </div>
-            {roofDrainResult && (
-              <div className={`border rounded-lg p-4 mt-2 ${roofDrainResult.isSafe ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
-                <h4 className={`text-[12px] font-bold mb-2 border-b pb-1 ${roofDrainResult.isSafe ? 'text-green-800 border-green-300' : 'text-red-800 border-red-300'}`}>
-                  判定: {roofDrainResult.isSafe ? 'OK' : '能力不足'}
-                </h4>
-                <div className="flex justify-between text-[10px] mb-1">
-                  <span>負荷率 ({roofDrainResult.totalFlow.toFixed(0)} / {roofDrainResult.totalCapacity} L)</span>
-                  <span className="font-bold">{roofDrainResult.usageRate.toFixed(0)}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className={`h-full rounded-full transition-all ${roofDrainResult.isSafe ? 'bg-green-500' : 'bg-red-500'}`} style={{ width: `${Math.min(roofDrainResult.usageRate, 100)}%` }} />
-                </div>
-              </div>
-            )}
           </div>
         )}
 
-        {/* === 雨水管渠（配管）計算 === */}
+        {/* === 雨水管渠（配管）計算(入力) === */}
         {activeTab === 'pipe' && (
           <div className="space-y-4 animate-fadeIn">
             {/* 入力: 負担面積・流出係数 */}
@@ -383,50 +359,85 @@ const RainwaterCalculation: React.FC<RainwaterCalculationProps> = ({ defaultTab,
                 </div>
               </div>
             </div>
-
-            {/* 結果表示 */}
-            {pipeCalcResult && (
-              <div className={`border rounded-lg p-4 mt-2 ${pipeCalcResult.isSafe ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
-                <h4 className={`text-[12px] font-bold mb-3 border-b pb-1 ${pipeCalcResult.isSafe ? 'text-green-800 border-green-300' : 'text-red-800 border-red-300'}`}>
-                  判定: {pipeCalcResult.isSafe ? 'OK (余裕あり)' : 'NG (容量不足)'}
-                </h4>
-                
-                <div className="grid grid-cols-2 gap-4 text-[11px] mb-3">
-                  <div>
-                    <p className="text-gray-500">流入雨水量</p>
-                    <p className="font-bold text-lg">{pipeCalcResult.flowIn_L_min.toFixed(1)} <span className="text-xs font-normal">L/min</span></p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">管の許容流量</p>
-                    <p className="font-bold text-lg">{pipeCalcResult.Capacity_L_min.toFixed(1)} <span className="text-xs font-normal">L/min</span></p>
-                  </div>
-                </div>
-
-                <div className="flex justify-between items-center bg-white/60 p-2 rounded mb-2">
-                  <span className="text-[10px] text-gray-600">流速 (V)</span>
-                  <span className="text-[12px] font-mono">{pipeCalcResult.Velocity_m_s.toFixed(2)} m/s</span>
-                </div>
-                <p className="text-[9px] text-gray-400 text-right mb-2">※流速は 0.6 〜 3.0 m/s 程度が推奨範囲です</p>
-
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div 
-                    className={`h-full rounded-full transition-all ${pipeCalcResult.isSafe ? 'bg-green-500' : 'bg-red-500'}`} 
-                    style={{ width: `${Math.min(pipeCalcResult.usageRate, 100)}%` }}
-                  />
-                </div>
-                <div className="text-right text-[10px] mt-1 text-gray-600">
-                  充満率: {pipeCalcResult.usageRate.toFixed(1)}%
-                </div>
-              </div>
-            )}
           </div>
         )}
 
-        <div className="mt-6 pt-4 border-t border-gray-100">
+        <div className="pt-4 border-t border-gray-100">
           <p className="text-[10px] text-gray-400">
             ※本ツールはSHASE-S 206やマニング公式を用いた簡易計算です。管渠計算は満管流として算定しています。<br/>
             ※実施設計では、泥溜まりや合流損失等を考慮し、十分な安全率を見込んでください。
           </p>
+        </div>
+        </div>
+
+        {/* 判定(深い緑の答え。1 画面に 1 つ) */}
+        <aside className="space-y-3">
+          {((activeTab === 'eaves' && !eavesSystemResult) || (activeTab === 'roof' && !roofDrainResult) || (activeTab === 'pipe' && !pipeCalcResult)) && (
+            <div className="yy-dt-soon">
+              <span className="yy-label">result — 判定</span>
+              <p className="yy-dt-soon__text">面積などの条件を入れると、ここに判定が出ます</p>
+            </div>
+          )}
+          {activeTab === 'eaves' && eavesSystemResult && (
+            <>
+              <DtResult
+                label="軒樋の必要有効断面積"
+                value={Math.ceil(eavesSystemResult.requiredSectionArea)}
+                unit="cm² 以上"
+                sub={`竪樋の排水能力: ${eavesSystemResult.isDrainageSafe ? 'OK' : '能力不足'}`}
+                ng={!eavesSystemResult.isDrainageSafe}
+              >
+                <ResultRow k="発生雨量" v={`${eavesSystemResult.totalRainFlow.toFixed(1)} L/min`} />
+                <ResultRow k="排水能力" v={`${eavesSystemResult.totalDrainCapacity} L/min`} />
+                <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+                  <div className={`h-full rounded-full transition-all ${eavesSystemResult.isDrainageSafe ? 'bg-green-500' : 'bg-red-500'}`} style={{ width: `${Math.min(eavesSystemResult.drainageUsageRate, 100)}%` }} />
+                </div>
+              </DtResult>
+              <p className="yy-dt-note">
+                ※竪樋1本あたりへの負荷から算出しています。<br/>
+                ※各メーカーカタログの「有効断面積」と比較して選定してください。
+              </p>
+            </>
+          )}
+
+          {activeTab === 'roof' && roofDrainResult && (
+            <DtResult
+              label="判定"
+              value={roofDrainResult.isSafe ? 'OK' : 'NG'}
+              unit={roofDrainResult.isSafe ? undefined : '能力不足'}
+              sub={`負荷率 (${roofDrainResult.totalFlow.toFixed(0)} / ${roofDrainResult.totalCapacity} L)`}
+              ng={!roofDrainResult.isSafe}
+            >
+              <ResultRow k="負荷率" v={`${roofDrainResult.usageRate.toFixed(0)}%`} />
+              <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                <div className={`h-full rounded-full transition-all ${roofDrainResult.isSafe ? 'bg-green-500' : 'bg-red-500'}`} style={{ width: `${Math.min(roofDrainResult.usageRate, 100)}%` }} />
+              </div>
+            </DtResult>
+          )}
+
+          {activeTab === 'pipe' && pipeCalcResult && (
+            <>
+              <DtResult
+                label="判定"
+                value={pipeCalcResult.isSafe ? 'OK' : 'NG'}
+                unit={pipeCalcResult.isSafe ? '余裕あり' : '容量不足'}
+                ng={!pipeCalcResult.isSafe}
+              >
+                <ResultRow k="流入雨水量" v={`${pipeCalcResult.flowIn_L_min.toFixed(1)} L/min`} />
+                <ResultRow k="管の許容流量" v={`${pipeCalcResult.Capacity_L_min.toFixed(1)} L/min`} />
+                <ResultRow k="流速 (V)" v={`${pipeCalcResult.Velocity_m_s.toFixed(2)} m/s`} />
+                <ResultRow k="充満率" v={`${pipeCalcResult.usageRate.toFixed(1)}%`} />
+                <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                  <div
+                    className={`h-full rounded-full transition-all ${pipeCalcResult.isSafe ? 'bg-green-500' : 'bg-red-500'}`}
+                    style={{ width: `${Math.min(pipeCalcResult.usageRate, 100)}%` }}
+                  />
+                </div>
+              </DtResult>
+              <p className="yy-dt-note">※流速は 0.6 〜 3.0 m/s 程度が推奨範囲です</p>
+            </>
+          )}
+        </aside>
         </div>
       </div>
     </div>
