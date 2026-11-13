@@ -1113,7 +1113,7 @@ const FileTransferTool: React.FC = () => {
   return (
     <div className="w-full bg-white border-b border-gray-100">
       <ToolHeader
-        no="11"
+        no="16"
         code="TRANSMITTAL"
         title="図面送付"
         description="図面やデータを相手先へ送る。リンクに送付状（図面番号・版・枚数）を添え、いつ誰に何を送って相手が開いたかを台帳に残します"

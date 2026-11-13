@@ -267,7 +267,7 @@ const ContactsManagement: React.FC = () => {
     // 帯だけ左右いっぱいに出し、その下の本文は他のツールと同じ左右余白を取る。
     <div className="bg-white pb-4 [&>*:not(:first-child)]:px-4">
       <ToolHeader
-        no="A7"
+        no="22"
         code="CONTACTS"
         title="担当連絡先"
         description="メーカー・業者の担当者と、いつ何を頼みどう返ってきたかを残す。建材ページで窓口を開くと自動で記録"

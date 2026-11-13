@@ -457,7 +457,7 @@ const TempStorage: React.FC = () => {
 
   const header = (
     <ToolHeader
-      no="10"
+      no="15"
       code="HANDOFF"
       title="端末間受け渡し"
       description="自分の端末どうしでファイルを渡す。現場のスマホで撮った写真を事務所の PC で受け取る、PC のファイルをスマホへ。QR を読むだけで開けて、24時間で自動で消えます"

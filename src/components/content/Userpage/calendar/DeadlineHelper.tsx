@@ -148,7 +148,7 @@ export default function DeadlineHelper({
                   type="button"
                   disabled={!milestones.length || busy}
                   onClick={() => void add(milestones.map((m) => ({ title: m.title, date: m.date, details: m.note, category: PERMIT_CATEGORY.name, color: PERMIT_CATEGORY.color })))}
-                  className="px-4 py-1.5 text-[12px] bg-[#3b3b3b] text-white font-bold disabled:opacity-40"
+                  className="px-4 py-1.5 text-[12px] bg-[#17302A] text-white rounded-full font-bold disabled:opacity-40"
                 >
                   {busy ? '入れています…' : `${milestones.length} 件をカレンダーに入れる`}
                 </button>
@@ -202,7 +202,7 @@ export default function DeadlineHelper({
                         }))
                     )
                   }
-                  className="px-4 py-1.5 text-[12px] bg-[#3b3b3b] text-white font-bold disabled:opacity-40"
+                  className="px-4 py-1.5 text-[12px] bg-[#17302A] text-white rounded-full font-bold disabled:opacity-40"
                 >
                   {busy ? '入れています…' : `${picked.size} 件をカレンダーに入れる`}
                 </button>

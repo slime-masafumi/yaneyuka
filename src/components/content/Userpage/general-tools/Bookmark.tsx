@@ -781,7 +781,7 @@ const BookmarkTool: React.FC = () => {
   return (
     <div className="bg-white flex flex-col h-full lg:h-[calc(100vh-var(--nav-height))]">
       <ToolHeader
-        no="05"
+        no="07"
         code="BOOKMARK"
         title={boxMode ? 'ブックマーク — メーカー資料箱' : 'ブックマーク'}
         description={

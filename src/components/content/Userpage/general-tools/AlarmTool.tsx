@@ -450,7 +450,7 @@ const AlarmTool: React.FC = () => {
           見出し帯の「できること」が同じ切替を兼ねるので 1 か所にまとめた。
           集計や設計料の設定は業務管理の中のタブの奥にあり気づかれなかったので、帯から直接開く。 */}
       <ToolHeader
-        no="15"
+        no="21"
         code="WORKLOG"
         title="業務管理・アラーム"
         description="案件ごとの作業時間を日報に残し、設計料と突き合わせて時間単価を見る。タイマーとアラームも同じ画面で。"
@@ -596,19 +596,19 @@ const AlarmTool: React.FC = () => {
               <div className="flex gap-2">
                 <button 
                   onClick={() => setTrackerTab('daily')} 
-                  className={`px-3 py-1.5 text-[11px] transition-colors flex items-center gap-1 ${trackerTab==='daily' ? 'bg-white text-gray-900 font-bold border border-[#3b3b3b]' : 'text-gray-500 hover:bg-gray-200'}`}
+                  className={`px-3 py-1.5 text-[11px] transition-colors flex items-center gap-1 ${trackerTab==='daily' ? 'bg-white text-gray-900 font-bold border border-[#141414]' : 'text-gray-500 hover:bg-gray-200'}`}
                 >
                   <FiClock className="w-3 h-3"/> 日報入力
                 </button>
               <button
                   onClick={() => setTrackerTab('summary')} 
-                  className={`px-3 py-1.5 text-[11px] transition-colors flex items-center gap-1 ${trackerTab==='summary' ? 'bg-white text-gray-900 font-bold border border-[#3b3b3b]' : 'text-gray-500 hover:bg-gray-200'}`}
+                  className={`px-3 py-1.5 text-[11px] transition-colors flex items-center gap-1 ${trackerTab==='summary' ? 'bg-white text-gray-900 font-bold border border-[#141414]' : 'text-gray-500 hover:bg-gray-200'}`}
               >
                   <FiPieChart className="w-3 h-3"/> 集計
               </button>
               <button
                   onClick={() => setTrackerTab('settings')} 
-                  className={`px-3 py-1.5 text-[11px] transition-colors flex items-center gap-1 ${trackerTab==='settings' ? 'bg-white text-gray-900 font-bold border border-[#3b3b3b]' : 'text-gray-500 hover:bg-gray-200'}`}
+                  className={`px-3 py-1.5 text-[11px] transition-colors flex items-center gap-1 ${trackerTab==='settings' ? 'bg-white text-gray-900 font-bold border border-[#141414]' : 'text-gray-500 hover:bg-gray-200'}`}
               >
                   <FiSettings className="w-3 h-3"/> 設定
               </button>
@@ -918,7 +918,7 @@ const AlarmTool: React.FC = () => {
                 <div className="flex-1 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
                   {projects.length === 0 && <p className="text-[10px] text-gray-400 text-center py-4">プロジェクトがありません</p>}
                   {projects.map(p => (
-                    <div key={p.id} className={`flex items-center gap-3 p-3 border bg-white transition-colors ${editProjId === p.id ? 'border-[#3b3b3b] border-l-[#52AA96]' : 'border-gray-200'}`}>
+                    <div key={p.id} className={`flex items-center gap-3 p-3 border bg-white transition-colors ${editProjId === p.id ? 'border-[#141414] border-l-[#52AA96]' : 'border-gray-200'}`}>
                       <span className="text-[10px] font-mono bg-gray-100 px-2 py-1 text-gray-600 border border-gray-200 min-w-[60px] text-center">{p.code}</span>
                       <span className="text-[11px] text-gray-700 truncate flex-1 font-bold">{p.name}</span>
                       {p.fee ? <span className="text-[10px] text-gray-500 font-mono">{yen(p.fee)}</span> : null}

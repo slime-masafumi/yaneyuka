@@ -727,7 +727,7 @@ const ScheduleTool: React.FC = () => {
   const header = (
     <>
       <ToolHeader
-        no="09"
+        no="13"
         code="SCHEDULE"
         title="スケジュール調整"
         description="現場定例・検査・施主打合せの日程を、施主・設計・施工など必要な人が揃う日に決める"

@@ -1716,7 +1716,7 @@ const Spreadsheet: React.FC = () => {
   return (
     <div className="bg-white border-b border-gray-100 flex flex-col h-full lg:h-[calc(100vh-var(--nav-height))]">
       <ToolHeader
-        no="02"
+        no="04"
         code="SHEET"
         title="表計算"
         description="面積表・仕上表・数量拾いを式つきで作り、坪・枚数・勾配を関数で出して Excel でやりとりする。"
@@ -2053,7 +2053,7 @@ const Spreadsheet: React.FC = () => {
               type="button"
               className={`px-4 py-1.5 text-xs border-t border-l border-r transition-colors ${
                 currentSheetId === s.id
-                  ? 'bg-white border-[#3b3b3b] border-t-[#52AA96] font-bold text-gray-900 relative -bottom-px pb-2'
+                  ? 'bg-white border-[#141414] border-t-[#52AA96] font-bold text-gray-900 relative -bottom-px pb-2'
                   : 'bg-gray-100 border-transparent text-gray-600 hover:bg-gray-200'
               }`}
               onClick={() => setCurrentSheetId(s.id)}

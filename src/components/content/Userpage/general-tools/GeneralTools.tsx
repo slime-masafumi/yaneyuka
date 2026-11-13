@@ -18,12 +18,21 @@ import AlarmTool from './AlarmTool';
 import MemoTool from './Memo';
 import Calculator from './Calculator';
 import Olmt from './olmt/Olmt';
+import './tool-premium.css';
+import { GENERAL_TOOL_GROUPS } from '@/lib/railMenu';
+
 import {
   GENERAL_TOOL_MENU,
   consumeGeneralTool,
   onGeneralTool,
   type GeneralToolId,
 } from '@/lib/generalToolsMenu';
+
+// 番号は一般ツール一覧（22 本）の並び。ツールの見出し（ToolHeader の no）と同じ番号を出す。
+const LIST_NO: Record<string, string> = Object.fromEntries(
+  GENERAL_TOOL_GROUPS.flatMap((g) => g.items)
+    .map((it, i) => [it.tool ?? it.menu, String(i + 1).padStart(2, '0')]),
+);
 
 
 
@@ -65,14 +74,10 @@ const GeneralTools: React.FC = () => {
           lg 以上では左カラムの Ⅲ が同じ並びを出すので畳む。
           左カラムは hidden lg:block なので、狭い画面ではここが唯一のナビになる。
           並びとラベルは src/lib/generalToolsMenu.ts が唯一の定義。 */}
-      <div role="navigation"
-        aria-label="一般ツール"
-        className="bg-[#141414] w-full overflow-x-auto lg:hidden border-b border-black"
-      >
-        {/* 墨の帯に等幅の小さな番号と 11px のラベル。選択中は塗らずに差し色の
-            細い下線 1 本で示す（見出し帯と同じ「差し色は光として 1 点だけ」）。
+      <div role="navigation" aria-label="一般ツール" className="yy-gt-tabs lg:hidden">
+        {/* 白地の下線タブ（.yy-tabs）。小さな等幅の番号とラベル、選択中は緑の下線 1 本。
             並びが画面幅を超えるので横スクロールのまま、ページ自体ははみ出させない。 */}
-        <div className="flex">
+        <div className="yy-tabs">
           {GENERAL_TOOL_MENU.map((tool, i) => {
             const on = activeTab === tool.id;
             return (
@@ -81,14 +86,11 @@ const GeneralTools: React.FC = () => {
                 type="button"
                 onClick={() => setActiveTab(tool.id)}
                 aria-current={on ? 'page' : undefined}
-                className={`shrink-0 flex items-baseline gap-1.5 px-3 pt-2 pb-[7px] text-[11px] whitespace-nowrap border-b transition-colors focus:outline-none focus-visible:outline focus-visible:outline-1 focus-visible:outline-[#52AA96] ${
-                  on ? 'text-white border-[#52AA96]' : 'text-[#aaa69d] border-transparent hover:text-white'
-                }`}
+                aria-pressed={on}
+                className="yy-tab"
               >
-                <span className={`yy-mono text-[9px] tracking-[0.08em] ${on ? 'text-[#52AA96]' : 'text-[#6f6b63]'}`}>
-                  {String(i + 1).padStart(2, '0')}
-                </span>
-                <span>{tool.label}</span>
+                <small>{LIST_NO[tool.id] ?? String(i + 1).padStart(2, '0')}</small>
+                {tool.label}
               </button>
             );
           })}

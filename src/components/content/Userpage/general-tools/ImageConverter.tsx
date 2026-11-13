@@ -782,7 +782,7 @@ const ImageConverter: React.FC = () => {
   return (
     <div className="w-full bg-white flex flex-col h-full lg:h-[calc(100vh-var(--nav-height))] overflow-hidden">
       <ToolHeader
-        no="06"
+        no="08"
         code="IMAGE"
         title="画像変換"
         description="現場写真を納品サイズに縮め、HEIC を JPEG にし、位置情報を消してからまとめて渡す。"
@@ -1120,7 +1120,7 @@ const ImageConverter: React.FC = () => {
                           <span
                             className={`yy-mono inline-flex items-center px-1.5 py-0.5 border text-[10px] tracking-[0.08em] ml-2 ${
                               task.status === 'completed'
-                                ? 'border-[#3b3b3b] text-gray-900'
+                                ? 'border-[#141414] text-gray-900'
                                 : task.status === 'error'
                                   ? 'border-red-600 text-red-600'
                                   : task.status === 'processing'

@@ -65,7 +65,7 @@ export default function HomeworkToTasks({ text, folder, onClose }: { text: strin
             <div className="flex items-center justify-end gap-2">
               {done && <span className="mr-auto text-gray-700">{done}</span>}
               <button type="button" onClick={onClose} className="px-3 py-1 border border-gray-300">閉じる</button>
-              <button type="button" disabled={!items.some((x) => x.on) || !!done} onClick={() => void save()} className="px-3 py-1 bg-[#3b3b3b] text-white disabled:opacity-40">
+              <button type="button" disabled={!items.some((x) => x.on) || !!done} onClick={() => void save()} className="px-3 py-1 bg-[#17302A] text-white rounded-full disabled:opacity-40">
                 {items.filter((x) => x.on).length} 件を追加
               </button>
             </div>

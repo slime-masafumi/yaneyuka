@@ -402,8 +402,8 @@ export default function Room({
         createPortal(
           <div className="fixed inset-x-0 bottom-0 z-[10000] bg-black/50 flex items-start justify-center pt-10" style={{ top: 'var(--nav-height, 35px)' }} onClick={() => setMinutes(null)}>
             <div className="bg-white border border-[#3b3b3b] w-[560px] max-w-[95vw]" onClick={(e) => e.stopPropagation()}>
-              <div className="flex justify-between items-center px-3 py-2 bg-[#141414] text-white text-[12px]">
-                <b>{minutes.title}</b>
+              <div className="flex justify-between items-center px-3 py-2 bg-white text-[#141414] border-b border-[#141414] text-[12px]">
+                <b className="yy-serif font-medium text-[14px]">{minutes.title}</b>
                 <button type="button" onClick={() => setMinutes(null)} aria-label="閉じる"><FiX /></button>
               </div>
               <pre className="p-3 text-[12px] whitespace-pre-wrap max-h-[50vh] overflow-y-auto font-sans">{minutes.text}</pre>
@@ -411,7 +411,7 @@ export default function Room({
                 <button type="button" className="px-3 py-1 border" onClick={() => void copy(minutes.text, 'minutes')}>
                   {copied === 'minutes' ? 'コピーしました' : 'テキストをコピー'}
                 </button>
-                <button type="button" className="px-3 py-1 bg-[#3b3b3b] text-white" onClick={() => void saveMinutesToMemo()} disabled={copied === 'memo'}>
+                <button type="button" className="px-3 py-1 bg-[#17302A] text-white rounded-full" onClick={() => void saveMinutesToMemo()} disabled={copied === 'memo'}>
                   {copied === 'memo' ? 'メモに保存しました' : 'メモ（議事録）に保存'}
                 </button>
               </div>
@@ -475,8 +475,8 @@ function Decisions({
       {section('todo', '宿題')}
       <div className="border-t pt-2 space-y-1">
         <div className="flex gap-1">
-          <button type="button" className={`flex-1 py-0.5 text-[11px] border ${kind === 'decision' ? 'bg-[#3b3b3b] text-white' : 'bg-white'}`} onClick={() => setKind('decision')}>決定</button>
-          <button type="button" className={`flex-1 py-0.5 text-[11px] border ${kind === 'todo' ? 'bg-[#3b3b3b] text-white' : 'bg-white'}`} onClick={() => setKind('todo')}>宿題</button>
+          <button type="button" className={`flex-1 py-0.5 text-[11px] border ${kind === 'decision' ? 'bg-[#3b3b3b] border-[#3b3b3b] text-white' : 'bg-white'}`} onClick={() => setKind('decision')}>決定</button>
+          <button type="button" className={`flex-1 py-0.5 text-[11px] border ${kind === 'todo' ? 'bg-[#3b3b3b] border-[#3b3b3b] text-white' : 'bg-white'}`} onClick={() => setKind('todo')}>宿題</button>
         </div>
         <textarea value={text} onChange={(e) => setText(e.target.value)} rows={2} placeholder={kind === 'decision' ? '外壁はサイディング B 案' : '階段詳細を修正して再提出'} className="w-full px-1 py-0.5 text-[11px]" />
         {kind === 'todo' && (

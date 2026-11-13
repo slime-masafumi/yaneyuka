@@ -382,7 +382,7 @@ const TeamTasks: React.FC = () => {
     // 帯は左右いっぱい、その下の本文だけ他ツールと同じ左右余白を付ける。
     <div className="pt-0 pb-4 [&>*:not(:first-child)]:mx-4 [&>*:nth-child(2)]:mt-3">
       <ToolHeader
-        no="A5"
+        no="14"
         code="TEAM TASKS"
         title="Teamタスク"
         description="物件ごとのボードをチームで共有し、担当・役割・期限を付けて工程表で見る。前の遅れは後ろへ伝わる。ボードは 4 枚まで。"

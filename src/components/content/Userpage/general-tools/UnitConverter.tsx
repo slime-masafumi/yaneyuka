@@ -566,7 +566,7 @@ const UnitConverter: React.FC = () => {
     // 結果が並ぶと画面外へはみ出すため、PC では実寸で高さを止めて中だけスクロールさせる。
     <div className="w-full bg-white border-b border-gray-100 flex flex-col h-full lg:h-[calc(100vh-var(--nav-height))] overflow-hidden">
       <ToolHeader
-        no="04"
+        no="06"
         code="UNIT"
         title="単位変換"
         description="寸・尺・間・坪・畳とメートル法を行き来し、単価・縮尺読み・必要枚数までその場で出す。"
@@ -971,7 +971,7 @@ const UnitConverter: React.FC = () => {
                                         key={unit} 
                                         className={`p-3.5 border flex flex-col sm:flex-row gap-3 sm:items-center transition-all duration-200 group ${
                                             isSelected 
-                                            ? 'bg-white border-[#3b3b3b] border-l-[#52AA96]' 
+                                            ? 'bg-white border-[#141414] border-l-[#52AA96]' 
                                             : 'bg-white border-gray-200 hover:border-gray-400'
                                         }`}
                                     >
@@ -979,7 +979,7 @@ const UnitConverter: React.FC = () => {
                                         <div className="flex items-center gap-3 flex-1 min-w-0">
                                             <div className={`yy-mono w-10 h-10 flex items-center justify-center shrink-0 text-[11px] border ${
                                                 isSelected 
-                                                ? 'border-[#3b3b3b] text-gray-900' 
+                                                ? 'border-[#141414] text-gray-900' 
                                                 : 'border-gray-200 text-gray-500'
                                             }`}>
                                                 {unit}

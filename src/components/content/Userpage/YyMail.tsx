@@ -216,7 +216,7 @@ export default function YyMail() {
         onDrop={onDrop}
       >
         <ToolHeader
-          no="A1"
+          no="10"
           code="MAIL"
           title="yymail"
           description="物件メール台帳。メールのファイル（.eml / .msg）を落とすと物件ごとに仕分け、添付の図面を図番と版で積み上げる。送信はいつものメールソフトのまま。"
@@ -743,7 +743,7 @@ function ProjectEditor({ project, onSave, onCancel }: { project: Project | null;
         </label>
         <div className="flex justify-end gap-2">
           <button type="button" className="px-3 py-1 border" onClick={onCancel}>やめる</button>
-          <button type="submit" className="px-3 py-1 bg-[#3b3b3b] text-white font-bold">保存して仕分け直す</button>
+          <button type="submit" className="px-3 py-1 bg-[#17302A] text-white rounded-full font-bold">保存して仕分け直す</button>
         </div>
       </form>
     </div>,

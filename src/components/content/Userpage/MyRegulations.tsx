@@ -1961,7 +1961,7 @@ const MyRegulations: React.FC = () => {
       <div className="w-full h-[calc(100vh-100px)] flex flex-col [&>*:not(:first-child)]:mx-4">
 
         <ToolHeader
-          no="A6"
+          no="17"
           code="REGULATIONS"
           title="My法規"
           description="よく引く条文を自分の注記付きで手元に置き、e-Gov と照合して改正に気づく"
@@ -2223,7 +2223,7 @@ const MyRegulations: React.FC = () => {
                   />
 
                   {/* ロックボタン */}
-                  <button onClick={() => toggleLock(currentHouki)} className={`flex items-center gap-1 px-3 py-1.5 text-[11px] whitespace-nowrap border ${currentHouki.locked ? 'border-[#3b3b3b] text-[#141414] font-bold' : 'border-gray-300 text-gray-600 hover:border-[#3b3b3b]'}`}>
+                  <button onClick={() => toggleLock(currentHouki)} className={`flex items-center gap-1 px-3 py-1.5 text-[11px] whitespace-nowrap border ${currentHouki.locked ? 'border-[#141414] text-[#141414] font-bold' : 'border-gray-300 text-gray-600 hover:border-[#3b3b3b]'}`}>
                     {currentHouki.locked ? <><FiLock /> ロック中</> : <><FiUnlock /> ロック解除中</>}
                   </button>
                 </div>

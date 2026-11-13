@@ -1,20 +1,25 @@
 import React from 'react';
+import './general-tools/tool-premium.css';
 
 /**
- * ツール上部の帯（番号・英字コード・タイトル・説明・できること）。
+ * ツールの頭（番号・題・説明・できること）。
  *
- * 左カラム Ⅲ（一般ツール・業務アプリ）の見出しはすべてこれを使う。直書きの帯を置かない。
+ * 左カラム「使う」の一般ツール 22 本の見出しはすべてこれを使う。直書きの帯を置かない。
  *
- * header / nav タグは使わない。globals.css がサイト全体の header を高さ 40px・#3b3b3b、
- * nav を緑に !important で固定していて、ここも巻き込まれる。
+ * 見た目は「高級感 3」の PageHead にそろえる（src/components/ui/PageHead.tsx と同じ組み方）。
+ * - 1 行: 「番号 — TOOL · GENERAL」の小さな等幅ラベル / 明朝の題 / 説明 / 右に件数など
+ * - その下に二重線。墨の帯や大きな文字は使わない
+ * - features は「このツールで何ができるか」の目次。下線タブと同じ見え方で 1 行に並べ、
+ *   今開いている機能だけ緑の下線を引く
  *
- * 見た目の決まり（globals.css の .yy-head）
- * - 墨の帯に、等幅の小さな大文字（番号・コード）と、細いウェイトのタイトル。中間の大きさを作らない
- * - 差し色（#52AA96）は光として 1 点だけ: 「できること」の選択中・フォーカスの細線
+ * no は一般ツール一覧（src/lib/railMenu.ts の GENERAL_TOOL_GROUPS）の並び順 01〜22。
+ * code（英字コード）は画面には出さず、data-code に残す（ツールの識別に使う）。
  *
- * features は「このツールで何ができるか」の目次。ログインしないと出ない機能や、
- * モーダル・タブの奥にある機能が多く「何も変わっていない」と見えていたので、
- * 入口をここに並べる。onClick があれば押すとその機能を開く。
+ * header / nav タグは使わない。globals.css がサイト全体の header / nav に色を
+ * !important で固定していて、ここも巻き込まれる。
+ *
+ * features はログインしないと出ない機能や、モーダル・タブの奥にある機能が多く
+ * 「何も変わっていない」と見えていたので、入口をここに並べる。onClick があれば押すとその機能を開く。
  */
 export type ToolFeature = {
   label: string;
@@ -31,38 +36,34 @@ export type ToolFeature = {
 type ToolHeaderProps = {
   title: string;
   description: string;
-  /** 帯の右端に出す補助表示（件数・状態・ボタンなど）。無ければ出さない。 */
+  /** 見出しの右端に出す補助表示（件数・状態・ボタンなど）。無ければ出さない。 */
   aside?: React.ReactNode;
-  /** 英字コード（例: 'PDF / COMPRESS'）。等幅の小さな大文字で出す */
+  /** 英字コード（例: 'PDF / COMPRESS'）。画面には出さず data-code に残す */
   code?: string;
-  /** 番号（例: '07'）。左カラムの並び順 */
+  /** 番号（例: '07'）。一般ツール一覧の並び順 */
   no?: string;
   features?: ToolFeature[];
 };
 
 const ToolHeader: React.FC<ToolHeaderProps> = ({ title, description, aside, code, no, features }) => (
-  <div className="yy-head shrink-0">
-    <div className="yy-head__row">
-      <div className="min-w-0">
-        {(code || no) && (
-          <p className="yy-head__code">
-            {no ? <span>[ {no} ]</span> : null}
-            {code ? <span>{code}</span> : null}
-          </p>
-        )}
-        <h3 className="yy-head__title">{title}</h3>
-        <p className="yy-head__lead">{description}</p>
+  <div className="yy-th shrink-0" data-code={code}>
+    <div className="yy-pagehead">
+      <div className="yy-pagehead__row">
+        <span className="yy-label">{[no, 'tool · general'].filter(Boolean).join(' — ')}</span>
+        <h2 className="yy-pagehead__title">{title}</h2>
+        <span className="yy-pagehead__desc">{description}</span>
+        {aside ? <span className="yy-pagehead__right yy-th__aside">{aside}</span> : null}
       </div>
-      {aside ? <div className="yy-head__aside">{aside}</div> : null}
+      <div className="yy-rule2" />
     </div>
     {features && features.length > 0 && (
-      <div role="navigation" className="yy-head__features" aria-label={`${title}でできること`}>
+      <div role="navigation" className="yy-th__feats" aria-label={`${title}でできること`}>
         {features.map((f, i) => {
           const body = (
             <>
-              <span className="yy-head__no">{String(i + 1).padStart(3, '0')}</span>
+              <span className="yy-th__no">{String(i + 1).padStart(2, '0')}</span>
               <span>{f.label}</span>
-              {f.login ? <span className="yy-head__tag">LOGIN</span> : null}
+              {f.login ? <span className="yy-th__tag">ログイン</span> : null}
             </>
           );
           return f.onClick ? (
@@ -71,12 +72,13 @@ const ToolHeader: React.FC<ToolHeaderProps> = ({ title, description, aside, code
               type="button"
               onClick={f.onClick}
               title={f.hint}
-              className={`yy-head__feature${f.active ? ' is-active' : ''}`}
+              aria-pressed={f.active ? true : undefined}
+              className={`yy-th__feat${f.active ? ' is-active' : ''}`}
             >
               {body}
             </button>
           ) : (
-            <span key={f.label} title={f.hint} className="yy-head__feature is-static">
+            <span key={f.label} title={f.hint} className="yy-th__feat is-static">
               {body}
             </span>
           );

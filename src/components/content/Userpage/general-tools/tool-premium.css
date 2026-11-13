@@ -1,0 +1,476 @@
+/* ===========================================================================
+   一般ツール 22 本の見た目（2026-11-14「高級感 3」）
+
+   MainLayout が一般ツールの画面に .yy-tool を付け、globals.css の .yy-tool が
+   入力欄・ボタンをまとめて「墨（#3b3b3b）の枠と塗り」にしている。ここはそれを
+   「白地 + 1px の髪の毛線、主操作だけ濃い緑、選択中は薄い緑」に引き直す。
+
+   globals.css は編集しない。どの順で読み込まれても勝つように、
+   .yy-tool.yy-tool（同じ要素を 2 回指す）で詳細度を 1 段上げている。
+   ToolHeader.tsx と GeneralTools.tsx から import する。
+   =========================================================================== */
+
+/* --- 色の約束 ------------------------------------------------------------
+   globals の .yy-tool は --yy-line を #3b3b3b（墨）にしている。中の表・線・PageHead の
+   下線タブが黒く太って見えるので、サイト共通の髪の毛線 #e6e6e2 に戻す。
+   --yy-line を使っていた globals の規則（入力欄・パネル・ボタン）は下で個別に引き直す。 */
+.yy-tool.yy-tool {
+  --yy-line: #e6e6e2;
+  --yy-line-2: #d4d4cf; /* 入力欄・副ボタンの枠。線より一段だけ濃い */
+  --yy-surface: var(--yy-surf);
+  --yy-accent: var(--yy-acc);
+  color: var(--yy-ink);
+}
+
+/* ---------------------------------------------------------------------------
+   ツールの頭（ToolHeader.tsx）: PageHead と同じ 1 行 + 二重線、その下に「できること」
+   --------------------------------------------------------------------------- */
+.yy-th {
+  padding: 14px 16px 0;
+  background: #ffffff;
+}
+.yy-th .yy-pagehead {
+  margin-bottom: 0;
+}
+.yy-th .yy-pagehead__desc {
+  min-width: 0;
+}
+/* globals の .yy-tool .yy-label（フォームの太字ラベル）に巻き込まれないよう、頭の番号ラベルを戻す */
+.yy-tool .yy-th .yy-label,
+.yy-th .yy-label {
+  display: inline;
+  margin: 0;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--yy-t3);
+}
+.yy-th__aside {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--yy-t2);
+}
+/* 以前の墨の帯に合わせた明るい灰の文字は、白地では読めないので落ち着いた灰へ */
+.yy-th__aside [class*='text-[#aaa69d]'],
+.yy-th__aside [class*='text-[#8c887f]'] {
+  color: var(--yy-t3) !important;
+}
+.yy-th__aside [class*='text-red-'] {
+  color: #c8432f !important;
+}
+
+/* できること：下線タブ（.yy-tabs）と同じ見え方。番号は明朝・灰、選択中だけ緑の下線 */
+.yy-th__feats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 18px;
+  border-bottom: 1px solid var(--yy-line);
+}
+.yy-tool .yy-th__feat,
+.yy-th__feat {
+  position: relative;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  font-size: 12px;
+  color: var(--yy-t2);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.yy-th__feat:hover {
+  color: var(--yy-ink);
+}
+.yy-th__feat.is-active {
+  color: var(--yy-ink);
+}
+.yy-th__feat.is-active::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: var(--yy-acc);
+}
+.yy-th__feat.is-static {
+  cursor: default;
+}
+.yy-th__feat.is-static:hover {
+  color: var(--yy-t2);
+}
+.yy-th__feat:focus-visible {
+  outline: 1px solid var(--yy-acc);
+  outline-offset: 2px;
+}
+.yy-th__no {
+  font-family: var(--yy-serif);
+  font-size: 11px;
+  color: var(--yy-t3);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.yy-th__feat.is-active .yy-th__no {
+  color: var(--yy-acc-ink);
+}
+.yy-th__tag {
+  font-size: 9.5px;
+  line-height: 14px;
+  padding: 0 4px;
+  border: 1px solid var(--yy-line);
+  border-radius: 3px;
+  color: var(--yy-t3);
+}
+@media (max-width: 639px) {
+  .yy-th {
+    padding: 10px 12px 0;
+  }
+  .yy-th .yy-pagehead__title {
+    font-size: 20px;
+  }
+  .yy-th .yy-pagehead__right {
+    margin-left: 0;
+  }
+  /* 折り返すと 4 段にふくらむので、1 行のまま横に送る */
+  .yy-th__feats {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .yy-th__feats::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* 狭い画面のツール切り替え（GeneralTools.tsx）。白地の下線タブを横に送る */
+.yy-gt-tabs {
+  padding: 0 12px;
+  background: #ffffff;
+}
+.yy-gt-tabs .yy-tabs {
+  flex-wrap: nowrap;
+  gap: 0 18px;
+  margin-bottom: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.yy-gt-tabs .yy-tabs::-webkit-scrollbar {
+  display: none;
+}
+.yy-tool .yy-gt-tabs .yy-tab {
+  flex-shrink: 0;
+  font-size: 12px;
+  border-radius: 0;
+}
+
+/* ---------------------------------------------------------------------------
+   入力欄：墨の枠 → 1px の髪の毛線。フォーカスで緑の文字色の枠
+   --------------------------------------------------------------------------- */
+.yy-tool.yy-tool input[type='text'],
+.yy-tool.yy-tool input[type='number'],
+.yy-tool.yy-tool input[type='search'],
+.yy-tool.yy-tool input[type='email'],
+.yy-tool.yy-tool input[type='url'],
+.yy-tool.yy-tool input[type='tel'],
+.yy-tool.yy-tool input[type='date'],
+.yy-tool.yy-tool input[type='time'],
+.yy-tool.yy-tool input[type='datetime-local'],
+.yy-tool.yy-tool select,
+.yy-tool.yy-tool textarea {
+  border-color: var(--yy-line-2);
+  color: var(--yy-ink);
+  font-variant-numeric: tabular-nums;
+}
+.yy-tool.yy-tool input::placeholder,
+.yy-tool.yy-tool textarea::placeholder {
+  color: #b4b4af;
+}
+.yy-tool.yy-tool input:focus-visible,
+.yy-tool.yy-tool select:focus-visible,
+.yy-tool.yy-tool textarea:focus-visible {
+  outline: 0;
+  border-color: var(--yy-acc-ink);
+}
+.yy-tool.yy-tool input:disabled,
+.yy-tool.yy-tool select:disabled,
+.yy-tool.yy-tool textarea:disabled {
+  background-color: var(--yy-surf);
+  border-color: var(--yy-line);
+  color: var(--yy-t3);
+}
+.yy-tool.yy-tool input[type='checkbox'],
+.yy-tool.yy-tool input[type='radio'],
+.yy-tool.yy-tool input[type='range'] {
+  accent-color: var(--yy-acc-ink);
+}
+
+/* 枠：墨の 1px（border-[#3b3b3b]）で囲っていた箱は髪の毛線へ。
+   「選択中」の印に使っていた所は JSX 側で border-[#141414]（墨のまま）に分けてある。 */
+.yy-tool.yy-tool [class~='border-[#3b3b3b]'],
+.yy-tool.yy-tool [class*='[&>*]:border-[#3b3b3b]'] > * {
+  border-color: var(--yy-line);
+}
+.yy-tool.yy-tool [class~='hover:border-[#3b3b3b]']:hover,
+.yy-tool.yy-tool [class~='focus:border-[#3b3b3b]']:focus,
+.yy-tool.yy-tool [class~='focus-within:border-[#3b3b3b]']:focus-within {
+  border-color: var(--yy-ink);
+}
+/* 片側だけの色（緑の差し線など）は上の規則に消されないよう書き戻す */
+.yy-tool.yy-tool.yy-tool [class*='border-l-[#52AA96]'],
+.yy-tool.yy-tool.yy-tool [class*='border-l-[#52aa96]'] {
+  border-left-color: var(--yy-acc);
+}
+.yy-tool.yy-tool.yy-tool [class*='border-t-[#52AA96]'] {
+  border-top-color: var(--yy-acc);
+}
+.yy-tool.yy-tool.yy-tool [class~='border-l-transparent'] {
+  border-left-color: transparent;
+}
+
+/* フォームのラベル：太字の灰 → 細い灰の小さな字 */
+.yy-tool.yy-tool .yy-label {
+  font-weight: 400;
+  color: var(--yy-t2);
+  letter-spacing: 0.04em;
+}
+.yy-tool.yy-tool .yy-th .yy-label {
+  color: var(--yy-t3);
+  letter-spacing: 0.12em;
+}
+
+/* パネル：枠は髪の毛線。見出しは灰の帯をやめ、明朝の小さな章題 + 黒 1px（.yy-sec の縮小版） */
+.yy-tool.yy-tool .yy-panel {
+  border-color: var(--yy-line);
+}
+.yy-tool.yy-tool .yy-panel__head {
+  background: #ffffff;
+  border-bottom: 1px solid var(--yy-ink);
+  padding: 8px 12px 6px;
+  font-family: var(--yy-serif);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--yy-ink);
+}
+.yy-tool.yy-tool .yy-panel--muted {
+  background-color: #fafaf8;
+}
+
+/* ---------------------------------------------------------------------------
+   ボタン
+   - 副操作: 白地 + 1px、丸（サイトの .yy-btn と同じ）
+   - 主操作: 濃い緑 #17302A（.yy-btn.is-primary と同じ）
+   - 危険: 白地に赤の文字と枠（警告色は #c8432f だけ）
+   --------------------------------------------------------------------------- */
+.yy-tool.yy-tool .yy-btn {
+  height: auto;
+  min-height: 28px;
+  padding: 4px 13px;
+  border: 1px solid var(--yy-line-2);
+  border-radius: 999px;
+  background-color: #ffffff;
+  color: var(--yy-ink);
+  font-size: 12px;
+  line-height: 1.4;
+  transition: border-color 120ms ease, background-color 120ms ease;
+}
+.yy-tool.yy-tool .yy-btn:hover:not(:disabled) {
+  background-color: #ffffff;
+  border-color: var(--yy-ink);
+}
+.yy-tool.yy-tool .yy-btn--primary,
+.yy-tool.yy-tool .yy-btn.is-primary {
+  background-color: var(--yy-deep);
+  border-color: var(--yy-deep);
+  color: #ffffff;
+  font-weight: 400;
+}
+.yy-tool.yy-tool .yy-btn--primary:hover:not(:disabled),
+.yy-tool.yy-tool .yy-btn.is-primary:hover:not(:disabled) {
+  background-color: #10241f;
+  border-color: #10241f;
+}
+.yy-tool.yy-tool .yy-btn--danger {
+  background-color: #ffffff;
+  border-color: #e3b3a9;
+  color: #c8432f;
+}
+.yy-tool.yy-tool .yy-btn--danger:hover:not(:disabled) {
+  background-color: #ffffff;
+  border-color: #c8432f;
+}
+.yy-tool.yy-tool .yy-btn:disabled {
+  opacity: 0.45;
+}
+
+/* Tailwind で塗った主操作（青・緑・墨など）。globals は var(--yy-line) で塗っていたので、
+   線を髪の毛線に戻すと白抜けする。ここで濃い緑に塗り直す。 */
+.yy-tool.yy-tool button[class*='bg-blue-'],
+.yy-tool.yy-tool button[class*='bg-green-'],
+.yy-tool.yy-tool button[class*='bg-teal-'],
+.yy-tool.yy-tool button[class*='bg-indigo-'],
+.yy-tool.yy-tool button[class*='bg-emerald-'],
+.yy-tool.yy-tool button[class*='bg-gray-800'],
+.yy-tool.yy-tool button[class*='bg-gray-700'],
+.yy-tool.yy-tool button[class*='bg-gray-900'],
+.yy-tool.yy-tool button[class*='bg-[#1dad95]'],
+.yy-tool.yy-tool button[class*='bg-[#3b3b3b]'] {
+  background-color: var(--yy-deep);
+  border-color: var(--yy-deep);
+  border-radius: 999px;
+  color: #ffffff !important;
+}
+.yy-tool.yy-tool button[class*='bg-blue-']:hover:not(:disabled),
+.yy-tool.yy-tool button[class*='bg-green-']:hover:not(:disabled),
+.yy-tool.yy-tool button[class*='bg-teal-']:hover:not(:disabled),
+.yy-tool.yy-tool button[class*='bg-indigo-']:hover:not(:disabled),
+.yy-tool.yy-tool button[class*='bg-emerald-']:hover:not(:disabled),
+.yy-tool.yy-tool button[class*='bg-gray-800']:hover:not(:disabled),
+.yy-tool.yy-tool button[class*='bg-gray-700']:hover:not(:disabled),
+.yy-tool.yy-tool button[class*='bg-gray-900']:hover:not(:disabled),
+.yy-tool.yy-tool button[class*='bg-[#1dad95]']:hover:not(:disabled),
+.yy-tool.yy-tool button[class*='bg-[#3b3b3b]']:hover:not(:disabled) {
+  background-color: #10241f;
+}
+/* 切り替えの「選択中」（墨で塗って枠も墨）。塗りをやめ、薄い緑 + 緑の枠 + 緑の文字 */
+.yy-tool.yy-tool button[class*='bg-[#3b3b3b]'][class*='border-[#3b3b3b]'],
+.yy-tool.yy-tool button[class*='bg-[#141414]'][class*='text-white']:not([class*='absolute']),
+.yy-tool.yy-tool label[class*='bg-[#141414]'][class*='text-white'] {
+  background-color: var(--yy-acc-bg);
+  border-color: var(--yy-acc);
+  border-radius: 0;
+  color: var(--yy-acc-ink) !important;
+}
+.yy-tool.yy-tool button[class*='bg-[#3b3b3b]'][class*='border-[#3b3b3b]']:hover:not(:disabled),
+.yy-tool.yy-tool button[class*='bg-[#141414]'][class*='text-white']:not([class*='absolute']):hover:not(:disabled) {
+  background-color: var(--yy-acc-bg);
+}
+
+/* 削除系の塗り：警告色 #c8432f の 1 色にそろえる */
+.yy-tool.yy-tool button[class*='bg-red-'] {
+  background-color: #c8432f;
+  border-color: #c8432f;
+  color: #ffffff !important;
+}
+.yy-tool.yy-tool button[class*='bg-red-']:hover:not(:disabled) {
+  background-color: #a8371f;
+}
+.yy-tool.yy-tool button[class*='bg-red-50'],
+.yy-tool.yy-tool button[class*='bg-red-100'] {
+  background-color: #ffffff;
+  border-color: #e3b3a9;
+  color: #c8432f !important;
+}
+
+/* 使用不可は、どの色から来ても同じ見え方 */
+.yy-tool.yy-tool button:disabled[class*='bg-'] {
+  background-color: var(--yy-case);
+  border-color: var(--yy-case);
+  color: var(--yy-t3) !important;
+}
+
+/* 関数電卓のキーパッドは対象外（暗い面の上で数字キーと機能キーを濃淡で押し分ける）。
+   上の規則より強い指定で元の濃淡を書き戻す。 */
+.yy-tool.yy-tool .yy-keypad button { border-radius: 0; }
+.yy-tool.yy-tool .yy-keypad button.yy-key-num { background-color: #111827; color: #e5e7eb !important; }
+.yy-tool.yy-tool .yy-keypad button.yy-key-num:hover:not(:disabled) { background-color: #1f2937; }
+.yy-tool.yy-tool .yy-keypad button.yy-key-fn,
+.yy-tool.yy-tool .yy-keypad button[class*='bg-gray-700'] { background-color: #374151; color: #e5e7eb !important; }
+.yy-tool.yy-tool .yy-keypad button.yy-key-fn:hover:not(:disabled),
+.yy-tool.yy-tool .yy-keypad button[class*='bg-gray-700']:hover:not(:disabled) { background-color: #4b5563; }
+.yy-tool.yy-tool .yy-keypad button.yy-key-unit { background-color: #115e59; color: #ccfbf1 !important; }
+.yy-tool.yy-tool .yy-keypad button.yy-key-unit:hover:not(:disabled) { background-color: #0f766e; }
+
+/* ---------------------------------------------------------------------------
+   色：標準の青をやめ、緑（地は薄い緑、文字は #2E7D6B）へ。
+   利用者が選ぶ色（カレンダー・ボードの色見本、My法規の文字色「青」）と、
+   工程表の土日の色は意味を持つので触らない。class~= で語に一致するものだけ引き直す。
+   --------------------------------------------------------------------------- */
+.yy-tool.yy-tool a:not([class]) {
+  color: var(--yy-acc-ink);
+}
+/* 表計算：選択範囲・塗りつぶしの取っ手・関数の説明 */
+.yy-tool.yy-tool div[class~='bg-blue-50'] {
+  background-color: var(--yy-acc-bg);
+}
+.yy-tool.yy-tool div[class~='bg-blue-500'] {
+  background-color: var(--yy-acc-ink);
+}
+.yy-tool.yy-tool [class~='hover:bg-blue-50']:hover {
+  background-color: var(--yy-acc-bg);
+}
+.yy-tool.yy-tool [class~='border-blue-300'] {
+  border-color: var(--yy-acc);
+}
+.yy-tool.yy-tool strong[class~='text-blue-700'] {
+  color: var(--yy-acc-ink);
+}
+.yy-tool.yy-tool [class*='ring-blue-'] {
+  --tw-ring-color: var(--yy-acc);
+}
+/* 表計算の行・列見出しの選択中 */
+.yy-tool.yy-tool [class~='bg-green-100'][class~='text-green-700'] {
+  background-color: var(--yy-acc-bg);
+  color: var(--yy-acc-ink);
+}
+/* 警告の赤は #c8432f の 1 色（工程表の日曜 text-red-500 は残す） */
+.yy-tool.yy-tool [class~='text-red-600'],
+.yy-tool.yy-tool [class~='text-red-700'] {
+  color: #c8432f !important;
+}
+.yy-tool.yy-tool [class~='hover:text-red-600']:hover,
+.yy-tool.yy-tool [class~='hover:text-red-500']:hover {
+  color: #c8432f;
+}
+/* 関数電卓の「=」だけ緑の光（橙をやめる） */
+.yy-tool.yy-tool .yy-keypad button[class*='bg-orange-500'] {
+  background-color: var(--yy-acc);
+  color: #0f2620 !important;
+}
+.yy-tool.yy-tool .yy-keypad button[class*='bg-orange-500']:hover:not(:disabled) {
+  background-color: #5fb8a3;
+}
+
+/* 影は使わない。浮かせたいもの（メニュー・モーダル・候補）は髪の毛線 1 本で囲う */
+.yy-tool.yy-tool [class~='shadow'],
+.yy-tool.yy-tool [class~='shadow-sm'],
+.yy-tool.yy-tool [class~='shadow-md'],
+.yy-tool.yy-tool [class~='shadow-lg'],
+.yy-tool.yy-tool [class~='shadow-xl'],
+.yy-tool.yy-tool [class~='shadow-2xl'] {
+  box-shadow: 0 0 0 1px var(--yy-line-2);
+}
+.yy-tool.yy-tool [class~='rounded'],
+.yy-tool.yy-tool [class~='rounded-md'],
+.yy-tool.yy-tool [class~='rounded-lg'] {
+  border-radius: 0;
+}
+
+/* ---------------------------------------------------------------------------
+   表：見出し行は灰色の小さな字、行は 1px の髪の毛線、数字は桁をそろえる
+   （表計算のマス目と工程表は各自の線を持つので、色だけそろえる）
+   --------------------------------------------------------------------------- */
+.yy-tool.yy-tool table {
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.yy-tool.yy-tool th {
+  font-weight: 400;
+  color: var(--yy-t3);
+}
+.yy-tool.yy-tool th,
+.yy-tool.yy-tool td {
+  border-color: var(--yy-line);
+}
+
+/* 等幅の数字（件数・日時・サイズ）は桁をそろえる */
+.yy-tool.yy-tool .yy-mono,
+.yy-tool.yy-tool .font-mono {
+  font-variant-numeric: tabular-nums;
+}

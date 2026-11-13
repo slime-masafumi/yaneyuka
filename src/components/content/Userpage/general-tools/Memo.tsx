@@ -1041,7 +1041,7 @@ const MemoTool: React.FC = () => {
   return (
     <div className="bg-white h-full lg:h-[calc(100vh-var(--nav-height))] flex flex-col">
       <ToolHeader
-        no="01"
+        no="03"
         code="MEMO"
         title="メモ"
         description="打合せ・現場巡回・電話の記録をその場で残し、宿題はタスクへ、清書は PDF・Word で渡す。"
@@ -1273,7 +1273,7 @@ const MemoTool: React.FC = () => {
                       onDrop={(e) => handleDrop(e, memo.id)}
                   onClick={() => selectMemo(memo)}
                       className={`p-2 border cursor-pointer hover:bg-gray-50 flex items-start gap-2 transition-colors ${
-                    currentMemo?.id === memo.id ? 'border-[#3b3b3b] border-l-[#52AA96] bg-gray-50' : 'border-gray-200'
+                    currentMemo?.id === memo.id ? 'border-[#141414] border-l-[#52AA96] bg-gray-50' : 'border-gray-200'
                       } ${isDragging ? 'opacity-40' : ''}`}
                 >
                   <div className="flex-1 min-w-0">

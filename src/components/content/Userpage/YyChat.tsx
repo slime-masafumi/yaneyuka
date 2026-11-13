@@ -876,7 +876,7 @@ const YyChat: React.FC = () => {
   const chatHeader = (
     <>
       <ToolHeader
-        no="A2"
+        no="11"
         code="CHAT"
         title="yychat"
         description="現場チャット。物件ごとに部屋を分け、全ルームを横断して検索する。発言はそのままタスクや議事録（メモ）にできる。"
@@ -1020,7 +1020,7 @@ const YyChat: React.FC = () => {
                       type="button"
                       disabled={userSelectMode === 'group' ? groupPicks.size < 2 || groupPicks.size > 19 : groupPicks.size === 0}
                       onClick={() => void (userSelectMode === 'group' ? createGroup() : addMembers())}
-                      className="px-2 py-1 bg-[#3b3b3b] text-white disabled:opacity-40"
+                      className="px-2 py-1 bg-[#17302A] text-white rounded-full disabled:opacity-40"
                     >
                       {userSelectMode === 'group' ? 'グループを作る' : '足す'}
                     </button>
@@ -1392,7 +1392,7 @@ const YyChat: React.FC = () => {
                 <button type="button" onClick={() => setSelectedIds(new Set(messages.filter((m) => !m.id.startsWith('temp-')).map((m) => m.id)))} className="px-2 py-1 border border-gray-300">すべて</button>
                 <div className="flex-1" />
                 <button type="button" onClick={() => { setSelectMode(false); setSelectedIds(new Set()); setDecisionIds(new Set()); }} className="px-2 py-1 border border-gray-300">やめる</button>
-                <button type="button" disabled={!selectedIds.size} onClick={() => void saveMinutes()} className="px-3 py-1 bg-[#3b3b3b] text-white disabled:opacity-40">メモの議事録へ</button>
+                <button type="button" disabled={!selectedIds.size} onClick={() => void saveMinutes()} className="px-3 py-1 bg-[#17302A] text-white rounded-full disabled:opacity-40">メモの議事録へ</button>
               </div>
             ) : (
             <div className="p-2 bg-white border-t">
@@ -1445,7 +1445,7 @@ const YyChat: React.FC = () => {
                 <button 
                   onClick={handleSendMessage}
                   disabled={!inputValue.trim() && !inputImage}
-                  className="p-1.5 bg-[#3b3b3b] text-white hover:bg-black disabled:bg-gray-300 disabled:cursor-not-allowed transition mb-0.5"
+                  className="p-1.5 bg-[#17302A] text-white rounded-full hover:bg-[#10241f] disabled:bg-gray-300 disabled:cursor-not-allowed transition mb-0.5"
                   title="送信（Enter）"
                 >
                   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
@@ -1497,7 +1497,7 @@ const YyChat: React.FC = () => {
               <div className="flex items-center justify-end gap-2 pt-1">
                 {taskDone && <span className="text-[11px] text-gray-700 mr-auto">{taskDone}</span>}
                 <button type="button" onClick={() => setTaskFor(null)} className="px-3 py-1 border border-gray-300">閉じる</button>
-                <button type="button" disabled={!taskText.trim()} onClick={() => void saveTask()} className="px-3 py-1 bg-[#3b3b3b] text-white disabled:opacity-40">追加</button>
+                <button type="button" disabled={!taskText.trim()} onClick={() => void saveTask()} className="px-3 py-1 bg-[#17302A] text-white rounded-full disabled:opacity-40">追加</button>
               </div>
             </div>
           </div>
@@ -1562,7 +1562,7 @@ const YyChat: React.FC = () => {
 
                   <div className="flex gap-2 pt-2">
                     <button onClick={() => setIconImageSrc('')} className="flex-1 py-2 text-[12px] text-gray-700 border border-gray-300 hover:bg-gray-100">キャンセル</button>
-                    <button onClick={handleSaveIcon} className="flex-1 py-2 text-[12px] text-white bg-[#3b3b3b] hover:bg-black font-bold">保存して適用</button>
+                    <button onClick={handleSaveIcon} className="flex-1 py-2 text-[12px] text-white bg-[#17302A] rounded-full hover:bg-[#10241f] font-bold">保存して適用</button>
                   </div>
                 </div>
               )}

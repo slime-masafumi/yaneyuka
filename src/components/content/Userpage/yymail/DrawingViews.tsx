@@ -74,8 +74,8 @@ export const CompareModal: React.FC<{
   return createPortal(
     <div className="fixed inset-x-0 bottom-0 z-[10000] bg-black/60 flex p-4" style={{ top: 'var(--nav-height, 35px)' }} onClick={onClose}>
       <div className="bg-white w-full flex flex-col" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-3 py-2 bg-[#3b3b3b] text-white text-[12px]">
-          <span className="font-bold">
+        <div className="flex items-center justify-between px-3 py-2 bg-white text-[#141414] border-b border-[#141414] text-[12px]">
+          <span className="yy-serif font-medium text-[14px]">
             {number} {revLabel(older.att.drawing!.rev)} → {revLabel(newer.att.drawing!.rev)}
           </span>
           <span className="flex items-center gap-3">
@@ -177,7 +177,7 @@ export const Transmittal: React.FC<{
           ))}
         </ul>
         <div className="flex gap-2">
-          <button type="button" className="flex-1 py-1.5 text-[12px] bg-[#3b3b3b] text-white flex items-center justify-center gap-1" onClick={() => window.print()}>
+          <button type="button" className="flex-1 py-1.5 text-[12px] bg-[#17302A] text-white rounded-full flex items-center justify-center gap-1" onClick={() => window.print()}>
             <FiPrinter /> 印刷（A4）
           </button>
           <button type="button" className="px-3 py-1.5 text-[12px] border bg-white" onClick={onClose}>閉じる</button>

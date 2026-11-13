@@ -376,7 +376,7 @@ const PDFCompressor: React.FC = () => {
   return (
     <div className="w-full bg-white">
       <ToolHeader
-        no="07"
+        no="09"
         code="PDF / COMPRESS"
         title="PDF圧縮"
         description="メールで送れない重いPDFを軽くする。図面は線を残したまま、資料は画像にして大きく縮める"

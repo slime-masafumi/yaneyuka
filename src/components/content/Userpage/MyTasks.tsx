@@ -201,7 +201,7 @@ export default function MyTasks() {
     // 帯は左右いっぱい、その下の本文だけ他ツールと同じ左右余白を付ける。
     <div className="pt-0 pb-4 [&>*:not(:first-child)]:mx-4 [&>*:nth-child(2)]:mt-3">
       <ToolHeader
-        no="A4"
+        no="02"
         code="TASKS"
         title="Myタスク"
         description="宿題管理。シートで整理し、【物件名】でまとめて見る。期限超過は赤で出し、前日と当日にはベルで知らせる。Myカレンダーにも出る。"

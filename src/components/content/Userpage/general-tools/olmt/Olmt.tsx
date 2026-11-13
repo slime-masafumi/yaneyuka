@@ -115,7 +115,7 @@ export default function Olmt() {
   const header = (
     <>
       <ToolHeader
-        no="08"
+        no="12"
         code="MEETING"
         title="OnlineMeetingTool"
         description="会議ソフトは開いたまま、隣で同じ図面を囲む。ポインタで指し、全員で赤を入れ、決定事項をその場で議事録にする。"

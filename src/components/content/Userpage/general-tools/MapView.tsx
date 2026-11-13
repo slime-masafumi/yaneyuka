@@ -223,7 +223,7 @@ const MapView: React.FC = () => {
   return (
     <div className="w-full bg-white flex flex-col h-full lg:h-[calc(100vh-var(--nav-height))] overflow-hidden">
       <ToolHeader
-        no="12"
+        no="18"
         code="MAP"
         title="地図"
         description="敷地調査と付近見取図。用途地域・建蔽率・容積率・防火指定を重ねて読み、距離・方位・面積を測って残す。"
@@ -278,7 +278,7 @@ const MapView: React.FC = () => {
                   placeholder="住所・地番・施設名"
                   className="flex-1 px-2 py-1 text-[11px]"
                 />
-                <button type="submit" className="px-3 py-1 text-[11px] bg-[#3b3b3b] text-white flex items-center gap-1" disabled={searching}>
+                <button type="submit" className="px-3 py-1 text-[11px] bg-[#17302A] text-white rounded-full flex items-center gap-1" disabled={searching}>
                   <FiSearch /> {searching ? '…' : '検索'}
                 </button>
               </form>
@@ -452,7 +452,7 @@ const MapView: React.FC = () => {
               ))}
             </div>
 
-            <button type="button" className="w-full py-2 text-[11px] bg-[#3b3b3b] text-white flex items-center justify-center gap-1" onClick={() => setPrintSite('view')}>
+            <button type="button" className="w-full py-2 text-[11px] bg-[#17302A] text-white rounded-full flex items-center justify-center gap-1" onClick={() => setPrintSite('view')}>
               <FiPrinter /> 今の表示を付近見取図として印刷
             </button>
           </div>
@@ -536,7 +536,7 @@ const PrintSheet: React.FC<{
     >
       <div className="no-print flex items-center gap-2 bg-white px-3 py-2 mt-3 border border-[#3b3b3b]">
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="物件名（図面に入ります）" className="px-2 py-1 text-[12px] w-[240px]" />
-        <button type="button" className="px-3 py-1 text-[12px] bg-[#3b3b3b] text-white flex items-center gap-1" onClick={() => window.print()}>
+        <button type="button" className="px-3 py-1 text-[12px] bg-[#17302A] text-white rounded-full flex items-center gap-1" onClick={() => window.print()}>
           <FiPrinter /> 印刷（A3 横）
         </button>
         <button type="button" className="px-3 py-1 text-[12px] border flex items-center gap-1" onClick={onClose}>

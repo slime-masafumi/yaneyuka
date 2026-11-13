@@ -68,7 +68,7 @@ export const LawLinkPicker: React.FC<{
         disabled={disabled}
         title={disabled ? 'ロック中は変更できません' : 'e-Gov 法令検索の法令と紐付けると、改正を追えます'}
         className={`flex items-center gap-1 px-3 py-1.5 text-[11px] whitespace-nowrap border bg-white ${
-          link ? 'border-[#3b3b3b] text-gray-800' : 'border-gray-300 text-gray-600 hover:border-[#3b3b3b]'
+          link ? 'border-[#141414] text-gray-800' : 'border-gray-300 text-gray-600 hover:border-[#3b3b3b]'
         } disabled:opacity-50`}
       >
         <FiLink className={link ? 'text-[#52AA96]' : 'text-gray-400'} /> {link ? 'e-Gov 連携中' : 'e-Gov と連携'}
@@ -430,8 +430,8 @@ export const RevisionModal: React.FC<{
         className="bg-white w-full max-w-[1100px] max-h-[calc(100vh-110px)] flex flex-col border border-[#3b3b3b]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-4 py-2 border-b bg-[#141414] text-[#f4f2ec]">
-          <h3 className="text-sm font-bold">
+        <div className="flex items-center justify-between px-4 py-2 border-b border-[#141414] bg-white text-[#141414]">
+          <h3 className="yy-serif text-[15px] font-medium">
             {link.lawTitle} {articleTitle} — 新旧比較
           </h3>
           <button type="button" onClick={onClose} aria-label="閉じる">

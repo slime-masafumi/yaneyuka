@@ -691,7 +691,7 @@ const Calculator: React.FC = () => {
           return (
           <div 
             key={`${item.id}-${index}`} 
-            className={`p-2 border ${item.isLocked ? 'bg-white border-[#3b3b3b] border-l-[#52AA96]' : 'bg-white border-gray-200'}`}
+            className={`p-2 border ${item.isLocked ? 'bg-white border-[#141414] border-l-[#52AA96]' : 'bg-white border-gray-200'}`}
           >
             <div className="flex items-center gap-2">
               {/* ピン留めとメモボタン */}
@@ -807,7 +807,7 @@ const Calculator: React.FC = () => {
   return (
     <div className="w-full bg-white border-b border-gray-100">
       <ToolHeader
-        no="03"
+        no="05"
         code="CALC"
         title="関数電卓"
         description="間・尺・坪・畳のまま計算し、根拠にメモを付けて計算書 PDF にまとめる。"

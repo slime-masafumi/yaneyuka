@@ -491,7 +491,7 @@ const DrawingPdf: React.FC = () => {
   return (
     <div className="w-full bg-white flex flex-col h-full lg:h-[calc(100vh-var(--nav-height))] overflow-hidden">
       <ToolHeader
-        no="14"
+        no="20"
         code="DRAWING / PDF"
         title="図面PDF"
         description="提出前の図面PDFを、Acrobat を開かずに整える。線は元のまま（再圧縮しない）"
