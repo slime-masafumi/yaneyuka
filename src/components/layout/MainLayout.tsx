@@ -56,6 +56,7 @@ import DesignTools from '../content/Userpage/DesignTools';
 import ToolIndex from '../content/ToolIndex';
 import MaterialNav from '../content/MaterialNav';
 import { INDEX_MENUS } from '@/lib/railMenu';
+import { OPEN_SCREEN_EVENT } from '@/lib/openScreen';
 import DesignInfo from '../content/Userpage/DesignInfo';
 import MaterialInfo from '../content/Userpage/MaterialInfo';
 import Userpage_top from '../content/Userpage/Userpage_top';
@@ -585,6 +586,19 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
 
   // refを常に最新のハンドラで更新（documentレベルのイベントハンドラから参照するため）
   handleMenuClickRef.current = handleMenuClick;
+
+  // ページ本文（ホームなど）からツールを開く頼み（src/lib/openScreen.ts）。左カラムから押したときと同じ手順
+  const openTargetRef = useRef<(t: UserpageTarget) => void>(() => {});
+  openTargetRef.current = (t: UserpageTarget) => {
+    if (t.menu === 'general-tools' && t.tool) requestGeneralTool({ toolId: t.tool as GeneralToolId });
+    if (t.menu === 'design-tools' && t.category) requestDesignToolsTarget({ categoryId: t.category, subTabId: t.sub });
+    handleMenuClick(t.menu, t);
+  };
+  useEffect(() => {
+    const on = (e: Event) => openTargetRef.current((e as CustomEvent<UserpageTarget>).detail);
+    window.addEventListener(OPEN_SCREEN_EVENT, on);
+    return () => window.removeEventListener(OPEN_SCREEN_EVENT, on);
+  }, []);
 
   // Userpage_topからのカスタムイベントをリッスン（handleMenuClickの定義後に配置）
   // refを経由することでstale closure問題を回避する
@@ -1323,7 +1337,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
                     onOpen={handleSubcategoryClick}
                   />
                 )}
-                {renderContent()}
+                {CATEGORY_SUBCATEGORIES[activeContent] ? <div className="yy-matbody">{renderContent()}</div> : renderContent()}
               </div>
               {/* 右側: 参考資料 / 資格動画 */}
               {!isUserpageMenu() && (activeContent === 'regulations' || activeContent === 'qualifications') && (
@@ -1350,7 +1364,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
           </main>
           {/* 右サイドバー：広告欄（Userpageメニュー以外で表示） */}
           {/* iPadサイズ(md:768px)以上で表示、最小200px〜最大300pxで縮小対応 */}
-          {!isUserpageMenu() && (() => {
+          {/* ホームはモック「高級感 3」どおり 3 段組で中央を使い切るので、広告欄を出さない */}
+          {!isUserpageMenu() && !(pathname === '/' && activeContent === 'topix') && (() => {
             // プライバシーポリシーページ判定（広告を非表示にして関連プライポリ一覧を出す）
             // - 個別アプリページ: URLパス /xxx-app-privacy-policy/ で開いている
             // - yaneyuka.com 本体のプライポリ: フッターバー「プライバシーポリシー」から SPA遷移 → URLは / のまま、activeContent='privacy-policy'

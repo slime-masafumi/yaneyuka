@@ -3,6 +3,7 @@ import MakerLink from '@/components/MakerLink';
 import makers from '@/data/makers.json';
 import SaveToMakerBox from '@/components/SaveToMakerBox';
 import MakerLinkLogger from '@/components/MakerLinkLogger';
+import { subcategoryLabel } from '@/lib/materialCategories';
 
 /**
  * 建材メーカーの一覧行。
@@ -38,14 +39,14 @@ type Maker = {
 const DATA = makers as unknown as Record<string, Maker[]>;
 
 // 表示順とラベルは全ファイル共通
-const SLOTS: { key: keyof Maker; label: string }[] = [
-  { key: 'products', label: '商品ページ' },
-  { key: 'catalog', label: 'カタログ' },
-  { key: 'office', label: '営業所' },
-  { key: 'contact', label: 'お問い合わせ' },
-  { key: 'sample', label: 'サンプル' },
-  { key: 'cad', label: 'CADDOWNLOAD' },
-];
+const SLOTS: { key: keyof Maker; label: string; short: string }[] = [
+  { key: 'products', label: '商品ページ', short: '商品' },
+  { key: 'catalog', label: 'カタログ', short: 'カタログ' },
+  { key: 'office', label: '営業所', short: '営業所' },
+  { key: 'contact', label: 'お問い合わせ', short: '問合せ' },
+  { key: 'sample', label: 'サンプル', short: 'サンプル' },
+  { key: 'cad', label: 'CADDOWNLOAD', short: 'CAD' },
+]
 
 type MakerRowsProps = {
   /** makers.json のキー（例: 屋根） */
@@ -71,29 +72,40 @@ const MakerRows: React.FC<MakerRowsProps> = ({
     (m) => m.pages.includes(page) && (m.group || '') === group
   );
 
+  if (!rows.length) return null;
+
+  // モック「高級感 3」Q9 の表：番号・社名（明朝）・扱い・リンク 6 列・保存。
+  // nameWidth / topMargin は旧レイアウト用で、表になってからは使わない（呼び出し側の互換のため残す）
+  void nameWidth;
+  void topMargin;
   return (
-    <>
+    <div className="yy-mk" role="table" aria-label={`${page} のメーカー`}>
+      <div className="yy-mk__row yy-mk__row--head" role="row">
+        <span />
+        <span>メーカー</span>
+        <span className="yy-mk__pages">扱い</span>
+        {SLOTS.map((slot) => (
+          <span key={slot.key}>{slot.short}</span>
+        ))}
+        <span />
+      </div>
       {rows.map((m, i) => (
-        <div
-          key={`${m.name}-${i}`}
-          className={`text-[13px] flex items-start gap-2${topMargin && i === 0 ? ' mt-4' : ''}`}
-        >
-          {/* Tailwind は文字列連結で作ったクラス名を拾えないので、リテラルで分岐する */}
-          <span className={nameWidth === '200px' ? 'w-[200px]' : 'w-[180px]'}>・{m.name}</span>
+        <div key={`${m.name}-${i}`} className="yy-mk__row" role="row">
+          <span className="yy-mk__no">{String(i + 1).padStart(2, '0')}</span>
+          <span className="yy-mk__name" title={m.name}>{m.name}</span>
+          <span className="yy-mk__pages">{m.pages.map(subcategoryLabel).join(' · ')}</span>
+          {/* MakerLinkLogger の span は CSS で display: contents にして、中の 7 つを表の列に並べる */}
           <MakerLinkLogger name={m.name} page={page}>
-            {SLOTS.map((slot, si) => (
-              <React.Fragment key={slot.key}>
-                <span data-maker-slot={slot.key}>
-                  <MakerLink url={m[slot.key] as string} label={slot.label} />
-                </span>
-                {si < SLOTS.length - 1 ? '｜' : null}
-              </React.Fragment>
+            {SLOTS.map((slot) => (
+              <span key={slot.key} className="yy-mk__cell" data-maker-slot={slot.key}>
+                <MakerLink url={m[slot.key] as string} label={slot.label} variant="cell" />
+              </span>
             ))}
             <SaveToMakerBox name={m.name} />
           </MakerLinkLogger>
         </div>
       ))}
-    </>
+    </div>
   );
 };
 

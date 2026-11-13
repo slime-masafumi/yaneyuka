@@ -24,9 +24,26 @@ const isUsable = (url?: string): url is string =>
 type MakerLinkProps = {
   url?: string;
   label: string;
+  /** cell = 表のセル用。リンクは ↗、無ければ —（列見出しが名前を持つので文字は出さない） */
+  variant?: 'text' | 'cell';
 };
 
-const MakerLink: React.FC<MakerLinkProps> = ({ url, label }) => {
+const MakerLink: React.FC<MakerLinkProps> = ({ url, label, variant = 'text' }) => {
+  if (variant === 'cell') {
+    if (!isUsable(url)) return <span className="is-none" aria-label={`${label}なし`}>—</span>;
+    const moved = FALLBACKS[url];
+    return (
+      <a
+        href={moved ?? url}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={label}
+        title={moved ? `${label}（ページが移動したため会社トップを開きます）` : label}
+      >
+        ↗{moved && <span className="is-moved">top</span>}
+      </a>
+    );
+  }
   if (!isUsable(url)) {
     return <span className="text-gray-600 no-underline cursor-not-allowed">{label}</span>;
   }

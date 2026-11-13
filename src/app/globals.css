@@ -2126,3 +2126,222 @@ nav {
   white-space: nowrap;
 }
 .yy-news__bm:hover, .yy-news__bm.is-on { color: var(--yy-acc-ink); }
+
+/* ─────────── ホーム（src/app/page.tsx。モック「高級感 3」Q4） ───────────
+   上に案件の灰色の帯、下に 3 段組（建材・設計ツール / NEWS・イベント / 調べもの・法規）。 */
+.yy-home { padding: 4px 4px 24px; }
+.yy-home section { display: flex; flex-direction: column; }
+.yy-home__case {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  padding: 10px 20px;
+  border-radius: 4px;
+  background: var(--yy-case);
+  box-shadow: inset 0 0 0 1px #e2e2dd;
+  margin-bottom: 18px;
+}
+.yy-home__casename { font-family: var(--yy-serif); font-size: 18px; font-weight: 500; color: var(--yy-ink); }
+.yy-home__casename.is-empty { color: var(--yy-t2); font-size: 15px; }
+.yy-home__casesub { font-size: 12px; color: var(--yy-t2); }
+.yy-home__prog { display: inline-flex; align-items: baseline; gap: 6px; }
+.yy-home__prog b { font-family: var(--yy-serif); font-size: 18px; font-weight: 500; }
+.yy-home__prog small { font-size: 11px; color: var(--yy-t3); }
+.yy-home__bar { display: inline-block; width: 110px; height: 2px; margin-left: 4px; background: #d6d6d0; align-self: center; }
+.yy-home__bar span { display: block; height: 2px; background: var(--yy-acc); }
+.yy-home__go {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--yy-acc);
+  color: #0f2620;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.yy-home__go:hover { filter: brightness(1.05); }
+
+.yy-home__cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px 240px;
+  gap: 28px;
+  align-items: start;
+}
+@media (max-width: 1279px) {
+  .yy-home__cols { grid-template-columns: minmax(0, 1fr) 280px; }
+  .yy-home__side { grid-column: 1 / -1; display: grid !important; grid-template-columns: 1fr 1fr; gap: 28px; }
+}
+@media (max-width: 767px) {
+  .yy-home__cols, .yy-home__side { grid-template-columns: 1fr !important; }
+}
+.yy-home__main, .yy-home__mid, .yy-home__side { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+
+/* 章の見出し：明朝の番号と題、右に小さな補足、下に黒の 1px */
+.yy-sec {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--yy-ink);
+  font-family: var(--yy-serif);
+  font-size: 15px;
+  font-weight: 500;
+}
+.yy-sec__no { color: var(--yy-t3); }
+.yy-sec__title { color: var(--yy-ink); }
+.yy-sec__right { margin-left: auto; font-family: inherit; font-size: 11px; color: var(--yy-t3); font-family: var(--font-sans, inherit); }
+.yy-sec__right a { color: var(--yy-t3); text-decoration: none; }
+.yy-sec__right a:hover { color: var(--yy-ink); }
+
+.yy-home__grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 28px; }
+@media (max-width: 767px) { .yy-home__grid2 { grid-template-columns: 1fr; } }
+.yy-home__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  border-bottom: 1px solid var(--yy-line);
+  color: var(--yy-ink);
+  text-decoration: none;
+  min-width: 0;
+}
+.yy-home__row:hover .yy-home__name { color: var(--yy-acc-ink); }
+.yy-photo {
+  position: relative;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 32px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--yy-deep);
+}
+.yy-photo img { width: 100%; height: 100%; object-fit: cover; display: block; filter: grayscale(1) contrast(1.05); opacity: 0.8; }
+.yy-photo::after { content: ''; position: absolute; inset: 0; background: var(--yy-acc); mix-blend-mode: multiply; opacity: 0.25; }
+.yy-photo--none { background: var(--yy-surf); }
+.yy-photo--none::after { display: none; }
+.yy-thumb { flex: 0 0 auto; width: 44px; height: 32px; border-radius: 3px; background: var(--yy-surf); }
+.yy-home__no {
+  flex: 0 0 auto;
+  width: 18px;
+  font-family: var(--yy-serif);
+  font-size: 13px;
+  color: var(--yy-t3);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.yy-home__tag { flex: 0 0 auto; width: 26px; font-family: var(--font-mono), monospace; font-size: 10.5px; color: var(--yy-t3); }
+.yy-home__name { flex: 0 1 auto; min-width: 0; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.yy-home__desc { margin-left: auto; padding-left: 8px; min-width: 0; font-size: 11px; color: var(--yy-t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.yy-home__n { margin-left: auto; flex: 0 0 auto; font-size: 11px; color: var(--yy-t3); font-variant-numeric: tabular-nums; }
+.yy-home__more { align-self: flex-end; margin-top: 6px; font-size: 11.5px; color: var(--yy-acc-ink); text-decoration: none; }
+.yy-home__more:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+.yy-home__news, .yy-home__events, .yy-home__toc { margin: 0; padding: 0; list-style: none; }
+.yy-home__news li { display: flex; flex-direction: column; gap: 3px; padding: 8px 0; border-bottom: 1px solid var(--yy-line); }
+.yy-home__meta { display: flex; gap: 8px; font-family: var(--font-mono), monospace; font-size: 10.5px; color: var(--yy-t3); }
+.yy-home__news a { font-size: 12px; color: var(--yy-ink); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.yy-home__news a:hover, .yy-home__events a:hover { color: var(--yy-acc-ink); }
+.yy-home__events li { display: flex; align-items: baseline; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--yy-line); }
+.yy-home__date { flex: 0 0 auto; width: 42px; font-family: var(--yy-serif); font-size: 16px; font-weight: 500; color: var(--yy-acc-ink); font-variant-numeric: lining-nums tabular-nums; }
+.yy-home__evbody { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.yy-home__evbody a { font-size: 12px; color: var(--yy-ink); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.yy-home__evbody span { font-size: 11px; color: var(--yy-t3); }
+.yy-home__empty { margin: 0; padding: 10px 0; font-size: 12px; color: var(--yy-t3); }
+.yy-home__toc li a { display: flex; align-items: center; height: 22px; font-size: 12px; color: var(--yy-ink); text-decoration: none; }
+.yy-home__toc li a:hover .yy-home__toct { color: var(--yy-acc-ink); }
+.yy-home__tocno { flex: 0 0 auto; width: 22px; font-family: var(--yy-serif); font-size: 13px; color: var(--yy-t3); }
+.yy-home__tocno.is-tool { color: var(--yy-acc-ink); }
+.yy-home__toct { min-width: 0; max-width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ─────────── 建材のメーカー一覧（src/components/MakerRows.tsx。モック Q9） ───────────
+   番号・社名（明朝）・扱い・リンク 6 列・保存。リンクがあれば ↗、無ければ —。区切りは 1px の線 */
+.yy-mk { margin: 6px 0 14px; }
+.yy-mk__row {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1.5fr) minmax(0, 1.1fr) repeat(6, 52px) 40px;
+  align-items: center;
+  min-height: 34px;
+  border-bottom: 1px solid var(--yy-line);
+  font-size: 12px;
+}
+.yy-mk__row--head { min-height: 26px; font-size: 11px; color: var(--yy-t3); }
+.yy-mk__row > .flex { display: contents; }
+.yy-mk__no { font-family: var(--yy-serif); font-size: 13px; color: var(--yy-t3); font-variant-numeric: lining-nums tabular-nums; }
+.yy-mk__name { font-family: var(--yy-serif); font-size: 15px; font-weight: 500; color: var(--yy-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 8px; }
+.yy-mk__pages { font-size: 11px; color: var(--yy-t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 8px; }
+.yy-mk__cell { display: flex; align-items: center; }
+.yy-mk__cell a { color: var(--yy-acc-ink); text-decoration: none; font-size: 13px; }
+.yy-mk__cell a:hover { color: var(--yy-ink); }
+.yy-mk__cell .is-none { color: #d4d4cf; }
+.yy-mk__cell .is-moved { font-size: 9.5px; color: var(--yy-t3); margin-left: 2px; }
+@media (max-width: 1023px) {
+  .yy-mk__row { grid-template-columns: 22px minmax(0, 1fr) repeat(6, 40px) 32px; }
+  .yy-mk__pages, .yy-mk__row--head .yy-mk__pages { display: none; }
+}
+
+/* 建材ページの本文（mak_*.tsx を .yy-matbody で包む）。モック Q9 の 2 段組：
+   左 210px に掲載枠（sponsor）、右にメーカーの表。16 ファイルは共通の形なので CSS で一括で組み替える */
+.yy-matbody > div > div {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  column-gap: 22px;
+  align-items: start;
+}
+.yy-matbody > div > div > * { grid-column: 2; min-width: 0; }
+.yy-matbody > div > div > .mb-2:first-child { grid-column: 1 / -1; }
+.yy-matbody > div > div > .flex.flex-wrap.gap-2 { grid-column: 1; grid-row: 2 / span 60; margin: 0 !important; }
+@media (max-width: 1023px) {
+  .yy-matbody > div > div { display: block; }
+}
+/* 掲載枠：枠や角丸をやめ、等幅の小さなラベル + 画像 2 枚だけに */
+.yy-matbody .card {
+  width: 210px !important;
+  height: auto !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: none !important;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.yy-matbody .card::before {
+  content: 'SPONSOR — 掲載枠';
+  font-family: var(--font-mono), monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--yy-t3);
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--yy-ink);
+}
+.yy-matbody .card img { width: 100% !important; margin: 0 !important; border-radius: 3px; }
+.yy-matbody .card .font-bold { font-size: 11px; color: var(--yy-t3); margin: 0 !important; }
+.yy-matbody .card .grid { gap: 2px 8px !important; }
+.yy-matbody .card .grid a {
+  background: none !important;
+  padding: 0 !important;
+  text-align: left !important;
+  font-size: 10.5px !important;
+  color: var(--yy-t3) !important;
+  border-bottom: 1px solid var(--yy-line);
+  border-radius: 0 !important;
+}
+/* 見出し行の「基本知識」「掲載希望」を青リンクから緑の小さな文字に */
+.yy-matbody .text-blue-600 { color: var(--yy-acc-ink) !important; text-decoration: none !important; }
+/* 小見出し（立平葺 など）は丸い札をやめ、明朝の小見出し + 線に */
+.yy-matbody .inline-flex.rounded-full {
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: none !important;
+  font-family: var(--yy-serif);
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  color: var(--yy-ink) !important;
+}
+.yy-matbody .flex-1.h-px.bg-gray-300 { background: var(--yy-line) !important; }

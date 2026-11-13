@@ -1,343 +1,169 @@
-// yaneyuka トップページ中央カラム（B案: Feature Grid）。
-// 引継ぎ元: 共有/Toppage/handoff/yaneyuka-center-B.html を実プロジェクト情報に合わせて調整。
-// サーバーコンポーネントとして構成し、SSRで初回描画を高速化。
-export default function Home() {
+// yaneyuka トップページ中央カラム(モック「高級感 3」Q4:ポータルとして密に)。2026-11-13 に作り直した。
+// 本文はサーバーで組み立てて配信 HTML に載せる(検索エンジン向け)。案件・NEWS・イベントだけブラウザで読む。
+import Link from 'next/link';
+import { screensInGroup, screenPath } from '@/lib/siteScreens';
+import { CATEGORY_SUBCATEGORIES } from '@/lib/materialCategories';
+import { LOOKUP_CATEGORIES, LOOKUP_TOOL_LINKS, LOOKUP_TOTAL } from '@/lib/lookup';
+import { DESIGN_TOOL_MENU } from '@/lib/designToolsMenu';
+import { TOOL_ART } from '@/components/home/toolArt';
+import { HomeCase, HomeEvents, HomeNews, ScreenLink } from '@/components/home/HomeParts';
+
+/** 建材 16 分類の小さな写真(サイトの広告見本を流用。無い分類は図形) */
+const MAT_PHOTO: Record<string, string> = {
+  roof: '/image/seppan_cm_sample.png',
+  'exterior-wall': '/image/gaiheki_cm_sample.png',
+  opening: '/image/kaikou_cm_sample.png',
+  'external-floor': '/image/gaibu-floor_cm_sample.png',
+  'exterior-other': '/image/gaibu-etc_cm_sample.png',
+  'internal-floor': '/image/naibu-floor_cm_sample.png',
+  'internal-wall': '/image/naibu-wall_cm_sample.png',
+  'internal-other': '/image/naibu-etc_cm_sample.png',
+  waterproof: '/image/bousui_cm_sample.png',
+  hardware: '/image/kanamono_cm_sample.png',
+  furniture: '/image/kagu_cm_sample.png',
+};
+
+/** よく使う設計ツール 8 本(分野の略称・図・短い説明はモックどおり) */
+const FAVORITES: Array<{ cat: string; sub: string; tag: string; art: string; desc: string }> = [
+  { cat: 'detail-design', sub: 'glass-thickness', tag: '意匠', art: 'glass', desc: '風圧力に対する板厚' },
+  { cat: 'detail-design', sub: 'condensation', tag: '意匠', art: 'cond', desc: '温度分布と露点' },
+  { cat: 'detail-design', sub: 'building-rainwater', tag: '意匠', art: 'rain', desc: '軒樋・ルーフドレン' },
+  { cat: 'structural-design', sub: 'force-flow', tag: '構造', art: 'force', desc: '力の流れを実寸で' },
+  { cat: 'structural-design', sub: 'section', tag: '構造', art: 'sect', desc: '断面二次モーメント等' },
+  { cat: 'mechanical', sub: 'vent-24h', tag: '設備', art: 'vent', desc: 'シックハウス対策の換気量' },
+  { cat: 'mechanical', sub: 'duct-sizing', tag: '設備', art: 'duct', desc: '風量・許容圧損から' },
+  { cat: 'mechanical', sub: 'vent-occupancy', tag: '設備', art: 'people', desc: '在室人数から' },
+];
+
+const LAWS: Array<[string, string]> = [
+  ['建築基準法', '法 · 令 · 規則'],
+  ['消防法', '法 · 令 · 規則'],
+  ['都市計画法', '法 · 令 · 規則'],
+  ['告示', '検索 · 通達'],
+];
+
+const toolTitle = (cat: string, sub: string) =>
+  DESIGN_TOOL_MENU.find((c) => c.id === cat)?.subTabs.find((t) => t.id === sub)?.label ?? sub;
+const designToolCount = DESIGN_TOOL_MENU.reduce((n, c) => n + c.subTabs.length, 0);
+
+function SecHead({ no, title, right }: { no: string; title: string; right?: React.ReactNode }) {
   return (
-    <>
-      <style>{`
-        .yy-center {
-          max-width: 760px;
-          margin: 0 auto;
-          background: #ffffff;
-          color: #1a1a1a;
-          font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic", sans-serif;
-          padding: 56px 56px 64px;
-          box-sizing: border-box;
-        }
-        .yy-center * { box-sizing: border-box; }
+    <div className="yy-sec">
+      <span className="yy-sec__no">{no}</span>
+      <span className="yy-sec__title">{title}</span>
+      {right && <span className="yy-sec__right">{right}</span>}
+    </div>
+  );
+}
 
-        .yy-hero { text-align: center; margin-bottom: 36px; }
+export default function Home() {
+  const mats = screensInGroup('material');
+  const design = LOOKUP_CATEGORIES[0];
+  const toolSections = new Set(Object.keys(LOOKUP_TOOL_LINKS).map((id) => id.split('-').slice(0, 2).join('-')));
+  const month = new Date(Date.now() + 9 * 3600_000).toISOString().slice(0, 7);
 
-        .yy-eyebrow {
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          background: #eef2e8;
-          padding: 5px 12px;
-          margin-bottom: 16px;
-        }
-        .yy-eyebrow__dot {
-          width: 5px;
-          height: 5px;
-          border-radius: 50%;
-          background: #8ca888;
-        }
-        .yy-eyebrow__text {
-          font-size: 11px;
-          color: #4a5d48;
-          letter-spacing: 0.1em;
-          font-weight: 500;
-        }
-        .yy-wordmark {
-          font-family: Georgia, "Times New Roman", serif;
-          font-weight: 400;
-          font-size: 52px;
-          letter-spacing: -0.02em;
-          margin: 0 0 14px;
-          line-height: 1;
-        }
-        .yy-lead {
-          font-size: 16px;
-          line-height: 1.75;
-          color: #6a6a6a;
-          margin: 0 auto;
-          max-width: 520px;
-        }
+  return (
+    <div className="yy-home">
+      <h1 className="sr-only">yaneyuka — 建築・建設業界の業務支援ポータル</h1>
+      <HomeCase />
 
-        .yy-stats {
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          border-top: 1px solid #ececec;
-          border-bottom: 1px solid #ececec;
-          padding: 16px 0;
-          margin-bottom: 32px;
-        }
-        .yy-stat { text-align: center; }
-        .yy-stat + .yy-stat { border-left: 1px solid #ececec; }
-        .yy-stat__num {
-          font-family: Georgia, serif;
-          font-size: 24px;
-          font-weight: 400;
-          color: #1f3a7a;
-          line-height: 1;
-        }
-        .yy-stat__label {
-          font-size: 10.5px;
-          color: #6a6a6a;
-          margin-top: 6px;
-          letter-spacing: 0.08em;
-        }
+      <div className="yy-home__cols">
+        {/* 左:建材と設計ツール */}
+        <div className="yy-home__main">
+          <section>
+            <SecHead no="I" title="建材" right={`${mats.length} カテゴリ · メーカーと基本知識`} />
+            <div className="yy-home__grid2">
+              {mats.map((m, i) => {
+                const subs = CATEGORY_SUBCATEGORIES[m.id] ?? [];
+                const photo = MAT_PHOTO[m.id];
+                return (
+                  <Link key={m.id} className="yy-home__row" href={`${screenPath(m.id)}/?subcategory=${encodeURIComponent(subs[0] ?? '')}`}>
+                    {photo ? (
+                      <span className="yy-photo">
+                        <img src={photo} alt="" loading="lazy" />
+                      </span>
+                    ) : (
+                      <span className="yy-photo yy-photo--none" aria-hidden="true" />
+                    )}
+                    <span className="yy-home__no">{String(i + 1).padStart(2, '0')}</span>
+                    <span className="yy-home__name">{m.label}</span>
+                    <span className="yy-home__n">{subs.length} 分類</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
 
-        .yy-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr 1fr;
-          gap: 1px;
-          background: #ececec;
-          border: 1px solid #ececec;
-          margin-bottom: 32px;
-        }
-        .yy-card {
-          background: #fff;
-          padding: 22px 18px;
-          position: relative;
-        }
-        .yy-card__head {
-          display: flex;
-          align-items: flex-start;
-          justify-content: space-between;
-          margin-bottom: 12px;
-        }
-        .yy-card__icon {
-          width: 36px;
-          height: 36px;
-          background: #eef2e8;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .yy-card__icon svg {
-          stroke: #8ca888;
-          fill: none;
-          stroke-width: 1.5;
-          stroke-linecap: round;
-          stroke-linejoin: round;
-        }
-        .yy-tag {
-          font-size: 9px;
-          letter-spacing: 0.1em;
-          font-weight: 600;
-          color: #8ca888;
-          border: 1px solid #8ca888;
-          padding: 2px 6px;
-        }
-        .yy-tag--new {
-          color: #1f3a7a;
-          border-color: #1f3a7a;
-        }
-        .yy-card__title {
-          font-size: 13px;
-          font-weight: 600;
-          margin-bottom: 6px;
-          letter-spacing: 0.02em;
-        }
-        .yy-card__desc {
-          font-size: 11.5px;
-          line-height: 1.65;
-          color: #6a6a6a;
-        }
-
-        .yy-closing {
-          font-size: 13px;
-          color: #6a6a6a;
-          text-align: center;
-          line-height: 1.8;
-          margin: 0;
-        }
-
-        /* タブレット・小型ノートPC横向き */
-        @media (max-width: 960px) {
-          .yy-center { padding: 40px 32px 40px; }
-          .yy-hero { margin-bottom: 28px; }
-          .yy-wordmark { font-size: 46px; }
-          .yy-stats { margin-bottom: 24px; }
-          .yy-grid { margin-bottom: 24px; }
-          .yy-card { padding: 18px 14px; }
-        }
-        /* スマホ縦・タブレット縦 */
-        @media (max-width: 720px) {
-          .yy-center { padding: 32px 20px 32px; }
-          .yy-hero { margin-bottom: 20px; }
-          .yy-wordmark { font-size: 38px; margin-bottom: 10px; }
-          .yy-lead { font-size: 14px; line-height: 1.65; }
-          .yy-stats { grid-template-columns: repeat(2, 1fr); gap: 10px 0; padding: 12px 0; margin-bottom: 18px; }
-          .yy-stat:nth-child(3) { border-left: none; }
-          .yy-stat__num { font-size: 22px; }
-          .yy-grid { grid-template-columns: 1fr 1fr; margin-bottom: 18px; }
-          .yy-card { padding: 14px 12px; }
-          .yy-card__title { font-size: 12.5px; }
-          .yy-card__desc { font-size: 11px; line-height: 1.55; }
-          .yy-closing { font-size: 12px; }
-        }
-        /* 極小スマホ */
-        @media (max-width: 440px) {
-          .yy-center { padding: 24px 14px 24px; }
-          .yy-wordmark { font-size: 32px; }
-          .yy-grid { grid-template-columns: 1fr; }
-          .yy-card { padding: 12px 14px; }
-        }
-        /* 縦解像度が狭い場合（横向き・小型ノート）でも下まで見えるように圧縮 */
-        @media (max-height: 760px) {
-          .yy-center { padding-top: 28px; padding-bottom: 28px; }
-          .yy-hero { margin-bottom: 20px; }
-          .yy-wordmark { font-size: 40px; margin-bottom: 10px; }
-          .yy-eyebrow { margin-bottom: 10px; }
-          .yy-lead { font-size: 14px; line-height: 1.6; }
-          .yy-stats { padding: 10px 0; margin-bottom: 18px; }
-          .yy-grid { margin-bottom: 18px; }
-          .yy-card { padding: 14px 12px; }
-          .yy-card__head { margin-bottom: 8px; }
-          .yy-card__icon { width: 30px; height: 30px; }
-          .yy-card__icon svg { width: 18px; height: 18px; }
-          .yy-card__title { margin-bottom: 4px; }
-        }
-        @media (max-height: 620px) {
-          .yy-center { padding-top: 20px; padding-bottom: 20px; }
-          .yy-hero { margin-bottom: 14px; }
-          .yy-wordmark { font-size: 34px; }
-          .yy-stats { padding: 8px 0; margin-bottom: 12px; }
-          .yy-grid { margin-bottom: 12px; }
-        }
-      `}</style>
-
-      <section className="yy-center" aria-label="yaneyuka 概要">
-        <div className="yy-hero">
-          <div className="yy-eyebrow">
-            <span className="yy-eyebrow__dot" aria-hidden="true"></span>
-            <span className="yy-eyebrow__text">建築・建設業界の業務支援ポータル</span>
-          </div>
-          <h1 className="yy-wordmark">yaneyuka</h1>
-          <p className="yy-lead">
-            設計・施工・メーカー・職人。立場を越えた現場の知恵と課題を、<br />
-            ひとつのプラットフォームに。
-          </p>
+          <section>
+            <SecHead no="II" title="設計ツール" right={`${designToolCount} 本 · よく使うもの`} />
+            <div className="yy-home__grid2">
+              {FAVORITES.map((t) => (
+                <ScreenLink
+                  key={t.sub}
+                  className="yy-home__row"
+                  target={{ menu: 'design-tools', category: t.cat, sub: t.sub }}
+                >
+                  <svg className="yy-thumb" viewBox="0 0 270 150" preserveAspectRatio="xMidYMid slice" aria-hidden="true" dangerouslySetInnerHTML={{ __html: TOOL_ART[t.art] ?? '' }} />
+                  <span className="yy-home__tag">{t.tag}</span>
+                  <span className="yy-home__name">{toolTitle(t.cat, t.sub)}</span>
+                  <span className="yy-home__desc">{t.desc}</span>
+                </ScreenLink>
+              ))}
+            </div>
+            <ScreenLink className="yy-home__more" target={{ menu: 'design-index' }}>
+              {designToolCount} 本すべて <span aria-hidden="true">›</span>
+            </ScreenLink>
+          </section>
         </div>
 
-        <div className="yy-stats" role="list">
-          <div className="yy-stat" role="listitem">
-            <div className="yy-stat__num">20+</div>
-            <div className="yy-stat__label">実務ツール</div>
-          </div>
-          <div className="yy-stat" role="listitem">
-            <div className="yy-stat__num">70+</div>
-            <div className="yy-stat__label">CAD・添景素材</div>
-          </div>
-          <div className="yy-stat" role="listitem">
-            <div className="yy-stat__num">¥0</div>
-            <div className="yy-stat__label">会員登録</div>
-          </div>
-          <div className="yy-stat" role="listitem">
-            <div className="yy-stat__num">24/7</div>
-            <div className="yy-stat__label">アクセス可</div>
-          </div>
+        {/* 中:NEWS とイベント */}
+        <div className="yy-home__mid">
+          <section>
+            <SecHead no="III" title="NEWS" right={<Link href="/news/">{month}</Link>} />
+            <HomeNews />
+          </section>
+          <section>
+            <SecHead no="IV" title="イベント" right={<Link href="/event/">すべて</Link>} />
+            <HomeEvents />
+          </section>
         </div>
 
-        <div className="yy-grid">
-          <article className="yy-card">
-            <div className="yy-card__head">
-              <div className="yy-card__icon">
-                <svg width="22" height="22" viewBox="0 0 24 24">
-                  <rect x="3" y="3" width="18" height="18" rx="1" />
-                  <path d="M3 9h18M9 3v18" />
-                  <circle cx="15" cy="15" r="2" />
-                </svg>
-              </div>
-              <span className="yy-tag">無料</span>
-            </div>
-            <div className="yy-card__title">CAD・添景素材</div>
-            <div className="yy-card__desc">
-              人物・樹木などの添景画像とCADデータを70点以上、無料でダウンロード
-            </div>
-          </article>
-
-          <article className="yy-card">
-            <div className="yy-card__head">
-              <div className="yy-card__icon">
-                <svg width="22" height="22" viewBox="0 0 24 24">
-                  <rect x="4" y="3" width="16" height="18" rx="1" />
-                  <rect x="7" y="6" width="10" height="3" />
-                  <circle cx="8" cy="13" r="0.6" fill="currentColor" />
-                  <circle cx="12" cy="13" r="0.6" fill="currentColor" />
-                  <circle cx="16" cy="13" r="0.6" fill="currentColor" />
-                  <circle cx="8" cy="17" r="0.6" fill="currentColor" />
-                  <circle cx="12" cy="17" r="0.6" fill="currentColor" />
-                  <circle cx="16" cy="17" r="0.6" fill="currentColor" />
-                </svg>
-              </div>
-              <span className="yy-tag">11種</span>
-            </div>
-            <div className="yy-card__title">建築計算ツール</div>
-            <div className="yy-card__desc">
-              ガラス厚・雨水排水・建蔽率／容積率・採光換気・構造計算などを自動算出
-            </div>
-          </article>
-
-          <article className="yy-card">
-            <div className="yy-card__head">
-              <div className="yy-card__icon">
-                <svg width="22" height="22" viewBox="0 0 24 24">
-                  <path d="M14.7 6.3a4 4 0 1 1-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.1-2.1 2.6-2.4z" />
-                </svg>
-              </div>
-              <span className="yy-tag">10種</span>
-            </div>
-            <div className="yy-card__title">実務ユーティリティ</div>
-            <div className="yy-card__desc">
-              画像リサイズ・PDF圧縮・単位変換・メモ・スプレッドシート等をブラウザで完結
-            </div>
-          </article>
-
-          <article className="yy-card">
-            <div className="yy-card__head">
-              <div className="yy-card__icon">
-                <svg width="22" height="22" viewBox="0 0 24 24">
-                  <path d="M12 3v3M6 6h12M7 6l-2 8a4 4 0 0 0 8 0l-2-8M17 6l-2 8a4 4 0 0 0 8 0l-2-8" />
-                  <path d="M12 6v14M8 20h8" />
-                </svg>
-              </div>
-              <span className="yy-tag yy-tag--new">NEW</span>
-            </div>
-            <div className="yy-card__title">My法規</div>
-            <div className="yy-card__desc">
-              建築基準法・告示・省エネ法・都市計画法等の関連条文を自分用に整理・検索
-            </div>
-          </article>
-
-          <article className="yy-card">
-            <div className="yy-card__head">
-              <div className="yy-card__icon">
-                <svg width="22" height="22" viewBox="0 0 24 24">
-                  <circle cx="12" cy="8" r="3.5" />
-                  <path d="M5 20a7 7 0 0 1 14 0" />
-                  <path d="M16 4l2-1 2 1-1 2 1 2-2 1-2-1" strokeWidth="1" />
-                </svg>
-              </div>
-            </div>
-            <div className="yy-card__title">メーカー連絡帳</div>
-            <div className="yy-card__desc">
-              建材メーカー担当者の連絡先と問い合わせ履歴を個人／チームで一元管理
-            </div>
-          </article>
-
-          <article className="yy-card">
-            <div className="yy-card__head">
-              <div className="yy-card__icon">
-                <svg width="22" height="22" viewBox="0 0 24 24">
-                  <rect x="4" y="4" width="16" height="16" rx="1" />
-                  <path d="M8 9l2 2 4-4M8 15l2 2 4-4" />
-                </svg>
-              </div>
-            </div>
-            <div className="yy-card__title">Myタスク・工程管理</div>
-            <div className="yy-card__desc">
-              Myカレンダー、MyタスクとTeamタスクの共有、yymail／yychatによる社内連携
-            </div>
-          </article>
+        {/* 右:調べものと法規 */}
+        <div className="yy-home__side">
+          <section>
+            <SecHead no="V" title="建築の調べもの" right={`${LOOKUP_TOTAL.toLocaleString('ja-JP')} 項目`} />
+            <ol className="yy-home__toc">
+              {design.sections.slice(0, 12).map((s, i) => (
+                <li key={s.id}>
+                  <Link href={`/lookup/${design.slug}/#${s.id}`}>
+                    <span className={`yy-home__tocno${toolSections.has(s.id) ? ' is-tool' : ''}`}>{String(i + 1).padStart(2, '0')}</span>
+                    <span className="yy-home__toct">{s.title}</span>
+                    <span className="yy-leader" />
+                    <span className="yy-home__n">{s.items.length}</span>
+                  </Link>
+                </li>
+              ))}
+            </ol>
+            <Link className="yy-home__more" href="/lookup/">
+              目次へ <span aria-hidden="true">›</span>
+            </Link>
+          </section>
+          <section>
+            <SecHead no="VI" title="法規" />
+            <ol className="yy-home__toc">
+              {LAWS.map(([a, b]) => (
+                <li key={a}>
+                  <Link href="/regulations/">
+                    <span className="yy-home__toct">{a}</span>
+                    <span className="yy-leader" />
+                    <span className="yy-home__n">{b}</span>
+                  </Link>
+                </li>
+              ))}
+            </ol>
+          </section>
         </div>
-
-        <p className="yy-closing">
-          現場の「欲しい」をカタチに。建築・建設業界の業務効率化を、一歩先へ。
-        </p>
-      </section>
-    </>
+      </div>
+    </div>
   );
 }
