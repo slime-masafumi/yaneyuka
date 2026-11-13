@@ -2604,3 +2604,7 @@ a:hover + .yy-pic img, .yy-pic:hover img { opacity: 0.85; }
   .yy-pic--row, .yy-pic--lead { width: 72px; height: 48px; }
   .yy-ev__row { grid-template-columns: 90px 56px minmax(0, 1fr) 28px; }
 }
+
+/* 日付のタブ(NEWS の月)。本文と同じ大きさだと強すぎるので、等幅の小さな文字に */
+.yy-tabs--dates { gap: 0 16px; }
+.yy-tabs--dates .yy-tab { height: 30px; font-family: var(--font-mono), monospace; font-size: 11px; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }

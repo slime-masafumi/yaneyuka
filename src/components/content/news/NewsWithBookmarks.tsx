@@ -123,7 +123,7 @@ export default function NewsWithBookmarks() {
           </>
         }
       />
-      <div className="yy-tabs">
+      <div className="yy-tabs yy-tabs--dates">
         {months.map(m => (
           <button
             key={m}

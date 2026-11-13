@@ -82,6 +82,7 @@ function parseRss(xml: string, src: NewsSource, minScore: number): NewsItem[] {
     if (!title || !link) continue
     const text = `${title} ${descriptionRaw}`
     const s = scoreText(title, descriptionRaw || '')
+    if (src.exclude && src.exclude.test(title)) continue
     if (src.must) { if (!src.must.test(title)) continue }
     else if (!src.trusted && s < minScore) continue
     if (negativeKeywords.some(k => text.includes(k))) continue
@@ -112,6 +113,7 @@ function parseAtom(xml: string, src: NewsSource, minScore: number): NewsItem[] {
     if (!title || !link) continue
     const text = `${title} ${descRaw}`
     const s = scoreText(title, descRaw || '')
+    if (src.exclude && src.exclude.test(title)) continue
     if (src.must) { if (!src.must.test(title)) continue }
     else if (!src.trusted && s < minScore) continue
     if (negativeKeywords.some(k => text.includes(k))) continue
