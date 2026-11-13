@@ -6,7 +6,11 @@
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/lib/AuthContext';
-import { FiActivity, FiArrowDown, FiArrowUp, FiPlus, FiPrinter, FiRotateCcw, FiSettings, FiX } from 'react-icons/fi';
+import { FiActivity, FiArrowDown, FiArrowUp, FiBookmark, FiLink, FiPlus, FiPrinter, FiRotateCcw, FiSettings, FiX } from 'react-icons/fi';
+import { CaseSave, KV, LookupList, ModeBar, ResultPanel, ResultRow, SecHead, Sheet, SheetButton, SheetHead, useCase } from '@/components/ui/Sheet';
+import { saveStudy } from '@/lib/caseStudies';
+import { DESIGN_TOOL_MENU } from '@/lib/designToolsMenu';
+import './condensation/sheet.css';
 import {
   CATEGORY_LABELS, CITIES, DEFAULT_MATERIALS, LEGACY_MATERIAL_STORAGE_KEY, MATERIAL_STORAGE_KEY, PARTS, PRESETS, ROOMS,
   SLAB_GROUND_TEMP, buildFixes, calculateProfile, causeOf, dewPoint, evaluateFixes, findLimitTemp, fromStoredMaterials,
@@ -41,9 +45,30 @@ const fromPreset = (key: string): Layer[] => PRESETS[key].layers.map((l) => ({ .
 
 interface Props {
   hideHeader?: boolean;
+  /** true = 計算書の組版(モック「高級感 3」Q7)で出す。設計ツールの画面から渡す */
+  sheet?: boolean;
 }
 
-export default function MultiLayerCondensation({ hideHeader }: Props) {
+// 計算書の組版で使う表記（負号は − にそろえる）
+const m1 = (v: number) => f1(v).replace('-', '−');
+const pad2 = (v: number) => String(v).padStart(2, '0');
+/** 見出しの番号（設計ツール一覧と同じ通し番号）と分野名 */
+const TOOL_ID = 'condensation';
+const TOOL_NO = pad2(DESIGN_TOOL_MENU.flatMap((c) => c.subTabs).findIndex((t) => t.id === TOOL_ID) + 1);
+const TOOL_CATEGORY = DESIGN_TOOL_MENU.find((c) => c.subTabs.some((t) => t.id === TOOL_ID))?.label ?? '意匠設計';
+
+/** 条件を変えて試す 1 行（計算はすべて calculateProfile で計算し直す） */
+interface Trial {
+  key: string;
+  label: string;
+  result: Profile;
+  layers?: Layer[];
+  rhi?: number;
+  city?: string;
+  tg?: number;
+}
+
+export default function MultiLayerCondensation({ hideHeader, sheet }: Props) {
   const { isLoggedIn } = useAuth();
   const canEdit = isLoggedIn;
 
@@ -212,6 +237,366 @@ export default function MultiLayerCondensation({ hideHeader }: Props) {
     return '';
   };
 
+  // ================================================================ 計算書の組版（モック Q7）
+  const { currentCase } = useCase();
+  const [editId, setEditId] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [savedHead, setSavedHead] = useState(false);
+  const saveResult = ng ? '結露' : 'OK';
+  useEffect(() => setSavedHead(false), [saveResult, currentCase?.id]);
+
+  // 条件を変えて試す：断熱 +50 mm / 防湿シート / 室内の湿度 / 寒い地域（土間は地中温度）
+  const trials = useMemo<Trial[]>(() => {
+    if (!sheet) return [];
+    const out: Trial[] = [];
+    const matOf = (l: Layer) => materialDB.find((m) => m.id === l.materialId);
+    const calc = (ls: Layer[], c: Partial<Conditions> = {}) => calculateProfile(ls, { ...cond, ...c }, materialDB);
+    const ins = validLayers(layers).filter((l) => matOf(l)?.category === 'insulation');
+    if (ins.length) {
+      const t = ins.reduce((a, b) => (Number(b.thickness) > Number(a.thickness) ? b : a));
+      const d = Number(t.thickness);
+      const next = layers.map((l) => (l.id === t.id ? { ...l, thickness: d + 50 } : l));
+      out.push({ key: 'ins', label: `断熱 ${d} → ${d + 50} mm`, layers: next, result: calc(next) });
+    }
+    // 防湿層 = 最も室内側の断熱材より室内側にある Sd 10 m 以上のシート（buildFixes と同じ見方）
+    const lastIns = layers.reduce((a, l, i) => (matOf(l)?.category === 'insulation' && l.thickness !== '' ? i : a), -1);
+    const vb = layers.find((l, i) => i > lastIns && matOf(l)?.category === 'membrane' && (Number(l.thickness) / 1000) * (matOf(l)?.mu ?? 0) >= 10);
+    if (lastIns >= 0 && vb) {
+      const next = layers.filter((l) => l.id !== vb.id);
+      out.push({ key: 'vb', label: '防湿シートを外す', layers: next, result: calc(next) });
+    } else if (lastIns >= 0) {
+      const next = [...layers];
+      next.splice(lastIns + 1, 0, { id: newId(), materialId: 'pe_film', thickness: 0.2 });
+      out.push({ key: 'vb', label: '防湿シートを入れる', layers: next, result: calc(next) });
+    }
+    const rhT = rhi < 60 ? 60 : Math.max(30, rhi - 10);
+    if (rhT !== rhi) out.push({ key: 'rh', label: `室内を${rhT > rhi ? '加湿' : '除湿'} ${rhT} %`, rhi: rhT, result: calc(layers, { rhi: rhT }) });
+    if (!isSlab) {
+      // 冬はいちばん寒い地域、夏はいちばん暑い地域（いまの地域を除く）
+      const c = [...CITIES]
+        .sort((a, b) => (season === 'winter' ? a.winter[0] - b.winter[0] : b.summer[0] - a.summer[0]))
+        .find((x) => x.id !== cityId);
+      if (c) {
+        const [t, rh] = c[season];
+        out.push({ key: 'city', label: `${c.label}（${m1(t)} ℃ · ${rh} %）`, city: c.id, result: calc(layers, { te: t, rhe: rh }) });
+      }
+    } else {
+      const t = tg - 3;
+      out.push({ key: 'ground', label: `地中温度 ${m1(t)} ℃`, tg: t, result: calc(layers, { te: t }) });
+    }
+    return out;
+  }, [sheet, layers, cond, materialDB, rhi, isSlab, season, cityId, tg]);
+
+  const applyTrial = (t: Trial) => {
+    if (!canEdit) return;
+    if (t.layers) setLayers(t.layers.map((l) => ({ ...l })));
+    if (t.rhi !== undefined) { setRhi(t.rhi); setRoomId('custom'); }
+    if (t.city) { setCityId(t.city); applySeason(season, t.city); }
+    if (t.tg !== undefined) setTg(t.tg);
+  };
+
+  // 界面の短い呼び名（層 k の室外側の面。最後だけ室内側の面）
+  const faceName = (k: number) => {
+    const name = (i: number) => profile.layers[i]?.material?.name ?? '不明';
+    if (n === 0) return '';
+    return k >= n ? `${name(n - 1)} 室内側` : `${name(k)} ${outLabel}側`;
+  };
+  const marginText = (r: Profile) => (r.isCondensing ? '結露' : r.worst ? `${sgn(r.worst.margin)} ℃` : '—');
+  const cityLabel = isSlab ? '地盤' : CITIES.find((c) => c.id === cityId)?.label ?? '任意';
+  const limitRowLabel = isSlab ? '結露が始まる地中温度' : '結露が始まる外気温';
+  const limitRowText = !(ti > te) ? '—' : limit === null ? (ng ? '今の条件で結露' : '−30 ℃ でも結露なし') : `${m1(limit)} ℃`;
+  const STATUS_SHORT: Record<Status, string> = { ok: '', ng: '結露', bonded: '密着 · 判定しない', vent: '外気 · 判定しない', ground: '地盤側 · 判定しない', 'ground-ng': '地盤側 · 判定しない' };
+
+  const copyUrl = () => {
+    navigator.clipboard?.writeText(window.location.href).then(() => {
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    }).catch(() => {});
+  };
+  const saveToCase = () => {
+    if (!currentCase) return;
+    saveStudy(currentCase.id, { tool: TOOL_ID, result: saveResult, ok: !ng });
+    setSavedHead(true);
+  };
+
+  const numIn = (value: number, onChange: (v: string) => void, label: string, step: string, w = 'is-t') => (
+    <input type="number" step={step} disabled={!canEdit} value={value} onChange={(e) => onChange(e.target.value)} className={`yy-cond__num ${w}`} aria-label={label} />
+  );
+
+  const sheetView = !sheet ? null : (
+    <div className="yy-cond print:hidden">
+      <ModeBar />
+      <SheetHead
+        no={TOOL_NO}
+        en={`tool · ${TOOL_CATEGORY}`}
+        title="結露検討"
+        desc="多層の壁・土間の温度分布と露点から、表面結露と内部結露を判定"
+        actions={
+          <>
+            <SheetButton onClick={copyUrl} title="このページの URL をコピー"><FiLink size={13} />{copied ? 'コピーしました' : 'URL'}</SheetButton>
+            <SheetButton onClick={() => window.print()} title="計算書を印刷 / PDF に保存"><FiPrinter size={13} />計算書</SheetButton>
+            <SheetButton primary onClick={saveToCase} disabled={!currentCase} title={currentCase ? `「${currentCase.name}」に保存` : '物件カルテで案件を作ると保存できます'}>
+              <FiBookmark size={13} />{savedHead ? '✓ 保存しました' : '案件に保存'}
+            </SheetButton>
+          </>
+        }
+      />
+      <Sheet
+        left={
+          <>
+            {/* ---------- I 条件 ---------- */}
+            <section className="yy-sheet__block">
+              <SecHead no="I" title="条件" right={canEdit ? '自分で入力' : 'ログインで変更'} />
+              <KV k="部位" v={
+                <select value={part} onChange={(e) => selectPart(e.target.value as PartId)} aria-label="部位">
+                  {PARTS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+                </select>
+              } />
+              <KV k="工法" v={
+                <select value={presetKey} onChange={(e) => loadPreset(e.target.value)} className="yy-cond__preset" aria-label="工法">
+                  {Object.entries(PRESETS).filter(([, p]) => p.part === part).map(([key, p]) => (
+                    <option key={key} value={key}>{p.name}{presetResults[key] ? `（${presetResults[key].isCondensing ? '結露' : 'OK'}）` : ''}</option>
+                  ))}
+                </select>
+              } />
+              <KV k="季節" v={
+                <span className="yy-cond__seg" role="group" aria-label="季節">
+                  {(['winter', 'summer'] as Season[]).map((s) => (
+                    <button key={s} type="button" aria-pressed={season === s} disabled={!canEdit} onClick={() => applySeason(s)}>{s === 'winter' ? '冬' : '夏'}</button>
+                  ))}
+                </span>
+              } />
+              <KV k={outLabel} v={
+                <>
+                  {!isSlab && (
+                    <select value={cityId} disabled={!canEdit} onChange={(e) => { setCityId(e.target.value); if (e.target.value !== 'custom') applySeason(season, e.target.value); }} className="yy-cond__city" aria-label="地域">
+                      {CITIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+                      <option value="custom">任意</option>
+                    </select>
+                  )}
+                  <span className="yy-cond__u">{numIn(te, (v) => { const x = num(v, te); if (isSlab) setTg(x); else { setTeOut(x); setCityId('custom'); } }, `${outLabel}の温度`, '0.5')}℃</span>
+                  <span className="yy-cond__u">{numIn(rhe, (v) => { const x = pct(v, rhe); if (isSlab) setRhg(x); else { setRheOut(x); setCityId('custom'); } }, `${outLabel}の湿度`, '5', 'is-rh')}%</span>
+                </>
+              } />
+              <KV k="室内" v={
+                <>
+                  <select value={roomId} disabled={!canEdit} onChange={(e) => {
+                    const r = ROOMS[season].find((x) => x.id === e.target.value);
+                    setRoomId(e.target.value);
+                    if (r) { setTi(r.t); setRhi(r.rh); }
+                  }} className="yy-cond__room" aria-label="室内の用途">
+                    {ROOMS[season].map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
+                    <option value="custom">任意</option>
+                  </select>
+                  <span className="yy-cond__u">{numIn(ti, (v) => { setTi(num(v, ti)); setRoomId('custom'); }, '室内の温度', '0.5')}℃</span>
+                  <span className="yy-cond__u">{numIn(rhi, (v) => { setRhi(pct(v, rhi)); setRoomId('custom'); }, '室内の湿度', '5', 'is-rh')}%</span>
+                </>
+              } />
+              <details className="yy-cond__more">
+                <summary>{isSlab ? '地盤と表面の熱抵抗' : '表面の熱抵抗'}</summary>
+                <KV k="室内側 Rsi" v={<span className="yy-cond__u">{numIn(rsi, (v) => setRsi(num(v, rsi)), '室内側 Rsi', '0.01')}㎡K/W</span>} />
+                {isSlab ? (
+                  <>
+                    <KV k="地盤の考慮深さ" v={<span className="yy-cond__u">{numIn(groundDepth, (v) => setGroundDepth(Math.max(0, num(v, groundDepth))), '地盤の考慮深さ', '0.1')}m</span>} />
+                    <KV k="土壌の熱伝導率" v={<span className="yy-cond__u">{numIn(groundLambda, (v) => setGroundLambda(Math.max(0.1, num(v, groundLambda))), '土壌の熱伝導率', '0.1')}W/mK</span>} />
+                    <KV k="地盤 Rg" v={`${rse.toFixed(2)} ㎡K/W`} />
+                  </>
+                ) : (
+                  <KV k="室外側 Rse" v={<span className="yy-cond__u">{numIn(rseOut, (v) => setRseOut(num(v, rseOut)), '室外側 Rse', '0.01')}㎡K/W</span>} />
+                )}
+                <p className="yy-cond__hint">
+                  省エネ基準の値: 室内側 壁 0.11 / 屋根・天井 0.09 / 床・土間 0.15、外気側 0.04。通気層があると外気側は室内側と同じ値で計算します。
+                  {isSlab && ' 深さ 0 は土間の下端を地中温度に固定する扱いで、夏の表面結露を安全側に見ます。地中温度は地域の年平均気温 ±数℃、湿度 100% が目安。'}
+                </p>
+              </details>
+              {!canEdit && <p className="yy-cond__hint">部位と工法は選べます。条件と構成の変更はログインすると使えます。</p>}
+            </section>
+
+            {/* ---------- II 構成 ---------- */}
+            <section className="yy-sheet__block">
+              <SecHead no="II" title="構成" right={`${outLabel} → 室内`} />
+              <ol className="yy-cond__layers">
+                {layers.map((l, idx) => {
+                  const vi = valid.findIndex((v) => v.id === l.id);
+                  const lr = vi >= 0 ? profile.layers[vi] : undefined;
+                  const outerIf = vi >= 0 ? profile.interfaces[vi] : undefined;
+                  const note = lr ? rowNote(lr, vi) : '';
+                  const open = editId === l.id;
+                  const name = materialDB.find((m) => m.id === l.materialId)?.name ?? '材料を選択';
+                  const cls = ['yy-cond__layer', vi >= 0 && hoverLayer === vi ? 'is-hover' : '', lr?.excluded ? 'is-ex' : '', open ? 'is-open' : '', outerIf?.status === 'ng' && idx > 0 ? 'is-ng' : ''].filter(Boolean).join(' ');
+                  return (
+                    <li key={l.id} className={cls} onPointerEnter={() => setHoverLayer(vi >= 0 ? vi : null)} onPointerLeave={() => setHoverLayer(null)}>
+                      <div className="yy-cond__row">
+                        <span className="yy-cond__no">{pad2(idx + 1)}</span>
+                        <button type="button" className="yy-cond__name" onClick={() => setEditId(open ? null : l.id)} aria-expanded={open} title={`${name}（押すと材料・並びを変えられます）`}>{name}</button>
+                        <span className="yy-leader" />
+                        {canEdit ? (
+                          <input type="number" step={Number(l.thickness) < 1 ? 0.1 : 1} min="0" value={l.thickness}
+                            onChange={(e) => setLayer(l.id, { thickness: e.target.value === '' ? '' : Math.max(0, Number(e.target.value)) })}
+                            className="yy-cond__num is-d" aria-label={`${idx + 1} の厚さ`} />
+                        ) : (
+                          <span className="yy-cond__d">{l.thickness}</span>
+                        )}
+                        <span className="yy-cond__unit">mm</span>
+                      </div>
+                      {open && (
+                        <div className="yy-cond__edit">
+                          <select value={l.materialId} disabled={!canEdit} onChange={(e) => {
+                            const m = materialDB.find((x) => x.id === e.target.value);
+                            setLayer(l.id, { materialId: e.target.value, ...(m?.category === 'membrane' && Number(l.thickness) > 2 ? { thickness: 0.2 } : {}) });
+                          }} aria-label={`${idx + 1} の材料`}>
+                            <option value="">材料を選択</option>
+                            {Object.keys(CATEGORY_LABELS).concat(Array.from(new Set(materialDB.map((m) => m.category))).filter((c) => !CATEGORY_LABELS[c])).map((cat) => {
+                              const ms = materialDB.filter((m) => m.category === cat);
+                              return ms.length ? (
+                                <optgroup key={cat} label={CATEGORY_LABELS[cat] ?? cat}>
+                                  {ms.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                                </optgroup>
+                              ) : null;
+                            })}
+                          </select>
+                          <div className="yy-cond__editrow">
+                            <span className="yy-cond__rsd">
+                              R {lr && !lr.excluded ? lr.r.toFixed(lr.r < 0.1 ? 3 : 2) : '—'} · Sd {lr && !lr.excluded ? lr.sd.toFixed(lr.sd < 0.1 ? 3 : 2) : '—'}
+                            </span>
+                            {idx > 0 && (
+                              <label className="yy-cond__bond" title="外側の層との間に隙間が無い（打込み・吹付）なら、その界面は判定しない">
+                                <input type="checkbox" disabled={!canEdit} checked={!!l.isBonded} onChange={(e) => setLayer(l.id, { isBonded: e.target.checked })} />密着
+                              </label>
+                            )}
+                            {canEdit && (
+                              <span className="yy-cond__ops">
+                                <button type="button" onClick={() => moveLayer(idx, -1)} disabled={idx === 0} title="外側へ"><FiArrowUp size={12} /></button>
+                                <button type="button" onClick={() => moveLayer(idx, 1)} disabled={idx === layers.length - 1} title="内側へ"><FiArrowDown size={12} /></button>
+                                <button type="button" onClick={() => { setLayers((ls) => ls.filter((x) => x.id !== l.id)); setEditId(null); }} title="この層を外す"><FiX size={12} /></button>
+                              </span>
+                            )}
+                          </div>
+                          {(note || (outerIf?.status === 'ng' && idx > 0)) && (
+                            <p className="yy-cond__hint">{outerIf?.status === 'ng' && idx > 0 ? `外側の層との境目で結露。${note}` : note}</p>
+                          )}
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ol>
+              <div className="yy-cond__sum">
+                <span>熱抵抗の合計</span>
+                <span className="yy-leader" />
+                <b>{profile.rTotal.toFixed(2)} ㎡K/W</b>
+              </div>
+              <div className="yy-cond__tools">
+                {canEdit && <button type="button" onClick={addLayer}><FiPlus size={11} />層を足す</button>}
+                <button type="button" onClick={() => setShowMaterials(true)}>材料設定</button>
+                <button type="button" onClick={() => setShowPsychro(true)}>空気線図</button>
+              </div>
+            </section>
+
+            {/* ---------- III 条件を変えて試す（結露するときは対策） ---------- */}
+            <section className="yy-sheet__block">
+              <SecHead no="III" title={ng ? '対策を試す' : '条件を変えて試す'} right="最小の余裕" />
+              {(ng
+                ? fixes.slice(0, 5).map(({ fix, result }, i) => ({ key: fix.key, label: fix.title, title: fix.detail, result, onClick: () => applyFix(i) }))
+                : trials.map((t) => ({ key: t.key, label: t.label, title: undefined as string | undefined, result: t.result, onClick: () => applyTrial(t) }))
+              ).map((r) => (
+                <button key={r.key} type="button" className="yy-cond__try" disabled={!canEdit} onClick={r.onClick}
+                  title={`${r.title ? `${r.title}。` : ''}${canEdit ? '押すとこの条件に変わります' : 'ログインすると反映できます'}`}>
+                  <span className="yy-cond__tryk">{r.label}</span>
+                  <span className="yy-leader" />
+                  <span className={`yy-cond__tryv${r.result.isCondensing ? ' is-ng' : ''}`}>{marginText(r.result)}</span>
+                </button>
+              ))}
+              {ng && fixes.length === 0 && <p className="yy-cond__hint">試せる対策がありません。</p>}
+            </section>
+          </>
+        }
+        center={
+          <>
+            <div className="yy-sheet__fig yy-cond__fig">
+              <SectionChart
+                variant="sheet"
+                profile={profile} ti={ti} rhi={rhi} te={te} rhe={rhe} outLabel={outLabel} view={view}
+                layerNo={rowNoOfValid} hoverK={hoverK} hoverLayer={hoverLayer} onHover={onHover}
+              />
+            </div>
+            <div className="yy-cond__figbar">
+              <span className="yy-cond__legend"><i className="is-temp" />温度</span>
+              <span className="yy-cond__legend"><i className="is-dew" />露点</span>
+              <span className="yy-cond__legend"><i className="is-zone" />結露する範囲</span>
+              {focus && hoverK !== null && (
+                <span className="yy-cond__focus">
+                  {faceName(focus.k)} · 水蒸気圧 {Math.round(focus.pressure)} / 飽和 {Math.round(focus.satPressure)} Pa
+                </span>
+              )}
+              <span className="yy-cond__view">
+                <button type="button" aria-pressed={view === 'fit'} onClick={() => setView('fit')}>見やすく</button>
+                <button type="button" aria-pressed={view === 'real'} onClick={() => setView('real')}>実寸比</button>
+              </span>
+            </div>
+
+            {/* ---------- IV 界面ごとの温度と露点 ---------- */}
+            <section className="yy-sheet__block">
+              <SecHead no="IV" title="界面ごとの温度と露点" right={`℃ · ${outLabel}側 → 室内側`} />
+              <table className="yy-tbl yy-cond__tbl" onPointerLeave={() => setHoverK(null)}>
+                <thead>
+                  <tr><th>界面</th><th>温度</th><th>露点</th><th>余裕</th></tr>
+                </thead>
+                <tbody>
+                  {profile.interfaces.map((f) => {
+                    const isWorst = worst?.k === f.k;
+                    const judged = f.status === 'ok' || f.status === 'ng';
+                    const cls = [isWorst && !ng ? 'is-hi' : '', isWorst && ng ? 'is-worst-ng' : '', hoverK === f.k ? 'is-hover' : ''].filter(Boolean).join(' ');
+                    return (
+                      <tr key={f.k} className={cls || undefined} onPointerEnter={() => setHoverK(f.k)}>
+                        <td title={interfaceLabel(profile, f.k, outLabel)}>
+                          <span className="yy-cond__face">{isWorst && <i className="yy-dot" />}{faceName(f.k)}</span>
+                        </td>
+                        <td>{m1(f.temp)}</td>
+                        <td className="yy-cond__dew">{m1(f.dewPoint)}</td>
+                        <td className={f.status === 'ng' ? 'is-ng' : isWorst ? 'is-ok' : judged ? undefined : 'yy-cond__muted'}>
+                          {judged ? sgn(f.margin) : STATUS_SHORT[f.status]}
+                          {isWorst && (ng ? ' · 最も厳しい' : ' · 最小')}
+                          {f.status === 'ng' && !isWorst && ' · 結露'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </section>
+            <p className="yy-cond__notes">
+              ※ 定常計算（グレイザー法）による簡易判定です。温度は熱抵抗、水蒸気圧は透湿抵抗 Sd の比で直線的に配分します。0℃未満は氷の飽和水蒸気圧（霜点）で判定し、相対湿度は水面基準（気象庁と同じ）です。
+              密閉空気層は厚さによらず R 0.09。通気層より外側は外気とみなし、通気層側の表面熱抵抗を室内側と同じ値にします。
+              土間は地盤側を地中温度・湿度 100% の境界とし、地盤側の防湿層より下は判定しません。地域の外気条件は目安です。設計では地域の気象データで確認してください。
+            </p>
+          </>
+        }
+        right={
+          <>
+            <div className={`yy-cond__verdict${ng ? ' is-ng' : ''}`}>
+              <ResultPanel
+                label={`verdict — ${season === 'winter' ? '冬' : '夏'} · ${cityLabel}`}
+                value={ng ? '結露します' : '結露しません'}
+                sub={!worst ? '判定できる箇所がありません' : ng
+                  ? `${isSurface ? '表面結露' : '内部結露'} · ${faceName(worst.k)}で ${sgn(worst.margin)} ℃`
+                  : `最小の余裕 ${sgn(worst.margin)} ℃（${faceName(worst.k)}）`}
+              >
+                <ResultRow k="室内の露点" v={`${m1(inDew)} ℃`} />
+                <ResultRow k="室内表面温度" v={`${m1(profile.surface.temp)} ℃`} />
+                <ResultRow k="熱貫流率 U" v={`${profile.uValue.toFixed(2)} W/㎡K`} />
+                <ResultRow k={limitRowLabel} v={limitRowText} />
+              </ResultPanel>
+            </div>
+            {ng && worst && <p className="yy-cond__why">{causeOf(profile, worst)}</p>}
+            <CaseSave tool={TOOL_ID} result={saveResult} ok={!ng} />
+            <LookupList slug="design" section="1-13" mark={[8]} />
+          </>
+        }
+      />
+    </div>
+  );
+
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: `
@@ -224,13 +609,14 @@ export default function MultiLayerCondensation({ hideHeader }: Props) {
         }
       ` }} />
 
-      {!hideHeader && (
+      {!hideHeader && !sheet && (
         <div className="px-4 py-3 bg-[#3b3b3b] print:hidden">
           <h3 className="text-[13px] font-medium text-white">結露検討</h3>
           <p className="text-[11px] text-gray-300 mt-0.5">多層壁体・土間の温度分布・露点から表面結露・内部結露を判定</p>
         </div>
       )}
 
+      {sheet ? sheetView : (
       <div className="p-4 text-[12px] text-gray-700 print:hidden">
         {/* 道具 */}
         <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
@@ -554,6 +940,7 @@ export default function MultiLayerCondensation({ hideHeader }: Props) {
           ※ 地域の外気条件は目安です。設計では地域の気象データで確認してください。
         </p>
       </div>
+      )}
 
       {/* ================= 空気線図 ================= */}
       {showPsychro && (

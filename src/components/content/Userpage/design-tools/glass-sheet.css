@@ -1,0 +1,39 @@
+/* ガラス厚計算の計算書(モック「高級感 3」Q3)。共通の組版は globals.css の「計算書の組版」。ここはこの画面だけの補い */
+
+/* 条件の入力:値の欄を狭く揃える */
+.glass-sheet .yy-kv__v input { width: 64px; }
+.glass-sheet .yy-kv__v select { max-width: 136px; }
+.glass-sheet .yy-kv__v .glass-sheet__unit { font-size: 11px; color: var(--yy-t3); }
+.glass-sheet .glass-sheet__wh input { width: 54px; }
+.glass-sheet .glass-sheet__wh .glass-sheet__x { color: var(--yy-t3); }
+
+/* 項目名の横の小さなリンク(別表) */
+.glass-sheet__keylink { margin-left: 6px; padding: 0; border: 0; background: none; font-size: 10.5px; color: var(--yy-acc-ink); cursor: pointer; }
+.glass-sheet__keylink:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+/* 条件の下の注記・エラー */
+.glass-sheet__note { margin: 6px 0 0; padding-left: 8px; border-left: 1px solid var(--yy-line); font-size: 11px; line-height: 1.6; color: var(--yy-t2); }
+.glass-sheet__note strong { font-weight: 700; color: #c8432f; }
+.glass-sheet__err { margin: 6px 0 0; font-size: 11px; line-height: 1.6; color: #c8432f; }
+
+/* 計算ログ(畳んでおく) */
+.glass-sheet__log { margin-top: 6px; }
+.glass-sheet__log summary { padding: 6px 0; font-size: 11px; color: var(--yy-t3); cursor: pointer; }
+.glass-sheet__log pre { max-height: 240px; margin: 0; padding: 6px 0; overflow: auto; border-top: 1px solid var(--yy-line); font-family: var(--font-mono), ui-monospace, monospace; font-size: 10.5px; line-height: 1.6; color: var(--yy-t2); white-space: pre-wrap; }
+
+/* 図:灰色の地に SVG */
+.glass-sheet__fig { height: 330px; flex-shrink: 0; }
+.glass-sheet__fig svg { display: block; width: 100%; height: 100%; }
+
+/* 板厚ごとの比較 */
+.glass-sheet__t { font-family: var(--yy-serif); font-size: 16px; font-weight: 500; }
+.glass-sheet__dim { color: var(--yy-t3); }
+.glass-sheet__judge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; }
+.glass-sheet__empty { padding: 10px 0; font-size: 12px; color: var(--yy-t3); border-bottom: 1px solid var(--yy-line); }
+
+/* 不足のときは答えの数字を赤みに */
+.glass-sheet__ng .yy-result__value { color: #ffb4a6; }
+
+/* 表は折り返さない(中央の段が狭いとき) */
+.glass-sheet .yy-tbl th, .glass-sheet .yy-tbl td { white-space: nowrap; padding-right: 8px; }
+.glass-sheet__foot { margin: 6px 0 0; font-size: 11px; color: var(--yy-t3); }

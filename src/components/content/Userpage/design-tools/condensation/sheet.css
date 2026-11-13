@@ -1,0 +1,105 @@
+/* ─────────── 結露検討の計算書の組版（モック「高級感 3」Q7）。共通の部品は globals.css の「計算書の組版」 ─────────── */
+
+.yy-cond { color: var(--yy-ink); font-size: 12px; }
+
+/* 答え：1 行に収まるよう 32px（モックと同じ）。結露するときは赤みの字 */
+.yy-cond__verdict .yy-result__value { font-size: 32px; line-height: 1.1; }
+.yy-cond__verdict.is-ng .yy-result__value { color: #ffb4a6; }
+.yy-cond__why { margin: 0; font-size: 12px; line-height: 1.7; color: var(--yy-t2); }
+
+/* 入力：下線 1 本だけ。単位は小さく */
+.yy-cond input[type='number'], .yy-cond select { font-variant-numeric: tabular-nums; }
+.yy-cond__num { width: 40px; height: 22px; padding: 0 2px; border: 0; border-bottom: 1px solid var(--yy-line); background: transparent; font-size: 12px; text-align: right; color: var(--yy-ink); -moz-appearance: textfield; appearance: textfield; }
+.yy-cond__num::-webkit-outer-spin-button, .yy-cond__num::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.yy-cond__num.is-rh { width: 30px; }
+.yy-cond__num.is-d { width: 42px; }
+.yy-cond__num:focus { outline: 0; border-bottom-color: var(--yy-acc); }
+.yy-cond__num:disabled, .yy-cond select:disabled { color: var(--yy-ink); opacity: 1; cursor: default; border-bottom-color: transparent; }
+.yy-cond__u { display: inline-flex; align-items: baseline; gap: 2px; font-size: 11px; color: var(--yy-t2); }
+.yy-cond .yy-kv__v { gap: 4px; }
+.yy-cond__city { max-width: 52px; }
+.yy-cond__room { max-width: 64px; }
+.yy-cond__preset { max-width: 176px; }
+
+/* 季節：字だけの切替。選ばれた方に緑の下線 */
+.yy-cond__seg { display: inline-flex; gap: 10px; }
+.yy-cond__seg button { height: 22px; padding: 0 2px; border: 0; border-bottom: 1px solid transparent; background: none; font-size: 12px; color: var(--yy-t3); cursor: pointer; }
+.yy-cond__seg button[aria-pressed='true'] { color: var(--yy-ink); border-bottom-color: var(--yy-acc); }
+.yy-cond__seg button:disabled { cursor: default; }
+
+/* 表面の熱抵抗（畳んでおく） */
+.yy-cond__more { margin-top: 2px; }
+.yy-cond__more summary { height: 24px; display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--yy-t3); cursor: pointer; list-style: none; }
+.yy-cond__more summary::-webkit-details-marker { display: none; }
+.yy-cond__more summary::before { content: '+'; font-family: var(--font-mono), monospace; }
+.yy-cond__more[open] summary::before { content: '−'; }
+.yy-cond__hint { margin: 4px 0 0; font-size: 10.5px; line-height: 1.6; color: var(--yy-t3); }
+
+/* II 構成：番号 名前 ……… 厚さ mm。名前を押すと下に編集欄が開く */
+.yy-cond__layers { margin: 0; padding: 0; list-style: none; }
+.yy-cond__row { height: 26px; display: flex; align-items: center; font-size: 12px; }
+.yy-cond__no { width: 22px; flex-shrink: 0; font-family: var(--yy-serif); font-size: 13px; color: var(--yy-t3); font-variant-numeric: lining-nums tabular-nums; }
+.yy-cond__name { min-width: 0; max-width: 150px; padding: 0; border: 0; background: none; font-size: 12px; color: var(--yy-ink); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.yy-cond__name:hover { color: var(--yy-acc-ink); }
+.yy-cond__d { font-variant-numeric: tabular-nums; }
+.yy-cond__unit { margin-left: 3px; font-size: 11px; color: var(--yy-t2); }
+.yy-cond__layer.is-hover .yy-cond__name, .yy-cond__layer.is-open .yy-cond__name { color: var(--yy-acc-ink); }
+.yy-cond__layer.is-ex .yy-cond__name, .yy-cond__layer.is-ex .yy-cond__num, .yy-cond__layer.is-ex .yy-cond__d { color: var(--yy-t3); }
+.yy-cond__layer.is-ng .yy-cond__no { color: #c8432f; }
+.yy-cond__edit { display: flex; flex-direction: column; gap: 4px; padding: 6px 0 8px 22px; border-bottom: 1px solid var(--yy-line); }
+.yy-cond__edit select { width: 100%; height: 24px; padding: 0 2px; border: 0; border-bottom: 1px solid var(--yy-line); background: transparent; font-size: 12px; color: var(--yy-ink); }
+.yy-cond__edit select:focus { outline: 0; border-bottom-color: var(--yy-acc); }
+.yy-cond__editrow { display: flex; align-items: center; gap: 10px; font-size: 11px; color: var(--yy-t2); }
+.yy-cond__rsd { font-family: var(--font-mono), monospace; font-size: 10.5px; color: var(--yy-t3); font-variant-numeric: tabular-nums; }
+.yy-cond__bond { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+.yy-cond__bond input { accent-color: var(--yy-acc); }
+.yy-cond__ops { margin-left: auto; display: inline-flex; gap: 2px; }
+.yy-cond__ops button { width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; border: 0; background: none; color: var(--yy-t3); cursor: pointer; }
+.yy-cond__ops button:hover { color: var(--yy-ink); }
+.yy-cond__ops button:disabled { opacity: 0.3; cursor: default; }
+
+/* 合計：上に墨の 1px */
+.yy-cond__sum { height: 26px; display: flex; align-items: center; margin-top: 4px; border-top: 1px solid var(--yy-ink); font-size: 12px; }
+.yy-cond__sum span:first-child { color: var(--yy-t2); }
+.yy-cond__sum b { font-weight: 700; font-variant-numeric: tabular-nums; }
+.yy-cond__tools { display: flex; gap: 14px; padding-top: 4px; }
+.yy-cond__tools button { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0; border: 0; border-bottom: 1px solid var(--yy-line); background: none; font-size: 11px; color: var(--yy-t2); cursor: pointer; }
+.yy-cond__tools button:hover { color: var(--yy-ink); border-bottom-color: var(--yy-ink); }
+
+/* III 条件を変えて試す：行ごと押せる */
+.yy-cond__try { width: 100%; height: 24px; display: flex; align-items: center; padding: 0; border: 0; background: none; font-size: 12px; color: var(--yy-ink); text-align: left; cursor: pointer; }
+.yy-cond__try:disabled { cursor: default; }
+.yy-cond__try:not(:disabled):hover .yy-cond__tryk { color: var(--yy-acc-ink); }
+.yy-cond__tryk { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.yy-cond__tryv { flex-shrink: 0; font-size: 11px; color: var(--yy-t2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.yy-cond__tryv.is-ng { color: #c8432f; }
+
+/* 図：灰色の面。狭い幅では横に送る */
+.yy-cond__fig { overflow-x: auto; }
+.yy-cond__fig svg { min-width: 480px; }
+.yy-cond__figbar { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 16px; margin-top: -4px; font-size: 11px; color: var(--yy-t2); }
+.yy-cond__legend { display: inline-flex; align-items: center; gap: 6px; }
+.yy-cond__legend i { display: inline-block; width: 20px; height: 0; }
+.yy-cond__legend i.is-temp { height: 3px; border-radius: 2px; background: linear-gradient(90deg, #2f78c4, #e0733a); }
+.yy-cond__legend i.is-dew { border-top: 1.6px dashed #2f78c4; }
+.yy-cond__legend i.is-zone { width: 12px; height: 9px; background: rgba(47, 120, 196, 0.14); box-shadow: inset 0 0 0 1px #2f78c4; }
+.yy-cond__focus { font-family: var(--font-mono), monospace; font-size: 10.5px; color: var(--yy-t3); font-variant-numeric: tabular-nums; }
+.yy-cond__view { margin-left: auto; display: inline-flex; gap: 10px; }
+.yy-cond__view button { height: 22px; padding: 0 2px; border: 0; border-bottom: 1px solid transparent; background: none; font-size: 11px; color: var(--yy-t3); cursor: pointer; }
+.yy-cond__view button[aria-pressed='true'] { color: var(--yy-ink); border-bottom-color: var(--yy-acc); }
+
+/* IV 界面の表 */
+.yy-cond__tbl th:first-child, .yy-cond__tbl td:first-child { width: 46%; }
+.yy-cond__tbl td:first-child { max-width: 0; }
+.yy-cond__face { display: flex; align-items: center; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.yy-cond__face .yy-dot { margin-right: 6px; }
+.yy-cond__dew { color: var(--yy-t3); }
+.yy-cond__muted { color: var(--yy-t3); font-size: 11px; }
+.yy-cond__tbl tr.is-hover td { background: var(--yy-surf); }
+.yy-cond__tbl tr.is-hi.is-hover td { background: var(--yy-acc-bg); }
+.yy-cond__tbl tr.is-worst-ng td { background: #fbefec; }
+.yy-cond__tbl tr.is-worst-ng td:first-child { padding-left: 8px; color: #c8432f; }
+.yy-cond__tbl tr.is-worst-ng .yy-dot { background: #c8432f; }
+.yy-cond__notes { margin: 0; font-size: 10.5px; line-height: 1.7; color: var(--yy-t3); }
+.yy-cond__tbl th + th, .yy-cond__tbl td + td { padding-left: 8px; white-space: nowrap; }
+.yy-cond__tbl td:first-child { padding-right: 4px; }

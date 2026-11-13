@@ -310,14 +310,16 @@ export default function NewsFeed({ onToggleBookmark, isBookmarked, selectedMonth
         // 配信元ごとの色は、色の帯ではなく小さな点で示す（本文は組版の白のまま）
         const highlight = getSourceHighlightColor(item.source)
         return (
-          <div key={`${item.source}-${item.id}`} className="yy-news__row">
+          <div key={`${item.source}-${item.id}`} className={`yy-news__row${i === 0 ? ' is-lead' : ''}`}>
             <span className="yy-news__no yy-serif">{String(i + 1).padStart(2, '0')}</span>
-            <div className="yy-news__body">
-              <div className="yy-news__meta">
+            <span className="yy-news__src">
+              <span className="yy-news__srcname">
                 <span className={`yy-news__dot ${highlight.bg}`} aria-hidden="true" />
-                <span>{item.source}</span>
-                <span>{item.pubDate ? new Date(item.pubDate).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}</span>
-              </div>
+                {item.source.replace(/[（(]検索[)）]$/, '')}
+              </span>
+              <span className="yy-news__time">{item.pubDate ? new Date(item.pubDate).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}</span>
+            </span>
+            <div className="yy-news__body">
               <a href={item.link} target="_blank" rel="noopener noreferrer" className="yy-news__title">
                 {item.title}
               </a>

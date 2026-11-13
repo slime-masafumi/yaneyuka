@@ -1,0 +1,32 @@
+/* 24 時間換気の計算書(VentSheet.tsx。モック「高級感 3」Q8)。共通の .yy-sheet* / .yy-kv* / .yy-tbl は globals.css */
+
+/* 数値入力の矢印は出さない(1px の下線だけで入力欄を示す) */
+.yy-vent input[type='number']::-webkit-inner-spin-button,
+.yy-vent input[type='number']::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.yy-vent input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
+
+/* I 条件の入力幅 */
+.yy-vent__in { width: 48px; }
+.yy-vent__in--s { width: 42px; }
+.yy-vent__in--name { width: 104px; }
+.yy-vent__unit { font-size: 11px; color: var(--yy-t3); }
+
+/* 計算の過程の下の注記 */
+.yy-vent__note { margin: 6px 0 0; font-size: 10.5px; line-height: 1.7; color: var(--yy-t3); }
+
+/* 図 */
+.yy-vent__fig svg { display: block; width: 100%; height: auto; max-height: 340px; }
+
+/* IV 部屋ごとの換気量:行の中で直接書き換える */
+.yy-vent__tbl td input { width: 100%; max-width: 72px; height: 22px; padding: 0 2px; border: 0; border-bottom: 1px solid transparent; background: transparent; font: inherit; color: inherit; font-variant-numeric: tabular-nums; }
+.yy-vent__tbl td input.yy-vent__rname { max-width: 140px; }
+.yy-vent__tbl td input:hover { border-bottom-color: var(--yy-line); }
+.yy-vent__tbl td input:focus { outline: 0; border-bottom-color: var(--yy-acc); }
+.yy-vent__name { display: flex; align-items: center; gap: 6px; }
+.yy-vent__del { border: 0; padding: 0 4px; background: none; font-size: 14px; line-height: 1; color: var(--yy-t3); cursor: pointer; }
+.yy-vent__del:hover { color: var(--yy-ink); }
+.yy-vent__add { align-self: flex-start; margin-top: 10px; padding: 0 0 1px; border: 0; border-bottom: 1px solid var(--yy-ink); background: none; font-size: 12px; color: var(--yy-ink); cursor: pointer; }
+.yy-vent__add:hover { color: var(--yy-acc-ink); border-bottom-color: var(--yy-acc); }
+
+/* III 同じ分類のツール */
+.yy-vent__tools { margin: 0; padding: 0; list-style: none; }

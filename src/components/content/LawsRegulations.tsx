@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import RegulationCheck from './regulations/RegulationCheck';
+import LawCaseCheck from './regulations/LawCaseCheck';
 import PageHead, { Stat } from '../ui/PageHead';
 
 type RegulationTab = 'links' | 'check';
@@ -303,6 +304,9 @@ const LawsRegulations: React.FC = () => {
           );
         })}
       </div>
+
+      {/* II 対象法令チェック（モック Q2）：物件カルテの案件の条件で判定した結果 */}
+      <LawCaseCheck onOpenCheck={() => setTab('check')} />
 
       {/* iPhone/iPad アプリ：表の下に 1 行で */}
       <div className="yy-law__app">

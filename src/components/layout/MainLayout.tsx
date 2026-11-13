@@ -55,6 +55,7 @@ import ContactsManagement from '../content/Userpage/ContactsManagement';
 import DesignTools from '../content/Userpage/DesignTools';
 import ToolIndex from '../content/ToolIndex';
 import MaterialNav from '../content/MaterialNav';
+import { MakerNews, MaterialSide, MaterialSponsor } from '../content/MaterialSide';
 import { INDEX_MENUS } from '@/lib/railMenu';
 import { OPEN_SCREEN_EVENT } from '@/lib/openScreen';
 import DesignInfo from '../content/Userpage/DesignInfo';
@@ -1337,7 +1338,23 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
                     onOpen={handleSubcategoryClick}
                   />
                 )}
-                {CATEGORY_SUBCATEGORIES[activeContent] ? <div className="yy-matbody">{renderContent()}</div> : renderContent()}
+                {CATEGORY_SUBCATEGORIES[activeContent] ? (
+                  // 建材ページ（モック「高級感 3」Q9）：左に掲載枠、中にメーカーの表、右に案件・ツール・調べもの、下にメーカーのお知らせ
+                  <div className="yy-matpage">
+                    <MaterialSponsor
+                      category={activeContent}
+                      subcategory={materialSubcategory || CATEGORY_SUBCATEGORIES[activeContent][0]}
+                      onRegister={() => handleMenuClick('registration')}
+                    />
+                    <div className="yy-matbody">{renderContent()}</div>
+                    <MaterialSide category={activeContent} subcategory={materialSubcategory || CATEGORY_SUBCATEGORIES[activeContent][0]} />
+                    <div className="yy-matpage__news">
+                      <MakerNews category={activeContent} />
+                    </div>
+                  </div>
+                ) : (
+                  renderContent()
+                )}
               </div>
               {/* 右側: 参考資料 / 資格動画 */}
               {!isUserpageMenu() && (activeContent === 'regulations' || activeContent === 'qualifications') && (
@@ -1354,8 +1371,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
                 </aside>
               )}
               {/* 右側: 折り畳み可能な作業music（Userpage内ツール向け） */}
-              {/* ツール一覧（左カラムの 設計ツール・一般ツール・外部ツール）は中央を広く使うので出さない */}
-              {isUserpageMenu() && !Object.values(INDEX_MENUS).includes(activeContent as never) && (
+              {/* ツール一覧と設計ツール（計算書の 3 段組）は中央を広く使うので出さない（モック「高級感 3」） */}
+              {isUserpageMenu() && !Object.values(INDEX_MENUS).includes(activeContent as never) && activeContent !== 'design-tools' && (
                 <div className="hidden lg:block shrink-0">
                   <UserpageMusicPanel />
                 </div>
@@ -1364,8 +1381,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
           </main>
           {/* 右サイドバー：広告欄（Userpageメニュー以外で表示） */}
           {/* iPadサイズ(md:768px)以上で表示、最小200px〜最大300pxで縮小対応 */}
-          {/* ホームはモック「高級感 3」どおり 3 段組で中央を使い切るので、広告欄を出さない */}
-          {!isUserpageMenu() && !(pathname === '/' && activeContent === 'topix') && (() => {
+          {/* ホーム・建材・調べものはモック「高級感 3」どおり中央を使い切るので、広告欄を出さない（建材の掲載枠は左列へ移した） */}
+          {!isUserpageMenu() && !(pathname === '/' && activeContent === 'topix') && !CATEGORY_SUBCATEGORIES[activeContent] && !pathname.startsWith('/lookup') && (() => {
             // プライバシーポリシーページ判定（広告を非表示にして関連プライポリ一覧を出す）
             // - 個別アプリページ: URLパス /xxx-app-privacy-policy/ で開いている
             // - yaneyuka.com 本体のプライポリ: フッターバー「プライバシーポリシー」から SPA遷移 → URLは / のまま、activeContent='privacy-policy'

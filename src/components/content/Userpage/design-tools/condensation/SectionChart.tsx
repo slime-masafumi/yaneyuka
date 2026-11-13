@@ -6,6 +6,7 @@
  */
 import React, { useId } from 'react';
 import { dewPoint, hatchOf, type Hatch, type Profile } from '@/lib/condensation';
+import SheetSectionSvg from './SheetSectionSvg';
 
 const TEMP = '#c62828';
 const DEW = '#1d4ed8';
@@ -41,19 +42,24 @@ interface Props {
   hoverK?: number | null;
   hoverLayer?: number | null;
   onHover?: (k: number | null, layerIndex: number | null) => void;
+  /** sheet = 計算書の組版（モック Q7）の図。灰色の面に置く前提で背景を抜き、層名を引き出し線で出す */
+  variant?: 'default' | 'sheet';
 }
 
-const W = 860;
-const H = 360;
-const PT = 40;
-const PB = 34;
-const Z = 96;
 
-export default function SectionChart({ profile: p, ti, rhi, te, rhe, outLabel, view, layerNo, hoverK = null, hoverLayer = null, onHover }: Props) {
+export default function SectionChart({ profile: p, ti, rhi, te, rhe, outLabel, view, layerNo, hoverK = null, hoverLayer = null, onHover, variant = 'default' }: Props) {
   const uid = useId().replace(/:/g, '');
   const n = p.layers.length;
   if (n === 0) return null;
   const isGround = outLabel === '地盤';
+  const sheet = variant === 'sheet';
+  // 計算書の図は狭い中段に置くので、横幅を詰めて字を大きく見せる
+  const W = sheet ? 640 : 860;
+  const H = sheet ? 340 : 360;
+  const Z = sheet ? 72 : 96;
+  // 計算書の図は上に層名の引き出し線を 2 段で置くので、上の余白を広く取る
+  const PT = sheet ? 62 : 40;
+  const PB = sheet ? 30 : 34;
 
   // 層の幅
   const x0 = Z;
@@ -135,6 +141,16 @@ export default function SectionChart({ profile: p, ti, rhi, te, rhe, outLabel, v
     for (let i = 0; i < n; i++) if (x >= xs[i] && x < xs[i + 1]) li = i;
     onHover(k, li);
   };
+
+  if (sheet) {
+    return (
+      <SheetSectionSvg
+        p={p} ti={ti} rhi={rhi} te={te} rhe={rhe} outLabel={outLabel} view={view} layerNo={layerNo}
+        hoverK={hoverK} hoverLayer={hoverLayer} onMove={handleMove} onLeave={() => onHover?.(null, null)}
+        uid={uid} xs={xs} y={y} ticks={ticks} zones={zones} line={line} W={W} H={H} PT={PT} PB={PB} isGround={isGround}
+      />
+    );
+  }
 
   return (
     <svg

@@ -22,6 +22,17 @@ import FireEquipment from '@/components/content/Userpage/design-tools/3_FireEqui
 import BuildingRegulations from '@/components/content/Userpage/design-tools/7_BuildingRegulations';
 import PropertyCard from '@/components/content/Userpage/design-tools/PropertyCard';
 import ForceFlowTool from '@/components/forceflow/ForceFlowTool';
+import { ModeBar, SheetHead } from '@/components/ui/Sheet';
+
+/**
+ * 計算書の組版(モック「高級感 3」Q3 / Q7 / Q8)に作り替えたツール。
+ * これらは自分で ModeBar と見出し(ボタンつき)を出すので、ここでは出さない。
+ */
+const SHEET_TOOLS = new Set(['glass-thickness', 'condensation', 'vent-24h']);
+/** ツールの通し番号(一覧と同じ 01〜) */
+const TOOL_NO: Record<string, string> = Object.fromEntries(
+  DESIGN_TOOL_MENU.flatMap((c) => c.subTabs).map((t, i) => [t.id, String(i + 1).padStart(2, '0')]),
+);
 
 // --- カテゴリ＆サブタブ定義 ---
 // 並びとラベルは src/lib/designToolsMenu.ts が唯一の定義。
@@ -55,8 +66,8 @@ const TOOL_COMPONENTS: Record<string, React.ReactNode> = {
   'jpma-search': <ColorProposal defaultTab="jpma" hideTabBar />,
   'shadow-regulation': <PlaceholderTool name="日影規制" description="日影規制の検討ツールです。（準備中）" />,
   'setback-regulation': <PlaceholderTool name="斜線制限" description="道路斜線・隣地斜線・北側斜線の検討ツールです。（準備中）" />,
-  'glass-thickness': <GlassThickness hideHeader />,
-  'condensation': <MultiLayerCondensation hideHeader />,
+  'glass-thickness': <GlassThickness hideHeader sheet />,
+  'condensation': <MultiLayerCondensation hideHeader sheet />,
   'building-rainwater': <RainwaterCalculation mode="building" hideTabBar />,
   'section': <StructuralTools defaultTab="section" hideTabBar />,
   'portal': <StructuralTools defaultTab="portal" hideTabBar />,
@@ -67,7 +78,7 @@ const TOOL_COMPONENTS: Record<string, React.ReactNode> = {
   'unit-weight-calc': <UnitVolumeCalculation defaultTab="calculator" hideTabBar />,
   'density-list': <UnitVolumeCalculation defaultTab="reference" hideTabBar />,
   'load-calc': <PlaceholderTool name="荷重計算" description="建築物の荷重計算ツールです。（準備中）" />,
-  'vent-24h': <VentilationCalculation defaultTab="sickhouse" hideTabBar />,
+  'vent-24h': <VentilationCalculation defaultTab="sickhouse" hideTabBar sheet />,
   'vent-fire': <VentilationCalculation defaultTab="fire" hideTabBar />,
   'vent-occupancy': <VentilationCalculation defaultTab="occupancy" hideTabBar />,
   'aircon-home': <AirconSelection defaultTab="home" hideTabBar />,
@@ -133,7 +144,19 @@ const DesignTools: React.FC = () => {
 
   return (
     <div className="p-0 bg-white rounded-lg">
-      <div className="flex items-baseline mb-2">
+      {/* lg 以上：モック「高級感 3」の頭。案件の切替 + 1 行の見出し(計算書型のツールは自分で出す) */}
+      {!SHEET_TOOLS.has(activeSubTab) && (
+        <div className="hidden lg:block">
+          <ModeBar />
+          <SheetHead
+            no={TOOL_NO[activeSubTab] ?? ''}
+            en={`tool · ${currentCategory.label}`}
+            title={currentSubTab?.title ?? ''}
+            desc={currentSubTab?.description}
+          />
+        </div>
+      )}
+      <div className="flex items-baseline mb-2 lg:hidden">
         <h2 className="text-xl font-semibold">設計ツール</h2>
         <span className="text-red-600 font-bold text-sm ml-4">※この機能は現在β版です。ご意見をぜひお聞かせください。</span>
       </div>
@@ -161,7 +184,7 @@ const DesignTools: React.FC = () => {
 
       {/* 2段目: 選択中ツールの説明文。
           lg 以上はタブ行を畳むので、いまどこにいるかをパンくずで出す。 */}
-      <div className="px-4 py-3 bg-[#3b3b3b]">
+      <div className="px-4 py-3 bg-[#3b3b3b] lg:hidden">
         <p className="hidden lg:block text-[10.5px] text-gray-400 mb-1">
           設計ツール ＞ {currentCategory.label} ＞ {currentSubTab?.label}
         </p>

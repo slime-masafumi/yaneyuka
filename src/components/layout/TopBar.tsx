@@ -94,7 +94,7 @@ function buildCrumbs(
   }
 
   const screen = active ? SCREEN[active] : undefined;
-  if (screen?.group === 'info') return [home, { label: '情報' }, { label: screen.label }];
+  if (screen?.group === 'info') return [home, { label: screen.label }];
   if (screen?.group === 'material') {
     const sub = search.get('subcategory');
     return [

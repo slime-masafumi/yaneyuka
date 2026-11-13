@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { FiCopy, FiInfo } from 'react-icons/fi';
+import VentSheet from './VentSheet';
 
 // --- アイコンコンポーネント ---
 const InfoIcon = () => <FiInfo className="h-4 w-4 text-gray-400 inline" />;
@@ -17,9 +18,11 @@ type TabMode = 'sickhouse' | 'fire' | 'occupancy';
 interface VentilationCalculationProps {
   defaultTab?: TabMode;
   hideTabBar?: boolean;
+  /** true = 計算書の組版(モック「高級感 3」Q8)で出す。24 時間換気だけ */
+  sheet?: boolean;
 }
 
-const VentilationCalculation: React.FC<VentilationCalculationProps> = ({ defaultTab, hideTabBar }) => {
+const VentilationCalculation: React.FC<VentilationCalculationProps> = ({ defaultTab, hideTabBar, sheet }) => {
   // --- 状態管理 ---
   const [activeTab, setActiveTab] = useState<TabMode>(defaultTab ?? 'sickhouse');
   useEffect(() => { if (defaultTab) setActiveTab(defaultTab); }, [defaultTab]);
@@ -160,6 +163,26 @@ const VentilationCalculation: React.FC<VentilationCalculationProps> = ({ default
       setTimeout(() => setCopyFeedback(''), 2000);
     });
   };
+
+  // 計算書の組版(24 時間換気だけ)。計算は上の useEffect のまま、並べ方だけ VentSheet に任せる
+  if (sheet && activeTab === 'sickhouse') {
+    return (
+      <VentSheet
+        areaM2={areaM2}
+        areaTsubo={areaTsubo}
+        height={height}
+        ach={ach}
+        onM2={handleM2Change}
+        onTsubo={handleTsuboChange}
+        onHeight={setHeight}
+        onAch={setAch}
+        resultVal={resultVal}
+        reqInletArea={reqInletArea}
+        onCopy={copyResult}
+        copied={!!copyFeedback}
+      />
+    );
+  }
 
   return (
     <div className="bg-white rounded-b-lg shadow-sm border-b border-gray-100">

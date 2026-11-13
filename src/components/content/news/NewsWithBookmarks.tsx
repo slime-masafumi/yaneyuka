@@ -1,8 +1,9 @@
 "use client"
 
 import React, { useEffect, useMemo, useState } from 'react'
-import PageHead from '../../ui/PageHead'
-import NewsFeed, { NewsItem, getSourceHighlightColor } from './NewsFeed'
+import PageHead, { Stat } from '../../ui/PageHead'
+import { HomeEvents } from '@/components/home/HomeParts'
+import NewsFeed, { NewsItem } from './NewsFeed'
 import { logEvent } from '@/lib/firebaseClient'
 import { listNewsBookmarks, setNewsBookmark, deleteNewsBookmark } from '@/lib/firebaseUserData'
 import { useAuth } from '@/lib/AuthContext'
@@ -10,6 +11,7 @@ import { db } from '@/lib/firebaseClient'
 import { collection, onSnapshot } from 'firebase/firestore'
 
 export default function NewsWithBookmarks() {
+  const [feedsTotal, setFeedsTotal] = useState<number | null>(null)
   const storageKey = 'newsBookmarks:v1'
   const { currentUser, isLoggedIn } = useAuth()
   const uid = currentUser?.uid || null
@@ -105,13 +107,20 @@ export default function NewsWithBookmarks() {
     return ['all', ...out]
   }, [])
 
+  // モック「高級感 3」Q10：左に I 業界ニュース / II メーカーのお知らせ、右に III イベント / IV 配信元 / V 保存した記事
   return (
     <div>
       <PageHead
         no="02"
         en="news"
         title="NEWS"
-        desc="建築・不動産・テック領域のニュースを要約し、出典へリンク。気になる記事はブックマークできます"
+        desc="建設業界のニュースと、建材メーカーのお知らせ"
+        right={
+          <>
+            <Stat n={NEWS_SOURCES.length} label="配信元" />
+            <Stat n={feedsTotal ?? '—'} label="メーカー" />
+          </>
+        }
       />
       <div className="yy-tabs">
         {months.map(m => (
@@ -126,89 +135,104 @@ export default function NewsWithBookmarks() {
           </button>
         ))}
       </div>
-      {/* スマホ: ブックマークを最上段に表示 */}
-      <div className="lg:hidden mb-4">
-        <div className="space-y-3">
-          <div className="text-sm font-semibold">ブックマーク</div>
-          {bookmarkedList.length === 0 && (
-            <div className="text-[12px] text-gray-500">ブックマークはまだありません。</div>
-          )}
-          <div className="space-y-2">
-            {bookmarkedList.map(b => {
-              const highlight = getSourceHighlightColor(b.source || '')
-              return (
-                <div key={`bm-${b.id}`} className="p-3 border rounded border-gray-200 bg-white relative">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1">
-                      <div className="text-[11px] text-gray-500">
-                        <span className={`px-1.5 py-0.5 ${highlight.bg} font-medium text-white`}>{b.source}</span>
-                      </div>
-                      <a href={b.link} target="_blank" rel="noopener noreferrer" className="text-[13px] font-medium text-blue-700 hover:underline">
-                        {b.title}
-                      </a>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => toggleBookmark(b)}
-                      className="shrink-0 text-[11px] px-2 py-1 rounded border bg-white hover:bg-gray-50 border-gray-300 text-gray-700"
-                      aria-label="ブックマーク解除"
-                    >
-                      解除
-                    </button>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+      <div className="yy-newspage">
+        <div className="yy-newspage__main">
+          <section>
+            <div className="yy-sec"><span className="yy-sec__no">I</span><span className="yy-sec__title">業界ニュース</span><span className="yy-sec__right">見出しと要約は配信元から</span></div>
+            <NewsFeed onToggleBookmark={toggleBookmark} isBookmarked={isBookmarked} selectedMonth={selectedMonth} />
+          </section>
+          <AllMakerNews onTotal={setFeedsTotal} />
         </div>
-      </div>
-      {/* PC: 2列表示 */}
-      <div className="hidden lg:grid grid-cols-3 gap-4 items-start">
-        <div className="col-span-2">
-          <NewsFeed onToggleBookmark={toggleBookmark} isBookmarked={isBookmarked} selectedMonth={selectedMonth} />
-        </div>
-        <div className="col-span-1">
-          <div className="sticky top-4 space-y-3">
-            <div className="text-sm font-semibold">ブックマーク</div>
-            {bookmarkedList.length === 0 && (
-              <div className="text-[12px] text-gray-500">ブックマークはまだありません。</div>
+        <aside className="yy-newspage__side">
+          <section>
+            <div className="yy-sec"><span className="yy-sec__no">III</span><span className="yy-sec__title">イベント</span><span className="yy-sec__right"><a href="/event/">これから</a></span></div>
+            <HomeEvents limit={4} />
+          </section>
+          <section>
+            <div className="yy-sec"><span className="yy-sec__no">IV</span><span className="yy-sec__title">配信元</span><span className="yy-sec__right">{NEWS_SOURCES.length}</span></div>
+            <ol className="yy-home__toc">
+              {NEWS_SOURCES.map(([name, kind], i) => (
+                <li key={name}>
+                  <span className="yy-srcrow">
+                    <span className="yy-home__tocno">{String(i + 1).padStart(2, '0')}</span>
+                    <span className="yy-home__toct">{name}</span>
+                    <span className="yy-leader" />
+                    <span className="yy-home__n">{kind}</span>
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </section>
+          <section>
+            <div className="yy-sec"><span className="yy-sec__no">V</span><span className="yy-sec__title">保存した記事</span><span className="yy-sec__right">{bookmarkedList.length} 件</span></div>
+            {bookmarkedList.length === 0 ? (
+              <p className="yy-home__empty">記事の「☆ 保存」でここに残ります</p>
+            ) : (
+              <ul className="yy-home__news">
+                {bookmarkedList.map(b => (
+                  <li key={`bm-${b.id}`}>
+                    <span className="yy-home__meta"><span>{b.source}</span>
+                      <button type="button" className="yy-linkbtn" onClick={() => toggleBookmark(b)} aria-label="ブックマーク解除">解除</button>
+                    </span>
+                    <a href={b.link} target="_blank" rel="noopener noreferrer" title={b.title}>{b.title}</a>
+                  </li>
+                ))}
+              </ul>
             )}
-            <div className="space-y-2">
-              {bookmarkedList.map(b => {
-                const highlight = getSourceHighlightColor(b.source || '')
-                return (
-                  <div key={`bm-${b.id}`} className="p-3 border rounded border-gray-200 bg-white relative">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1">
-                        <div className="text-[11px] text-gray-500">
-                          <span className={`px-1.5 py-0.5 ${highlight.bg} font-medium text-white`}>{b.source}</span>
-                        </div>
-                        <a href={b.link} target="_blank" rel="noopener noreferrer" className="text-[13px] font-medium text-blue-700 hover:underline">
-                          {b.title}
-                        </a>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => toggleBookmark(b)}
-                        className="shrink-0 text-[11px] px-2 py-1 rounded border bg-white hover:bg-gray-50 border-gray-300 text-gray-700"
-                        aria-label="ブックマーク解除"
-                      >
-                        解除
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        </div>
-      </div>
-      {/* スマホ: 本文エリア（1列表示） */}
-      <div className="lg:hidden">
-        <NewsFeed onToggleBookmark={toggleBookmark} isBookmarked={isBookmarked} selectedMonth={selectedMonth} />
+          </section>
+        </aside>
       </div>
     </div>
   )
 }
 
+/** /api/news の配信元(src/app/api/news/route.ts の sources と同じ並び)。検索 = Google ニュースの検索経由 */
+const NEWS_SOURCES: Array<[string, string]> = [
+  ['国土交通省', 'RSS'],
+  ['KENPLASE', 'RSS'],
+  ['建設通信新聞', 'RSS'],
+  ['R.E.port 不動産ニュース', 'RSS'],
+  ['建設工業新聞', 'RSS'],
+  ["LIFULL HOME'S PRESS", 'RSS'],
+  ['日経 xTECH', '検索'],
+  ['Lmaga.jp', '検索'],
+  ['WSJ 日本版', '検索'],
+  ['ELLE Japan', '検索'],
+]
 
+type Feed = { origin: string; name: string; categories: string[]; sample: string[]; newest: string }
+
+/** II メーカーのお知らせ(全分類)。src/data/maker-feeds.json は 65KB あるので開いたときに読む */
+function AllMakerNews({ onTotal }: { onTotal: (n: number) => void }) {
+  const [rows, setRows] = useState<Feed[] | null>(null)
+  useEffect(() => {
+    let alive = true
+    import('@/data/maker-feeds.json').then((m) => {
+      if (!alive) return
+      const all = (m.default as { feeds: Feed[] }).feeds || []
+      onTotal(all.length)
+      const ok = all.filter((f) => f.sample?.[0] && f.sample[0].length > 14 && !/休業|休暇|株式会社$/.test(f.sample[0]))
+      ok.sort((a, b) => (b.newest || '').localeCompare(a.newest || ''))
+      setRows(ok.slice(0, 8))
+    })
+    return () => { alive = false }
+  }, [onTotal])
+  if (!rows || !rows.length) return null
+  return (
+    <section className="yy-matnews yy-matnews--all">
+      <div className="yy-sec"><span className="yy-sec__no">II</span><span className="yy-sec__title">メーカーのお知らせ</span><span className="yy-sec__right">各社サイトから</span></div>
+      <ul>
+        {rows.map((f) => (
+          <li key={f.origin}>
+            <span className="yy-matnews__cat">{f.categories[0]}</span>
+            <span className="yy-matnews__name">{f.name}</span>
+            <a href={f.origin} target="_blank" rel="noopener noreferrer" title={f.sample[0]}>{f.sample[0]}</a>
+            <span className="yy-leader" />
+            <span className="yy-matnews__date">{f.newest?.slice(5).replace('-', '/')}</span>
+            <span className="yy-matnews__ext" aria-hidden="true">↗</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
