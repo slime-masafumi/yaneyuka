@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import MakerLink from '@/components/MakerLink';
 import MakerRows from '@/components/MakerRows';
+import MakerCount from './MakerCount';
+import './materials.css';
 import BasicKnowledge, { KnowledgeToggle, type KnowledgeEntry } from '@/components/BasicKnowledge';
 import KNOWLEDGE_JSON from '@/data/knowledge/waterproof.json';
 
@@ -13,12 +15,7 @@ interface WaterproofContentProps {
 }
 
 const WaterproofContent: React.FC<WaterproofContentProps> = ({ subcategory, onNavigateToRegistration }) => {
-  const [imageError, setImageError] = useState<{ [key: string]: boolean }>({});
   const [showBasicKnowledge, setShowBasicKnowledge] = useState(false);
-
-  const handleImageError = (imageName: string) => {
-    setImageError(prev => ({ ...prev, [imageName]: true }));
-  };
 
   // URLの有効性をチェックする関数
 
@@ -28,36 +25,9 @@ const WaterproofContent: React.FC<WaterproofContentProps> = ({ subcategory, onNa
     <MakerLink url={url} label={label} />
   );
 
-  const renderRecrutmentCard = () => (
-    <div className="border rounded p-3 bg-white text-sm w-[240px] h-[365px] card">
-      <img 
-        src={imageError['recruitment'] ? "/image/掲載募集中a.png" : "/image/掲載募集中a.png"} 
-        alt="掲載企業様募集中" 
-        className="w-30 mb-1 w-[clamp(300x,5vw,120px)]"
-        onError={() => handleImageError('recruitment')}
-      />
-      <div className="font-bold text-sm mb-2">□□□</div>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-          <a href="#" target="_blank" className="bg-gray-200 text-black text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">商品ページ</a>
-          <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">カタログ</a>
-          <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">営業所</a>
-          <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">お問い合わせ</a>
-          <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">サンプル</a>
-          <a href="#" className="bg-gray-200 text-center py-1 rounded text-[10px] hover:bg-gray-700 hover:text-white transition">CADDOWNLOAD</a>
-        </div>
-        {/* CTAは見出し右に配置するため、カード内ボタンは表示しない */}
-      <img 
-        src={imageError['commercial'] ? "/image/ChatGPT Image 2025年5月1日 16_25_41.webp" : "/image/ChatGPT Image 2025年5月1日 16_25_41.webp"} 
-        alt="Manufacturer Commercial" 
-        className="mt-3 w-full rounded w-[clamp(180px,22vw,320px)]"
-        onError={() => handleImageError('commercial')}
-      />
-    </div>
-  );
-
   const renderHeader = (title: string) => (
-    <div className="mb-2">
-      <h2 className="text-xl font-semibold inline">{title}</h2>
+    <div className="yy-mk2-head">
+      <h2 className="yy-mk2-title">{title}</h2>
       {onNavigateToRegistration ? (
         <a
           href="#"
@@ -65,25 +35,28 @@ const WaterproofContent: React.FC<WaterproofContentProps> = ({ subcategory, onNa
             e.preventDefault();
             onNavigateToRegistration();
           }}
-          className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]"
+          className="yy-mk2-reg"
         >
           掲載希望はコチラ
         </a>
       ) : (
-        <a href="/register" className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]">掲載希望はコチラ</a>
+        <a href="/register" className="yy-mk2-reg">掲載希望はコチラ</a>
       )}
     </div>
   );
 
   const renderUrethaneWaterproof = () => (
     <div>
-      <div className="mb-2">
-        <h2 className="text-xl font-semibold inline">ウレタン防水</h2>
+      <div className="yy-mk2-head">
+        <h2 className="yy-mk2-title">ウレタン防水</h2>
+        <MakerCount category="防水" page="ウレタン防水" />
         <button
           onClick={() => setShowBasicKnowledge(!showBasicKnowledge)}
-          className="ml-2 align-baseline text-blue-600 hover:text-blue-800 text-[11px] underline"
+          type="button"
+          className="yy-bk-toggle"
+          aria-expanded={showBasicKnowledge}
         >
-          <span className={`inline-block transition-transform ${showBasicKnowledge ? 'rotate-90' : ''}`}>&gt;</span> 基本知識
+          基本知識<span className={`yy-bk-chev${showBasicKnowledge ? ' is-open' : ''}`} aria-hidden="true" />
         </button>
         {onNavigateToRegistration ? (
           <a
@@ -92,21 +65,18 @@ const WaterproofContent: React.FC<WaterproofContentProps> = ({ subcategory, onNa
               e.preventDefault();
               onNavigateToRegistration();
             }}
-            className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]"
+            className="yy-mk2-reg"
           >
             掲載希望はコチラ
           </a>
         ) : (
-          <a href="/register" className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]">掲載希望はコチラ</a>
+          <a href="/register" className="yy-mk2-reg">掲載希望はコチラ</a>
         )}
       </div>
       
       {/* 基本知識トグル */}
       {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
       
-      <div className="flex flex-wrap gap-2 mb-8">
-        {renderRecrutmentCard()}
-      </div>
 
       <div className="mt-4 text-[13px]">
         <MakerRows category="防水" page="ウレタン防水" />
@@ -116,13 +86,16 @@ const WaterproofContent: React.FC<WaterproofContentProps> = ({ subcategory, onNa
 
   const renderAsphaltWaterproof = () => (
     <div>
-      <div className="mb-2">
-        <h2 className="text-xl font-semibold inline">アスファルト防水</h2>
+      <div className="yy-mk2-head">
+        <h2 className="yy-mk2-title">アスファルト防水</h2>
+        <MakerCount category="防水" page="アスファルト防水" />
         <button
           onClick={() => setShowBasicKnowledge(!showBasicKnowledge)}
-          className="ml-2 align-baseline text-blue-600 hover:text-blue-800 text-[11px] underline"
+          type="button"
+          className="yy-bk-toggle"
+          aria-expanded={showBasicKnowledge}
         >
-          <span className={`inline-block transition-transform ${showBasicKnowledge ? 'rotate-90' : ''}`}>&gt;</span> 基本知識
+          基本知識<span className={`yy-bk-chev${showBasicKnowledge ? ' is-open' : ''}`} aria-hidden="true" />
         </button>
         {onNavigateToRegistration ? (
           <a
@@ -131,21 +104,18 @@ const WaterproofContent: React.FC<WaterproofContentProps> = ({ subcategory, onNa
               e.preventDefault();
               onNavigateToRegistration();
             }}
-            className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]"
+            className="yy-mk2-reg"
           >
             掲載希望はコチラ
           </a>
         ) : (
-          <a href="/register" className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]">掲載希望はコチラ</a>
+          <a href="/register" className="yy-mk2-reg">掲載希望はコチラ</a>
         )}
       </div>
       
       {/* 基本知識トグル */}
       {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
       
-      <div className="flex flex-wrap gap-2 mb-8">
-        {renderRecrutmentCard()}
-      </div>
 
       <div className="mt-4 text-[13px]">
         <MakerRows category="防水" page="アスファルト防水" />
@@ -155,13 +125,16 @@ const WaterproofContent: React.FC<WaterproofContentProps> = ({ subcategory, onNa
 
   const renderSheetWaterproof = () => (
     <div>
-      <div className="mb-2">
-        <h2 className="text-xl font-semibold inline">シート防水</h2>
+      <div className="yy-mk2-head">
+        <h2 className="yy-mk2-title">シート防水</h2>
+        <MakerCount category="防水" page="シート防水" />
         <button
           onClick={() => setShowBasicKnowledge(!showBasicKnowledge)}
-          className="ml-2 align-baseline text-blue-600 hover:text-blue-800 text-[11px] underline"
+          type="button"
+          className="yy-bk-toggle"
+          aria-expanded={showBasicKnowledge}
         >
-          <span className={`inline-block transition-transform ${showBasicKnowledge ? 'rotate-90' : ''}`}>&gt;</span> 基本知識
+          基本知識<span className={`yy-bk-chev${showBasicKnowledge ? ' is-open' : ''}`} aria-hidden="true" />
         </button>
         {onNavigateToRegistration ? (
           <a
@@ -170,21 +143,18 @@ const WaterproofContent: React.FC<WaterproofContentProps> = ({ subcategory, onNa
               e.preventDefault();
               onNavigateToRegistration();
             }}
-            className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]"
+            className="yy-mk2-reg"
           >
             掲載希望はコチラ
           </a>
         ) : (
-          <a href="/register" className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]">掲載希望はコチラ</a>
+          <a href="/register" className="yy-mk2-reg">掲載希望はコチラ</a>
         )}
       </div>
       
       {/* 基本知識トグル */}
       {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
       
-      <div className="flex flex-wrap gap-2 mb-8">
-        {renderRecrutmentCard()}
-      </div>
 
       <div className="mt-4 text-[13px]">
         <MakerRows category="防水" page="シート防水" />
@@ -194,13 +164,16 @@ const WaterproofContent: React.FC<WaterproofContentProps> = ({ subcategory, onNa
 
   const renderFRPWaterproof = () => (
     <div>
-      <div className="mb-2">
-        <h2 className="text-xl font-semibold inline">FRP防水</h2>
+      <div className="yy-mk2-head">
+        <h2 className="yy-mk2-title">FRP防水</h2>
+        <MakerCount category="防水" page="FRP防水" />
         <button
           onClick={() => setShowBasicKnowledge(!showBasicKnowledge)}
-          className="ml-2 align-baseline text-blue-600 hover:text-blue-800 text-[11px] underline"
+          type="button"
+          className="yy-bk-toggle"
+          aria-expanded={showBasicKnowledge}
         >
-          <span className={`inline-block transition-transform ${showBasicKnowledge ? 'rotate-90' : ''}`}>&gt;</span> 基本知識
+          基本知識<span className={`yy-bk-chev${showBasicKnowledge ? ' is-open' : ''}`} aria-hidden="true" />
         </button>
         {onNavigateToRegistration ? (
           <a
@@ -209,21 +182,18 @@ const WaterproofContent: React.FC<WaterproofContentProps> = ({ subcategory, onNa
               e.preventDefault();
               onNavigateToRegistration();
             }}
-            className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]"
+            className="yy-mk2-reg"
           >
             掲載希望はコチラ
           </a>
         ) : (
-          <a href="/register" className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]">掲載希望はコチラ</a>
+          <a href="/register" className="yy-mk2-reg">掲載希望はコチラ</a>
         )}
       </div>
       
       {/* 基本知識トグル */}
       {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
       
-      <div className="flex flex-wrap gap-2 mb-8">
-        {renderRecrutmentCard()}
-      </div>
 
       <div className="mt-4 text-[13px]">
         <MakerRows category="防水" page="FRP防水" />
@@ -233,13 +203,16 @@ const WaterproofContent: React.FC<WaterproofContentProps> = ({ subcategory, onNa
 
   const renderOtherWaterproof = () => (
     <div>
-      <div className="mb-2">
-        <h2 className="text-xl font-semibold inline">防水 その他</h2>
+      <div className="yy-mk2-head">
+        <h2 className="yy-mk2-title">防水 その他</h2>
+        <MakerCount category="防水" page="防水その他" />
         <button
           onClick={() => setShowBasicKnowledge(!showBasicKnowledge)}
-          className="ml-2 align-baseline text-blue-600 hover:text-blue-800 text-[11px] underline"
+          type="button"
+          className="yy-bk-toggle"
+          aria-expanded={showBasicKnowledge}
         >
-          <span className={`inline-block transition-transform ${showBasicKnowledge ? 'rotate-90' : ''}`}>&gt;</span> 基本知識
+          基本知識<span className={`yy-bk-chev${showBasicKnowledge ? ' is-open' : ''}`} aria-hidden="true" />
         </button>
         {onNavigateToRegistration ? (
           <a
@@ -248,21 +221,18 @@ const WaterproofContent: React.FC<WaterproofContentProps> = ({ subcategory, onNa
               e.preventDefault();
               onNavigateToRegistration();
             }}
-            className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]"
+            className="yy-mk2-reg"
           >
             掲載希望はコチラ
           </a>
         ) : (
-          <a href="/register" className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]">掲載希望はコチラ</a>
+          <a href="/register" className="yy-mk2-reg">掲載希望はコチラ</a>
         )}
       </div>
       
       {/* 基本知識トグル */}
       {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
       
-      <div className="flex flex-wrap gap-2 mb-8">
-        {renderRecrutmentCard()}
-      </div>
 
       <div className="text-[13px]">
         <MakerRows category="防水" page="防水その他" />
@@ -273,9 +243,6 @@ const WaterproofContent: React.FC<WaterproofContentProps> = ({ subcategory, onNa
   const renderGenericCategory = (title: string) => (
     <div>
       {renderHeader(title)}
-      <div className="flex flex-wrap gap-2 mb-8">
-        {renderRecrutmentCard()}
-      </div>
 
       <div className="text-[13px] flex items-start gap-2">
         <span className="w-[180px]">・シーカ・ジャパン</span>

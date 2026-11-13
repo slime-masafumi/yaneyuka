@@ -241,7 +241,7 @@ export default function EventsWithBookmarks() {
   return (
     <div>
       <PageHead
-        no="03"
+        no="05"
         en="events"
         title="イベント"
         desc="建築・建設の展示会"

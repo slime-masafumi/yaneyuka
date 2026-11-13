@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import MakerLink from '@/components/MakerLink';
 import MakerRows from '@/components/MakerRows';
+import MakerCount from './MakerCount';
+import './materials.css';
 import BasicKnowledge, { KnowledgeToggle, type KnowledgeEntry } from '@/components/BasicKnowledge';
 import KNOWLEDGE_JSON from '@/data/knowledge/exterior-wall.json';
 
@@ -21,76 +23,27 @@ const ExteriorWallContent: React.FC<ExteriorWallContentProps> = ({ subcategory }
     <MakerLink url={url} label={label} />
   );
 
-  // 画像フォールバック処理
-  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-    const target = e.currentTarget;
-    // SVGプレースホルダー（UTF-8を安全に埋め込む）
-    const svg = `
-      <svg width="120" height="80" xmlns="http://www.w3.org/2000/svg">
-        <rect width="100%" height="100%" fill="#f3f4f6"/>
-        <text x="50%" y="40%" text-anchor="middle" dy=".3em" font-family="Arial, sans-serif" font-size="12" fill="#6b7280">Company</text>
-        <text x="50%" y="60%" text-anchor="middle" dy=".3em" font-family="Arial, sans-serif" font-size="12" fill="#6b7280">Wanted</text>
-      </svg>`;
-    target.src = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-  };
-
-  const handleCommercialImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-    const target = e.currentTarget;
-    // 商業用画像のSVGプレースホルダー（UTF-8対応）
-    const svg = `
-      <svg width="200" height="120" xmlns="http://www.w3.org/2000/svg">
-        <rect width="100%" height="100%" fill="#e5e7eb"/>
-        <text x="50%" y="50%" text-anchor="middle" dy=".3em" font-family="Arial, sans-serif" font-size="14" fill="#6b7280">Product Image</text>
-      </svg>`;
-    target.src = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-  };
-
   const renderContent = () => {
     switch (subcategory) {
       case 'alc':
         return (
           <div>
-            <div className="mb-2">
-              <h2 className="text-xl font-semibold inline">ALC</h2>
+            <div className="yy-mk2-head">
+              <h2 className="yy-mk2-title">ALC</h2>
+              <MakerCount category="外壁" page="alc" />
               <button
                 onClick={() => setShowBasicKnowledge(!showBasicKnowledge)}
-                className="ml-2 align-baseline text-blue-600 hover:text-blue-800 text-[11px] underline"
+                type="button"
+                className="yy-bk-toggle"
+                aria-expanded={showBasicKnowledge}
               >
-                <span className={`inline-block transition-transform ${showBasicKnowledge ? 'rotate-90' : ''}`}>&gt;</span> 基本知識
+                基本知識<span className={`yy-bk-chev${showBasicKnowledge ? ' is-open' : ''}`} aria-hidden="true" />
               </button>
-              <a href="/register" className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]">掲載希望はコチラ</a>
+              <a href="/register" className="yy-mk2-reg">掲載希望はコチラ</a>
             </div>
             
             {/* 基本知識トグル */}
             {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
-            <div className="flex flex-wrap gap-2 mb-8">
-              {/* カード1：掲載募集カード */}
-              <div className="border rounded p-3 bg-white text-sm w-[240px] h-[365px] card">
-                <img 
-                  src="/image/掲載募集中a.png" 
-                  alt="掲載企業様募集中" 
-                  className="w-30 mb-1 w-[clamp(300x,5vw,120px)]"
-                  onError={handleImageError}
-                />
-                <div className="font-bold text-sm mb-2">□□□</div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <a href="#" target="_blank" className="bg-gray-200 text-black text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">商品ページ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">カタログ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">営業所</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">お問い合わせ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">サンプル</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded text-[10px] hover:bg-gray-700 hover:text-white transition">CADDOWNLOAD</a>
-                </div>
-                <img 
-                  src="/image/ChatGPT Image 2025年5月1日 16_25_41.webp" 
-                  alt="Manufacturer Commercial" 
-                  className="mt-3 w-full rounded w-[clamp(180px,22vw,320px)]"
-                  onError={handleCommercialImageError}
-                />
-              </div>
-
-              {/* クリオンカードは非表示（削除要望に基づく） */}
-            </div>
 
             {/* 通常企業（テキストリンク形式） */}
             <div className="mt-4 text-[13px]">
@@ -102,45 +55,22 @@ const ExteriorWallContent: React.FC<ExteriorWallContentProps> = ({ subcategory }
       case 'ecp':
         return (
           <div>
-            <div className="mb-2">
-              <h2 className="text-xl font-semibold inline">ECP</h2>
+            <div className="yy-mk2-head">
+              <h2 className="yy-mk2-title">ECP</h2>
+              <MakerCount category="外壁" page="ecp" />
               <button
                 onClick={() => setShowBasicKnowledge(!showBasicKnowledge)}
-                className="ml-2 align-baseline text-blue-600 hover:text-blue-800 text-[11px] underline"
+                type="button"
+                className="yy-bk-toggle"
+                aria-expanded={showBasicKnowledge}
               >
-                <span className={`inline-block transition-transform ${showBasicKnowledge ? 'rotate-90' : ''}`}>&gt;</span> 基本知識
+                基本知識<span className={`yy-bk-chev${showBasicKnowledge ? ' is-open' : ''}`} aria-hidden="true" />
               </button>
-              <a href="/register" className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]">掲載希望はコチラ</a>
+              <a href="/register" className="yy-mk2-reg">掲載希望はコチラ</a>
             </div>
             
             {/* 基本知識トグル */}
             {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
-            <div className="flex flex-wrap gap-2 mb-8">
-              {/* カード1：掲載募集カード */}
-              <div className="border rounded p-3 bg-white text-sm w-[240px] h-[365px] card">
-                <img 
-                  src="/image/掲載募集中a.png" 
-                  alt="掲載企業様募集中" 
-                  className="w-30 mb-1 w-[clamp(300x,5vw,120px)]"
-                  onError={handleImageError}
-                />
-                <div className="font-bold text-sm mb-2">□□□</div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <a href="#" target="_blank" className="bg-gray-200 text-black text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">商品ページ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">カタログ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">営業所</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">お問い合わせ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">サンプル</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded text-[10px] hover:bg-gray-700 hover:text-white transition">CADDOWNLOAD</a>
-                </div>
-                <img 
-                  src="/image/ChatGPT Image 2025年5月1日 16_25_41.webp" 
-                  alt="Manufacturer Commercial" 
-                  className="mt-3 w-full rounded w-[clamp(180px,22vw,320px)]"
-                  onError={handleCommercialImageError}
-                />
-              </div>
-            </div>
 
             {/* 通常企業（テキストリンク形式） */}
             <div className="mt-4 text-[13px]">
@@ -152,39 +82,28 @@ const ExteriorWallContent: React.FC<ExteriorWallContentProps> = ({ subcategory }
       case 'metal-panel':
         return (
           <div>
-            <div className="mb-2">
-              <h2 className="text-xl font-semibold inline">外壁仕上げ 金属パネル</h2>
+            <div className="yy-mk2-head">
+              <h2 className="yy-mk2-title">外壁仕上げ 金属パネル</h2>
+              <MakerCount category="外壁" page="metal-panel" />
               <button
                 onClick={() => setShowBasicKnowledge(!showBasicKnowledge)}
-                className="ml-2 align-baseline text-blue-600 hover:text-blue-800 text-[11px] underline"
+                type="button"
+                className="yy-bk-toggle"
+                aria-expanded={showBasicKnowledge}
               >
-                <span className={`inline-block transition-transform ${showBasicKnowledge ? 'rotate-90' : ''}`}>&gt;</span> 基本知識
+                基本知識<span className={`yy-bk-chev${showBasicKnowledge ? ' is-open' : ''}`} aria-hidden="true" />
               </button>
-              <a href="/register" className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]">掲載希望はコチラ</a>
+              <a href="/register" className="yy-mk2-reg">掲載希望はコチラ</a>
             </div>
             
             {/* 基本知識トグル */}
             {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
-            <div className="flex flex-wrap gap-2 mb-8">
-              <div className="border rounded p-3 bg-white text-sm w-[240px] h-[365px] card">
-                <img src="/image/掲載募集中a.png" alt="掲載企業様募集中" className="w-30 mb-1 w-[clamp(300x,5vw,120px)]" onError={handleImageError} />
-                <div className="font-bold text-sm mb-2">□□□</div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <a href="#" target="_blank" className="bg-gray-200 text-black text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">商品ページ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">カタログ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">営業所</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">お問い合わせ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">サンプル</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded text-[10px] hover:bg-gray-700 hover:text-white transition">CADDOWNLOAD</a>
-                </div>
-                <img src="/image/ChatGPT Image 2025年5月1日 16_25_41.webp" alt="Manufacturer Commercial" className="mt-3 w-full rounded w-[clamp(180px,22vw,320px)]" onError={handleCommercialImageError} />
-              </div>
-            </div>
 
             <div className="mb-6">
-              <div className="flex items-center mb-2">
-                <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">ガルバリウム鋼板</span>
-                <div className="flex-1 h-px bg-gray-300 ml-2"></div>
+              <div className="yy-mk2-group">
+                <h3 className="yy-mk2-group__title">ガルバリウム鋼板</h3>
+                <span className="yy-mk2-group__rule" />
+                <MakerCount category="外壁" page="metal-panel" group="ガルバリウム鋼板" />
               </div>
               <div className="text-[13px]">
                 <MakerRows category="外壁" page="metal-panel" group="ガルバリウム鋼板" />
@@ -192,9 +111,10 @@ const ExteriorWallContent: React.FC<ExteriorWallContentProps> = ({ subcategory }
             </div>
 
             <div className="mb-6">
-              <div className="flex items-center mb-2">
-                <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">アルミ</span>
-                <div className="flex-1 h-px bg-gray-300 ml-2"></div>
+              <div className="yy-mk2-group">
+                <h3 className="yy-mk2-group__title">アルミ</h3>
+                <span className="yy-mk2-group__rule" />
+                <MakerCount category="外壁" page="metal-panel" group="アルミ" />
               </div>
               <div className="text-[13px]">
                 <MakerRows category="外壁" page="metal-panel" group="アルミ" />
@@ -206,34 +126,22 @@ const ExteriorWallContent: React.FC<ExteriorWallContentProps> = ({ subcategory }
       case 'wood-board':
         return (
           <div>
-            <div className="mb-2">
-              <h2 className="text-xl font-semibold inline">外壁仕上げ 木板材</h2>
+            <div className="yy-mk2-head">
+              <h2 className="yy-mk2-title">外壁仕上げ 木板材</h2>
+              <MakerCount category="外壁" page="wood-board" />
               <button
                 onClick={() => setShowBasicKnowledge(!showBasicKnowledge)}
-                className="ml-2 align-baseline text-blue-600 hover:text-blue-800 text-[11px] underline"
+                type="button"
+                className="yy-bk-toggle"
+                aria-expanded={showBasicKnowledge}
               >
-                <span className={`inline-block transition-transform ${showBasicKnowledge ? 'rotate-90' : ''}`}>&gt;</span> 基本知識
+                基本知識<span className={`yy-bk-chev${showBasicKnowledge ? ' is-open' : ''}`} aria-hidden="true" />
               </button>
-              <a href="/register" className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]">掲載希望はコチラ</a>
+              <a href="/register" className="yy-mk2-reg">掲載希望はコチラ</a>
             </div>
             
             {/* 基本知識トグル */}
             {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
-            <div className="flex flex-wrap gap-2 mb-8">
-              <div className="border rounded p-3 bg-white text-sm w-[240px] h-[365px] card">
-                <img src="/image/掲載募集中a.png" alt="掲載企業様募集中" className="w-30 mb-1 w-[clamp(300x,5vw,120px)]" onError={handleImageError} />
-                <div className="font-bold text-sm mb-2">□□□</div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <a href="#" target="_blank" className="bg-gray-200 text-black text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">商品ページ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">カタログ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">営業所</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">お問い合わせ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">サンプル</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded text-[10px] hover:bg-gray-700 hover:text-white transition">CADDOWNLOAD</a>
-                </div>
-                <img src="/image/ChatGPT Image 2025年5月1日 16_25_41.webp" alt="Manufacturer Commercial" className="mt-3 w-full rounded w-[clamp(180px,22vw,320px)]" onError={handleCommercialImageError} />
-              </div>
-            </div>
 
             <div className="mt-4 text-[13px]">
               <MakerRows category="外壁" page="wood-board" nameWidth="200px" />
@@ -244,34 +152,22 @@ const ExteriorWallContent: React.FC<ExteriorWallContentProps> = ({ subcategory }
       case 'decorative':
         return (
           <div>
-            <div className="mb-2">
-              <h2 className="text-xl font-semibold inline">外壁仕上げ 装飾材</h2>
+            <div className="yy-mk2-head">
+              <h2 className="yy-mk2-title">外壁仕上げ 装飾材</h2>
+              <MakerCount category="外壁" page="decorative" />
               <button
                 onClick={() => setShowBasicKnowledge(!showBasicKnowledge)}
-                className="ml-2 align-baseline text-blue-600 hover:text-blue-800 text-[11px] underline"
+                type="button"
+                className="yy-bk-toggle"
+                aria-expanded={showBasicKnowledge}
               >
-                <span className={`inline-block transition-transform ${showBasicKnowledge ? 'rotate-90' : ''}`}>&gt;</span> 基本知識
+                基本知識<span className={`yy-bk-chev${showBasicKnowledge ? ' is-open' : ''}`} aria-hidden="true" />
               </button>
-              <a href="/register" className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]">掲載希望はコチラ</a>
+              <a href="/register" className="yy-mk2-reg">掲載希望はコチラ</a>
             </div>
             
             {/* 基本知識トグル */}
             {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
-            <div className="flex flex-wrap gap-2 mb-8">
-              <div className="border rounded p-3 bg-white text-sm w-[240px] h-[365px] card">
-                <img src="/image/掲載募集中a.png" alt="掲載企業様募集中" className="w-30 mb-1 w-[clamp(300x,5vw,120px)]" onError={handleImageError} />
-                <div className="font-bold text-sm mb-2">□□□</div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <a href="#" target="_blank" className="bg-gray-200 text-black text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">商品ページ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">カタログ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">営業所</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">お問い合わせ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">サンプル</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded text-[10px] hover:bg-gray-700 hover:text-white transition">CADDOWNLOAD</a>
-                </div>
-                <img src="/image/ChatGPT Image 2025年5月1日 16_25_41.webp" alt="Manufacturer Commercial" className="mt-3 w-full rounded w-[clamp(180px,22vw,320px)]" onError={handleCommercialImageError} />
-              </div>
-            </div>
 
             <div className="mt-4 text-[13px]">
               <MakerRows category="外壁" page="decorative" />
@@ -282,34 +178,22 @@ const ExteriorWallContent: React.FC<ExteriorWallContentProps> = ({ subcategory }
       case 'other-finish':
         return (
           <div>
-            <div className="mb-2">
-              <h2 className="text-xl font-semibold inline">外壁仕上げ その他</h2>
+            <div className="yy-mk2-head">
+              <h2 className="yy-mk2-title">外壁仕上げ その他</h2>
+              <MakerCount category="外壁" page="other-finish" />
               <button
                 onClick={() => setShowBasicKnowledge(!showBasicKnowledge)}
-                className="ml-2 align-baseline text-blue-600 hover:text-blue-800 text-[11px] underline"
+                type="button"
+                className="yy-bk-toggle"
+                aria-expanded={showBasicKnowledge}
               >
-                <span className={`inline-block transition-transform ${showBasicKnowledge ? 'rotate-90' : ''}`}>&gt;</span> 基本知識
+                基本知識<span className={`yy-bk-chev${showBasicKnowledge ? ' is-open' : ''}`} aria-hidden="true" />
               </button>
-              <a href="/register" className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]">掲載希望はコチラ</a>
+              <a href="/register" className="yy-mk2-reg">掲載希望はコチラ</a>
             </div>
             
             {/* 基本知識トグル */}
             {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
-            <div className="flex flex-wrap gap-2 mb-8">
-              <div className="border rounded p-3 bg-white text-sm w-[240px] h-[365px] card">
-                <img src="/image/掲載募集中a.png" alt="掲載企業様募集中" className="w-30 mb-1 w-[clamp(300x,5vw,120px)]" onError={handleImageError} />
-                <div className="font-bold text-sm mb-2">□□□</div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <a href="#" target="_blank" className="bg-gray-200 text-black text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">商品ページ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">カタログ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">営業所</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">お問い合わせ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">サンプル</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded text-[10px] hover:bg-gray-700 hover:text-white transition">CADDOWNLOAD</a>
-                </div>
-                <img src="/image/ChatGPT Image 2025年5月1日 16_25_41.webp" alt="Manufacturer Commercial" className="mt-3 w-full rounded w-[clamp(180px,22vw,320px)]" onError={handleCommercialImageError} />
-              </div>
-            </div>
 
             <div className="mt-4 text-[13px]">
               <MakerRows category="外壁" page="other-finish" />
@@ -320,34 +204,22 @@ const ExteriorWallContent: React.FC<ExteriorWallContentProps> = ({ subcategory }
       case 'paint':
         return (
           <div>
-            <div className="mb-2">
-              <h2 className="text-xl font-semibold inline">外壁仕上げ 塗装</h2>
+            <div className="yy-mk2-head">
+              <h2 className="yy-mk2-title">外壁仕上げ 塗装</h2>
+              <MakerCount category="外壁" page="paint" />
               <button
                 onClick={() => setShowBasicKnowledge(!showBasicKnowledge)}
-                className="ml-2 align-baseline text-blue-600 hover:text-blue-800 text-[11px] underline"
+                type="button"
+                className="yy-bk-toggle"
+                aria-expanded={showBasicKnowledge}
               >
-                <span className={`inline-block transition-transform ${showBasicKnowledge ? 'rotate-90' : ''}`}>&gt;</span> 基本知識
+                基本知識<span className={`yy-bk-chev${showBasicKnowledge ? ' is-open' : ''}`} aria-hidden="true" />
               </button>
-              <a href="/register" className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]">掲載希望はコチラ</a>
+              <a href="/register" className="yy-mk2-reg">掲載希望はコチラ</a>
             </div>
             
             {/* 基本知識トグル */}
             {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
-            <div className="flex flex-wrap gap-2 mb-8">
-              <div className="border rounded p-3 bg-white text-sm w-[240px] h-[365px] card">
-                <img src="/image/掲載募集中a.png" alt="掲載企業様募集中" className="w-30 mb-1 w-[clamp(300x,5vw,120px)]" onError={handleImageError} />
-                <div className="font-bold text-sm mb-2">□□□</div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <a href="#" target="_blank" className="bg-gray-200 text-black text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">商品ページ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">カタログ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">営業所</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">お問い合わせ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">サンプル</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded text-[10px] hover:bg-gray-700 hover:text-white transition">CADDOWNLOAD</a>
-                </div>
-                <img src="/image/ChatGPT Image 2025年5月1日 16_25_41.webp" alt="Manufacturer Commercial" className="mt-3 w-full rounded w-[clamp(180px,22vw,320px)]" onError={handleCommercialImageError} />
-              </div>
-            </div>
 
             <div className="mt-4 text-[13px]">
               <MakerRows category="外壁" page="paint" />
@@ -358,34 +230,22 @@ const ExteriorWallContent: React.FC<ExteriorWallContentProps> = ({ subcategory }
       case '金属サイディング':
         return (
           <div>
-            <div className="mb-2">
-              <h2 className="text-xl font-semibold inline">金属サイディング</h2>
+            <div className="yy-mk2-head">
+              <h2 className="yy-mk2-title">金属サイディング</h2>
+              <MakerCount category="外壁" page="金属サイディング" />
               <button
                 onClick={() => setShowBasicKnowledge(!showBasicKnowledge)}
-                className="ml-2 align-baseline text-blue-600 hover:text-blue-800 text-[11px] underline"
+                type="button"
+                className="yy-bk-toggle"
+                aria-expanded={showBasicKnowledge}
               >
-                <span className={`inline-block transition-transform ${showBasicKnowledge ? 'rotate-90' : ''}`}>&gt;</span> 基本知識
+                基本知識<span className={`yy-bk-chev${showBasicKnowledge ? ' is-open' : ''}`} aria-hidden="true" />
               </button>
-              <a href="/register" className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]">掲載希望はコチラ</a>
+              <a href="/register" className="yy-mk2-reg">掲載希望はコチラ</a>
             </div>
             
             {/* 基本知識トグル */}
             {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
-            <div className="flex flex-wrap gap-2 mb-8">
-              <div className="border rounded p-3 bg-white text-sm w-[240px] h-[365px] card">
-                <img src="/image/掲載募集中a.png" alt="掲載企業様募集中" className="w-30 mb-1 w-[clamp(300x,5vw,120px)]" onError={handleImageError} />
-                <div className="font-bold text-sm mb-2">□□□</div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <a href="#" target="_blank" className="bg-gray-200 text-black text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">商品ページ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">カタログ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">営業所</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">お問い合わせ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">サンプル</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded text-[10px] hover:bg-gray-700 hover:text-white transition">CADDOWNLOAD</a>
-                </div>
-                <img src="/image/ChatGPT Image 2025年5月1日 16_25_41.webp" alt="Manufacturer Commercial" className="mt-3 w-full rounded w-[clamp(180px,22vw,320px)]" onError={handleCommercialImageError} />
-              </div>
-            </div>
             <div className="mt-4 text-[13px]">
               <MakerRows category="外壁" page="金属サイディング" />
             </div>
@@ -395,34 +255,22 @@ const ExteriorWallContent: React.FC<ExteriorWallContentProps> = ({ subcategory }
       case '窯業サイディング':
         return (
           <div>
-            <div className="mb-2">
-              <h2 className="text-xl font-semibold inline">窯業サイディング</h2>
+            <div className="yy-mk2-head">
+              <h2 className="yy-mk2-title">窯業サイディング</h2>
+              <MakerCount category="外壁" page="窯業サイディング" />
               <button
                 onClick={() => setShowBasicKnowledge(!showBasicKnowledge)}
-                className="ml-2 align-baseline text-blue-600 hover:text-blue-800 text-[11px] underline"
+                type="button"
+                className="yy-bk-toggle"
+                aria-expanded={showBasicKnowledge}
               >
-                <span className={`inline-block transition-transform ${showBasicKnowledge ? 'rotate-90' : ''}`}>&gt;</span> 基本知識
+                基本知識<span className={`yy-bk-chev${showBasicKnowledge ? ' is-open' : ''}`} aria-hidden="true" />
               </button>
-              <a href="/register" className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]">掲載希望はコチラ</a>
+              <a href="/register" className="yy-mk2-reg">掲載希望はコチラ</a>
             </div>
             
             {/* 基本知識トグル */}
             {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
-            <div className="flex flex-wrap gap-2 mb-8">
-              <div className="border rounded p-3 bg-white text-sm w-[240px] h-[365px] card">
-                <img src="/image/掲載募集中a.png" alt="掲載企業様募集中" className="w-30 mb-1 w-[clamp(300x,5vw,120px)]" onError={handleImageError} />
-                <div className="font-bold text-sm mb-2">□□□</div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <a href="#" target="_blank" className="bg-gray-200 text-black text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">商品ページ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">カタログ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">営業所</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">お問い合わせ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">サンプル</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded text-[10px] hover:bg-gray-700 hover:text-white transition">CADDOWNLOAD</a>
-                </div>
-                <img src="/image/ChatGPT Image 2025年5月1日 16_25_41.webp" alt="Manufacturer Commercial" className="mt-3 w-full rounded w-[clamp(180px,22vw,320px)]" onError={handleCommercialImageError} />
-              </div>
-            </div>
             <div className="mt-4 text-[13px]">
               <MakerRows category="外壁" page="窯業サイディング" />
             </div>
@@ -432,15 +280,17 @@ const ExteriorWallContent: React.FC<ExteriorWallContentProps> = ({ subcategory }
       case 'siding':
         return (
           <div>
-            <div className="content-title-wrapper">
-              <h2 className="text-xl font-semibold inline">サイディング</h2>
-              <a href="/register" className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]">掲載希望はコチラ</a>
+            <div className="yy-mk2-head">
+              <h2 className="yy-mk2-title">サイディング</h2>
+              <MakerCount category="外壁" page="siding" />
+              <a href="/register" className="yy-mk2-reg">掲載希望はコチラ</a>
             </div>
             {/* カテゴリー: 金属サイディング */}
             <div className="mb-6">
-              <div className="flex items-center mb-2">
-                <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">金属サイディング</span>
-                <div className="flex-1 h-px bg-gray-300 ml-2"></div>
+              <div className="yy-mk2-group">
+                <h3 className="yy-mk2-group__title">金属サイディング</h3>
+                <span className="yy-mk2-group__rule" />
+                <MakerCount category="外壁" page="siding" group="金属サイディング" />
               </div>
               <div className="text-[13px]">
                 <MakerRows category="外壁" page="siding" group="金属サイディング" />
@@ -449,9 +299,10 @@ const ExteriorWallContent: React.FC<ExteriorWallContentProps> = ({ subcategory }
 
             {/* カテゴリー: 窯業系サイディング */}
             <div className="mb-6">
-              <div className="flex items-center mb-2">
-                <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">窯業系サイディング</span>
-                <div className="flex-1 h-px bg-gray-300 ml-2"></div>
+              <div className="yy-mk2-group">
+                <h3 className="yy-mk2-group__title">窯業系サイディング</h3>
+                <span className="yy-mk2-group__rule" />
+                <MakerCount category="外壁" page="siding" group="窯業系サイディング" />
               </div>
               <div className="text-[13px]">
                 <MakerRows category="外壁" page="siding" group="窯業系サイディング" />
@@ -460,9 +311,10 @@ const ExteriorWallContent: React.FC<ExteriorWallContentProps> = ({ subcategory }
 
             {/* カテゴリー: その他サイディング */}
             <div className="mb-6">
-              <div className="flex items-center mb-2">
-                <span className="inline-flex items-center px-3 py-1 text-[13px] font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-full">その他サイディング</span>
-                <div className="flex-1 h-px bg-gray-300 ml-2"></div>
+              <div className="yy-mk2-group">
+                <h3 className="yy-mk2-group__title">その他サイディング</h3>
+                <span className="yy-mk2-group__rule" />
+                <MakerCount category="外壁" page="siding" group="その他サイディング" />
               </div>
               <div className="text-[13px]">
                 <MakerRows category="外壁" page="siding" group="その他サイディング" />
@@ -475,34 +327,22 @@ const ExteriorWallContent: React.FC<ExteriorWallContentProps> = ({ subcategory }
       case '金属パネル':
         return (
           <div>
-            <div className="mb-2">
-              <h2 className="text-xl font-semibold inline">金属パネル</h2>
+            <div className="yy-mk2-head">
+              <h2 className="yy-mk2-title">金属パネル</h2>
+              <MakerCount category="外壁" page="金属パネル" />
               <button
                 onClick={() => setShowBasicKnowledge(!showBasicKnowledge)}
-                className="ml-2 align-baseline text-blue-600 hover:text-blue-800 text-[11px] underline"
+                type="button"
+                className="yy-bk-toggle"
+                aria-expanded={showBasicKnowledge}
               >
-                <span className={`inline-block transition-transform ${showBasicKnowledge ? 'rotate-90' : ''}`}>&gt;</span> 基本知識
+                基本知識<span className={`yy-bk-chev${showBasicKnowledge ? ' is-open' : ''}`} aria-hidden="true" />
               </button>
-              <a href="/register" className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]">掲載希望はコチラ</a>
+              <a href="/register" className="yy-mk2-reg">掲載希望はコチラ</a>
             </div>
             
             {/* 基本知識トグル */}
             {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
-            <div className="flex flex-wrap gap-2 mb-8">
-              <div className="border rounded p-3 bg-white text-sm w-[240px] h-[365px] card">
-                <img src="/image/掲載募集中a.png" alt="掲載企業様募集中" className="w-30 mb-1 w-[clamp(300x,5vw,120px)]" onError={handleImageError} />
-                <div className="font-bold text-sm mb-2">□□□</div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <a href="#" target="_blank" className="bg-gray-200 text-black text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">商品ページ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">カタログ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">営業所</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">お問い合わせ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">サンプル</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded text-[10px] hover:bg-gray-700 hover:text-white transition">CADDOWNLOAD</a>
-                </div>
-                <img src="/image/ChatGPT Image 2025年5月1日 16_25_41.webp" alt="Manufacturer Commercial" className="mt-3 w-full rounded w-[clamp(180px,22vw,320px)]" onError={handleCommercialImageError} />
-              </div>
-            </div>
             <div className="mt-4 text-[13px]">
               <MakerRows category="外壁" page="金属パネル" />
             </div>
@@ -512,34 +352,22 @@ const ExteriorWallContent: React.FC<ExteriorWallContentProps> = ({ subcategory }
       case 'exterior-wall-other':
         return (
           <div>
-            <div className="mb-2">
-              <h2 className="text-xl font-semibold inline">外壁 その他</h2>
+            <div className="yy-mk2-head">
+              <h2 className="yy-mk2-title">外壁 その他</h2>
+              <MakerCount category="外壁" page="exterior-wall-other" />
               <button
                 onClick={() => setShowBasicKnowledge(!showBasicKnowledge)}
-                className="ml-2 align-baseline text-blue-600 hover:text-blue-800 text-[11px] underline"
+                type="button"
+                className="yy-bk-toggle"
+                aria-expanded={showBasicKnowledge}
               >
-                <span className={`inline-block transition-transform ${showBasicKnowledge ? 'rotate-90' : ''}`}>&gt;</span> 基本知識
+                基本知識<span className={`yy-bk-chev${showBasicKnowledge ? ' is-open' : ''}`} aria-hidden="true" />
               </button>
-              <a href="/register" className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]">掲載希望はコチラ</a>
+              <a href="/register" className="yy-mk2-reg">掲載希望はコチラ</a>
             </div>
             
             {/* 基本知識トグル */}
             {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
-            <div className="flex flex-wrap gap-2 mb-8">
-              <div className="border rounded p-3 bg-white text-sm w-[240px] h-[365px] card">
-                <img src="/image/掲載募集中a.png" alt="掲載企業様募集中" className="w-30 mb-1 w-[clamp(300x,5vw,120px)]" onError={handleImageError} />
-                <div className="font-bold text-sm mb-2">□□□</div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <a href="#" target="_blank" className="bg-gray-200 text-black text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">商品ページ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">カタログ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">営業所</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">お問い合わせ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">サンプル</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded text-[10px] hover:bg-gray-700 hover:text-white transition">CADDOWNLOAD</a>
-                </div>
-                <img src="/image/ChatGPT Image 2025年5月1日 16_25_41.webp" alt="Manufacturer Commercial" className="mt-3 w-full rounded w-[clamp(180px,22vw,320px)]" onError={handleCommercialImageError} />
-              </div>
-            </div>
             <div className="mt-4 text-[13px]">
               <MakerRows category="外壁" page="exterior-wall-other" />
             </div>
@@ -549,34 +377,22 @@ const ExteriorWallContent: React.FC<ExteriorWallContentProps> = ({ subcategory }
       case 'plaster':
         return (
           <div>
-            <div className="mb-2">
-              <h2 className="text-xl font-semibold inline">外壁仕上げ 塗り壁</h2>
+            <div className="yy-mk2-head">
+              <h2 className="yy-mk2-title">外壁仕上げ 塗り壁</h2>
+              <MakerCount category="外壁" page="plaster" />
               <button
                 onClick={() => setShowBasicKnowledge(!showBasicKnowledge)}
-                className="ml-2 align-baseline text-blue-600 hover:text-blue-800 text-[11px] underline"
+                type="button"
+                className="yy-bk-toggle"
+                aria-expanded={showBasicKnowledge}
               >
-                <span className={`inline-block transition-transform ${showBasicKnowledge ? 'rotate-90' : ''}`}>&gt;</span> 基本知識
+                基本知識<span className={`yy-bk-chev${showBasicKnowledge ? ' is-open' : ''}`} aria-hidden="true" />
               </button>
-              <a href="/register" className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]">掲載希望はコチラ</a>
+              <a href="/register" className="yy-mk2-reg">掲載希望はコチラ</a>
             </div>
             
             {/* 基本知識トグル */}
             {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
-            <div className="flex flex-wrap gap-2 mb-8">
-              <div className="border rounded p-3 bg-white text-sm w-[240px] h-[365px] card">
-                <img src="/image/掲載募集中a.png" alt="掲載企業様募集中" className="w-30 mb-1 w-[clamp(300x,5vw,120px)]" onError={handleImageError} />
-                <div className="font-bold text-sm mb-2">□□□</div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <a href="#" target="_blank" className="bg-gray-200 text-black text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">商品ページ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">カタログ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">営業所</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">お問い合わせ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">サンプル</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded text-[10px] hover:bg-gray-700 hover:text-white transition">CADDOWNLOAD</a>
-                </div>
-                <img src="/image/ChatGPT Image 2025年5月1日 16_25_41.webp" alt="Manufacturer Commercial" className="mt-3 w-full rounded w-[clamp(180px,22vw,320px)]" onError={handleCommercialImageError} />
-              </div>
-            </div>
 
             <div className="mt-4 text-[13px]">
               <MakerRows category="外壁" page="plaster" />
@@ -587,34 +403,22 @@ const ExteriorWallContent: React.FC<ExteriorWallContentProps> = ({ subcategory }
       case 'tile':
         return (
           <div>
-            <div className="mb-2">
-              <h2 className="text-xl font-semibold inline">外壁仕上げ タイル</h2>
+            <div className="yy-mk2-head">
+              <h2 className="yy-mk2-title">外壁仕上げ タイル</h2>
+              <MakerCount category="外壁" page="tile" />
               <button
                 onClick={() => setShowBasicKnowledge(!showBasicKnowledge)}
-                className="ml-2 align-baseline text-blue-600 hover:text-blue-800 text-[11px] underline"
+                type="button"
+                className="yy-bk-toggle"
+                aria-expanded={showBasicKnowledge}
               >
-                <span className={`inline-block transition-transform ${showBasicKnowledge ? 'rotate-90' : ''}`}>&gt;</span> 基本知識
+                基本知識<span className={`yy-bk-chev${showBasicKnowledge ? ' is-open' : ''}`} aria-hidden="true" />
               </button>
-              <a href="/register" className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]">掲載希望はコチラ</a>
+              <a href="/register" className="yy-mk2-reg">掲載希望はコチラ</a>
             </div>
             
             {/* 基本知識トグル */}
             {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
-            <div className="flex flex-wrap gap-2 mb-8">
-              <div className="border rounded p-3 bg-white text-sm w-[240px] h-[365px] card">
-                <img src="/image/掲載募集中a.png" alt="掲載企業様募集中" className="w-30 mb-1 w-[clamp(300x,5vw,120px)]" onError={handleImageError} />
-                <div className="font-bold text-sm mb-2">□□□</div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <a href="#" target="_blank" className="bg-gray-200 text-black text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">商品ページ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">カタログ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">営業所</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">お問い合わせ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">サンプル</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded text-[10px] hover:bg-gray-700 hover:text-white transition">CADDOWNLOAD</a>
-                </div>
-                <img src="/image/ChatGPT Image 2025年5月1日 16_25_41.webp" alt="Manufacturer Commercial" className="mt-3 w-full rounded w-[clamp(180px,22vw,320px)]" onError={handleCommercialImageError} />
-              </div>
-            </div>
 
             <div className="mt-4 text-[13px]">
               <MakerRows category="外壁" page="tile" />
@@ -625,34 +429,22 @@ const ExteriorWallContent: React.FC<ExteriorWallContentProps> = ({ subcategory }
       case 'stone-brick':
         return (
           <div>
-            <div className="mb-2">
-              <h2 className="text-xl font-semibold inline">外壁仕上げ 石・レンガ</h2>
+            <div className="yy-mk2-head">
+              <h2 className="yy-mk2-title">外壁仕上げ 石・レンガ</h2>
+              <MakerCount category="外壁" page="stone-brick" />
               <button
                 onClick={() => setShowBasicKnowledge(!showBasicKnowledge)}
-                className="ml-2 align-baseline text-blue-600 hover:text-blue-800 text-[11px] underline"
+                type="button"
+                className="yy-bk-toggle"
+                aria-expanded={showBasicKnowledge}
               >
-                <span className={`inline-block transition-transform ${showBasicKnowledge ? 'rotate-90' : ''}`}>&gt;</span> 基本知識
+                基本知識<span className={`yy-bk-chev${showBasicKnowledge ? ' is-open' : ''}`} aria-hidden="true" />
               </button>
-              <a href="/register" className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]">掲載希望はコチラ</a>
+              <a href="/register" className="yy-mk2-reg">掲載希望はコチラ</a>
             </div>
             
             {/* 基本知識トグル */}
             {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
-            <div className="flex flex-wrap gap-2 mb-8">
-              <div className="border rounded p-3 bg-white text-sm w-[240px] h-[365px] card">
-                <img src="/image/掲載募集中a.png" alt="掲載企業様募集中" className="w-30 mb-1 w-[clamp(300x,5vw,120px)]" onError={handleImageError} />
-                <div className="font-bold text-sm mb-2">□□□</div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <a href="#" target="_blank" className="bg-gray-200 text-black text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">商品ページ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">カタログ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">営業所</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">お問い合わせ</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">サンプル</a>
-                  <a href="#" className="bg-gray-200 text-center py-1 rounded text-[10px] hover:bg-gray-700 hover:text-white transition">CADDOWNLOAD</a>
-                </div>
-                <img src="/image/ChatGPT Image 2025年5月1日 16_25_41.webp" alt="Manufacturer Commercial" className="mt-3 w-full rounded w-[clamp(180px,22vw,320px)]" onError={handleCommercialImageError} />
-              </div>
-            </div>
 
             <div className="mt-4 text-[13px]">
               <MakerRows category="外壁" page="stone-brick" />

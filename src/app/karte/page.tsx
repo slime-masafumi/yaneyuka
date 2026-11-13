@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import KarteLoader from './KarteLoader';
-import '@/components/karte/yk.css';
+import '@/components/karte/karte-premium.css';
 
 export const metadata: Metadata = {
   title: '物件カルテ｜建築の調べもの',
@@ -9,9 +9,11 @@ export const metadata: Metadata = {
   alternates: { canonical: '/karte/' },
 };
 
+// 組版はモック「高級感 3」(karte-premium.css)。旧 .yk の地(yk.css)はもう使わない。
+// .yk-app は印刷指定(カルテの中身だけを印刷する)の目印として残す。
 export default function KartePage() {
   return (
-    <div className="yk yk-app">
+    <div className="yy-kt yk-app">
       <KarteLoader />
     </div>
   );

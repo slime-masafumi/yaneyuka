@@ -17,6 +17,9 @@ import { GENERAL_TOOL_MENU } from '@/lib/generalToolsMenu';
 import { buildUserpageQuery } from '@/lib/userpageUrl';
 import { openMakerConect } from '@/lib/makerConectPreset';
 import SaveToMakerBox from '@/components/SaveToMakerBox';
+import PageHead, { Stat } from '@/components/ui/PageHead';
+import { SecHead } from '@/components/ui/Sheet';
+import './materials.css';
 
 const HISTORY_KEY = 'chatbot-history-v2';
 
@@ -165,30 +168,31 @@ const Chatbot: React.FC = () => {
     ([['products', '商品'], ['catalog', 'カタログ'], ['cad', 'CAD']] as const)
       .filter(([k]) => m[k] && m[k] !== '#')
       .map(([k, label]) => (
-        <a key={k} href={m[k]} target="_blank" rel="noopener noreferrer" className="underline">
+        <a key={k} href={m[k]} target="_blank" rel="noopener noreferrer">
           {label}
         </a>
       ));
 
   const MakerList = ({ list, title, part }: { list: MakerRowLite[]; title: string; part?: string }) =>
     list.length ? (
-      <div className="mt-3">
-        <div className="flex items-baseline justify-between">
-          <span className="text-[10px] tracking-widest font-mono text-gray-400">{title}</span>
+      <div className="yy-mk2-cb__block">
+        <div className="yy-mk2-cb__bhead">
+          <span className="yy-label">{title}</span>
           {list.length > 1 && (
-            <button type="button" className="text-[11px] underline" onClick={() => openMakerConect({ makers: list.slice(0, 3).map((m) => m.name), part })}>
+            <button type="button" className="yy-mk2-link" onClick={() => openMakerConect({ makers: list.slice(0, 3).map((m) => m.name), part })}>
               上の{Math.min(3, list.length)}社にまとめて問い合わせ
             </button>
           )}
         </div>
-        <ul className="divide-y divide-gray-100 border-t border-gray-200 mt-1">
-          {list.map((m) => (
-            <li key={m.name} className="py-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-              <span className="font-bold min-w-[120px]">{m.name}</span>
-              <span className="flex gap-2 text-[11px] text-gray-600">{makerLinks(m)}</span>
-              <span className="ml-auto flex items-center gap-2">
+        <ul className="yy-mk2-cb__list">
+          {list.map((m, k) => (
+            <li key={m.name} className="yy-mk2-cb__row">
+              <span className="yy-mk2-cb__no">{String(k + 1).padStart(2, '0')}</span>
+              <span className="yy-mk2-cb__name" title={m.name}>{m.name}</span>
+              <span className="yy-mk2-cb__links">{makerLinks(m)}</span>
+              <span className="yy-mk2-cb__end">
                 <SaveToMakerBox name={m.name} />
-                <button type="button" className="text-[11px] underline" onClick={() => openMakerConect({ makers: [m.name], part })}>
+                <button type="button" className="yy-mk2-link" onClick={() => openMakerConect({ makers: [m.name], part })}>
                   問い合わせ
                 </button>
               </span>
@@ -198,111 +202,174 @@ const Chatbot: React.FC = () => {
       </div>
     ) : null;
 
+  const makerTotal = useMemo(() => (makers ? new Set(Object.values(makers).flat().map((m) => m.name)).size : 0), [makers]);
+  // 質問の通し番号（01, 02 …）
+  const qNos = messages.reduce<number[]>((acc, m) => [...acc, (acc[acc.length - 1] ?? 0) + (m.role === 'user' ? 1 : 0)], []);
+  const questions = qNos[qNos.length - 1] ?? 0;
+
   return (
     <div className="scroll-mt-[180px]">
-      <div className="flex items-baseline mb-2 gap-3 flex-wrap">
-        <h2 className="text-xl font-semibold">建材Chatbot</h2>
-        <span className="text-[12px] text-gray-500">建材ページの基本知識 {knowledge ? `${knowledge.length}項目` : ''}・メーカー一覧・設計ツールから答えます</span>
-        <button type="button" onClick={reset} className="ml-auto text-[11px] text-gray-500 hover:text-gray-800 underline">
-          最初から
-        </button>
-        <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('yaneyuka-navigate', { detail: 'registration' }))} className="text-gray-500 hover:text-gray-800 text-[11px]">
-          掲載希望はコチラ
-        </button>
-      </div>
-      <div className="max-w-4xl border border-gray-300 text-[12px] bg-white">
-        <div ref={listRef} className="min-h-[160px] max-h-[620px] overflow-y-auto p-3 space-y-3 bg-gray-50">
-          {messages.map((m, i) =>
-            m.role === 'user' ? (
-              <div key={i} className="ml-[20%] bg-[#3b3b3b] text-white px-3 py-2 whitespace-pre-line">
-                {m.text}
-              </div>
-            ) : (
-              <div key={i} className="mr-[6%] bg-white border border-gray-200 px-3 py-2">
-                {m.text && <div className="whitespace-pre-line leading-relaxed">{m.text}</div>}
-
-                {m.answer && (
-                  <>
-                    {m.answer.sections.map((s, j) => {
-                      const key = `${i}-${j}`;
-                      const full = open[key];
-                      return (
-                        <div key={key} className={j ? 'mt-3 pt-3 border-t border-gray-100' : ''}>
-                          <div className="text-[10px] tracking-widest font-mono text-gray-400">
-                            {String(j + 1).padStart(3, '0')} {s.param ? s.pageName : 'よくある質問'}
-                          </div>
-                          <div className="font-bold text-[13px] mt-0.5">{s.heading}</div>
-                          <div className="whitespace-pre-line leading-relaxed text-gray-700 mt-1">{full ? s.text : excerpt(s.text, m.answer!.query)}</div>
-                          <div className="flex gap-3 mt-1 text-[11px]">
-                            {!full && excerpt(s.text, m.answer!.query) !== s.text && (
-                              <button type="button" className="underline text-gray-500" onClick={() => setOpen((p) => ({ ...p, [key]: true }))}>
-                                全文
-                              </button>
-                            )}
-                            {s.route && (
-                              <a href={pageHref(s.route, s.param)} className="underline">
-                                {s.param ? `${s.pageName} のページを開く →` : '関連する建材ページを開く →'}
-                              </a>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-
-                    <MakerList list={m.answer.named} title="MAKER 質問に出てきたメーカー" part={m.answer.page?.name} />
-                    {m.answer.page && <MakerList list={m.answer.makers} title={`MAKER ${m.answer.page.name} のメーカー`} part={m.answer.page.name} />}
-
-
-                    {m.answer.tools.length > 0 && (
-                      <div className="mt-3">
-                        <div className="text-[10px] tracking-widest font-mono text-gray-400">TOOL 使えるツール</div>
-                        <ul className="mt-1 space-y-0.5">
-                          {m.answer.tools.map((t) => (
-                            <li key={t.href}>
-                              <a href={t.href} className="underline font-bold">{t.title}</a>
-                              <span className="text-gray-500 text-[11px]"> — {t.group}。{t.description}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {!m.answer.sections.length && !m.answer.makers.length && m.answer.page && (
-                      <p className="text-gray-500">{m.answer.page.name} のメーカーは登録がありません。</p>
-                    )}
-                  </>
-                )}
-
-                {(m.chips?.length || m.answer?.followUps.length || (m.answer?.page && !m.answer.makers.length)) ? (
-                  <div className="flex flex-wrap gap-1.5 mt-3">
-                    {[...(m.chips ?? []), ...(m.answer?.followUps ?? [])].map((c) => (
-                      <button key={c} type="button" onClick={() => send(c)} className="px-2 py-1 border border-gray-300 bg-white hover:border-gray-800 text-[11px]">
-                        {c}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            ),
-          )}
-        </div>
-        <form
-          className="flex gap-2 p-2.5 border-t border-gray-200"
-          onSubmit={(e) => {
-            e.preventDefault();
-            send();
-          }}
-        >
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder={knowledge ? '例: 金属屋根の熱伸縮、ALCとECPの違い、床暖房に使えるフローリング' : '読み込み中…'}
-            className="flex-1 px-2.5 py-2 border border-gray-300 text-[12px] focus:outline-none focus:border-gray-800"
-          />
-          <button type="submit" disabled={!knowledge || !input.trim()} className="px-5 py-2 bg-[#3b3b3b] text-white text-[12px] disabled:opacity-40">
-            送信
+      <PageHead
+        en="materials"
+        title="建材 Chatbot"
+        desc="建材ページの基本知識・メーカー一覧・設計ツールから答えます"
+        right={
+          <>
+            <Stat n={knowledge ? knowledge.length : '—'} label="項目" />
+            <Stat n={makers ? makerTotal : '—'} label="社" />
+            <Stat n={tools.length} label="ツール" />
+          </>
+        }
+      />
+      <div className="yy-mk2-bar">
+        <span>会話はこのタブを閉じるまで残ります{questions ? ` · 質問 ${questions} 件` : ''}</span>
+        <span className="yy-mk2-bar__right">
+          <button type="button" onClick={reset} className="yy-mk2-link yy-mk2-link--quiet">
+            最初から
           </button>
-        </form>
+          <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('yaneyuka-navigate', { detail: 'registration' }))} className="yy-mk2-link yy-mk2-link--quiet">
+            掲載希望はコチラ
+          </button>
+        </span>
+      </div>
+
+      <div className="yy-mk2-cb">
+        <div className="yy-mk2-cb__main">
+          <div ref={listRef} className="yy-mk2-cb__log">
+            {messages.map((m, i) => {
+              if (m.role === 'user') {
+                return (
+                  <div key={i} className="yy-mk2-cb__q">
+                    <span className="yy-mk2-cb__qno">{String(qNos[i]).padStart(2, '0')}</span>
+                    <span className="yy-mk2-cb__qtext">{m.text}</span>
+                  </div>
+                );
+              }
+              return (
+                <div key={i} className="yy-mk2-cb__a">
+                  {m.text && <p className="yy-mk2-cb__text">{m.text}</p>}
+
+                  {m.answer && (
+                    <>
+                      {m.answer.sections.map((s, j) => {
+                        const key = `${i}-${j}`;
+                        const full = open[key];
+                        return (
+                          <div key={key} className="yy-mk2-cb__sec">
+                            <div className="yy-mk2-cb__secno">
+                              <span>{String(j + 1).padStart(3, '0')}</span>
+                              <span>{s.param ? s.pageName : 'よくある質問'}</span>
+                            </div>
+                            <div className="yy-mk2-cb__sech">{s.heading}</div>
+                            <div className="yy-mk2-cb__secbody">{full ? s.text : excerpt(s.text, m.answer!.query)}</div>
+                            <div className="yy-mk2-cb__acts">
+                              {!full && excerpt(s.text, m.answer!.query) !== s.text && (
+                                <button type="button" className="yy-mk2-link yy-mk2-link--quiet" onClick={() => setOpen((p) => ({ ...p, [key]: true }))}>
+                                  全文
+                                </button>
+                              )}
+                              {s.route && (
+                                <a href={pageHref(s.route, s.param)} className="yy-mk2-link">
+                                  {s.param ? `${s.pageName} のページを開く →` : '関連する建材ページを開く →'}
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      <MakerList list={m.answer.named} title="Maker — 質問に出てきたメーカー" part={m.answer.page?.name} />
+                      {m.answer.page && <MakerList list={m.answer.makers} title={`Maker — ${m.answer.page.name} のメーカー`} part={m.answer.page.name} />}
+
+                      {m.answer.tools.length > 0 && (
+                        <div className="yy-mk2-cb__block">
+                          <div className="yy-mk2-cb__bhead">
+                            <span className="yy-label">Tool — 使えるツール</span>
+                          </div>
+                          <ul className="yy-mk2-cb__list">
+                            {m.answer.tools.map((t, k) => (
+                              <li key={t.href} className="yy-mk2-cb__row">
+                                <span className="yy-mk2-cb__no">{String(k + 1).padStart(2, '0')}</span>
+                                <a href={t.href} className="yy-mk2-cb__tool">{t.title}</a>
+                                <span className="yy-mk2-cb__why" title={`${t.group}。${t.description}`}>
+                                  {t.group}。{t.description}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {!m.answer.sections.length && !m.answer.makers.length && m.answer.page && (
+                        <p className="yy-mk2-cb__text">{m.answer.page.name} のメーカーは登録がありません。</p>
+                      )}
+                    </>
+                  )}
+
+                  {(m.chips?.length || m.answer?.followUps.length || (m.answer?.page && !m.answer.makers.length)) ? (
+                    <div className="yy-mk2-cb__chips">
+                      {[...(m.chips ?? []), ...(m.answer?.followUps ?? [])].map((c) => (
+                        <button key={c} type="button" onClick={() => send(c)} className="yy-mk2-btn">
+                          {c}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+          <form
+            className="yy-mk2-cb__form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              send();
+            }}
+          >
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={knowledge ? '例: 金属屋根の熱伸縮、ALCとECPの違い、床暖房に使えるフローリング' : '読み込み中…'}
+              className="yy-mk2-in"
+              aria-label="質問"
+            />
+            <button type="submit" disabled={!knowledge || !input.trim()} className="yy-pill yy-mk2-pill">
+              送信
+            </button>
+          </form>
+        </div>
+
+        <aside className="yy-mk2-cb__side" aria-label="質問の例と答えの出どころ">
+          <section>
+            <SecHead no="I" title="質問の例" right={`${EXAMPLES.length} 件`} />
+            <ul className="yy-mk2-cb__ex">
+              {EXAMPLES.map((c, k) => (
+                <li key={c}>
+                  <button type="button" onClick={() => send(c)}>
+                    <span className="yy-mk2-cb__no">{String(k + 1).padStart(2, '0')}</span>
+                    <span className="yy-mk2-cb__ext">{c}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+          <section>
+            <SecHead no="II" title="答えの出どころ" />
+            <div className="yy-mk2-kv"><span>建材ページの基本知識</span><span className="yy-leader" /><span>{knowledge ? `${knowledge.length} 項目` : '読み込み中'}</span></div>
+            <div className="yy-mk2-kv"><span>メーカー一覧</span><span className="yy-leader" /><span>{makers ? `${makerTotal} 社` : '読み込み中'}</span></div>
+            <div className="yy-mk2-kv"><span>設計ツール・一般ツール</span><span className="yy-leader" /><span>{tools.length} 本</span></div>
+            <p className="yy-mk2-note">サイトに載っている中身だけから探します。外部の AI には送りません。</p>
+          </section>
+          <section>
+            <SecHead no="III" title="人に聞く" />
+            <p className="yy-mk2-note">メーカーに直接聞くなら Maker conect、ほかの設計者に聞くならフォーラムへ。</p>
+            <div className="yy-mk2-cb__acts">
+              <button type="button" className="yy-mk2-link" onClick={() => window.dispatchEvent(new CustomEvent('yaneyuka-navigate', { detail: 'makerconect' }))}>
+                Maker conect を開く →
+              </button>
+            </div>
+          </section>
+        </aside>
       </div>
     </div>
   );

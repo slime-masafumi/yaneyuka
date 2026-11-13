@@ -111,7 +111,7 @@ export default function NewsWithBookmarks() {
   return (
     <div>
       <PageHead
-        no="02"
+        no="03"
         en="news"
         title="NEWS"
         desc="建設業界のニュースと、建材メーカーのお知らせ"

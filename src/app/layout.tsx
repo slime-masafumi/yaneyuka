@@ -100,7 +100,9 @@ const organizationJsonLd = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ja">
+    // フォントの CSS 変数は html に付ける。:root の --yy-serif が var(--font-serif-*) を参照するので、
+    // body に付けると :root からは見えず、明朝がすべて Inter に落ちていた（2026-11-13 修正）
+    <html lang="ja" className={`${mono.variable} ${serifLatin.variable} ${serifJp.variable}`}>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -121,7 +123,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
         />
       </head>
-      <body className={`${inter.className} ${mono.variable} ${serifLatin.variable} ${serifJp.variable}`}>
+      <body className={inter.className}>
         <ClientSideEffects />
         <ClientProviders>
           {children}

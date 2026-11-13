@@ -9,7 +9,7 @@ const KarteApp = lazy(() => import('@/components/karte/KarteApp'));
 
 export default function KarteLoader() {
   return (
-    <AfterMount fallback={<div className="yk-empty-state">読み込み中...</div>}>
+    <AfterMount fallback={<div className="yy-kt-loading">読み込み中...</div>}>
       <KarteApp />
     </AfterMount>
   );

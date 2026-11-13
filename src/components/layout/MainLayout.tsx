@@ -1372,7 +1372,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
               )}
               {/* 右側: 折り畳み可能な作業music（Userpage内ツール向け） */}
               {/* ツール一覧と設計ツール（計算書の 3 段組）は中央を広く使うので出さない（モック「高級感 3」） */}
-              {isUserpageMenu() && !Object.values(INDEX_MENUS).includes(activeContent as never) && activeContent !== 'design-tools' && (
+              {isUserpageMenu() && !Object.values(INDEX_MENUS).includes(activeContent as never) && !['design-tools', 'design-info', 'material-info'].includes(activeContent) && (
                 <div className="hidden lg:block shrink-0">
                   <UserpageMusicPanel />
                 </div>
@@ -1382,7 +1382,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
           {/* 右サイドバー：広告欄（Userpageメニュー以外で表示） */}
           {/* iPadサイズ(md:768px)以上で表示、最小200px〜最大300pxで縮小対応 */}
           {/* ホーム・建材・調べものはモック「高級感 3」どおり中央を使い切るので、広告欄を出さない（建材の掲載枠は左列へ移した） */}
-          {!isUserpageMenu() && !(pathname === '/' && activeContent === 'topix') && !CATEGORY_SUBCATEGORIES[activeContent] && !pathname.startsWith('/lookup') && (() => {
+          {!isUserpageMenu() && !(pathname === '/' && activeContent === 'topix') && !CATEGORY_SUBCATEGORIES[activeContent] && !pathname.startsWith('/lookup') && !pathname.startsWith('/karte') && !(pathname.startsWith('/calc') && !pathname.startsWith('/calc/force-flow')) && (() => {
             // プライバシーポリシーページ判定（広告を非表示にして関連プライポリ一覧を出す）
             // - 個別アプリページ: URLパス /xxx-app-privacy-policy/ で開いている
             // - yaneyuka.com 本体のプライポリ: フッターバー「プライバシーポリシー」から SPA遷移 → URLは / のまま、activeContent='privacy-policy'

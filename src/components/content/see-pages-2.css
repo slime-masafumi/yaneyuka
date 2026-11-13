@@ -1,0 +1,118 @@
+/* ─────────── 「見る」07 資格試験 / 08 添景・CAD（高級感 3） ───────────
+   globals.css の部品（.yy-tabs / .yy-sec / .yy-fmt / .yy-leader ほか）の上に、
+   この 2 画面だけの並べ方を足す。接頭辞は .yy-ql-（資格）と .yy-cad-（添景・CAD）。 */
+
+/* ===== 07 資格試験 ===== */
+.yy-ql__tabs { gap: 0 18px; margin-bottom: 10px; }
+.yy-ql__sorttab { margin-left: auto; }
+
+.yy-ql__tools { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 24px; margin-bottom: 16px; }
+.yy-ql__search {
+  flex: 0 1 260px;
+  min-width: 160px;
+  height: 28px;
+  padding: 0 2px;
+  border: 0;
+  border-bottom: 1px solid var(--yy-line);
+  border-radius: 0;
+  background: transparent;
+  font-size: 12.5px;
+  color: var(--yy-ink);
+  outline: none;
+}
+.yy-ql__search:focus { border-bottom-color: var(--yy-acc); }
+.yy-ql__search::placeholder { color: var(--yy-t3); }
+.yy-ql__next { flex: 1 1 280px; display: flex; align-items: baseline; min-width: 0; font-size: 11px; color: var(--yy-t3); white-space: nowrap; }
+.yy-ql__next b { font-size: 15px; font-weight: 500; color: var(--yy-acc-ink); }
+.yy-ql__nextname { margin-left: 10px; min-width: 0; font-size: 12px; color: var(--yy-ink); overflow: hidden; text-overflow: ellipsis; }
+
+.yy-ql__body { display: flex; flex-direction: column; gap: 22px; }
+.yy-ql__body section { display: flex; flex-direction: column; }
+
+/* 表の 1 行：番号 / 資格 / 申込 / 試験 / 発表 / 締切まで */
+.yy-ql__row {
+  display: grid;
+  grid-template-columns: 22px minmax(150px, 1.25fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 64px;
+  column-gap: 12px;
+  align-items: baseline;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--yy-line);
+}
+.yy-ql__row--head { padding: 6px 0 4px; font-size: 11px; color: var(--yy-t3); }
+.yy-ql__row.is-next { background: var(--yy-acc-bg); }
+.yy-ql__row.is-next .yy-ql__no { padding-left: 4px; color: var(--yy-acc-ink); }
+.yy-ql__row.is-next .yy-ql__cell.is-apply .yy-ql__d { color: var(--yy-acc-ink); }
+
+.yy-ql__no { font-family: var(--yy-serif); font-size: 12px; color: var(--yy-t3); font-variant-numeric: lining-nums tabular-nums; }
+.yy-ql__name { min-width: 0; display: flex; flex-direction: column; gap: 1px; font-size: 12.5px; line-height: 1.45; color: var(--yy-ink); }
+.yy-ql__name a { color: var(--yy-ink); text-decoration: none; }
+.yy-ql__name a:hover { color: var(--yy-acc-ink); }
+.yy-ql__ext { margin-left: 4px; font-size: 10.5px; color: #b9b9b4; }
+.yy-ql__name a:hover .yy-ql__ext { color: var(--yy-acc-ink); }
+.yy-ql__sec { font-size: 10.5px; color: var(--yy-t3); }
+
+.yy-ql__cell { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.yy-ql__seg { display: flex; align-items: baseline; gap: 5px; min-width: 0; line-height: 1.45; }
+.yy-ql__seg small { flex: 0 0 auto; max-width: 64px; font-size: 10px; color: var(--yy-t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.yy-ql__d { min-width: 0; font-family: var(--yy-serif); font-size: 12.5px; color: var(--yy-ink); font-variant-numeric: lining-nums tabular-nums; overflow-wrap: anywhere; }
+.yy-ql__tbd { font-size: 11px; color: var(--yy-t3); }
+
+.yy-ql__left { text-align: right; font-family: var(--yy-serif); font-size: 12px; color: var(--yy-t2); font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
+.yy-ql__row--head .yy-ql__left { font-family: inherit; font-size: 11px; color: var(--yy-t3); }
+.yy-ql__left.is-soon { color: var(--yy-acc-ink); }
+.yy-ql__left.is-urgent { color: #c8432f; }
+.yy-ql__dash { color: #cfcfca; }
+.yy-ql__row.is-next .yy-ql__left { padding-right: 6px; }
+
+.yy-ql__foot { margin: 0; font-size: 11px; color: var(--yy-t3); }
+
+@media (max-width: 767px) {
+  .yy-ql__sorttab { margin-left: 0; }
+  .yy-ql__row { grid-template-columns: 22px minmax(0, 1fr) 56px; row-gap: 3px; }
+  .yy-ql__row--head { display: none; }
+  .yy-ql__name { grid-column: 2; grid-row: 1; }
+  .yy-ql__left { grid-column: 3; grid-row: 1; }
+  .yy-ql__cell { grid-column: 2 / 4; flex-direction: row; flex-wrap: wrap; gap: 0 10px; }
+  .yy-ql__cell::before { content: attr(data-label); flex: 0 0 auto; width: 28px; font-size: 10px; color: var(--yy-t3); }
+}
+
+/* ===== 08 添景・CAD ===== */
+.yy-cad__tabs { margin-bottom: 0; }
+.yy-cad__bar { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 4px 20px; margin-bottom: 14px; border-bottom: 1px solid var(--yy-line); }
+.yy-cad__subtabs { flex: 1 1 auto; gap: 0 18px; margin-bottom: 0; border-bottom: 0; }
+.yy-cad__subtabs .yy-tab { height: 30px; font-size: 12px; }
+.yy-cad__info { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 14px; padding-bottom: 8px; }
+.yy-cad__login { font-size: 11px; color: var(--yy-t3); }
+.yy-cad__login .yy-linkbtn { margin-left: 8px; font-size: 11px; }
+.yy-cad__login .yy-linkbtn:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+.yy-cad__area { transition: opacity 250ms ease; }
+.yy-cad__area.is-fading { opacity: 0; }
+
+/* 小さな正方形のサムネイルを密に並べる。カード・影・角丸は使わない */
+.yy-cad__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 16px 12px; }
+.yy-cad__item { min-width: 0; display: flex; flex-direction: column; gap: 4px; opacity: 0; transition: opacity 400ms ease; }
+.yy-cad__item.is-in { opacity: 1; }
+.yy-cad__thumb {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  padding: 8px;
+  border: 1px solid transparent;
+  background: var(--yy-surf);
+  cursor: pointer;
+}
+.yy-cad__thumb:hover { border-color: var(--yy-ink); }
+.yy-cad__thumb img { width: 100%; height: 100%; object-fit: contain; display: block; mix-blend-mode: multiply; }
+.yy-cad__name { font-size: 11.5px; color: var(--yy-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.yy-cad__meta { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.yy-cad__price { font-size: 10.5px; color: var(--yy-t3); }
+.yy-cad__dl { margin-left: auto; font-size: 10.5px; }
+.yy-cad__dl:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+.yy-cad__foot { margin: 18px 0 0; padding-top: 8px; border-top: 1px solid var(--yy-line); font-size: 11px; color: var(--yy-t3); }
+
+@media (max-width: 767px) {
+  .yy-cad__grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 12px 8px; }
+  .yy-cad__dl { display: none; }
+}

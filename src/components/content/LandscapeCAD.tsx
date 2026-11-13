@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../lib/AuthContext';
+import PageHead, { Stat } from '../ui/PageHead';
+import './see-pages-2.css';
 
 interface LandscapeCADItem {
   id: string;
@@ -752,7 +754,7 @@ const LandscapeCAD: React.FC<LandscapeCADProps> = ({ onNavigateToLogin }) => {
             copy[i] = true;
             return copy;
           });
-        }, i * 80);
+        }, i * 20);
       });
     }, 50);
     
@@ -760,69 +762,63 @@ const LandscapeCAD: React.FC<LandscapeCADProps> = ({ onNavigateToLogin }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeContent, activeCadSubCategory, activeLandscapeSubCategory, isTransitioning]);
 
-  const getButtonClass = (contentType: 'cad' | 'landscape') => {
-    const baseClass = "text-xs px-2 py-1 rounded w-24 transition";
-    if (activeContent === contentType) {
-      return `${baseClass} bg-gray-700 text-white`;
-    }
-    return `${baseClass} bg-gray-300 text-black hover:bg-gray-700 hover:text-white`;
-  };
+  // 分類ごとの点数（タブの右に小さく出す）
+  const cadCount = (sub: 'plants' | 'people' | 'furniture' | 'others' | 'all') =>
+    sub === 'all' ? cadItems.length : cadItems.filter(i => i.subCategory === sub).length;
+  const landscapeCount = (sub: 'plants' | 'people' | 'others' | 'background' | 'all') =>
+    sub === 'all' ? landscapeItems.length : landscapeItems.filter(i => i.subCategory === sub).length;
 
-  const getSubButtonClass = (subCategory: 'plants' | 'people' | 'others' | 'background' | 'all') => {
-    const widthClass = subCategory === 'all' ? '' : 'w-20';
-    const baseClass = `text-xs px-3 py-1 rounded transition whitespace-nowrap ${widthClass}`;
-    if (activeLandscapeSubCategory === subCategory || (subCategory === 'all' && activeLandscapeSubCategory === 'all')) {
-      return `${baseClass} bg-blue-600 text-white`;
-    }
-    return `${baseClass} bg-blue-200 text-black hover:bg-blue-600 hover:text-white`;
-  };
+  // 形式のラベル（DXF / PNG）。CAD は type、添景はファイルの拡張子から
+  const formatOf = (item: LandscapeCADItem) =>
+    (item.type || item.downloadUrl.split('.').pop() || '').toUpperCase();
 
-  const getCadSubButtonClass = (subCategory: 'plants' | 'people' | 'furniture' | 'others' | 'all') => {
-    const widthClass = subCategory === 'all' ? '' : 'w-20';
-    const baseClass = `text-xs px-3 py-1 rounded transition whitespace-nowrap ${widthClass}`;
-    if (activeCadSubCategory === subCategory || (subCategory === 'all' && activeCadSubCategory === 'all')) {
-      return `${baseClass} bg-blue-600 text-white`;
-    }
-    return `${baseClass} bg-blue-200 text-black hover:bg-blue-600 hover:text-white`;
-  };
+  const fallbackImage = (contentType: 'cad' | 'landscape') =>
+    contentType === 'cad'
+      ? 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQwIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDI0MCAxOTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjI0MCIgaGVpZ2h0PSIxOTIiIGZpbGw9IiNGM0Y0RjYiLz48dGV4dCB4PSIxMjAiIHk9Ijk2IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzlDQTNBRiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSI+Q0FE44OH44O844K/</dGV4dD48L3N2Zz4='
+      : 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQwIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDI0MCAxOTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjI0MCIgaGVpZ2h0PSIxOTIiIGZpbGw9IiNGM0Y0RjYiLz48dGV4dCB4PSIxMjAiIHk9Ijk2IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzlDQTNBRiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSI+5re75pmv44OH44O844K/</dGV4dD48L3N2Zz4=';
 
   const renderContent = () => {
     const items = getCurrentItems();
-    
+
     if (items.length === 0) {
       if (activeContent === 'landscape' && !activeLandscapeSubCategory) {
-        return <p className="text-gray-700">植物または人のカテゴリーを選択してください。</p>;
+        return <p className="yy-home__empty">植物または人のカテゴリーを選択してください。</p>;
       }
-      return <p className="text-gray-700">該当する情報がありません。</p>;
+      return <p className="yy-home__empty">該当する情報がありません。</p>;
     }
 
     return (
-      <div className="grid gap-3 grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+      <div className="yy-cad__grid">
         {items.map((item, index) => (
-          <div 
+          <div
             key={item.id}
-            className={`border rounded p-3 bg-white text-sm w-full h-[350px] dynamic-card transition-all duration-500 ${
-              activeList[index] ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
-            }`}
+            className={`yy-cad__item${activeList[index] ? ' is-in' : ''}`}
           >
-            <img 
-              src={item.imageUrl} 
-              alt={item.title} 
-              className="w-full h-48 rounded mb-2 object-contain"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.src = activeContent === 'cad' 
-                  ? 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQwIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDI0MCAxOTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjI0MCIgaGVpZ2h0PSIxOTIiIGZpbGw9IiNGM0Y0RjYiLz48dGV4dCB4PSIxMjAiIHk9Ijk2IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzlDQTNBRiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSI+Q0FE44OH44O844K/</dGV4dD48L3N2Zz4='
-                  : 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQwIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDI0MCAxOTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjI0MCIgaGVpZ2h0PSIxOTIiIGZpbGw9IiNGM0Y0RjYiLz48dGV4dCB4PSIxMjAiIHk9Ijk2IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzlDQTNBRiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSI+5re75pmv44OH44O844K/</dGV4dD48L3N2Zz4=';
-              }}
-            />
-            <div className="font-bold text-sm mb-2">{item.title}</div>
-            <p className="text-xs text-gray-600 mb-2">{item.description}</p>
-            <div className="flex justify-between items-center">
-              <span className="text-xs text-gray-500">{item.price}</span>
-              <button 
+            <button
+              type="button"
+              className="yy-cad__thumb"
+              onClick={() => handleDownload(item.downloadUrl, item.title)}
+              title={`${item.title}（${item.description}）をダウンロード`}
+              aria-label={`${item.title}をダウンロード`}
+            >
+              <img
+                src={item.imageUrl}
+                alt={item.title}
+                loading="lazy"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.src = fallbackImage(activeContent);
+                }}
+              />
+            </button>
+            <div className="yy-cad__name" title={item.title}>{item.title}</div>
+            <div className="yy-cad__meta">
+              <span className="yy-fmt">{formatOf(item)}</span>
+              <span className="yy-cad__price">{item.price}</span>
+              <button
+                type="button"
+                className="yy-linkbtn yy-cad__dl"
                 onClick={() => handleDownload(item.downloadUrl, item.title)}
-                className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 transition"
               >
                 ダウンロード
               </button>
@@ -833,106 +829,86 @@ const LandscapeCAD: React.FC<LandscapeCADProps> = ({ onNavigateToLogin }) => {
     );
   };
 
-    return (
-    <div>
-      <h2 className="text-xl font-semibold mb-2">添景・CAD</h2>
-      <p className="text-[12px] text-gray-600 mb-3">
-        プレゼンや施工図に使える添景データやCADパーツ、テクスチャ素材をカテゴリ別にまとめています。レイアウト検討や資料作成時にご活用ください。
-      </p>
-      {/* メインカテゴリボタン */}
-      <div className="flex gap-2 flex-wrap mb-4">
-        <button 
-          onClick={() => displayContent('cad')}
-          className={getButtonClass('cad')}
-        >
-          CAD
+  const cadSubs: { key: 'all' | 'plants' | 'people' | 'furniture' | 'others'; label: string }[] = [
+    { key: 'all', label: '全カテゴリー' },
+    { key: 'plants', label: '植物' },
+    { key: 'people', label: '人' },
+    { key: 'furniture', label: '什器' },
+    { key: 'others', label: 'その他' },
+  ];
+  const landscapeSubs: { key: 'all' | 'background' | 'plants' | 'people' | 'others'; label: string }[] = [
+    { key: 'all', label: '全カテゴリー' },
+    { key: 'background', label: '背景' },
+    { key: 'plants', label: '植物' },
+    { key: 'people', label: '人' },
+    { key: 'others', label: 'その他' },
+  ];
+  const shownCount = getCurrentItems().length;
+
+  return (
+    <div className="yy-cad">
+      <PageHead
+        no="08"
+        en="cad & entourage"
+        title="添景・CAD"
+        desc="図面・パースに使える無料データ"
+        right={
+          <>
+            <Stat n={cadItems.length} label="点 CAD" />
+            <Stat n={landscapeItems.length} label="点 添景" />
+            <span className="yy-stat">すべて無料</span>
+          </>
+        }
+      />
+
+      {/* CAD / 添景：下線タブ */}
+      <div className="yy-tabs yy-cad__tabs">
+        <button type="button" className="yy-tab" aria-pressed={activeContent === 'cad'} onClick={() => displayContent('cad')}>
+          CAD<small>{cadItems.length}</small>
         </button>
-        <button 
-          onClick={() => displayContent('landscape')}
-          className={getButtonClass('landscape')}
-        >
-          添景
+        <button type="button" className="yy-tab" aria-pressed={activeContent === 'landscape'} onClick={() => displayContent('landscape')}>
+          添景<small>{landscapeItems.length}</small>
         </button>
       </div>
 
-      {/* CADのサブカテゴリボタン */}
-      {activeContent === 'cad' && (
-        <div className="flex gap-2 flex-wrap mb-4">
-          <button 
-            onClick={() => displayCadSubCategory('all')}
-            className={getCadSubButtonClass('all')}
-          >
-            全カテゴリー
-          </button>
-          <button 
-            onClick={() => displayCadSubCategory('plants')}
-            className={getCadSubButtonClass('plants')}
-          >
-            植物
-          </button>
-          <button 
-            onClick={() => displayCadSubCategory('people')}
-            className={getCadSubButtonClass('people')}
-          >
-            人
-          </button>
-          <button 
-            onClick={() => displayCadSubCategory('furniture')}
-            className={getCadSubButtonClass('furniture')}
-          >
-            什器
-          </button>
-          <button 
-            onClick={() => displayCadSubCategory('others')}
-            className={getCadSubButtonClass('others')}
-          >
-            その他
-          </button>
+      {/* 小分類：小さめの下線タブ。右に表示中の点数とログインの案内 */}
+      <div className="yy-cad__bar">
+        <div className="yy-tabs yy-cad__subtabs">
+          {activeContent === 'cad'
+            ? cadSubs.map((s) => (
+                <button key={s.key} type="button" className="yy-tab" aria-pressed={activeCadSubCategory === s.key} onClick={() => displayCadSubCategory(s.key)}>
+                  {s.label}<small>{cadCount(s.key)}</small>
+                </button>
+              ))
+            : landscapeSubs.map((s) => (
+                <button key={s.key} type="button" className="yy-tab" aria-pressed={activeLandscapeSubCategory === s.key} onClick={() => displayLandscapeSubCategory(s.key)}>
+                  {s.label}<small>{landscapeCount(s.key)}</small>
+                </button>
+              ))}
         </div>
-      )}
+        <span className="yy-cad__info">
+          <span className="yy-label">{activeContent === 'cad' ? 'DXF' : 'PNG'} · {shownCount} 点</span>
+          {!isLoggedIn && (
+            <span className="yy-cad__login">
+              ダウンロードは会員登録（無料）が必要です
+              {onNavigateToLogin && (
+                <button type="button" className="yy-linkbtn" onClick={onNavigateToLogin}>ログイン</button>
+              )}
+            </span>
+          )}
+        </span>
+      </div>
 
-      {/* 添景のサブカテゴリボタン */}
-      {activeContent === 'landscape' && (
-        <div className="flex gap-2 flex-wrap mb-4">
-          <button 
-            onClick={() => displayLandscapeSubCategory('all')}
-            className={getSubButtonClass('all')}
-          >
-            全カテゴリー
-          </button>
-          <button 
-            onClick={() => displayLandscapeSubCategory('background')}
-            className={getSubButtonClass('background')}
-          >
-            背景
-          </button>
-          <button 
-            onClick={() => displayLandscapeSubCategory('plants')}
-            className={getSubButtonClass('plants')}
-          >
-            植物
-          </button>
-          <button 
-            onClick={() => displayLandscapeSubCategory('people')}
-            className={getSubButtonClass('people')}
-          >
-            人
-          </button>
-          <button 
-            onClick={() => displayLandscapeSubCategory('others')}
-            className={getSubButtonClass('others')}
-          >
-            その他
-          </button>
-        </div>
-      )}
-
-      <div 
+      <div
         id="landscape-cad-content-area"
-        className={`transition-opacity duration-250 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}
+        className={`yy-cad__area${isTransitioning ? ' is-fading' : ''}`}
       >
         {renderContent()}
       </div>
+
+      <p className="yy-cad__foot">
+        プレゼンや施工図に使える添景データや CAD パーツを分類別にまとめています。画像をクリックしてもダウンロードできます。
+      </p>
     </div>
   );
 };

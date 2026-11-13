@@ -1,0 +1,143 @@
+/* 左カラム「01 見る」の 3 画面(新製品 / 書籍・ソフト / Pickup)。高級感 3:大きくせず、組版で上げる。
+   接頭辞: .yy-np-(新製品)/ .yy-bk-(書籍・ソフト)/ .yy-pk-(Pickup)。共通の部品は globals.css の .yy-* を使う。 */
+
+/* ── 共通:本文 + 右 270px(.yy-newspage と同じ組み) ── */
+.yy-np-page, .yy-bk-page, .yy-pk-page { display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 28px; align-items: start; }
+@media (max-width: 1279px) { .yy-np-page, .yy-bk-page, .yy-pk-page { grid-template-columns: 1fr; } }
+.yy-np-main, .yy-np-side, .yy-bk-main, .yy-bk-side, .yy-pk-main, .yy-pk-side { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.yy-np-page section, .yy-bk-page section, .yy-pk-page section { display: flex; flex-direction: column; }
+.yy-np-side .yy-gray, .yy-bk-side .yy-gray, .yy-pk-side .yy-gray { margin-top: 8px; }
+.yy-np-loading, .yy-bk-empty, .yy-pk-empty { margin: 0; padding: 14px 0; font-size: 12px; color: var(--yy-t3); border-bottom: 1px solid var(--yy-line); }
+
+/* 右列の索引行(番号 ……… 件数)。タブと同じ切り替えをする button */
+.yy-np-toc, .yy-bk-toc, .yy-pk-toc { margin: 0; padding: 0; list-style: none; }
+.yy-np-toc li, .yy-bk-toc li, .yy-pk-toc li { border-bottom: 1px solid var(--yy-line); }
+.yy-np-toc .yy-srcrow, .yy-bk-toc .yy-srcrow, .yy-pk-toc .yy-srcrow { height: 26px; }
+.yy-np-toc .yy-srcrow--btn[aria-pressed='true'] .yy-home__toct,
+.yy-bk-toc .yy-srcrow--btn[aria-pressed='true'] .yy-home__toct,
+.yy-pk-toc .yy-srcrow--btn[aria-pressed='true'] .yy-home__toct { color: var(--yy-acc-ink); }
+.yy-np-note, .yy-bk-note, .yy-pk-note { margin: 6px 0 0; font-size: 11px; line-height: 1.7; color: var(--yy-t3); }
+
+/* ── 新製品:NEWS と同じ番号付きの行(番号 / 配信元・日付 / 題と要約 / 小さな写真 / ↗) ── */
+.yy-np-list { margin: 0; padding: 0; list-style: none; }
+.yy-np-row {
+  display: grid;
+  grid-template-columns: 28px 128px minmax(0, 1fr) 44px 14px;
+  grid-template-areas: "no src body photo ext";
+  column-gap: 14px;
+  align-items: baseline;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--yy-line);
+}
+.yy-np-no { grid-area: no; font-family: var(--yy-serif); font-size: 15px; font-weight: 500; color: var(--yy-t3); font-variant-numeric: lining-nums tabular-nums; }
+.yy-np-src { grid-area: src; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.yy-np-srcname { font-family: var(--font-mono), monospace; font-size: 10.5px; color: var(--yy-t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.yy-np-date { font-family: var(--font-mono), monospace; font-size: 10.5px; color: var(--yy-t3); font-variant-numeric: tabular-nums; }
+.yy-np-cat { font-size: 11px; color: var(--yy-t2); }
+.yy-np-body { grid-area: body; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.yy-np-title { font-size: 13.5px; line-height: 1.55; color: var(--yy-ink); text-decoration: none; }
+a.yy-np-title:hover { color: var(--yy-acc-ink); text-decoration: underline; text-underline-offset: 3px; }
+button.yy-np-title { padding: 0; border: 0; background: none; font: inherit; font-size: 13.5px; text-align: left; cursor: pointer; }
+button.yy-np-title:hover { color: var(--yy-acc-ink); }
+.yy-np-row.is-lead .yy-np-title { font-family: var(--yy-serif); font-size: 16px; font-weight: 500; }
+.yy-np-desc { font-size: 12px; line-height: 1.7; color: var(--yy-t2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.yy-np-row .yy-fmt { align-self: flex-start; }
+.yy-np-photo { grid-area: photo; align-self: center; }
+.yy-np-ext { grid-area: ext; align-self: center; color: #b9b9b4; font-size: 12px; text-decoration: none; }
+a.yy-np-ext:hover { color: var(--yy-acc-ink); }
+@media (max-width: 767px) {
+  .yy-np-row { grid-template-columns: 24px minmax(0, 1fr) 14px; grid-template-areas: "no src ext" ". body ext"; row-gap: 3px; }
+  .yy-np-src { flex-direction: row; gap: 8px; }
+  .yy-np-photo { display: none; }
+}
+
+/* ── 書籍・ソフト:表紙は小さく(最大 44×58)。番号 / 表紙 / 題・説明 / 価格・種別 / 購入先 ── */
+.yy-bk-list { margin: 0; padding: 0; list-style: none; }
+.yy-bk-row {
+  display: grid;
+  grid-template-columns: 28px 44px minmax(0, 1fr) 96px 150px;
+  grid-template-areas: "no cover body price links";
+  column-gap: 14px;
+  align-items: center;
+  min-height: 74px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--yy-line);
+}
+.yy-bk-no { grid-area: no; align-self: baseline; padding-top: 2px; font-family: var(--yy-serif); font-size: 15px; font-weight: 500; color: var(--yy-t3); font-variant-numeric: lining-nums tabular-nums; }
+.yy-bk-cover { grid-area: cover; width: 44px; height: 58px; display: flex; align-items: center; justify-content: center; overflow: hidden; background: var(--yy-surf); }
+.yy-bk-cover a { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
+.yy-bk-cover img { display: block; max-width: 44px; max-height: 58px; width: auto; height: auto; object-fit: contain; border: 0; outline: none; box-shadow: none; }
+.yy-bk-cover a:hover img { opacity: 0.8; }
+/* A8.net の広告スクリプトが差し込む要素が表紙の枠を広げないように */
+.yy-bk-cover .a8ad, .yy-bk-a8 { display: contents; }
+.yy-bk-cover .a8ad img { max-width: 44px; max-height: 58px; }
+.yy-bk-body { grid-area: body; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.yy-bk-title { font-size: 13px; line-height: 1.5; color: var(--yy-ink); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+a.yy-bk-title:hover { color: var(--yy-acc-ink); text-decoration: underline; text-underline-offset: 3px; }
+.yy-bk-desc { font-size: 11px; line-height: 1.65; color: var(--yy-t3); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.yy-bk-price { grid-area: price; justify-self: end; font-size: 12px; color: var(--yy-t2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.yy-bk-price .yy-fmt { display: inline-block; }
+.yy-bk-links { grid-area: links; justify-self: end; display: flex; align-items: center; gap: 12px; white-space: nowrap; font-size: 12px; }
+.yy-bk-links a { color: var(--yy-acc-ink); text-decoration: none; }
+.yy-bk-links a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.yy-bk-links .is-none { color: var(--yy-t3); font-size: 11px; }
+.yy-bk-pixel { display: none; border: 0; }
+@media (max-width: 767px) {
+  .yy-bk-row { grid-template-columns: 24px 44px auto minmax(0, 1fr); grid-template-areas: "no cover body body" "no cover price links"; row-gap: 4px; }
+  .yy-bk-price { justify-self: start; }
+}
+
+/* ── Pickup:番号 / 小さな写真 / 種別 / 題・説明 / 値 / 詳細 ── */
+.yy-pk-sample { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; padding: 8px 0; margin-bottom: 4px; border-bottom: 1px solid var(--yy-line); font-size: 12px; color: var(--yy-t2); }
+.yy-pk-sample strong { font-weight: 700; color: var(--yy-ink); }
+.yy-pk-list { margin: 0; padding: 0; list-style: none; }
+.yy-pk-row {
+  display: grid;
+  grid-template-columns: 28px 60px 56px minmax(0, 1fr) auto auto;
+  grid-template-areas: "no photo cat body val more";
+  column-gap: 14px;
+  align-items: center;
+  min-height: 60px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--yy-line);
+}
+.yy-pk-row.is-ad { cursor: pointer; }
+.yy-pk-row.is-ad:hover .yy-pk-title { color: var(--yy-acc-ink); }
+.yy-pk-no { grid-area: no; font-family: var(--yy-serif); font-size: 15px; font-weight: 500; color: var(--yy-t3); font-variant-numeric: lining-nums tabular-nums; }
+.yy-pk-photo { grid-area: photo; width: 60px !important; height: 42px !important; }
+.yy-pk-cat { grid-area: cat; font-family: var(--font-mono), monospace; font-size: 10.5px; letter-spacing: 0.04em; color: var(--yy-t3); white-space: nowrap; }
+.yy-pk-body { grid-area: body; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.yy-pk-title { font-size: 13px; line-height: 1.5; color: var(--yy-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.yy-pk-desc { font-size: 11px; line-height: 1.6; color: var(--yy-t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.yy-pk-val { grid-area: val; font-size: 11px; color: var(--yy-t3); white-space: nowrap; }
+.yy-pk-more { grid-area: more; font-size: 12px; color: var(--yy-acc-ink); text-decoration: none; white-space: nowrap; }
+.yy-pk-more:hover { text-decoration: underline; text-underline-offset: 3px; }
+@media (max-width: 767px) {
+  .yy-pk-row { grid-template-columns: 24px 60px minmax(0, 1fr) auto; grid-template-areas: "no photo body body" "no photo cat more"; row-gap: 4px; }
+  .yy-pk-val { display: none; }
+  .yy-pk-more { justify-self: end; }
+}
+
+/* Pickup の写真の拡大(枠は 1px の線だけ、選択中の写真は緑の線) */
+.yy-pk-modal { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-start; justify-content: center; padding: 120px 16px 16px; background: rgba(20, 20, 20, 0.55); }
+.yy-pk-dialog { width: 100%; max-width: min(760px, 100%); background: #ffffff; border-radius: 4px; box-shadow: inset 0 0 0 1px var(--yy-line); overflow: hidden; }
+.yy-pk-dialog__head { display: flex; align-items: baseline; gap: 10px; padding: 12px 16px 8px; border-bottom: 1px solid var(--yy-ink); }
+.yy-pk-dialog__title { margin: 0; font-family: var(--yy-serif); font-size: 15px; font-weight: 500; color: var(--yy-ink); }
+.yy-pk-dialog__close { margin-left: auto; padding: 0 4px; border: 0; background: none; font-size: 18px; line-height: 1; color: var(--yy-t3); cursor: pointer; }
+.yy-pk-dialog__close:hover { color: var(--yy-ink); }
+.yy-pk-dialog__body { display: flex; gap: 14px; padding: 14px 16px 16px; }
+.yy-pk-dialog__main { flex: 1 1 auto; min-width: 0; }
+.yy-pk-dialog__main img { display: block; width: 100%; height: auto; max-height: 480px; object-fit: contain; user-select: none; background: var(--yy-surf); }
+.yy-pk-dialog__side { flex: 0 0 180px; display: flex; flex-direction: column; gap: 8px; }
+.yy-pk-dialog__thumbs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.yy-pk-dialog__thumb { padding: 0; border: 0; background: none; cursor: pointer; box-shadow: 0 0 0 1px var(--yy-line); border-radius: 2px; overflow: hidden; }
+.yy-pk-dialog__thumb[aria-pressed='true'] { box-shadow: 0 0 0 2px var(--yy-acc); }
+.yy-pk-dialog__thumb img { display: block; width: 100%; height: 72px; object-fit: cover; user-select: none; }
+.yy-pk-dialog__credit { margin-top: auto; display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: var(--yy-t2); text-align: right; }
+@media (max-width: 767px) {
+  .yy-pk-modal { padding-top: 60px; }
+  .yy-pk-dialog__body { flex-direction: column; }
+  .yy-pk-dialog__side { flex-basis: auto; }
+  .yy-pk-dialog__thumbs { grid-template-columns: repeat(4, 1fr); }
+}
+.yy-pk-side a.yy-btn { text-decoration: none; }

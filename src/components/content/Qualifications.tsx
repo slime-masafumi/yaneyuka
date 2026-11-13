@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import PageHead, { Stat } from '../ui/PageHead';
+import './see-pages-2.css';
 
 interface QualificationItem {
   name: string;
@@ -634,18 +636,26 @@ function countdownText(days: number | null): string | null {
   return `あと${days}日`;
 }
 
-const Qualifications: React.FC = () => {
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
-    const init: Record<string, boolean> = {};
-    sections.forEach(section => { init[section.title] = false; });
-    return init;
-  });
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortByDeadline, setSortByDeadline] = useState(false);
+/** 分野のタブに出す短い名前（「建築設計・意匠・構造・設備系」→「建築設計」） */
+const shortTitle = (title: string) => title.split(/[・（]/)[0].replace(/系$/, '');
 
-  const toggleSection = (title: string) => {
-    setOpenSections(prev => ({ ...prev, [title]: !prev[title] }));
-  };
+/** 「学科: 7月下旬 / 製図: 10月中旬」を 1 区切りずつに分け、見出し（学科）と日付に分ける */
+const splitSchedule = (text: string | undefined): { k: string; v: string }[] => {
+  if (!text) return [{ k: '', v: '未定' }];
+  return text.split(/\s+\/\s+/).map((seg) => {
+    const m = seg.match(/^([^:：]{1,16})[:：]\s*(.+)$/);
+    return m ? { k: m[1].trim(), v: m[2].trim() } : { k: '', v: seg.trim() };
+  });
+};
+
+const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+
+// 'all' = 分野ごとに全部、'deadline' = 締切順、それ以外 = 分野名（section.title）
+type Tab = string;
+
+const Qualifications: React.FC = () => {
+  const [tab, setTab] = useState<Tab>('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Flatten all items with section info, compute deadline dates
   const allItemsWithMeta = useMemo(() => {
@@ -658,17 +668,33 @@ const Qualifications: React.FC = () => {
     );
   }, []);
 
-  // Filtered sections for accordion view
+  // 申込締切がいちばん近い 1 件（表で淡い緑にする）
+  const nextItem = useMemo(() => {
+    let best: { name: string; d: number } | null = null;
+    for (const it of allItemsWithMeta) {
+      const d = daysRemaining(it.deadlineDate);
+      if (d !== null && (best === null || d < best.d)) best = { name: it.name, d };
+    }
+    return best;
+  }, [allItemsWithMeta]);
+
+  const soonCount = useMemo(
+    () => allItemsWithMeta.filter((it) => { const d = daysRemaining(it.deadlineDate); return d !== null && d <= 30; }).length,
+    [allItemsWithMeta],
+  );
+
+  // Filtered sections for the per-field view
   const filteredSections = useMemo(() => {
-    if (!searchQuery.trim()) return sections;
     const q = searchQuery.trim().toLowerCase();
     return sections
-      .map(section => ({
+      .map((section, idx) => ({
         ...section,
-        items: section.items.filter(it => it.name.toLowerCase().includes(q)),
+        idx,
+        items: q ? section.items.filter(it => it.name.toLowerCase().includes(q)) : section.items,
       }))
-      .filter(section => section.items.length > 0);
-  }, [searchQuery]);
+      .filter(section => section.items.length > 0)
+      .filter(section => tab === 'all' || tab === 'deadline' || section.title === tab);
+  }, [searchQuery, tab]);
 
   // Sorted flat list for deadline view
   const sortedItems = useMemo(() => {
@@ -684,115 +710,137 @@ const Qualifications: React.FC = () => {
     return [...withDate, ...withoutDate];
   }, [searchQuery, allItemsWithMeta]);
 
-  /** Render a single qualification item */
-  const renderItem = (it: QualificationItem, key: string | number, sectionLabel?: string) => {
+  /** 日程の 1 マス：区切りごとに 1 行。見出し（学科など）は小さく灰、日付は明朝 */
+  const cell = (text: string | undefined, cls: string, label: string) => (
+    <span className={`yy-ql__cell${cls ? ` ${cls}` : ''}`} data-label={label}>
+      {splitSchedule(text).map((p, i) => (
+        <span key={i} className="yy-ql__seg">
+          {p.k && <small>{p.k}</small>}
+          <span className={p.v === '未定' ? 'yy-ql__tbd' : 'yy-ql__d'}>{p.v}</span>
+        </span>
+      ))}
+    </span>
+  );
+
+  /** Render a single qualification row */
+  const renderItem = (it: QualificationItem, key: string | number, no: number, sectionLabel?: string) => {
     const deadlineDate = parseApproxDeadlineDate(it.applicationDeadline);
     const remaining = daysRemaining(deadlineDate);
     const badge = countdownText(remaining);
+    const isNext = nextItem?.name === it.name;
+    const leftCls = remaining !== null && remaining <= 7 ? ' is-urgent' : remaining !== null && remaining <= 30 ? ' is-soon' : '';
 
     return (
-      <li key={key} className="leading-6">
-        <span className="mr-1">・</span>
-        {it.url ? (
-          <a href={it.url} target="_blank" rel="noopener noreferrer" className="font-medium text-blue-700 hover:underline">{it.name}</a>
-        ) : (
-          <span className="font-medium">{it.name}</span>
-        )}
-        {sectionLabel && (
-          <span className="ml-2 text-[10px] text-gray-400">[{sectionLabel}]</span>
-        )}
-        <div className="ml-4 text-[11px] text-gray-600">
-          <span className="mr-3">
-            <span className="font-medium">受付期限:</span> {it.applicationDeadline || '未定'}
-            {badge && (
-              <span className={`ml-1.5 inline-block text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                remaining !== null && remaining <= 7
-                  ? 'bg-red-100 text-red-700'
-                  : remaining !== null && remaining <= 30
-                    ? 'bg-yellow-100 text-yellow-700'
-                    : 'bg-green-100 text-green-700'
-              }`}>
-                {badge}
-              </span>
-            )}
-          </span>
-          <span className="mr-3"><span className="font-medium">試験日程:</span> {it.examSchedule || '未定'}</span>
-          <span><span className="font-medium">合否発表日:</span> {it.resultDate || '未定'}</span>
-        </div>
-      </li>
+      <div key={key} className={`yy-ql__row${isNext ? ' is-next' : ''}`}>
+        <span className="yy-ql__no">{String(no).padStart(2, '0')}</span>
+        <span className="yy-ql__name">
+          {it.url ? (
+            <a href={it.url} target="_blank" rel="noopener noreferrer">{it.name}<span className="yy-ql__ext">↗</span></a>
+          ) : (
+            <span>{it.name}</span>
+          )}
+          {sectionLabel && <small className="yy-ql__sec">{shortTitle(sectionLabel)}</small>}
+        </span>
+        {cell(it.applicationDeadline, 'is-apply', '申込')}
+        {cell(it.examSchedule, '', '試験')}
+        {cell(it.resultDate, '', '発表')}
+        <span className={`yy-ql__left${leftCls}`}>{badge || <span className="yy-ql__dash">—</span>}</span>
+      </div>
     );
   };
 
-  return (
-    <div>
-      <div className="flex items-baseline mb-2">
-        <h2 className="text-xl font-semibold">資格試験</h2>
-      </div>
-      <p className="text-[12px] text-gray-600 mb-3">
-        建築・設備・不動産領域の主な資格試験スケジュールをカテゴリ別にまとめています。受験計画や社内共有にご活用ください。
-      </p>
+  const head = (
+    <div className="yy-ql__row yy-ql__row--head">
+      <span />
+      <span>資格</span>
+      <span>申込</span>
+      <span>試験</span>
+      <span>合格発表</span>
+      <span className="yy-ql__left">締切まで</span>
+    </div>
+  );
 
-      {/* Search and sort controls */}
-      <div className="flex flex-col sm:flex-row gap-2 mb-3">
-        <input
-          type="text"
-          placeholder="資格名で検索..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="flex-1 px-3 py-1.5 text-[13px] border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-400"
-        />
-        <button
-          type="button"
-          onClick={() => setSortByDeadline(prev => !prev)}
-          className={`px-3 py-1.5 text-[12px] rounded border whitespace-nowrap transition-colors ${
-            sortByDeadline
-              ? 'bg-blue-600 text-white border-blue-600'
-              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-          }`}
-        >
-          {sortByDeadline ? '締切順 ON' : '締切順に並べ替え'}
+  return (
+    <div className="yy-ql">
+      <PageHead
+        no="07"
+        en="qualifications"
+        title="資格試験"
+        desc="建築・設備・不動産の試験日程"
+        right={
+          <>
+            <Stat n={allItemsWithMeta.length} label="資格" />
+            <Stat n={sections.length} label="分野" />
+            <Stat n={soonCount} label="件 30 日以内に締切" />
+          </>
+        }
+      />
+
+      {/* 分野で絞る：下線タブ。右端に「締切順」 */}
+      <div className="yy-tabs yy-ql__tabs">
+        <button type="button" className="yy-tab" aria-pressed={tab === 'all'} onClick={() => setTab('all')}>
+          すべて<small>{allItemsWithMeta.length}</small>
+        </button>
+        {sections.map((s) => (
+          <button key={s.title} type="button" className="yy-tab" aria-pressed={tab === s.title} onClick={() => setTab(s.title)} title={s.title}>
+            {shortTitle(s.title)}<small>{s.items.length}</small>
+          </button>
+        ))}
+        <button type="button" className="yy-tab yy-ql__sorttab" aria-pressed={tab === 'deadline'} onClick={() => setTab('deadline')}>
+          締切順
         </button>
       </div>
 
-      {/* Deadline-sorted flat list view */}
-      {sortByDeadline ? (
-        <div className="bg-white p-4 rounded border border-gray-300">
-          {sortedItems.length === 0 ? (
-            <p className="text-[13px] text-gray-500">該当する資格が見つかりません。</p>
-          ) : (
-            <ul className="space-y-1 text-[13px]">
-              {sortedItems.map((it, idx) => renderItem(it, idx, it.sectionTitle))}
-            </ul>
-          )}
-        </div>
-      ) : (
-        /* Default accordion view */
-        <div className="space-y-2">
-          {filteredSections.length === 0 ? (
-            <p className="text-[13px] text-gray-500 p-4">該当する資格が見つかりません。</p>
-          ) : (
-            filteredSections.map((section, sIdx) => (
-              <div key={sIdx} id={sIdx === 0 ? 'qual-first-section' : undefined} className="bg-white p-4 rounded border border-gray-300">
-                <button
-                  type="button"
-                  onClick={() => toggleSection(section.title)}
-                  aria-expanded={openSections[section.title]}
-                  className="flex items-center gap-2 font-bold mb-2 text-[13px] text-left w-full"
-                >
-                  <span className={`inline-block w-4 text-[16px] transition-transform ${openSections[section.title] ? 'rotate-90' : ''}`}>▸</span>
-                  <span>{section.title}</span>
-                  <span className="text-[11px] font-normal text-gray-400 ml-1">({section.items.length})</span>
-                </button>
-                {openSections[section.title] && (
-                  <ul className="space-y-1 text-[13px] pl-5">
-                    {section.items.map((it, iIdx) => renderItem(it, iIdx))}
-                  </ul>
-                )}
+      {/* 検索と注記 */}
+      <div className="yy-ql__tools">
+        <input
+          type="text"
+          placeholder="資格名で検索"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="yy-ql__search"
+          aria-label="資格名で検索"
+        />
+        {nextItem && (
+          <span className="yy-ql__next">
+            次の締切<span className="yy-leader" /><b className="yy-serif">{nextItem.d === 0 ? '本日' : `${nextItem.d} 日後`}</b>
+            <span className="yy-ql__nextname">{nextItem.name}</span>
+          </span>
+        )}
+      </div>
+
+      {/* 表の始まり。右列の動画（QualificationsVideos）がこの位置に頭をそろえる */}
+      <div id="qual-first-section" className="yy-ql__body">
+        {tab === 'deadline' ? (
+          <section>
+            <div className="yy-sec">
+              <span className="yy-sec__no">—</span><span className="yy-sec__title">申込締切の近い順</span>
+              <span className="yy-sec__right">{sortedItems.length} 件</span>
+            </div>
+            {head}
+            {sortedItems.length === 0 ? (
+              <p className="yy-home__empty">該当する資格が見つかりません。</p>
+            ) : (
+              sortedItems.map((it, idx) => renderItem(it, idx, idx + 1, it.sectionTitle))
+            )}
+          </section>
+        ) : filteredSections.length === 0 ? (
+          <p className="yy-home__empty">該当する資格が見つかりません。</p>
+        ) : (
+          filteredSections.map((section) => (
+            <section key={section.title}>
+              <div className="yy-sec">
+                <span className="yy-sec__no">{ROMAN[section.idx] || section.idx + 1}</span>
+                <span className="yy-sec__title">{section.title}</span>
+                <span className="yy-sec__right">{section.items.length} 件</span>
               </div>
-            ))
-          )}
-        </div>
-      )}
+              {head}
+              {section.items.map((it, iIdx) => renderItem(it, iIdx, iIdx + 1))}
+            </section>
+          ))
+        )}
+        <p className="yy-ql__foot">日程は例年の目安です。受験の前に、各実施団体の案内（↗）で今年の日程を確かめてください。</p>
+      </div>
     </div>
   );
 };

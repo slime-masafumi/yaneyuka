@@ -16,6 +16,9 @@ import { REQUEST_PURPOSES, buildRequest, targetFor, logKindOf, missingRequester,
 import { recordContactLog } from '@/lib/contactLogStore'
 import { isChatNicknameOnly, newLogId, todayYmd, type ContactLogEntry } from '@/lib/contactLog'
 import { PRESET_EVENT, takePreset, type MakerConectPreset } from '@/lib/makerConectPreset'
+import PageHead, { Stat } from '@/components/ui/PageHead'
+import { SecHead } from '@/components/ui/Sheet'
+import './materials.css'
 
 const MAX_MAKERS = 5
 
@@ -115,104 +118,119 @@ export default function MakerConect() {
     setDone((p) => ({ ...p, [d.name]: `依頼文をコピーしました。開いた${d.target?.label ?? '窓口'}に貼って送ってください。${logged ? '担当者連絡先に記録しました。' : currentUser ? '' : '（ログインすると送った記録が残ります）'}` }))
   }
 
-  const field = 'border border-gray-300 px-2 py-1 text-[12px] w-full'
-  const label = 'block text-[11px] text-gray-500 mb-0.5'
+  const makerTotal = useMemo(() => (data ? new Set(Object.values(data).flat().map((m) => m.name)).size : 0), [data])
 
   return (
     <div>
-      <div className="flex items-baseline mb-2 gap-3 flex-wrap">
-        <h2 className="text-lg font-semibold">Maker conect</h2>
-        <span className="text-[12px] text-gray-500">メーカーへの依頼窓口 — カタログ・サンプル・見積・技術資料・打合せ</span>
-        <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('yaneyuka-navigate', { detail: 'registration' }))} className="text-[11px] text-gray-500 hover:text-gray-800 ml-auto">
-          掲載希望はコチラ
-        </button>
+      <PageHead
+        en="materials"
+        title="Maker conect"
+        desc="メーカーへの依頼窓口 — カタログ・サンプル・見積・技術資料・打合せ"
+        right={
+          <>
+            <Stat n={`${makers.length}/${MAX_MAKERS}`} label="宛先" />
+            <Stat n={REQUEST_PURPOSES.length} label="依頼の種類" />
+            <Stat n={data ? makerTotal : '—'} label="社" />
+          </>
+        }
+      />
+      <div className="yy-mk2-bar">
+        <span>同じ依頼を {MAX_MAKERS} 社までまとめて作れます（相見積・比較）</span>
+        <span className="yy-mk2-bar__right">
+          <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('yaneyuka-navigate', { detail: 'registration' }))} className="yy-mk2-link yy-mk2-link--quiet">
+            掲載希望はコチラ
+          </button>
+        </span>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
-        <div className="bg-white border border-gray-300 p-4 space-y-4 text-[12px]">
+      <div className="yy-mk2-mc">
+        <div className="yy-mk2-mc__col">
           {/* 1. 宛先 */}
-          <section>
-            <div className="text-[10px] tracking-widest font-mono text-gray-400 mb-1">001 宛先（{MAX_MAKERS}社まで）</div>
-            <div className="relative">
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={data ? 'メーカー名・部位で探す（例: 防水、LIXIL、フローリング）' : '読み込み中…'} disabled={!data} className={field} />
+          <section className="yy-mk2-mc__sec">
+            <SecHead no="I" title="宛先" right={`${MAX_MAKERS} 社まで`} />
+            <div className="yy-mk2-mc__search">
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={data ? 'メーカー名・部位で探す（例: 防水、LIXIL、フローリング）' : '読み込み中…'} disabled={!data} className="yy-mk2-in" aria-label="メーカーを探す" />
               {hits.length > 0 && (
-                <ul className="absolute z-20 left-0 right-0 top-full bg-white border border-[#3b3b3b] max-h-64 overflow-y-auto">
+                <ul className="yy-mk2-mc__hits">
                   {hits.map((h) => (
                     <li key={h.name}>
                       <button
                         type="button"
                         disabled={makers.includes(h.name) || makers.length >= MAX_MAKERS}
                         onClick={() => { setMakers((p) => [...p, h.name]); setQ('') }}
-                        className="w-full text-left px-2 py-1.5 hover:bg-gray-100 disabled:text-gray-400 flex justify-between gap-2"
                       >
                         <span>{h.name}</span>
-                        <span className="text-[10px] text-gray-400 truncate">{makers.includes(h.name) ? '追加済み' : h.categories.join('・')}</span>
+                        <small>{makers.includes(h.name) ? '追加済み' : h.categories.join('・')}</small>
                       </button>
                     </li>
                   ))}
                 </ul>
               )}
             </div>
-            <div className="flex flex-wrap gap-1 mt-1.5">
-              {makers.map((m) => (
-                <span key={m} className="inline-flex items-center gap-1 border border-[#3b3b3b] px-1.5 py-0.5">
-                  {m}
-                  <button type="button" onClick={() => setMakers((p) => p.filter((x) => x !== m))} aria-label="外す" className="text-gray-400 hover:text-red-600">✕</button>
-                </span>
-              ))}
-              {!makers.length && <span className="text-gray-400">建材ページ・資料箱・Chatbot の「問い合わせ」からも入ります</span>}
-            </div>
+            {makers.length ? (
+              <ul className="yy-mk2-mc__to">
+                {makers.map((m, i) => (
+                  <li key={m}>
+                    <span className="yy-mk2-cb__no">{String(i + 1).padStart(2, '0')}</span>
+                    <span className="yy-mk2-cb__name">{m}</span>
+                    <button type="button" onClick={() => setMakers((p) => p.filter((x) => x !== m))} aria-label="外す" className="yy-mk2-mc__x">✕</button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="yy-mk2-mc__hint">建材ページ・資料箱・Chatbot の「問い合わせ」からも入ります</p>
+            )}
           </section>
 
           {/* 2. 依頼の種類と内容 */}
-          <section className="space-y-2">
-            <div className="text-[10px] tracking-widest font-mono text-gray-400">002 依頼</div>
-            <div className="flex flex-wrap gap-1">
+          <section className="yy-mk2-mc__sec">
+            <SecHead no="II" title="依頼" right={purpose} />
+            <div className="yy-tabs" role="group" aria-label="依頼の種類">
               {REQUEST_PURPOSES.map((p) => (
-                <button key={p} type="button" onClick={() => { setPurpose(p); setEdited({}) }} className={`px-2 py-1 border ${purpose === p ? 'bg-[#3b3b3b] text-white border-[#3b3b3b]' : 'bg-white border-gray-300 text-gray-700'}`}>
+                <button key={p} type="button" className="yy-tab" aria-pressed={purpose === p} onClick={() => { setPurpose(p); setEdited({}) }}>
                   {p}
                 </button>
               ))}
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <label><span className={label}>物件名</span><input value={detail.projectName ?? ''} onChange={(e) => set({ projectName: e.target.value })} placeholder="A邸 新築工事" className={field} /></label>
-              <label><span className={label}>所在地（市区町村まで）</span><input value={detail.location ?? ''} onChange={(e) => set({ location: e.target.value })} className={field} /></label>
-              <label><span className={label}>部位・用途</span><input value={detail.part ?? ''} onChange={(e) => set({ part: e.target.value })} placeholder="外壁・住宅" className={field} /></label>
-              <label><span className={label}>品番・品名</span><input value={detail.items ?? ''} onChange={(e) => set({ items: e.target.value })} className={field} /></label>
-              <label><span className={label}>数量</span><input value={detail.quantity ?? ''} onChange={(e) => set({ quantity: e.target.value })} placeholder="約120㎡ / 各色1枚" className={field} /></label>
+            <div className="yy-mk2-mc__grid">
+              <label className="yy-mk2-fl"><span>物件名</span><input value={detail.projectName ?? ''} onChange={(e) => set({ projectName: e.target.value })} placeholder="A邸 新築工事" className="yy-mk2-in" /></label>
+              <label className="yy-mk2-fl"><span>所在地（市区町村まで）</span><input value={detail.location ?? ''} onChange={(e) => set({ location: e.target.value })} className="yy-mk2-in" /></label>
+              <label className="yy-mk2-fl"><span>部位・用途</span><input value={detail.part ?? ''} onChange={(e) => set({ part: e.target.value })} placeholder="外壁・住宅" className="yy-mk2-in" /></label>
+              <label className="yy-mk2-fl"><span>品番・品名</span><input value={detail.items ?? ''} onChange={(e) => set({ items: e.target.value })} className="yy-mk2-in" /></label>
+              <label className="yy-mk2-fl"><span>数量</span><input value={detail.quantity ?? ''} onChange={(e) => set({ quantity: e.target.value })} placeholder="約120㎡ / 各色1枚" className="yy-mk2-in" /></label>
               {purpose !== '打合せ依頼' && (
-                <label><span className={label}>{purpose === '見積依頼' ? '回答希望日' : '希望時期'}</span><input value={detail.deadline ?? ''} onChange={(e) => set({ deadline: e.target.value })} placeholder="10月中旬まで" className={field} /></label>
+                <label className="yy-mk2-fl"><span>{purpose === '見積依頼' ? '回答希望日' : '希望時期'}</span><input value={detail.deadline ?? ''} onChange={(e) => set({ deadline: e.target.value })} placeholder="10月中旬まで" className="yy-mk2-in" /></label>
               )}
             </div>
             {purpose === '打合せ依頼' && (
-              <div className="grid grid-cols-3 gap-2">
+              <div className="yy-mk2-mc__grid yy-mk2-mc__grid--3">
                 {(detail.slots ?? ['', '', '']).map((s, i) => (
-                  <label key={i}>
-                    <span className={label}>候補 {i + 1}</span>
-                    <input value={s} onChange={(e) => set({ slots: (detail.slots ?? ['', '', '']).map((x, j) => (j === i ? e.target.value : x)) })} placeholder="10/1(水) 10時〜" className={field} />
+                  <label key={i} className="yy-mk2-fl">
+                    <span>候補 {i + 1}</span>
+                    <input value={s} onChange={(e) => set({ slots: (detail.slots ?? ['', '', '']).map((x, j) => (j === i ? e.target.value : x)) })} placeholder="10/1(水) 10時〜" className="yy-mk2-in" />
                   </label>
                 ))}
-                <label className="col-span-3"><span className={label}>場所</span><input value={detail.meetingPlace ?? ''} onChange={(e) => set({ meetingPlace: e.target.value })} placeholder="当社事務所 / オンライン" className={field} /></label>
+                <label className="yy-mk2-fl is-wide"><span>場所</span><input value={detail.meetingPlace ?? ''} onChange={(e) => set({ meetingPlace: e.target.value })} placeholder="当社事務所 / オンライン" className="yy-mk2-in" /></label>
               </div>
             )}
-            <label className="block"><span className={label}>本文に添える一言（任意）</span><textarea value={detail.body ?? ''} onChange={(e) => set({ body: e.target.value })} className={`${field} h-16`} /></label>
+            <label className="yy-mk2-fl"><span>本文に添える一言（任意）</span><textarea value={detail.body ?? ''} onChange={(e) => set({ body: e.target.value })} className="yy-mk2-in" /></label>
           </section>
 
           {/* 3. 依頼者 */}
-          <section className="space-y-2">
-            <div className="text-[10px] tracking-widest font-mono text-gray-400">003 依頼者</div>
-            <div className="grid grid-cols-2 gap-2">
-              <input value={profile.companyName} onChange={(e) => setProfile((p) => ({ ...p, companyName: e.target.value }))} placeholder="会社名" className={field} />
-              <input value={profile.personName} onChange={(e) => setProfile((p) => ({ ...p, personName: e.target.value }))} placeholder="氏名" className={field} />
-              <input value={profile.email} onChange={(e) => setProfile((p) => ({ ...p, email: e.target.value }))} placeholder="メール" className={field} />
-              <input value={profile.phone} onChange={(e) => setProfile((p) => ({ ...p, phone: e.target.value }))} placeholder="電話" className={field} />
-              <input value={profile.address ?? ''} onChange={(e) => setProfile((p) => ({ ...p, address: e.target.value }))} placeholder="送付先住所（カタログ・サンプル）" className={`${field} col-span-2`} />
+          <section className="yy-mk2-mc__sec">
+            <SecHead no="III" title="依頼者" right={missing.length ? undefined : 'そろっています'} />
+            <div className="yy-mk2-mc__grid">
+              <input value={profile.companyName} onChange={(e) => setProfile((p) => ({ ...p, companyName: e.target.value }))} placeholder="会社名" aria-label="会社名" className="yy-mk2-in" />
+              <input value={profile.personName} onChange={(e) => setProfile((p) => ({ ...p, personName: e.target.value }))} placeholder="氏名" aria-label="氏名" className="yy-mk2-in" />
+              <input value={profile.email} onChange={(e) => setProfile((p) => ({ ...p, email: e.target.value }))} placeholder="メール" aria-label="メール" className="yy-mk2-in" />
+              <input value={profile.phone} onChange={(e) => setProfile((p) => ({ ...p, phone: e.target.value }))} placeholder="電話" aria-label="電話" className="yy-mk2-in" />
+              <input value={profile.address ?? ''} onChange={(e) => setProfile((p) => ({ ...p, address: e.target.value }))} placeholder="送付先住所（カタログ・サンプル）" aria-label="送付先住所" className="yy-mk2-in is-wide" />
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] text-orange-700">{missing.length ? `足りない: ${missing.join('・')}` : ''}</span>
+            <div className="yy-mk2-mc__foot">
+              <span className="yy-mk2-warn">{missing.length ? `足りない: ${missing.join('・')}` : ''}</span>
               <button
                 type="button"
-                className="px-2 py-0.5 border border-gray-400 text-[11px]"
+                className="yy-mk2-btn"
                 onClick={() => {
                   try {
                     localStorage.setItem(`userContactProfile:${uid}`, JSON.stringify(profile))
@@ -225,39 +243,41 @@ export default function MakerConect() {
                 次回も使う
               </button>
             </div>
-            {profileMsg && <p className="text-[11px] text-gray-500">{profileMsg}</p>}
+            {profileMsg && <p className="yy-mk2-mc__hint">{profileMsg}</p>}
           </section>
         </div>
 
         {/* 4. 送る */}
-        <div className="space-y-3 text-[12px]">
-          <div className="text-[10px] tracking-widest font-mono text-gray-400">004 送る</div>
-          {!makers.length ? (
-            <p className="text-gray-400 border border-dashed border-gray-300 p-6 text-center">宛先のメーカーを選ぶと、メーカーごとの依頼文ができます</p>
-          ) : (
-            drafts.map((d) => (
-              <div key={d.name} className="bg-white border border-gray-300">
-                <div className="px-3 py-1.5 border-b border-gray-200 flex items-baseline justify-between gap-2">
-                  <b className="text-[13px]">{d.name}</b>
-                  <span className="text-[10px] text-gray-500 truncate">{d.target ? `送り先: ${d.target.label}` : '窓口のページが登録されていません'}</span>
+        <div className="yy-mk2-mc__col">
+          <section className="yy-mk2-mc__sec">
+            <SecHead no="IV" title="送る" right={makers.length ? `${makers.length} 通` : undefined} />
+            {!makers.length ? (
+              <p className="yy-mk2-mc__empty">宛先のメーカーを選ぶと、メーカーごとの依頼文ができます</p>
+            ) : (
+              drafts.map((d) => (
+                <div key={d.name} className="yy-mk2-mc__draft">
+                  <div className="yy-mk2-mc__dhead">
+                    <span className="yy-mk2-mc__dname">{d.name}</span>
+                    <span className="yy-mk2-mc__dto">{d.target ? `送り先: ${d.target.label}` : '窓口のページが登録されていません'}</span>
+                  </div>
+                  <div className="yy-mk2-mc__subj">件名: {d.subject}</div>
+                  <textarea value={d.text} onChange={(e) => setEdited((p) => ({ ...p, [d.name]: e.target.value }))} className="yy-mk2-mc__body" aria-label={`${d.name} への依頼文`} />
+                  <div className="yy-mk2-mc__act">
+                    <button
+                      type="button"
+                      disabled={missing.length > 0}
+                      onClick={() => void sendVia(d)}
+                      className="yy-pill yy-mk2-pill"
+                      title={missing.length ? `依頼者の ${missing.join('・')} を入れてください` : ''}
+                    >
+                      {d.target ? `コピーして${d.target.label}を開く` : '依頼文をコピー'}
+                    </button>
+                    {done[d.name] && <span className="yy-mk2-ok">{done[d.name]}</span>}
+                  </div>
                 </div>
-                <div className="px-3 pt-2 text-[11px] text-gray-600">件名: {d.subject}</div>
-                <textarea value={d.text} onChange={(e) => setEdited((p) => ({ ...p, [d.name]: e.target.value }))} className="w-full px-3 py-2 text-[11px] leading-relaxed h-52 border-0 focus:outline-none resize-y" />
-                <div className="px-3 py-2 border-t border-gray-200 flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    disabled={missing.length > 0}
-                    onClick={() => void sendVia(d)}
-                    className="px-3 py-1 bg-[#3b3b3b] text-white disabled:opacity-40"
-                    title={missing.length ? `依頼者の ${missing.join('・')} を入れてください` : ''}
-                  >
-                    {d.target ? `コピーして${d.target.label}を開く` : '依頼文をコピー'}
-                  </button>
-                  {done[d.name] && <span className="text-[11px] text-green-700">{done[d.name]}</span>}
-                </div>
-              </div>
-            ))
-          )}
+              ))
+            )}
+          </section>
           {currentUser && <RequestHistory uid={currentUser.uid} />}
         </div>
       </div>
@@ -284,23 +304,31 @@ function RequestHistory({ uid }: { uid: string }) {
   )
   if (!rows.length) return null
   return (
-    <div className="bg-white border border-gray-300">
-      <div className="px-3 py-1.5 border-b border-gray-200 flex justify-between items-baseline">
-        <span className="text-[10px] tracking-widest font-mono text-gray-400">HISTORY これまでの依頼</span>
-        <button type="button" className="text-[11px] underline text-gray-500" onClick={() => window.dispatchEvent(new CustomEvent('userpage-menu-click', { detail: { menuId: 'contacts' } }))}>
-          担当者連絡先で見る
-        </button>
-      </div>
-      <ul className="divide-y divide-gray-100">
+    <section className="yy-mk2-mc__sec">
+      <SecHead
+        no="V"
+        title="これまでの依頼"
+        right={
+          <button type="button" className="yy-mk2-link" onClick={() => window.dispatchEvent(new CustomEvent('userpage-menu-click', { detail: { menuId: 'contacts' } }))}>
+            担当者連絡先で見る
+          </button>
+        }
+      />
+      <ul className="yy-mk2-mc__hist">
         {rows.map(({ company, e }) => (
-          <li key={company + e.id} className="px-3 py-1 flex gap-2 text-[11px]">
-            <span className="text-gray-500 w-20 shrink-0">{e.date}</span>
-            <span className="w-28 shrink-0 truncate">{company}</span>
-            <span className="flex-1 min-w-0 truncate">{e.text}</span>
-            {e.status && <span className={`shrink-0 px-1 border ${e.status === '依頼中' ? 'border-amber-500 text-amber-700' : 'border-gray-300 text-gray-500'}`}>{e.status}</span>}
+          <li key={company + e.id}>
+            <span className="yy-mk2-mc__hdate">{e.date}</span>
+            <span className="yy-mk2-mc__hco" title={company}>{company}</span>
+            <span className="yy-mk2-mc__htext" title={e.text}>{e.text}</span>
+            {e.status && (
+              <span className={`yy-mk2-mc__hst${e.status === '依頼中' ? ' is-open' : ''}`}>
+                {e.status === '依頼中' && <i className="yy-dot" />}
+                {e.status}
+              </span>
+            )}
           </li>
         ))}
       </ul>
-    </div>
+    </section>
   )
 }

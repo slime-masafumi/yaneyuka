@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { pickFirst } from '@/lib/karte/glass';
+import './karte-premium.css';
 
 export type LadderRow = { k: string | number; v: number };
 
@@ -23,6 +24,7 @@ type Props = {
  * 線を越えた最初の棒が答え。選定系の項目の大半がこの形に収まる。
  *
  * 赤線は棒と同じグリッド列を持つ透明レイヤに置くので、幅が変わっても実寸測定なしで棒と揃う。
+ * 組版は「高級感 3」：行は 1px の線、棒は 3px の細線、答えの行だけ薄い緑（karte-premium.css の .yy-ld）。
  */
 export default function Ladder({ rows, threshold, thLabel, fmt, headLeft, headRight, pickLabel = '最小適合' }: Props) {
   const finite = rows.filter((r) => Number.isFinite(r.v));
@@ -30,29 +32,32 @@ export default function Ladder({ rows, threshold, thLabel, fmt, headLeft, headRi
   const pick = pickFirst(finite, threshold);
   const ratio = Math.min(threshold / max, 1);
   return (
-    <div className="yk-ladder">
-      <div className="yk-ladder-head">
+    <div className="yy-ld">
+      <div className="yy-ld__head">
         <span>{headLeft}</span>
         <span>{headRight}</span>
       </div>
-      <div className="yk-track">
+      <div className="yy-ld__track">
         {rows.map((r) => {
           const pass = Number.isFinite(r.v) && r.v >= threshold;
           const isPick = !!pick && r.k === pick.k;
-          const cls = ['yk-rung', pass ? 'yk-pass' : '', isPick ? 'yk-pick' : ''].filter(Boolean).join(' ');
+          const cls = ['yy-ld__row', pass ? 'is-pass' : '', isPick ? 'is-pick' : ''].filter(Boolean).join(' ');
           const width = Number.isFinite(r.v) ? ((r.v / max) * 100).toFixed(1) : '0';
           return (
             <div key={String(r.k)} className={cls}>
-              <div className="yk-t yk-num" data-pick={pickLabel}>{r.k}</div>
-              <div className="yk-bar"><i style={{ width: `${width}%` }} /></div>
-              <div className="yk-p yk-num">{fmt(r.v)}</div>
+              <div className="yy-ld__t">
+                {r.k}
+                {isPick && <span className="yy-ld__pick">{pickLabel}</span>}
+              </div>
+              <div className="yy-ld__bar"><i style={{ width: `${width}%` }} /></div>
+              <div className="yy-ld__p">{fmt(r.v)}</div>
             </div>
           );
         })}
-        <div className="yk-lines" aria-hidden="true">
+        <div className="yy-ld__lines" aria-hidden="true">
           <div />
           <div>
-            <div className="yk-wline" data-label={thLabel} style={{ left: `${(ratio * 100).toFixed(2)}%` }} />
+            <div className="yy-ld__wline" data-label={thLabel} style={{ left: `${(ratio * 100).toFixed(2)}%` }} />
           </div>
           <div />
         </div>

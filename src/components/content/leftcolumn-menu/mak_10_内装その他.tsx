@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import MakerLink from '@/components/MakerLink';
 import MakerRows from '@/components/MakerRows';
+import MakerCount from './MakerCount';
+import './materials.css';
 import BasicKnowledge, { KnowledgeToggle, type KnowledgeEntry } from '@/components/BasicKnowledge';
 import KNOWLEDGE_JSON from '@/data/knowledge/internal-other.json';
 
@@ -12,12 +14,7 @@ interface InternalOtherContentProps {
 }
 
 const InternalOtherContent: React.FC<InternalOtherContentProps> = ({ subcategory }) => {
-  const [imageError, setImageError] = useState<{ [key: string]: boolean }>({});
   const [showBasicKnowledge, setShowBasicKnowledge] = useState(false);
-
-  const handleImageError = (imageName: string) => {
-    setImageError(prev => ({ ...prev, [imageName]: true }));
-  };
 
   // URLの有効性をチェックする関数
 
@@ -27,50 +24,24 @@ const InternalOtherContent: React.FC<InternalOtherContentProps> = ({ subcategory
     <MakerLink url={url} label={label} />
   );
 
-  const renderRecrutmentCard = () => (
-    <div className="border rounded p-3 bg-white text-sm w-[240px] h-[365px] card">
-      <img 
-        src={imageError['recruitment'] ? "/image/掲載募集中a.png" : "/image/掲載募集中a.png"} 
-        alt="掲載企業様募集中" 
-        className="w-30 mb-1 w-[clamp(300x,5vw,120px)]"
-        onError={() => handleImageError('recruitment')}
-      />
-      <div className="font-bold text-sm mb-2">□□□</div>
-      <div className="grid grid-cols-2 gap-2 text-xs">
-        <a href="#" target="_blank" className="bg-gray-200 text-black text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">商品ページ</a>
-        <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">カタログ</a>
-        <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">営業所</a>
-        <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">お問い合わせ</a>
-        <a href="#" className="bg-gray-200 text-center py-1 rounded hover:bg-gray-700 hover:text-white transition">サンプル</a>
-        <a href="#" className="bg-gray-200 text-center py-1 rounded text-[10px] hover:bg-gray-700 hover:text-white transition">CADDOWNLOAD</a>
-      </div>
-      <img 
-        src={imageError['commercial'] ? "/image/ChatGPT Image 2025年5月1日 16_25_41.webp" : "/image/ChatGPT Image 2025年5月1日 16_25_41.webp"} 
-        alt="Manufacturer Commercial" 
-        className="mt-3 w-full rounded w-[clamp(180px,22vw,320px)]"
-        onError={() => handleImageError('commercial')}
-      />
-    </div>
-  );
-
   const renderToiletBooth = () => (
     <div>
-      <div className="mb-2">
-        <h2 className="text-xl font-semibold inline">トイレブース</h2>
+      <div className="yy-mk2-head">
+        <h2 className="yy-mk2-title">トイレブース</h2>
+        <MakerCount category="内装その他" page="トイレブース" />
         <button
           onClick={() => setShowBasicKnowledge(!showBasicKnowledge)}
-          className="ml-2 align-baseline text-blue-600 hover:text-blue-800 text-[11px] underline"
+          type="button"
+          className="yy-bk-toggle"
+          aria-expanded={showBasicKnowledge}
         >
-          <span className={`inline-block transition-transform ${showBasicKnowledge ? 'rotate-90' : ''}`}>&gt;</span> 基本知識
+          基本知識<span className={`yy-bk-chev${showBasicKnowledge ? ' is-open' : ''}`} aria-hidden="true" />
         </button>
-        <a href="/register" className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]">掲載希望はコチラ</a>
+        <a href="/register" className="yy-mk2-reg">掲載希望はコチラ</a>
       </div>
       
       {/* 基本知識トグル */}
       {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
-      <div className="flex flex-wrap gap-2 mb-8">
-        {renderRecrutmentCard()}
-      </div>
 
       <div className="mt-4 text-[13px]">
         <MakerRows category="内装その他" page="トイレブース" />
@@ -80,22 +51,22 @@ const InternalOtherContent: React.FC<InternalOtherContentProps> = ({ subcategory
 
   const renderInteriorSash = () => (
     <div>
-      <div className="mb-2">
-        <h2 className="text-xl font-semibold inline">内装サッシ</h2>
+      <div className="yy-mk2-head">
+        <h2 className="yy-mk2-title">内装サッシ</h2>
+        <MakerCount category="内装その他" page="内装サッシ" />
         <button
           onClick={() => setShowBasicKnowledge(!showBasicKnowledge)}
-          className="ml-2 align-baseline text-blue-600 hover:text-blue-800 text-[11px] underline"
+          type="button"
+          className="yy-bk-toggle"
+          aria-expanded={showBasicKnowledge}
         >
-          <span className={`inline-block transition-transform ${showBasicKnowledge ? 'rotate-90' : ''}`}>&gt;</span> 基本知識
+          基本知識<span className={`yy-bk-chev${showBasicKnowledge ? ' is-open' : ''}`} aria-hidden="true" />
         </button>
-        <a href="/register" className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]">掲載希望はコチラ</a>
+        <a href="/register" className="yy-mk2-reg">掲載希望はコチラ</a>
       </div>
       
       {/* 基本知識トグル */}
       {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
-      <div className="flex flex-wrap gap-2 mb-8">
-        {renderRecrutmentCard()}
-      </div>
 
       <div className="mt-4 text-[13px]">
         <MakerRows category="内装その他" page="内装サッシ" />
@@ -105,22 +76,22 @@ const InternalOtherContent: React.FC<InternalOtherContentProps> = ({ subcategory
 
   const renderNonSlip = () => (
     <div>
-      <div className="mb-2">
-        <h2 className="text-xl font-semibold inline">ノンスリップ</h2>
+      <div className="yy-mk2-head">
+        <h2 className="yy-mk2-title">ノンスリップ</h2>
+        <MakerCount category="内装その他" page="ノンスリップ" />
         <button
           onClick={() => setShowBasicKnowledge(!showBasicKnowledge)}
-          className="ml-2 align-baseline text-blue-600 hover:text-blue-800 text-[11px] underline"
+          type="button"
+          className="yy-bk-toggle"
+          aria-expanded={showBasicKnowledge}
         >
-          <span className={`inline-block transition-transform ${showBasicKnowledge ? 'rotate-90' : ''}`}>&gt;</span> 基本知識
+          基本知識<span className={`yy-bk-chev${showBasicKnowledge ? ' is-open' : ''}`} aria-hidden="true" />
         </button>
-        <a href="/register" className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]">掲載希望はコチラ</a>
+        <a href="/register" className="yy-mk2-reg">掲載希望はコチラ</a>
       </div>
       
       {/* 基本知識トグル */}
       {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
-      <div className="flex flex-wrap gap-2 mb-8">
-        {renderRecrutmentCard()}
-      </div>
 
       <div className="mt-4 text-[13px]">
         <MakerRows category="内装その他" page="ノンスリップ" />
@@ -130,22 +101,22 @@ const InternalOtherContent: React.FC<InternalOtherContentProps> = ({ subcategory
 
   const renderInteriorShutter = () => (
     <div>
-      <div className="mb-2">
-        <h2 className="text-xl font-semibold inline">内装シャッター</h2>
+      <div className="yy-mk2-head">
+        <h2 className="yy-mk2-title">内装シャッター</h2>
+        <MakerCount category="内装その他" page="内装シャッター" />
         <button
           onClick={() => setShowBasicKnowledge(!showBasicKnowledge)}
-          className="ml-2 align-baseline text-blue-600 hover:text-blue-800 text-[11px] underline"
+          type="button"
+          className="yy-bk-toggle"
+          aria-expanded={showBasicKnowledge}
         >
-          <span className={`inline-block transition-transform ${showBasicKnowledge ? 'rotate-90' : ''}`}>&gt;</span> 基本知識
+          基本知識<span className={`yy-bk-chev${showBasicKnowledge ? ' is-open' : ''}`} aria-hidden="true" />
         </button>
-        <a href="/register" className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]">掲載希望はコチラ</a>
+        <a href="/register" className="yy-mk2-reg">掲載希望はコチラ</a>
       </div>
       
       {/* 基本知識トグル */}
       {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
-      <div className="flex flex-wrap gap-2 mb-8">
-        {renderRecrutmentCard()}
-      </div>
 
       <div className="mt-4 text-[13px]">
         <MakerRows category="内装その他" page="内装シャッター" />
@@ -155,22 +126,22 @@ const InternalOtherContent: React.FC<InternalOtherContentProps> = ({ subcategory
 
   const renderInteriorHandrail = () => (
     <div>
-      <div className="mb-2">
-        <h2 className="text-xl font-semibold inline">内装手摺</h2>
+      <div className="yy-mk2-head">
+        <h2 className="yy-mk2-title">内装手摺</h2>
+        <MakerCount category="内装その他" page="内装手摺" />
         <button
           onClick={() => setShowBasicKnowledge(!showBasicKnowledge)}
-          className="ml-2 align-baseline text-blue-600 hover:text-blue-800 text-[11px] underline"
+          type="button"
+          className="yy-bk-toggle"
+          aria-expanded={showBasicKnowledge}
         >
-          <span className={`inline-block transition-transform ${showBasicKnowledge ? 'rotate-90' : ''}`}>&gt;</span> 基本知識
+          基本知識<span className={`yy-bk-chev${showBasicKnowledge ? ' is-open' : ''}`} aria-hidden="true" />
         </button>
-        <a href="/register" className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]">掲載希望はコチラ</a>
+        <a href="/register" className="yy-mk2-reg">掲載希望はコチラ</a>
       </div>
       
       {/* 基本知識トグル */}
       {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
-      <div className="flex flex-wrap gap-2 mb-8">
-        {renderRecrutmentCard()}
-      </div>
 
       <div className="mt-4 text-[13px]">
         <MakerRows category="内装その他" page="内装手摺" />
@@ -180,22 +151,22 @@ const InternalOtherContent: React.FC<InternalOtherContentProps> = ({ subcategory
 
   const renderGrating = () => (
     <div>
-      <div className="mb-2">
-        <h2 className="text-xl font-semibold inline">グレーチング</h2>
+      <div className="yy-mk2-head">
+        <h2 className="yy-mk2-title">グレーチング</h2>
+        <MakerCount category="内装その他" page="グレーチング" />
         <button
           onClick={() => setShowBasicKnowledge(!showBasicKnowledge)}
-          className="ml-2 align-baseline text-blue-600 hover:text-blue-800 text-[11px] underline"
+          type="button"
+          className="yy-bk-toggle"
+          aria-expanded={showBasicKnowledge}
         >
-          <span className={`inline-block transition-transform ${showBasicKnowledge ? 'rotate-90' : ''}`}>&gt;</span> 基本知識
+          基本知識<span className={`yy-bk-chev${showBasicKnowledge ? ' is-open' : ''}`} aria-hidden="true" />
         </button>
-        <a href="/register" className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]">掲載希望はコチラ</a>
+        <a href="/register" className="yy-mk2-reg">掲載希望はコチラ</a>
       </div>
       
       {/* 基本知識トグル */}
       {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
-      <div className="flex flex-wrap gap-2 mb-8">
-        {renderRecrutmentCard()}
-      </div>
 
       <div className="mt-4 text-[13px]">
         <MakerRows category="内装その他" page="グレーチング" />
@@ -205,22 +176,22 @@ const InternalOtherContent: React.FC<InternalOtherContentProps> = ({ subcategory
 
   const renderInspectionPort = () => (
     <div>
-      <div className="mb-2">
-        <h2 className="text-xl font-semibold inline">点検口</h2>
+      <div className="yy-mk2-head">
+        <h2 className="yy-mk2-title">点検口</h2>
+        <MakerCount category="内装その他" page="点検口" />
         <button
           onClick={() => setShowBasicKnowledge(!showBasicKnowledge)}
-          className="ml-2 align-baseline text-blue-600 hover:text-blue-800 text-[11px] underline"
+          type="button"
+          className="yy-bk-toggle"
+          aria-expanded={showBasicKnowledge}
         >
-          <span className={`inline-block transition-transform ${showBasicKnowledge ? 'rotate-90' : ''}`}>&gt;</span> 基本知識
+          基本知識<span className={`yy-bk-chev${showBasicKnowledge ? ' is-open' : ''}`} aria-hidden="true" />
         </button>
-        <a href="/register" className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]">掲載希望はコチラ</a>
+        <a href="/register" className="yy-mk2-reg">掲載希望はコチラ</a>
       </div>
       
       {/* 基本知識トグル */}
       {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
-      <div className="flex flex-wrap gap-2 mb-8">
-        {renderRecrutmentCard()}
-      </div>
 
       <div className="mt-4 text-[13px]">
         <MakerRows category="内装その他" page="点検口" />
@@ -230,22 +201,22 @@ const InternalOtherContent: React.FC<InternalOtherContentProps> = ({ subcategory
 
   const renderBraille = () => (
     <div>
-      <div className="mb-2">
-        <h2 className="text-xl font-semibold inline">点字</h2>
+      <div className="yy-mk2-head">
+        <h2 className="yy-mk2-title">点字</h2>
+        <MakerCount category="内装その他" page="点字" />
         <button
           onClick={() => setShowBasicKnowledge(!showBasicKnowledge)}
-          className="ml-2 align-baseline text-blue-600 hover:text-blue-800 text-[11px] underline"
+          type="button"
+          className="yy-bk-toggle"
+          aria-expanded={showBasicKnowledge}
         >
-          <span className={`inline-block transition-transform ${showBasicKnowledge ? 'rotate-90' : ''}`}>&gt;</span> 基本知識
+          基本知識<span className={`yy-bk-chev${showBasicKnowledge ? ' is-open' : ''}`} aria-hidden="true" />
         </button>
-        <a href="/register" className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]">掲載希望はコチラ</a>
+        <a href="/register" className="yy-mk2-reg">掲載希望はコチラ</a>
       </div>
       
       {/* 基本知識トグル */}
       {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
-      <div className="flex flex-wrap gap-2 mb-8">
-        {renderRecrutmentCard()}
-      </div>
 
       <div className="mt-4 text-[13px]">
         <MakerRows category="内装その他" page="点字" />
@@ -255,23 +226,23 @@ const InternalOtherContent: React.FC<InternalOtherContentProps> = ({ subcategory
 
   const renderDisplay = () => (
     <div>
-      <div className="mb-2">
-        <h2 className="text-xl font-semibold inline">ディスプレイ</h2>
+      <div className="yy-mk2-head">
+        <h2 className="yy-mk2-title">ディスプレイ</h2>
+        <MakerCount category="内装その他" page="ディスプレイ" />
         <button
           onClick={() => setShowBasicKnowledge(!showBasicKnowledge)}
-          className="ml-2 align-baseline text-blue-600 hover:text-blue-800 text-[11px] underline"
+          type="button"
+          className="yy-bk-toggle"
+          aria-expanded={showBasicKnowledge}
         >
-          <span className={`inline-block transition-transform ${showBasicKnowledge ? 'rotate-90' : ''}`}>&gt;</span> 基本知識
+          基本知識<span className={`yy-bk-chev${showBasicKnowledge ? ' is-open' : ''}`} aria-hidden="true" />
         </button>
-        <a href="/register" className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]">掲載希望はコチラ</a>
+        <a href="/register" className="yy-mk2-reg">掲載希望はコチラ</a>
       </div>
       
       {/* 基本知識トグル */}
       {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
       
-      <div className="flex flex-wrap gap-2 mb-8">
-        {renderRecrutmentCard()}
-      </div>
 
       <div className="mt-4 text-[13px]">
         <MakerRows category="内装その他" page="ディスプレイ" />
@@ -281,23 +252,23 @@ const InternalOtherContent: React.FC<InternalOtherContentProps> = ({ subcategory
 
   const renderOtherInterior = () => (
     <div>
-      <div className="mb-2">
-        <h2 className="text-xl font-semibold inline">内装その他製品</h2>
+      <div className="yy-mk2-head">
+        <h2 className="yy-mk2-title">内装その他製品</h2>
+        <MakerCount category="内装その他" page="内装その他製品" />
         <button
           onClick={() => setShowBasicKnowledge(!showBasicKnowledge)}
-          className="ml-2 align-baseline text-blue-600 hover:text-blue-800 text-[11px] underline"
+          type="button"
+          className="yy-bk-toggle"
+          aria-expanded={showBasicKnowledge}
         >
-          <span className={`inline-block transition-transform ${showBasicKnowledge ? 'rotate-90' : ''}`}>&gt;</span> 基本知識
+          基本知識<span className={`yy-bk-chev${showBasicKnowledge ? ' is-open' : ''}`} aria-hidden="true" />
         </button>
-        <a href="/register" className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]">掲載希望はコチラ</a>
+        <a href="/register" className="yy-mk2-reg">掲載希望はコチラ</a>
       </div>
       
       {/* 基本知識トグル */}
       {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
 
-      <div className="flex flex-wrap gap-2 mb-8">
-        {renderRecrutmentCard()}
-      </div>
 
       <div className="mt-4 text-[13px]">
         <MakerRows category="内装その他" page="内装その他製品" />
@@ -307,23 +278,23 @@ const InternalOtherContent: React.FC<InternalOtherContentProps> = ({ subcategory
 
   const renderGreen化 = () => (
     <div>
-      <div className="mb-2">
-        <h2 className="text-xl font-semibold inline">内装 緑化</h2>
+      <div className="yy-mk2-head">
+        <h2 className="yy-mk2-title">内装 緑化</h2>
+        <MakerCount category="内装その他" page="内装緑化" />
         <button
           onClick={() => setShowBasicKnowledge(!showBasicKnowledge)}
-          className="ml-2 align-baseline text-blue-600 hover:text-blue-800 text-[11px] underline"
+          type="button"
+          className="yy-bk-toggle"
+          aria-expanded={showBasicKnowledge}
         >
-          <span className={`inline-block transition-transform ${showBasicKnowledge ? 'rotate-90' : ''}`}>&gt;</span> 基本知識
+          基本知識<span className={`yy-bk-chev${showBasicKnowledge ? ' is-open' : ''}`} aria-hidden="true" />
         </button>
-        <a href="/register" className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]">掲載希望はコチラ</a>
+        <a href="/register" className="yy-mk2-reg">掲載希望はコチラ</a>
       </div>
       
       {/* 基本知識トグル */}
       {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
       
-      <div className="flex flex-wrap gap-2 mb-8">
-        {renderRecrutmentCard()}
-      </div>
 
       <div className="mt-4 text-[13px]">
         <MakerRows category="内装その他" page="内装緑化" />
@@ -333,23 +304,23 @@ const InternalOtherContent: React.FC<InternalOtherContentProps> = ({ subcategory
 
   const renderPartition = () => (
     <div>
-      <div className="mb-2">
-        <h2 className="text-xl font-semibold inline">隔壁</h2>
+      <div className="yy-mk2-head">
+        <h2 className="yy-mk2-title">隔壁</h2>
+        <MakerCount category="内装その他" page="隔壁" />
         <button
           onClick={() => setShowBasicKnowledge(!showBasicKnowledge)}
-          className="ml-2 align-baseline text-blue-600 hover:text-blue-800 text-[11px] underline"
+          type="button"
+          className="yy-bk-toggle"
+          aria-expanded={showBasicKnowledge}
         >
-          <span className={`inline-block transition-transform ${showBasicKnowledge ? 'rotate-90' : ''}`}>&gt;</span> 基本知識
+          基本知識<span className={`yy-bk-chev${showBasicKnowledge ? ' is-open' : ''}`} aria-hidden="true" />
         </button>
-        <a href="/register" className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]">掲載希望はコチラ</a>
+        <a href="/register" className="yy-mk2-reg">掲載希望はコチラ</a>
       </div>
       
       {/* 基本知識トグル */}
       {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
 
-      <div className="flex flex-wrap gap-2 mb-8">
-        {renderRecrutmentCard()}
-      </div>
 
       <div className="mt-4 text-[13px]">
         <MakerRows category="内装その他" page="隔壁" />
@@ -359,23 +330,23 @@ const InternalOtherContent: React.FC<InternalOtherContentProps> = ({ subcategory
 
   const renderProtectionMaterial = () => (
     <div>
-      <div className="mb-2">
-        <h2 className="text-xl font-semibold inline">保護材</h2>
+      <div className="yy-mk2-head">
+        <h2 className="yy-mk2-title">保護材</h2>
+        <MakerCount category="内装その他" page="保護材" />
         <button
           onClick={() => setShowBasicKnowledge(!showBasicKnowledge)}
-          className="ml-2 align-baseline text-blue-600 hover:text-blue-800 text-[11px] underline"
+          type="button"
+          className="yy-bk-toggle"
+          aria-expanded={showBasicKnowledge}
         >
-          <span className={`inline-block transition-transform ${showBasicKnowledge ? 'rotate-90' : ''}`}>&gt;</span> 基本知識
+          基本知識<span className={`yy-bk-chev${showBasicKnowledge ? ' is-open' : ''}`} aria-hidden="true" />
         </button>
-        <a href="/register" className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]">掲載希望はコチラ</a>
+        <a href="/register" className="yy-mk2-reg">掲載希望はコチラ</a>
       </div>
       
       {/* 基本知識トグル */}
       {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
 
-      <div className="flex flex-wrap gap-2 mb-8">
-        {renderRecrutmentCard()}
-      </div>
 
       <div className="mt-4 text-[13px]">
         <MakerRows category="内装その他" page="保護材" />
@@ -385,12 +356,9 @@ const InternalOtherContent: React.FC<InternalOtherContentProps> = ({ subcategory
 
   const renderGenericCategory = (title: string) => (
     <div>
-      <div className="content-title-wrapper mb-2">
-        <h2 className="text-xl font-semibold inline">{title}</h2>
-        <a href="/register" className="ml-2 align-baseline text-gray-600 hover:text-gray-800 text-[11px]">掲載希望はコチラ</a>
-      </div>
-      <div className="flex flex-wrap gap-2 mb-8">
-        {renderRecrutmentCard()}
+      <div className="yy-mk2-head">
+        <h2 className="yy-mk2-title">{title}</h2>
+        <a href="/register" className="yy-mk2-reg">掲載希望はコチラ</a>
       </div>
 
       <div className="mt-4 text-[13px] flex items-start gap-2">

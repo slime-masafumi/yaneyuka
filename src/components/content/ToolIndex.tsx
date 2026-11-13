@@ -21,9 +21,9 @@ type Row = { key: string; label: string; desc?: string; soon?: boolean; cat?: st
 type Group = { label: string; rows: Row[] };
 
 const HEAD: Record<Kind, { no: string; en: string; title: string; desc: string }> = {
-  design: { no: '07', en: 'design tools', title: '設計ツール', desc: '分野ごとの計算・判定・検討。条件はその場で入れる' },
-  general: { no: '08', en: 'general tools', title: '一般ツール', desc: '日々の仕事の道具。予定・記録・やりとり・現場' },
-  external: { no: '09', en: 'apps', title: '外部ツール', desc: 'yaneyuka の Web アプリと iOS アプリ。新しいタブで開く' },
+  design: { no: '14', en: 'design tools', title: '設計ツール', desc: '分野ごとの計算・判定・検討。条件はその場で入れる' },
+  general: { no: '15', en: 'general tools', title: '一般ツール', desc: '日々の仕事の道具。予定・記録・やりとり・現場' },
+  external: { no: '17', en: 'apps', title: '外部ツール', desc: 'yaneyuka の Web アプリと iOS アプリ。新しいタブで開く' },
 };
 
 export default function ToolIndex({

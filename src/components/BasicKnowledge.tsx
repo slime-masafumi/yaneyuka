@@ -5,8 +5,12 @@
  * 本文は src/data/knowledge/<分類>.json にある（2026-09 に全面的に書き直したもの）。
  * 以前は mak_*.tsx の JSX に直接書かれていて、直すたびにページのコードを触る必要があった。
  * 建材Chatbot も同じデータを読む（scripts/build-knowledge.mjs が src/data/knowledge.json にまとめる）。
+ *
+ * 見た目はモック「高級感 3」の組み方：箱や影を使わず、本の索引のように
+ * 明朝の小さな番号 + 章題、1px の罫線、本文 12px。章は 2 段に流して 1 画面に多く入れる（basic-knowledge.css）。
  */
 import React, { useState } from 'react';
+import './basic-knowledge.css';
 
 export type KnowledgeSection = { heading: string; text: string };
 export type KnowledgeEntry = {
@@ -53,14 +57,13 @@ function SectionBody({ text }: { text: string }) {
     <>
       {blocks.map((b, i) =>
         b.kind === 'p' ? (
-          <p key={i} className="mb-1.5 text-xs ml-3 leading-relaxed">
+          <p key={i} className="yy-bk__p">
             {b.lines[0]}
           </p>
         ) : (
-          <ul key={i} className="mb-2 space-y-0.5 text-xs ml-3 list-none">
+          <ul key={i} className="yy-bk__ul">
             {b.lines.map((l, j) => (
-              <li key={j} className="leading-relaxed">
-                <span className="mr-1">・</span>
+              <li key={j}>
                 <Line text={l} />
               </li>
             ))}
@@ -75,28 +78,38 @@ export default function BasicKnowledge({ data, param }: { data: KnowledgeEntry[]
   const k = findKnowledge(data, param);
   if (!k) return null;
   return (
-    <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg text-xs">
-      {k.lead && <p className="text-[13px] font-bold mb-2 leading-relaxed">{k.lead}</p>}
-      {k.sections.map((s) => (
-        <section key={s.heading} className="mb-2">
-          <h4 className="font-bold text-[12px] mb-1">{s.heading}</h4>
-          <SectionBody text={s.text} />
-        </section>
-      ))}
-      {k.refs && k.refs.length > 0 && (
-        <div className="mt-2 pt-2 border-t border-gray-200">
-          <h4 className="font-bold text-[11px] mb-1 text-gray-600">関連する法令・規格</h4>
-          <ul className="text-[11px] text-gray-600 ml-3 space-y-0.5 list-none">
-            {k.refs.map((r) => (
-              <li key={r}>
-                <span className="mr-1">・</span>
-                {r}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      <p className="mt-2 text-[10px] text-gray-400">2026年9月時点の情報です。法令・告示・規格と製品の仕様は、最新の原文とメーカー資料で確認してください。</p>
+    <div className="yy-bk">
+      <div className="yy-bk__top">
+        <span className="yy-label">Basic knowledge</span>
+        <span className="yy-bk__name">{k.name} の基本知識</span>
+        <span className="yy-bk__n">{k.sections.length} 項</span>
+      </div>
+      {k.lead && <p className="yy-bk__lead">{k.lead}</p>}
+      <div className="yy-bk__secs">
+        {k.sections.map((s, i) => (
+          <section key={s.heading} className="yy-bk__sec">
+            <h4 className="yy-bk__h">
+              <span className="yy-bk__no">{String(i + 1).padStart(2, '0')}</span>
+              <span>{s.heading}</span>
+            </h4>
+            <SectionBody text={s.text} />
+          </section>
+        ))}
+        {k.refs && k.refs.length > 0 && (
+          <section className="yy-bk__sec">
+            <h4 className="yy-bk__h">
+              <span className="yy-bk__no">—</span>
+              <span>関連する法令・規格</span>
+            </h4>
+            <ul className="yy-bk__refs">
+              {k.refs.map((r) => (
+                <li key={r}>{r}</li>
+              ))}
+            </ul>
+          </section>
+        )}
+      </div>
+      <p className="yy-bk__note">2026年9月時点の情報です。法令・告示・規格と製品の仕様は、最新の原文とメーカー資料で確認してください。</p>
     </div>
   );
 }
@@ -107,11 +120,11 @@ export function KnowledgeToggle({ data, param }: { data: KnowledgeEntry[]; param
   if (!findKnowledge(data, param)) return null;
   return (
     <>
-      <button type="button" onClick={() => setOpen((v) => !v)} className="ml-2 align-baseline text-blue-600 hover:text-blue-800 text-[11px] underline">
-        <span className={`inline-block transition-transform ${open ? 'rotate-90' : ''}`}>&gt;</span> 基本知識
+      <button type="button" onClick={() => setOpen((v) => !v)} className="yy-bk-toggle" aria-expanded={open}>
+        基本知識<span className={`yy-bk-chev${open ? ' is-open' : ''}`} aria-hidden="true" />
       </button>
       {open && (
-        <div className="mt-2">
+        <div className="yy-bk-toggle__panel">
           <BasicKnowledge data={data} param={param} />
         </div>
       )}

@@ -1,0 +1,173 @@
+/* 設計情報(.yy-di-)と材料情報(.yy-mi-)の組版。「高級感 3」:大きくせず、並べ方で上げる。
+   共通の右列・目次は .yy-info-。globals.css の .yy-sec / .yy-tabs / .yy-tbl / .yy-leader を前提にする。 */
+
+/* ── 共通:本文 + 右列(目次) ─────────────────────── */
+.yy-mi, .yy-di { padding: 4px 4px 32px; color: var(--yy-ink); }
+.yy-mi .yy-tabs, .yy-di .yy-tabs { margin-bottom: 18px; }
+.yy-info-beta { margin-left: 6px; vertical-align: 1px; }
+
+.yy-info-body { display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: 28px; align-items: start; }
+@media (max-width: 1279px) { .yy-info-body { grid-template-columns: 1fr; } }
+
+.yy-info-side { position: sticky; top: 8px; display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+@media (max-width: 1279px) { .yy-info-side { position: static; } }
+.yy-info-block { display: flex; flex-direction: column; min-width: 0; }
+.yy-info-side .yy-sec__title { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* 目次:番号(明朝・灰)/ 項目 ……… 補足 */
+.yy-info-toc { margin: 4px 0 0; padding: 0; list-style: none; }
+.yy-info-toc li a,
+.yy-info-toc li button {
+  display: flex; align-items: center; width: 100%; height: 22px; padding: 0;
+  background: none; border: 0; font: inherit; font-size: 12px; text-align: left;
+  color: var(--yy-ink); text-decoration: none; cursor: pointer;
+}
+.yy-info-toc li a:hover .yy-info-toct,
+.yy-info-toc li button:hover .yy-info-toct { color: var(--yy-acc-ink); }
+.yy-info-toc [aria-current='true'] .yy-info-toct { color: var(--yy-acc-ink); }
+.yy-info-toc [aria-current='true'] .yy-info-tocno { color: var(--yy-acc-ink); }
+.yy-info-tocno { flex: 0 0 auto; width: 22px; font-family: var(--yy-serif); font-size: 13px; color: var(--yy-t3); font-variant-numeric: lining-nums tabular-nums; }
+.yy-info-toct { flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.yy-info-tocv { flex: 0 1 auto; min-width: 0; max-width: 104px; font-family: var(--font-mono), monospace; font-size: 10.5px; color: var(--yy-t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.yy-info-toc .yy-leader { min-width: 10px; margin: 0 6px; }
+.yy-info-empty { margin: 0; padding: 8px 0; font-size: 12px; color: var(--yy-t3); }
+.yy-info-text { margin: 8px 0 0; font-size: 11px; line-height: 1.75; color: var(--yy-t2); }
+.yy-info-text.is-beta { color: #c8432f; }
+
+/* ── 材料情報 ───────────────────────────────── */
+/* 選んだ分野の章だけを出す(章番号は CSS のカウンタで、出ている章だけ数える) */
+.yy-mi-sec { display: none; }
+.yy-mi[data-tab='arch'] .yy-mi-sec[data-cat='arch'],
+.yy-mi[data-tab='struct'] .yy-mi-sec[data-cat='struct'],
+.yy-mi[data-tab='mech'] .yy-mi-sec[data-cat='mech'],
+.yy-mi[data-tab='elec'] .yy-mi-sec[data-cat='elec'] { display: block; }
+
+.yy-mi-main { min-width: 0; display: flex; flex-direction: column; gap: 26px; counter-reset: yy-mi-ch; font-size: 12px; }
+.yy-mi-sec { counter-increment: yy-mi-ch; scroll-margin-top: 12px; min-width: 0; }
+
+/* 章題:明朝の番号 + 章題 + 黒 1px */
+.yy-mi .yy-mi-ch {
+  display: flex; align-items: baseline; gap: 10px; margin: 0; padding-bottom: 6px;
+  border-bottom: 1px solid var(--yy-ink);
+  font-family: var(--yy-serif); font-size: 15px; font-weight: 500; line-height: 1.4; color: var(--yy-ink);
+}
+.yy-mi .yy-mi-ch::before {
+  content: counter(yy-mi-ch, decimal-leading-zero);
+  flex: 0 0 auto; width: 22px; font-size: 15px; color: var(--yy-t3);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.yy-mi .yy-mi-note { margin: 6px 0 4px; font-size: 11px; line-height: 1.7; color: var(--yy-t2); }
+.yy-mi .yy-mi-part { margin-top: 14px; }
+.yy-mi .yy-mi-sub {
+  display: flex; align-items: baseline; gap: 8px; margin: 0; padding-bottom: 4px;
+  border-bottom: 1px solid var(--yy-line);
+  font-family: var(--yy-serif); font-size: 13px; font-weight: 500; color: var(--yy-ink);
+}
+.yy-mi .yy-mi-sub + .yy-mi-note { margin-top: 4px; }
+.yy-mi .yy-mi-grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 28px; }
+@media (max-width: 767px) { .yy-mi .yy-mi-grid2 { grid-template-columns: 1fr; } }
+.yy-mi .yy-mi-foot { margin: 0; padding-top: 8px; border-top: 1px solid var(--yy-line); font-size: 10.5px; color: var(--yy-t3); }
+
+/* 表:1px の線だけ。数字はそろえる。狭い幅では横に送る */
+.yy-mi .yy-mi-scroll { overflow-x: auto; }
+.yy-mi .yy-mi-scroll.is-gap { margin-bottom: 14px; }
+.yy-mi table.yy-mi-tbl { min-width: 720px; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; line-height: 1.55; }
+.yy-mi .yy-mi-tbl thead th {
+  height: 28px; padding: 4px 12px 4px 0; vertical-align: bottom; text-align: left; white-space: nowrap;
+  font-weight: 400; font-size: 11px; color: var(--yy-t3); background: none;
+  border: 0; border-bottom: 1px solid var(--yy-ink);
+}
+.yy-mi .yy-mi-tbl td {
+  height: 28px; padding: 5px 12px 5px 0; vertical-align: top; text-align: left;
+  color: var(--yy-ink); background: none;
+  border: 0; border-bottom: 1px solid var(--yy-line);
+}
+.yy-mi .yy-mi-tbl td.is-group { color: var(--yy-t2); }
+.yy-mi .yy-mi-tbl strong { font-weight: 700; }
+.yy-mi .yy-mi-tbl tbody tr:hover td { background: var(--yy-surf); }
+
+/* ── 設計情報 ───────────────────────────────── */
+/* 広い画面は 索引 / 記事 / 目次 の 3 段。狭いときは目次を索引の下へ回して記事の幅を残す */
+.yy-di-body {
+  display: grid; grid-template-columns: 260px minmax(0, 1fr); grid-template-rows: auto 1fr;
+  grid-template-areas: 'index article' 'side article'; gap: 22px 28px; align-items: start;
+}
+.yy-di-index { grid-area: index; display: flex; flex-direction: column; min-width: 0; }
+.yy-di-article { grid-area: article; }
+.yy-di-body > .yy-info-side { grid-area: side; }
+.yy-di-list { max-height: 46vh; }
+@media (min-width: 1680px) {
+  .yy-di-body { grid-template-columns: 272px minmax(0, 1fr) 240px; grid-template-rows: auto; grid-template-areas: 'index article side'; }
+  .yy-di-index { position: sticky; top: 8px; max-height: calc(100vh - 120px); }
+  .yy-di-list { max-height: none; }
+}
+@media (max-width: 1023px) {
+  .yy-di-body { grid-template-columns: 1fr; grid-template-rows: auto; grid-template-areas: 'index' 'article' 'side'; }
+  .yy-di-body > .yy-info-side { position: static; }
+  .yy-di-list { max-height: 320px; }
+}
+
+/* 左:記事の索引 */
+.yy-di-search { position: relative; margin-top: 8px; }
+.yy-di-search input {
+  width: 100%; height: 30px; padding: 0 0 0 20px; border: 0; border-bottom: 1px solid var(--yy-line);
+  background: transparent; font-size: 12px; color: var(--yy-ink); outline: none; border-radius: 0;
+}
+.yy-di-search input:focus { border-bottom-color: var(--yy-acc); }
+.yy-di-search svg { position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 13px; height: 13px; color: var(--yy-t3); }
+.yy-di-ctrl { display: flex; align-items: center; gap: 12px; height: 30px; border-bottom: 1px solid var(--yy-line); font-size: 11px; color: var(--yy-t2); }
+.yy-di-ctrl select { height: 24px; margin-left: auto; padding: 0 2px; border: 0; background: transparent; font-size: 11px; color: var(--yy-t2); cursor: pointer; outline: none; }
+.yy-di-ctrl select:hover { color: var(--yy-ink); }
+.yy-di-textbtn { padding: 0; border: 0; background: none; font-size: 11px; color: var(--yy-t2); cursor: pointer; white-space: nowrap; }
+.yy-di-textbtn:hover { color: var(--yy-ink); }
+.yy-di-textbtn[aria-pressed='true'] { color: var(--yy-acc-ink); }
+.yy-di-textbtn.is-acc { color: var(--yy-acc-ink); }
+.yy-di-textbtn.is-danger { color: #c8432f; }
+
+.yy-di-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; margin: 0; padding: 0; list-style: none; scrollbar-width: thin; }
+.yy-di-row { display: flex; align-items: flex-start; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--yy-line); cursor: pointer; }
+.yy-di-row:hover .yy-di-rowt { color: var(--yy-acc-ink); }
+.yy-di-row[aria-current='true'] .yy-di-rowt { color: var(--yy-acc-ink); }
+.yy-di-row[aria-current='true'] .yy-di-rowno { color: var(--yy-acc-ink); }
+.yy-di-rowno { flex: 0 0 auto; width: 20px; padding-top: 1px; font-family: var(--yy-serif); font-size: 13px; color: var(--yy-t3); font-variant-numeric: lining-nums tabular-nums; }
+.yy-di-rowbody { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.yy-di-rowt { font-size: 12px; line-height: 1.5; color: var(--yy-ink); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.yy-di-rowmeta { display: flex; gap: 8px; font-family: var(--font-mono), monospace; font-size: 10.5px; color: var(--yy-t3); white-space: nowrap; overflow: hidden; }
+.yy-di-star { flex: 0 0 auto; padding: 0 2px; border: 0; background: none; font-size: 12px; line-height: 18px; color: var(--yy-t3); cursor: pointer; }
+.yy-di-star:hover, .yy-di-star[aria-pressed='true'] { color: var(--yy-acc-ink); }
+
+/* 中央:記事 */
+.yy-di-article { min-width: 0; max-width: 760px; }
+.yy-di-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; font-family: var(--font-mono), monospace; font-size: 10.5px; letter-spacing: 0.04em; color: var(--yy-t3); }
+.yy-di-meta .yy-di-textbtn { font-family: var(--font-sans, inherit); letter-spacing: 0; }
+.yy-di-meta__admin { margin-left: auto; display: flex; gap: 14px; }
+.yy-di-title { margin: 8px 0 0; padding-bottom: 10px; border-bottom: 1px solid var(--yy-ink); font-family: var(--yy-serif); font-size: 20px; font-weight: 500; line-height: 1.45; color: var(--yy-ink); }
+.yy-di-tags { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 8px 0 0; padding: 0; list-style: none; font-size: 11px; color: var(--yy-t3); }
+
+.yy-di-tool { margin-top: 18px; }
+.yy-di-tool__body { padding-top: 12px; }
+
+.yy-di-content { margin-top: 18px; counter-reset: yy-di-ch; }
+.yy-di-p { margin: 8px 0 0; font-size: 13px; line-height: 1.9; color: var(--yy-ink); }
+.yy-di-ch {
+  display: flex; align-items: baseline; gap: 10px; margin: 26px 0 4px; padding-bottom: 6px;
+  border-bottom: 1px solid var(--yy-ink); scroll-margin-top: 12px;
+  font-family: var(--yy-serif); font-size: 15px; font-weight: 500; line-height: 1.45; color: var(--yy-ink);
+}
+.yy-di-content > .yy-di-ch:first-child { margin-top: 4px; }
+.yy-di-chno { flex: 0 0 auto; width: 22px; color: var(--yy-t3); font-variant-numeric: lining-nums tabular-nums; }
+.yy-di-sub { margin: 14px 0 2px; padding-bottom: 3px; border-bottom: 1px solid var(--yy-line); font-size: 12.5px; font-weight: 700; color: var(--yy-ink); }
+.yy-di-li { margin: 3px 0 0; padding-left: 1em; text-indent: -1em; font-size: 13px; line-height: 1.8; color: var(--yy-ink); }
+
+/* 中央:記事の編集(管理者) */
+.yy-di-edit { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
+.yy-di-edit input, .yy-di-edit textarea {
+  width: 100%; padding: 6px 0; border: 0; border-bottom: 1px solid var(--yy-line); border-radius: 0;
+  background: transparent; font-size: 13px; color: var(--yy-ink); outline: none;
+}
+.yy-di-edit input:focus, .yy-di-edit textarea:focus { border-bottom-color: var(--yy-acc); }
+.yy-di-edit textarea { height: 400px; padding: 8px; border: 1px solid var(--yy-line); font-family: var(--font-mono), monospace; font-size: 12px; line-height: 1.7; }
+.yy-di-edit__row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.yy-di-edit__act { display: flex; justify-content: flex-end; gap: 8px; }
+
+.yy-di-none { padding: 40px 0; font-size: 12px; color: var(--yy-t3); text-align: center; }

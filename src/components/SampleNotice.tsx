@@ -13,7 +13,7 @@ import React from 'react';
 /** カード等に重ねる小さなバッジ */
 export const SampleBadge: React.FC<{ className?: string }> = ({ className = '' }) => (
   <span
-    className={`inline-flex items-center rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 ring-1 ring-amber-300 ${className}`}
+    className={`inline-flex items-center rounded-[3px] border border-[#e6e6e2] px-1 text-[10px] leading-4 tracking-[0.08em] text-[#9a9a96] ${className}`}
   >
     サンプル
   </span>
@@ -28,16 +28,17 @@ type SampleNoticeProps = {
 
 /** 一覧の先頭に置く説明帯 */
 const SampleNotice: React.FC<SampleNoticeProps> = ({ target, onRequest }) => (
-  <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-[12px] text-amber-900">
+  // 高級感 3：琥珀色の帯をやめ、罫線 1 本の行に（2026-11-13）
+  <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-[#e6e6e2] py-2 text-[12px] text-[#5c5c5a]">
     <SampleBadge />
     <span>
-      現在表示されているのは<strong>すべて架空のサンプル</strong>です。{target}の掲載企業を募集しています。
+      現在表示されているのは<strong className="font-bold text-[#141414]">すべて架空のサンプル</strong>です。{target}の掲載企業を募集しています。
     </span>
     {onRequest && (
       <button
         type="button"
         onClick={onRequest}
-        className="ml-auto rounded bg-amber-700 px-2.5 py-1 text-[11px] font-semibold text-white transition hover:bg-amber-800"
+        className="ml-auto text-[11.5px] text-[#2E7D6B] underline-offset-[3px] hover:underline"
       >
         掲載を希望する
       </button>

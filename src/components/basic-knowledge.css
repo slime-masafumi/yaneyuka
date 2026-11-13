@@ -1,0 +1,104 @@
+/* 建材ページの「基本知識」（BasicKnowledge.tsx。モック「高級感 3」の組み方）
+   箱・角丸・影は使わない。明朝の小さな番号 + 章題、1px の罫線、本文 12px。章は 2 段に流す。 */
+
+/* 開閉：緑の小さな文字 + 細い山形（閉じているとき ›、開くと ⌄） */
+.yy-bk-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--yy-acc-ink);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.yy-bk-toggle:hover { text-decoration: underline; text-underline-offset: 3px; }
+.yy-bk-toggle:focus-visible { outline: 1px solid var(--yy-acc); outline-offset: 2px; }
+.yy-bk-chev {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-right: 1px solid currentColor;
+  border-bottom: 1px solid currentColor;
+  transform: translateY(0) rotate(-45deg);
+  transition: transform 0.2s ease;
+}
+.yy-bk-chev.is-open { transform: translateY(-2px) rotate(45deg); }
+.yy-bk-toggle__panel { margin-top: 8px; }
+
+/* 本文 */
+.yy-bk {
+  margin: 0 0 14px;
+  padding: 2px 0 10px;
+  border-bottom: 1px solid var(--yy-line);
+  color: var(--yy-ink);
+}
+.yy-bk__top {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding-bottom: 6px;
+}
+.yy-bk__top .yy-label { font-size: 10px; }
+.yy-bk__name { font-family: var(--yy-serif); font-size: 13px; font-weight: 500; color: var(--yy-ink); }
+.yy-bk__n { margin-left: auto; font-family: var(--font-mono), monospace; font-size: 10.5px; color: var(--yy-t3); }
+.yy-bk__lead {
+  margin: 0 0 12px;
+  padding: 8px 0 10px;
+  border-top: 1px solid var(--yy-line);
+  border-bottom: 1px solid var(--yy-line);
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--yy-ink);
+}
+
+/* 章：2 段に流す（狭い画面は 1 段） */
+.yy-bk__secs { columns: 2 300px; column-gap: 28px; }
+.yy-bk__sec { break-inside: avoid; margin: 0 0 12px; }
+.yy-bk__h {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 5px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--yy-line);
+  font-family: var(--yy-serif);
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--yy-ink);
+}
+.yy-bk__no {
+  flex: 0 0 auto;
+  min-width: 16px;
+  font-size: 12px;
+  color: var(--yy-t3);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.yy-bk__p { margin: 0 0 5px 24px; font-size: 12px; line-height: 1.75; color: var(--yy-t2); }
+.yy-bk__ul, .yy-bk__refs { margin: 0 0 6px 24px; padding: 0; list-style: none; }
+.yy-bk__ul li, .yy-bk__refs li {
+  position: relative;
+  padding-left: 11px;
+  font-size: 12px;
+  line-height: 1.75;
+  color: var(--yy-t2);
+}
+.yy-bk__ul li::before, .yy-bk__refs li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.85em;
+  width: 5px;
+  border-top: 1px solid var(--yy-t3);
+}
+.yy-bk__ul strong { font-weight: 700; color: var(--yy-ink); }
+.yy-bk__refs li { font-size: 11.5px; color: var(--yy-t2); }
+.yy-bk__note { margin: 2px 0 0; font-size: 10.5px; line-height: 1.6; color: var(--yy-t3); }
+
+@media (max-width: 639px) {
+  .yy-bk__p, .yy-bk__ul, .yy-bk__refs { margin-left: 0; }
+}

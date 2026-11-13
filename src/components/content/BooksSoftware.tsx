@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { decorateAffiliateLink } from '../../lib/affiliate';
-import styles from './BooksSoftware.module.css';
+import PageHead, { Stat } from '../ui/PageHead';
+import './see-pages.css';
 
 interface BookSoftwareItem {
   id: string;
@@ -25,51 +26,41 @@ interface BooksSoftwareProps {
   onNavigateToRegistration?: () => void;
 }
 
+/** 分類(タブの並び) */
+const CATEGORIES: Array<[string, string]> = [
+  ['magazine', '雑誌'],
+  ['book', '専門書'],
+  ['reading', '書籍'],
+  ['software', 'ソフト'],
+  ['ai', 'AI'],
+];
+const CATEGORY_LABEL: Record<string, string> = Object.fromEntries(CATEGORIES);
+
+/** 楽天・Amazon の購入リンクを出す品(もしもアフィリエイト経由) */
+const SHOP_IDS = ['book1', 'book2', 'book3', 'book4', 'book5', 'software1'];
+/** 表紙を Fujisan へのリンクにする雑誌 */
+const MAG_LINK_IDS = ['mag2', 'mag3', 'mag4', 'mag5', 'mag6', 'mag7', 'mag8'];
+
+/** 表紙が読めないときの代わり */
+const NO_IMAGE_SVG = `
+  <svg width="44" height="58" xmlns="http://www.w3.org/2000/svg">
+    <rect width="44" height="58" fill="#F5F5F2"/>
+    <text x="22" y="32" text-anchor="middle" fill="#9A9A96" font-size="7">No Image</text>
+  </svg>`;
+const onCoverError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+  const target = e.target as HTMLImageElement;
+  target.src = `data:image/svg+xml;utf8,${encodeURIComponent(NO_IMAGE_SVG)}`;
+};
+
+/** リンク先の名前(↗ の前に出す) */
+function siteName(url?: string): string {
+  if (!url) return '';
+  if (/fujisan\.co\.jp/.test(url)) return 'Fujisan';
+  return 'サイト';
+}
+
 const BooksSoftware: React.FC<BooksSoftwareProps> = ({ onNavigateToRegistration }) => {
   const [activeCategory, setActiveCategory] = useState<string>('magazine');
-  const [isTransitioning, setIsTransitioning] = useState<boolean>(false);
-  const [activeList, setActiveList] = useState<boolean[]>([]);
-  const [columns, setColumns] = useState<number>(1);
-
-  // 画面幅で列数を決め打ち
-  useEffect(() => {
-    const updateColumns = () => {
-      const w = window.innerWidth;
-      if (w < 640) setColumns(1);
-      else if (w < 1024) setColumns(2);
-      else if (w < 1280) setColumns(3);
-      else setColumns(5);
-    };
-    updateColumns();
-    window.addEventListener('resize', updateColumns);
-    return () => window.removeEventListener('resize', updateColumns);
-  }, []);
-
-
-  // カテゴリ切り替え時にactiveListをリセットし、左から順にactive化
-  useEffect(() => {
-    if (isTransitioning) return; // トランジション中はアニメーションを開始しない
-    
-    const items = getCurrentItems();
-    setActiveList(Array(items.length).fill(false));
-    
-    // 少し遅延させてからアニメーションを開始（トランジション完了後）
-    const timer = setTimeout(() => {
-    items.forEach((_, i) => {
-      setTimeout(() => {
-        setActiveList(prev => {
-          const copy = [...prev];
-          copy[i] = true;
-          return copy;
-        });
-      }, i * 80);
-    });
-    }, 50);
-    
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeCategory, isTransitioning]);
-
 
   // 書籍・ソフト・AIデータの定義
   const bookSoftwareData: Record<string, BookSoftwareItem[]> = {
@@ -372,35 +363,16 @@ const BooksSoftware: React.FC<BooksSoftwareProps> = ({ onNavigateToRegistration 
     }
   };
 
-  const displayBookSoftwareCategory = (category: string) => {
-    setIsTransitioning(true);
-    // activeListを即座にリセットしてアニメーションをリセット
-    setActiveList([]);
-    
-    setTimeout(() => {
-      setActiveCategory(category);
-      setIsTransitioning(false);
-    }, 250);
-  };
-
   const getCurrentItems = (): BookSoftwareItem[] => {
     return bookSoftwareData[activeCategory] || [];
   };
 
-  const getButtonClass = (category: string) => {
-    const baseClass = "text-xs px-2 py-1 rounded w-24 transition";
-    if (activeCategory === category) {
-      return `${baseClass} bg-gray-700 text-white`;
-    }
-    return `${baseClass} bg-gray-300 text-black hover:bg-gray-700 hover:text-white`;
-  };
-
-  const handleItemClick = (item: BookSoftwareItem) => {
+  // 以前の「カードを押すと開く」先(楽天・Amazon・A8 の品を除く)。Amazon なら tag を付ける
+  const itemHref = (item: BookSoftwareItem): string => {
     const baseUrl = item.link && /^https?:\/\//i.test(item.link)
       ? item.link
       : `https://www.amazon.co.jp/s?k=${encodeURIComponent(item.title)}`;
-    const href = decorateAffiliateLink(baseUrl);
-    window.open(href, '_blank', 'noopener,noreferrer');
+    return decorateAffiliateLink(baseUrl);
   };
 
   // A8.net広告スクリプトの読み込み
@@ -417,7 +389,7 @@ const BooksSoftware: React.FC<BooksSoftwareProps> = ({ onNavigateToRegistration 
   useEffect(() => {
     const items = getCurrentItems();
     const a8Items = items.filter(item => item.isA8Ad);
-    
+
     if (a8Items.length > 0) {
       const checkAndInit = () => {
         if (typeof window !== 'undefined' && (window as any).a8adscript) {
@@ -449,208 +421,180 @@ const BooksSoftware: React.FC<BooksSoftwareProps> = ({ onNavigateToRegistration 
       const timer = setTimeout(checkAndInit, 500);
       return () => clearTimeout(timer);
     }
-  }, [activeCategory, activeList]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCategory]);
 
-  const renderContent = () => {
-    const items = getCurrentItems();
-    
-    if (items.length === 0) {
-      return <p className="text-gray-700">該当する情報がありません。</p>;
+  const renderRow = (item: BookSoftwareItem, index: number) => {
+    const isShop = SHOP_IDS.includes(item.id) && !!item.rakutenImage && !!item.rakutenLink;
+    const isA8 = !isShop && !!item.isA8Ad;
+    const isMagLink = !isShop && !isA8 && MAG_LINK_IDS.includes(item.id);
+    // 楽天・Amazon・A8 以外でリンクのある品は、題と ↗ から開く(以前のカードのクリックと同じ先)
+    const opensSite = !isShop && !isA8 && !!item.link;
+    const isPR = isShop || isA8;
+
+    let cover: React.ReactNode;
+    if (isShop) {
+      cover = (
+        <>
+          <img src={`https:${item.rakutenImage}`} alt={item.title} loading="lazy" onError={onCoverError} />
+          <img
+            src={`https://i.moshimo.com/af/i/impression?a_id=5277132&p_id=54&pc_id=54&pl_id=616`}
+            alt=""
+            loading="lazy"
+            width="1"
+            height="1"
+            className="yy-bk-pixel"
+            style={{ border: 0, display: 'none' }}
+          />
+        </>
+      );
+    } else if (isA8) {
+      cover = (
+        <span className="yy-bk-a8 a8ad-container">
+          <span className={`a8ad ${item.a8AdId || ''}`}></span>
+          <a href={item.link} target="_blank" rel="noopener noreferrer nofollow sponsored">
+            <img src={item.image} alt={item.title} loading="lazy" onError={onCoverError} />
+          </a>
+        </span>
+      );
+    } else if (isMagLink) {
+      cover = (
+        <a href={item.link} target="_blank" rel="noopener noreferrer nofollow sponsored">
+          <img src={item.image} alt={item.title} loading="lazy" onError={onCoverError} />
+        </a>
+      );
+    } else {
+      cover = <img src={item.image} alt={item.title} loading="lazy" onError={onCoverError} />;
+    }
+
+    let title: React.ReactNode;
+    if (isA8) {
+      title = <a href={item.link} target="_blank" rel="noopener noreferrer nofollow sponsored" className="yy-bk-title" title={item.title}>{item.title}</a>;
+    } else if (opensSite) {
+      title = <a href={itemHref(item)} target="_blank" rel="noopener noreferrer" className="yy-bk-title" title={item.title}>{item.title}</a>;
+    } else {
+      title = <span className="yy-bk-title" title={item.title}>{item.title}</span>;
+    }
+
+    let links: React.ReactNode;
+    if (isShop) {
+      links = (
+        <>
+          <a href={`https:${item.rakutenLink}`} target="_blank" rel="nofollow noopener noreferrer">楽天で購入 ↗</a>
+          {item.amazonLink && (
+            <a href={decorateAffiliateLink(item.amazonLink)} target="_blank" rel="nofollow noopener noreferrer">Amazonで購入 ↗</a>
+          )}
+        </>
+      );
+    } else if (isA8) {
+      links = <a href={item.link} target="_blank" rel="noopener noreferrer nofollow sponsored">{siteName(item.link)} ↗</a>;
+    } else if (opensSite) {
+      links = <a href={itemHref(item)} target="_blank" rel="noopener noreferrer">{siteName(item.link)} ↗</a>;
+    } else {
+      links = <span className="is-none">—</span>;
     }
 
     return (
-      <div className="grid gap-3 grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-        {items.map((item, index) => (
-          <div 
-            key={item.id}
-            className={`${styles.card} border rounded p-3 bg-white text-sm w-full flex flex-col ${item.id === 'book1' || item.id === 'book2' || item.id === 'book3' || item.id === 'book4' || item.id === 'book5' || item.id === 'software1' ? '' : 'cursor-pointer'} hover:shadow-md transition-shadow${activeList[index] ? ' ' + styles.active : ''}`}
-            onClick={() => item.id !== 'book1' && item.id !== 'book2' && item.id !== 'book3' && item.id !== 'book4' && item.id !== 'book5' && item.id !== 'software1' && item.link && !item.isA8Ad && handleItemClick(item)}
-          >
-            <div className="font-bold text-sm mb-2 text-center line-clamp-1">{item.title}</div>
-            {(item.id === 'book1' || item.id === 'book2' || item.id === 'book3' || item.id === 'book4' || item.id === 'book5' || item.id === 'software1') && item.rakutenImage && item.rakutenLink ? (
-              <div className="mb-2" onClick={(e) => e.stopPropagation()}>
-                <img 
-                  src={`https:${item.rakutenImage}`}
-                  alt={item.title}
-                  className={`max-w-full h-auto max-h-[270px] object-contain mb-2 mx-auto ${styles.bookImage}`}
-                  style={{ 
-                    border: '0', 
-                    outline: 'none', 
-                    boxShadow: 'none',
-                    borderWidth: '0',
-                    borderStyle: 'none',
-                    borderColor: 'transparent'
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    const svg = `
-                      <svg width="360" height="288" xmlns="http://www.w3.org/2000/svg">
-                        <rect width="360" height="288" fill="#F3F4F6"/>
-                        <text x="180" y="150" text-anchor="middle" fill="#9B9B9B" font-size="14">No Image</text>
-                      </svg>`;
-                    target.src = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-                  }}
-                />
-                <img 
-                  src={`https://i.moshimo.com/af/i/impression?a_id=5277132&p_id=54&pc_id=54&pl_id=616`}
-                  alt=""
-                  loading="lazy"
-                  width="1"
-                  height="1"
-                  style={{ border: 0, display: 'none' }}
-                />
-                <div className="flex gap-2 justify-center mt-2">
-                  <a
-                    href={`https:${item.rakutenLink}`}
-                    target="_blank"
-                    rel="nofollow noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="flex-1 px-3 py-1.5 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 transition-colors text-center"
-                  >
-                    楽天で購入
-                  </a>
-                  {item.amazonLink && (
-                    <a
-                      href={decorateAffiliateLink(item.amazonLink)}
-                      target="_blank"
-                      rel="nofollow noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="flex-1 px-3 py-1.5 bg-cyan-500 text-white text-xs rounded hover:bg-cyan-600 transition-colors text-center"
-                    >
-                      Amazonで購入
-                    </a>
-                  )}
-                </div>
-              </div>
-            ) : item.isA8Ad ? (
-              <div className="a8ad-container">
-                <span className={`a8ad ${item.a8AdId || ''}`}></span>
-                <a
-                  href={item.link}
-                  target="_blank"
-                  rel="noopener noreferrer nofollow sponsored"
-                  className="block"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <img 
-                    src={item.image} 
-                    alt={item.title}
-                    className="max-w-full h-auto max-h-[270px] object-contain rounded mb-2 mx-auto cursor-pointer hover:opacity-80 transition-opacity"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      const svg = `
-                        <svg width="360" height="288" xmlns="http://www.w3.org/2000/svg">
-                          <rect width="360" height="288" fill="#F3F4F6"/>
-                          <text x="180" y="150" text-anchor="middle" fill="#9B9B9B" font-size="14">No Image</text>
-                        </svg>`;
-                      target.src = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-                    }}
-                  />
-                </a>
-              </div>
-            ) : (item.id === 'mag2' || item.id === 'mag3' || item.id === 'mag4' || item.id === 'mag5' || item.id === 'mag6' || item.id === 'mag7' || item.id === 'mag8') ? (
-              <a
-                href={item.link}
-                target="_blank"
-                rel="noopener noreferrer nofollow sponsored"
-                className="block"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <img 
-                  src={item.image} 
-                  alt={item.title}
-                  className="max-w-full h-auto max-h-[270px] object-contain rounded mb-2 mx-auto cursor-pointer hover:opacity-80 transition-opacity"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    const svg = `
-                      <svg width="360" height="288" xmlns="http://www.w3.org/2000/svg">
-                        <rect width="360" height="288" fill="#F3F4F6"/>
-                        <text x="180" y="150" text-anchor="middle" fill="#9B9B9B" font-size="14">No Image</text>
-                      </svg>`;
-                    target.src = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-                  }}
-                />
-              </a>
-            ) : (
-              <img 
-                src={item.image} 
-                alt={item.title}
-                className="max-w-full h-auto max-h-[270px] object-contain rounded mb-2 mx-auto"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  const svg = `
-                    <svg width="360" height="288" xmlns="http://www.w3.org/2000/svg">
-                      <rect width="360" height="288" fill="#F3F4F6"/>
-                      <text x="180" y="150" text-anchor="middle" fill="#9B9B9B" font-size="14">No Image</text>
-                    </svg>`;
-                  target.src = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-                }}
-              />
-            )}
-            <p className="text-xs text-gray-600 mb-1 line-clamp-2">{item.description}</p>
-            {item.price && (
-              <div className="mt-1">
-                <span className="text-xs text-gray-500">{item.price}</span>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+      <li key={item.id} className="yy-bk-row">
+        <span className="yy-bk-no">{String(index + 1).padStart(2, '0')}</span>
+        <span className="yy-bk-cover">{cover}</span>
+        <div className="yy-bk-body">
+          {title}
+          {item.description && <span className="yy-bk-desc">{item.description}</span>}
+        </div>
+        <span className="yy-bk-price">
+          {item.price ? item.price : isPR ? <span className="yy-fmt" title="アフィリエイト(広告)リンクを含みます">PR</span> : ''}
+        </span>
+        <span className="yy-bk-links">{links}</span>
+      </li>
     );
   };
 
+  const renderContent = () => {
+    const items = getCurrentItems();
+
+    if (items.length === 0) {
+      return <p className="yy-bk-empty">該当する情報がありません。</p>;
+    }
+
+    return <ol className="yy-bk-list">{items.map(renderRow)}</ol>;
+  };
+
+  const total = CATEGORIES.reduce((n, [k]) => n + (bookSoftwareData[k]?.length || 0), 0);
+
   return (
     <div>
-      <div className="flex items-baseline mb-2">
-        <h2 className="text-xl font-semibold">書籍・ソフト</h2>
-        <a href="#" onClick={showContactForm} className="text-blue-600 hover:text-blue-800 text-[11px] ml-4">掲載希望はコチラ</a>
+      <PageHead
+        no="09"
+        en="books & software"
+        title="書籍・ソフト"
+        desc="設計・施工に役立つ専門書、BIM / CAD ソフト、AI サービス"
+        right={
+          <>
+            <Stat n={total} label="点" />
+            <Stat n={CATEGORIES.length} label="分類" />
+          </>
+        }
+      />
+      <div className="yy-tabs">
+        {CATEGORIES.map(([k, label]) => (
+          <button
+            key={k}
+            type="button"
+            className="yy-tab"
+            aria-pressed={activeCategory === k}
+            onClick={() => setActiveCategory(k)}
+          >
+            {label}
+            <small>{bookSoftwareData[k]?.length || 0}</small>
+          </button>
+        ))}
       </div>
-      <p className="text-[12px] text-gray-600 mb-3">
-        設計・施工に役立つ専門書やマニュアル、BIM/CADソフト、AIサービスのおすすめを整理しています。日々のインプットやツール選定の参考にどうぞ。
-      </p>
-      
-      <div className="flex gap-2 flex-wrap mb-4">
-        <button 
-          onClick={() => displayBookSoftwareCategory('magazine')}
-          className={getButtonClass('magazine')}
-        >
-          雑誌
-        </button>
-        <button 
-          onClick={() => displayBookSoftwareCategory('book')}
-          className={getButtonClass('book')}
-        >
-          専門書
-        </button>
-        <button 
-          onClick={() => displayBookSoftwareCategory('reading')}
-          className={getButtonClass('reading')}
-        >
-          書籍
-        </button>
-        <button 
-          onClick={() => displayBookSoftwareCategory('software')}
-          className={getButtonClass('software')}
-        >
-          ソフト
-        </button>
-        <button 
-          onClick={() => displayBookSoftwareCategory('ai')}
-          className={getButtonClass('ai')}
-        >
-          AI
-        </button>
-      </div>
-
-      <div 
-        id="book-software-content-area"
-        className={`transition-opacity duration-250 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}
-      >
-        {renderContent()}
+      <div className="yy-bk-page">
+        <div className="yy-bk-main">
+          <section id="book-software-content-area">
+            <div className="yy-sec">
+              <span className="yy-sec__no">I</span>
+              <span className="yy-sec__title">{CATEGORY_LABEL[activeCategory]}</span>
+              <span className="yy-sec__right">{getCurrentItems().length} 点</span>
+            </div>
+            {renderContent()}
+          </section>
+        </div>
+        <aside className="yy-bk-side">
+          <section>
+            <div className="yy-sec"><span className="yy-sec__no">II</span><span className="yy-sec__title">分類</span><span className="yy-sec__right">{total} 点</span></div>
+            <ol className="yy-bk-toc">
+              {CATEGORIES.map(([k, label], i) => (
+                <li key={k}>
+                  <button
+                    type="button"
+                    className="yy-srcrow yy-srcrow--btn"
+                    aria-pressed={activeCategory === k}
+                    onClick={() => setActiveCategory(k)}
+                  >
+                    <span className="yy-home__tocno">{String(i + 1).padStart(2, '0')}</span>
+                    <span className="yy-home__toct">{label}</span>
+                    <span className="yy-leader" />
+                    <span className="yy-home__n">{bookSoftwareData[k]?.length || 0}</span>
+                  </button>
+                </li>
+              ))}
+            </ol>
+            <p className="yy-bk-note">日々のインプットやツール選定の参考に。PR の品は楽天・Amazon・A8.net のアフィリエイト(広告)リンクです。</p>
+          </section>
+          <section>
+            <div className="yy-sec"><span className="yy-sec__no">III</span><span className="yy-sec__title">掲載希望</span></div>
+            <div className="yy-gray">
+              <span className="yy-gray__title">書籍・ソフトを載せる</span>
+              <span className="yy-gray__text">出版社・ソフトウェア会社の方は、この一覧への掲載をご相談ください。</span>
+              <button type="button" className="yy-btn" onClick={showContactForm}>掲載希望はコチラ</button>
+            </div>
+          </section>
+        </aside>
       </div>
     </div>
   );
 };
 
-export default BooksSoftware; 
+export default BooksSoftware;

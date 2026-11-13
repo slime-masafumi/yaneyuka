@@ -235,7 +235,7 @@ const LawsRegulations: React.FC = () => {
   if (tab === 'check') {
     return (
       <div>
-        <PageHead no="05" en="regulations" title="法規" desc="案件の用途・規模・立地から、関わる法令を判定" />
+        <PageHead no="06" en="regulations" title="法規" desc="案件の用途・規模・立地から、関わる法令を判定" />
         <TabBar tab={tab} setTab={setTab} />
         <RegulationCheck />
       </div>
@@ -245,7 +245,7 @@ const LawsRegulations: React.FC = () => {
   return (
     <div>
       <PageHead
-        no="05"
+        no="06"
         en="regulations"
         title="法規"
         desc="建築設計で頻繁に参照する法令・告示リンク(e-Gov 法令検索・国交省データベースへ遷移)"
