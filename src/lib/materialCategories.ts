@@ -56,7 +56,7 @@ const SUB_LABEL: Record<string, string> = {
   alc: 'ALC', ecp: 'ECPパネル', metalpanel: '金属パネル', 'exterior-wall-other': '外壁その他',
   'aluminum-sash': 'アルミサッシ', 'resin-sash': '樹脂サッシ', 'wood-sash': '木製サッシ',
   'light-shutter': '軽量シャッター', 'heavy-shutter': '重量シャッター',
-  paint: '塗装', plaster: '塗り壁', tile: 'タイル', 'stone-brick': '石・レンガ', 'metal-panel': '金属パネル',
+  paint: '塗装', plaster: '塗り壁', tile: 'タイル', 'stone-brick': '石・レンガ', 'metal-panel': '金属パネル仕上げ',
   'wood-board': '木板材', decorative: '装飾材', 'other-finish': '外壁仕上げその他',
   'external-tile': 'タイル', 'external-stone-brick': '石・レンガ', 'pvc-sheet': '塩ビシート', 'external-finish': '外部床その他',
   外構照明: '外構照明',

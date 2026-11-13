@@ -11,6 +11,7 @@ import { DESIGN_TOOL_MENU } from '@/lib/designToolsMenu';
 import { onDesignToolsTarget, requestDesignToolsTarget } from '@/lib/designToolsNav';
 import { parseUserpageQuery, type UserpageTarget } from '@/lib/userpageUrl';
 import type { SearchEntry } from '@/lib/siteIndex';
+import { INDEX_MENUS } from '@/lib/railMenu';
 
 /**
  * 上部の濃い緑の帯(lg 以上)。左から 戻る / パンくず / 検索。
@@ -20,13 +21,17 @@ import type { SearchEntry } from '@/lib/siteIndex';
  * useSearchParams を使うので、必ず AfterMount の中に置く(サーバーで呼ぶと本文が配信 HTML から消える)。
  */
 
-type Crumb = { label: string; href?: string };
+/** href = URL で開く / menu = 左カラムの画面として開く（ツール一覧など） */
+type Crumb = { label: string; href?: string; menu?: string };
 
 const SCREEN = Object.fromEntries(ROUTED_SCREENS.map((s) => [s.id, s]));
 const GENERAL_LABEL = Object.fromEntries(GENERAL_TOOL_MENU.map((t) => [t.id, t.label])) as Record<string, string>;
 
 /** 左カラムの Ⅲ にある、一般ツールの中のタブではない画面 */
 const TOOL_SCREENS: Record<string, [string, string]> = {
+  [INDEX_MENUS.general]: ['', '一般ツール'],
+  [INDEX_MENUS.design]: ['', '設計ツール'],
+  [INDEX_MENUS.external]: ['', '外部ツール'],
   'my-calendar': ['一般ツール', 'Myカレンダー'],
   'my-tasks': ['一般ツール', 'Myタスク'],
   'team-tasks': ['一般ツール', 'Teamタスク'],
@@ -34,8 +39,8 @@ const TOOL_SCREENS: Record<string, [string, string]> = {
   yymail: ['一般ツール', 'yymail'],
   yychat: ['一般ツール', 'yychat'],
   contacts: ['一般ツール', '担当連絡先'],
-  'design-info': ['設計情報', '設計情報'],
-  'material-info': ['設計情報', '材料情報'],
+  'design-info': ['', '設計情報'],
+  'material-info': ['', '材料情報'],
 };
 
 /** 左カラムにも上部にも無い画面(会員・問い合わせなど) */
@@ -94,20 +99,21 @@ function buildCrumbs(
     const sub = search.get('subcategory');
     return [
       home,
-      { label: '建材検索' },
+      { label: '建材' },
       { label: screen.label, href: sub ? `${screenPath(screen.id)}/` : undefined },
       ...(sub ? [{ label: subcategoryLabel(sub) }] : []),
     ];
   }
-  if (active === 'general-tools') return [home, { label: '一般ツール' }, { label: (tool && GENERAL_LABEL[tool]) || '一般ツール' }];
+  if (active === 'general-tools') return [home, { label: '一般ツール', menu: INDEX_MENUS.general }, { label: (tool && GENERAL_LABEL[tool]) || '一般ツール' }];
   if (active === 'design-tools') {
     const cat = DESIGN_TOOL_MENU.find((c) => c.id === design.c) ?? DESIGN_TOOL_MENU[0];
     const sub = cat.subTabs.find((t) => t.id === design.s) ?? cat.subTabs[0];
-    return [home, { label: '設計ツール' }, { label: cat.label }, { label: sub?.label ?? '' }];
+    return [home, { label: '設計ツール', menu: INDEX_MENUS.design }, { label: cat.label }, { label: sub?.label ?? '' }];
   }
   if (active && TOOL_SCREENS[active]) {
     const [group, label] = TOOL_SCREENS[active];
-    return [home, { label: group }, { label }];
+    if (!group) return [home, { label }];
+    return [home, { label: group, menu: group === '一般ツール' ? INDEX_MENUS.general : undefined }, { label }];
   }
   if (active && OTHER_SCREENS[active]) return [home, { label: OTHER_SCREENS[active] }];
   return [{ label: 'ホーム' }];
@@ -169,7 +175,13 @@ export default function TopBar({
           const last = i === crumbs.length - 1;
           return (
             <li key={`${i}-${c.label}`} aria-current={last ? 'page' : undefined}>
-              {c.href && !last ? <Link href={c.href}>{c.label}</Link> : <span>{c.label}</span>}
+              {c.href && !last ? (
+                <Link href={c.href}>{c.label}</Link>
+              ) : c.menu && !last ? (
+                <button type="button" onClick={() => onMenuClick?.(c.menu!, { menu: c.menu! })}>{c.label}</button>
+              ) : (
+                <span>{c.label}</span>
+              )}
             </li>
           );
         })}

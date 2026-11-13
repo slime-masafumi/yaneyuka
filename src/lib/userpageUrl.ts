@@ -28,6 +28,10 @@ export const USERPAGE_MENUS = [
   'yychat',
   'yymail',
   'userpage-top',
+  // 中央カラムのツール一覧（src/lib/railMenu.ts の INDEX_MENUS）
+  'general-index',
+  'design-index',
+  'external-index',
 ] as const;
 
 export type UserpageMenu = (typeof USERPAGE_MENUS)[number];

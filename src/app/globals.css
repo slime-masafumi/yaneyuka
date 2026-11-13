@@ -506,68 +506,186 @@ nav.yy-topnav {
   font-size: 10px;
 }
 
-/* 左カラムの 6 段（2026-11-13、Ⅰ〜Ⅵ の切替ボタンを廃止して縦に並べた）。
-   見出し = 等幅の番号・名前・件数の 1 行。区切りは 1px の線だけ。押すと開閉、複数開ける。 */
-.yy-rail-sec + .yy-rail-sec { border-top: 1px solid rgba(255, 255, 255, 0.07); }
-.yy-rail-sec__head {
+/* 左カラム = 入口だけ（モック「高級感 3」）。01 見る / 02 使う / 03 つながる。
+   中身（建材の小分類・ツール一覧）は中央カラム。行は 21px、選択中は左の緑の縦線 + 白文字 + 緑の点。 */
+.yy-rail__logo { padding: 20px 14px 14px 18px; }
+.yy-rail { display: flex; flex-direction: column; gap: 10px; padding: 0 8px 10px 6px; }
+.yy-rail__group { display: flex; flex-direction: column; }
+.yy-rail__ghead {
   display: flex;
   align-items: baseline;
   gap: 8px;
+  padding: 0 10px 3px;
+  font-size: 10.5px;
+  color: #6d7471;
+  letter-spacing: 0.04em;
+}
+.yy-rail__gno { font-family: var(--font-mono), ui-monospace, monospace; font-size: 9.5px; color: #4d5451; }
+.yy-rail__item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 9px;
   width: 100%;
-  padding: 8px 12px 7px 14px;
+  height: 21px;
+  padding: 0 8px 0 10px;
   background: none;
   border: 0;
-  cursor: pointer;
   text-align: left;
+  font-size: 12px;
+  line-height: 1;
+  color: #b9bfbc;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.yy-rail__icon { flex: 0 0 auto; width: 13px; height: 13px; color: #5d6461; }
+.yy-rail__label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.yy-rail__item:hover { color: #ffffff; }
+.yy-rail__item:hover .yy-rail__icon { color: #9aa29e; }
+.yy-rail__item[aria-current='page'] { color: #ffffff; }
+.yy-rail__item[aria-current='page'] .yy-rail__icon { color: var(--yy-acc); }
+.yy-rail__item[aria-current='page']::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  background: var(--yy-acc);
+}
+.yy-rail__item[aria-current='page']::after {
+  content: '';
+  flex: 0 0 auto;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--yy-acc);
+}
+.yy-rail__badge {
+  flex: 0 0 auto;
+  min-width: 15px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #ef4444;
   color: #ffffff;
-}
-.yy-rail-sec__no {
-  font-family: var(--font-mono), ui-monospace, monospace;
   font-size: 9.5px;
-  letter-spacing: 0.08em;
-  color: #5d6461;
-}
-.yy-rail-sec__label { flex: 1 1 auto; font-size: 12px; font-weight: 700; letter-spacing: 0.02em; }
-.yy-rail-sec__count {
-  font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: 9.5px;
-  color: #5d6461;
-}
-/* 開閉の印。閉じているとき ＋、開いているとき − */
-.yy-rail-sec__count::after {
-  content: '＋';
-  display: inline-block;
-  width: 12px;
-  margin-left: 6px;
+  font-weight: 700;
+  line-height: 15px;
   text-align: center;
-  color: #8a918e;
-}
-.yy-rail-sec__head[aria-expanded='true'] .yy-rail-sec__count::after { content: '−'; }
-.yy-rail-sec__head:hover .yy-rail-sec__label { color: var(--yy-acc); }
-/* いまの画面が入っている段：番号を緑に */
-.yy-rail-sec__head.is-current .yy-rail-sec__no { color: var(--yy-acc); }
-/* 開いた段は高さに上限を付け、中だけスクロールさせる。ほかの段の見出しが常に画面に残る。
-   360px = ロゴ + 見出し 6 本 + 下のアカウント行のおおよその高さ */
-.yy-rail-sec__body {
-  padding-bottom: 8px;
-  max-height: calc(100vh - 360px);
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: #3a403d transparent;
 }
 
-/* 01 情報は名前が短いので 2 列で詰める */
-.yy-rail-info {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  column-gap: 6px;
-  row-gap: 0;
-  padding: 0 10px 0 16px;
+/* パンくずの中のボタン（ツール一覧へ戻る）は a と同じ見た目 */
+.yy-crumbs button {
+  padding: 0;
+  background: none;
+  border: 0;
+  font: inherit;
+  color: var(--yy-deep-t2);
+  cursor: pointer;
 }
-.yy-rail-info .rail-info { padding: 3px 0; white-space: nowrap; overflow: hidden; }
+.yy-crumbs button:hover { color: #ffffff; }
 
-/* 段の中の分類（建材 16 分類・設計ツールの分野）は行を詰める */
-.yy-rail-sec .accordion-toggle { padding-top: 3px; padding-bottom: 3px; }
+/* 中央カラムのツール一覧（ToolIndex.tsx。モック Q6 の組み方）。
+   群見出し + 番号つきの行。区切りは 1px の線だけ。3 段組で群を流す。 */
+.yy-tix__cols {
+  column-count: 3;
+  column-gap: 28px;
+  margin-top: 14px;
+}
+.yy-tix__cols--external { column-count: 2; }
+@media (max-width: 1279px) { .yy-tix__cols { column-count: 2; } }
+@media (max-width: 767px) { .yy-tix__cols, .yy-tix__cols--external { column-count: 1; } }
+.yy-tix__group { break-inside: avoid; margin-bottom: 16px; }
+.yy-tix__ghead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 0;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--yy-ink);
+  font-family: var(--yy-serif);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--yy-ink);
+}
+.yy-tix__gcount { font-family: var(--font-mono), monospace; font-size: 10.5px; color: var(--yy-t3); font-weight: 400; }
+.yy-tix__list { margin: 0; padding: 0; list-style: none; }
+.yy-tix__list li { position: relative; display: flex; align-items: center; border-bottom: 1px solid var(--yy-line); }
+.yy-tix__list li.is-soon { opacity: 0.5; }
+.yy-tix__row {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 36px;
+  padding: 3px 0;
+  background: none;
+  border: 0;
+  text-align: left;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+.yy-tix__row:hover .yy-tix__name { color: var(--yy-acc-ink); }
+.yy-tix__no {
+  flex: 0 0 auto;
+  width: 18px;
+  font-family: var(--yy-serif);
+  font-size: 13px;
+  color: var(--yy-t3);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.yy-tix__icon { flex: 0 0 auto; width: 20px; height: 20px; border-radius: 5px; }
+.yy-tix__text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.yy-tix__name { font-size: 12.5px; color: var(--yy-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.yy-tix__desc { font-size: 10.5px; color: var(--yy-t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.yy-tix__soon { flex: 0 0 auto; font-size: 10.5px; color: var(--yy-t3); }
+.yy-tix__ext { flex: 0 0 auto; font-size: 11px; color: var(--yy-acc-ink); }
+.yy-tix__store {
+  flex: 0 0 auto;
+  margin-left: 8px;
+  padding: 1px 5px;
+  border: 1px solid var(--yy-line);
+  font-size: 10px;
+  color: var(--yy-t2);
+  text-decoration: none;
+}
+.yy-tix__store:hover { border-color: var(--yy-ink); color: var(--yy-ink); }
+
+/* 建材ページの頭（MaterialNav.tsx。モック Q9）：16 分類の下線タブ + 小分類 */
+.yy-matnav { margin-bottom: 14px; }
+.yy-matnav__cats { gap: 0 16px; margin-bottom: 8px; }
+.yy-matnav__cats .yy-tab { height: 30px; font-size: 12.5px; text-decoration: none; }
+.yy-matnav__subs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 20px; padding-bottom: 8px; border-bottom: 1px solid var(--yy-line); }
+.yy-matnav__sub {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--yy-t3);
+  text-decoration: none;
+}
+.yy-matnav__sub:hover { color: var(--yy-ink); }
+.yy-matnav__sub[aria-current='true'] { color: var(--yy-ink); }
+.yy-matnav__sub[aria-current='true']::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--yy-acc);
+}
+.yy-matnav__tools { margin-left: auto; display: flex; gap: 14px; }
+.yy-matnav__tools button {
+  padding: 0;
+  background: none;
+  border: 0;
+  font-size: 11.5px;
+  color: var(--yy-acc-ink);
+  cursor: pointer;
+}
+.yy-matnav__tools button:hover { text-decoration: underline; text-underline-offset: 3px; }
 
 /* 訪問者数（管理者だけに出る）。目立たせない: 等幅の小さな灰色 1 行 */
 .yy-visits {

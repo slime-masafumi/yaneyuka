@@ -7,7 +7,7 @@ import UserpageBottomBar from './UserpageBottomBar';
 import RelatedPrivacyLinks from '../RelatedPrivacyLinks';
 import AfterMount from '../AfterMount';
 import { isPrivacyPolicyPath } from '@/lib/legalPages';
-import { CATEGORY_ROUTES, EXTERIOR_FINISH_SUBCATEGORIES, findCategoryBySubcategory } from '@/lib/materialCategories';
+import { CATEGORY_ROUTES, CATEGORY_SUBCATEGORIES, EXTERIOR_FINISH_SUBCATEGORIES, findCategoryBySubcategory } from '@/lib/materialCategories';
 import {
   USERPAGE_MENUS,
   isUserpageMenu as isUserpageMenuId,
@@ -53,6 +53,9 @@ import TeamTasks from '../content/Userpage/TeamTasks';
 const GeneralTools = lazy(() => import('../content/Userpage/general-tools/GeneralTools'));
 import ContactsManagement from '../content/Userpage/ContactsManagement';
 import DesignTools from '../content/Userpage/DesignTools';
+import ToolIndex from '../content/ToolIndex';
+import MaterialNav from '../content/MaterialNav';
+import { INDEX_MENUS } from '@/lib/railMenu';
 import DesignInfo from '../content/Userpage/DesignInfo';
 import MaterialInfo from '../content/Userpage/MaterialInfo';
 import Userpage_top from '../content/Userpage/Userpage_top';
@@ -410,6 +413,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
     const subcategory = new URLSearchParams(window.location.search).get('subcategory');
     if (subcategory) {
       handleSubcategoryFromQuery(content, subcategory);
+    } else if (CATEGORY_SUBCATEGORIES[content]?.length) {
+      // 小分類なしで建材ページを開いたときは先頭の小分類を出す（以前は中央が空白だった）
+      handleSubcategoryFromQuery(content, CATEGORY_SUBCATEGORIES[content][0]);
     }
   }, [handleSubcategoryFromQuery]);
 
@@ -1220,6 +1226,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
         return <TeamTasks />;
       case 'general-tools':
         return <Suspense fallback={<ToolLoading />}><GeneralTools /></Suspense>;
+      case INDEX_MENUS.design:
+        return <ToolIndex kind="design" onMenuClick={handleMenuClick} />;
+      case INDEX_MENUS.general:
+        return <ToolIndex kind="general" onMenuClick={handleMenuClick} />;
+      case INDEX_MENUS.external:
+        return <ToolIndex kind="external" onMenuClick={handleMenuClick} />;
       case 'design-tools':
         return <DesignTools />;
       case 'design-info':
@@ -1239,6 +1251,26 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
         return <>{children}</>;
     }
   };
+
+  const materialSubcategory =
+    ({
+      roof: roofSubcategory,
+      'exterior-wall': exteriorWallSubcategory,
+      opening: openingSubcategory,
+      'external-floor': externalFloorSubcategory,
+      'exterior-other': exteriorOtherSubcategory,
+      'internal-floor': internalFloorSubcategory,
+      'internal-wall': internalWallSubcategory,
+      'internal-ceiling': internalCeilingSubcategory,
+      'internal-other': internalOtherSubcategory,
+      waterproof: waterproofSubcategory,
+      hardware: hardwareSubcategory,
+      furniture: furnitureSubcategory,
+      'electrical-systems': electricalSystemsSubcategory,
+      'mechanical-systems': mechanicalSystemsSubcategory,
+      'exterior-infrastructure': exteriorInfrastructureSubcategory,
+      exterior: exteriorSubcategory,
+    } as Record<string, string>)[activeContent] ?? '';
 
   // Userpageのメニューかどうかを判定する関数
   const isUserpageMenu = () => {
@@ -1283,6 +1315,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
                   持っていたので、1箇所で決められるようにした。 */}
               <div className={`flex-1 min-w-0${isGeneralToolScreen(activeContent) ? ' yy-tool' : ''}`}>
                 <Breadcrumbs />
+                {/* 建材ページの頭：16 分類と小分類（左カラムは入口「建材」だけにした） */}
+                {CATEGORY_SUBCATEGORIES[activeContent] && (
+                  <MaterialNav
+                    category={activeContent}
+                    subcategory={materialSubcategory}
+                    onOpen={handleSubcategoryClick}
+                  />
+                )}
                 {renderContent()}
               </div>
               {/* 右側: 参考資料 / 資格動画 */}
@@ -1300,7 +1340,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
                 </aside>
               )}
               {/* 右側: 折り畳み可能な作業music（Userpage内ツール向け） */}
-              {isUserpageMenu() && (
+              {/* ツール一覧（左カラムの 設計ツール・一般ツール・外部ツール）は中央を広く使うので出さない */}
+              {isUserpageMenu() && !Object.values(INDEX_MENUS).includes(activeContent as never) && (
                 <div className="hidden lg:block shrink-0">
                   <UserpageMusicPanel />
                 </div>
