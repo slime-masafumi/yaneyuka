@@ -506,6 +506,69 @@ nav.yy-topnav {
   font-size: 10px;
 }
 
+/* 左カラムの 6 段（2026-11-13、Ⅰ〜Ⅵ の切替ボタンを廃止して縦に並べた）。
+   見出し = 等幅の番号・名前・件数の 1 行。区切りは 1px の線だけ。押すと開閉、複数開ける。 */
+.yy-rail-sec + .yy-rail-sec { border-top: 1px solid rgba(255, 255, 255, 0.07); }
+.yy-rail-sec__head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px 7px 14px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+  color: #ffffff;
+}
+.yy-rail-sec__no {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  color: #5d6461;
+}
+.yy-rail-sec__label { flex: 1 1 auto; font-size: 12px; font-weight: 700; letter-spacing: 0.02em; }
+.yy-rail-sec__count {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 9.5px;
+  color: #5d6461;
+}
+/* 開閉の印。閉じているとき ＋、開いているとき − */
+.yy-rail-sec__count::after {
+  content: '＋';
+  display: inline-block;
+  width: 12px;
+  margin-left: 6px;
+  text-align: center;
+  color: #8a918e;
+}
+.yy-rail-sec__head[aria-expanded='true'] .yy-rail-sec__count::after { content: '−'; }
+.yy-rail-sec__head:hover .yy-rail-sec__label { color: var(--yy-acc); }
+/* いまの画面が入っている段：番号を緑に */
+.yy-rail-sec__head.is-current .yy-rail-sec__no { color: var(--yy-acc); }
+/* 開いた段は高さに上限を付け、中だけスクロールさせる。ほかの段の見出しが常に画面に残る。
+   360px = ロゴ + 見出し 6 本 + 下のアカウント行のおおよその高さ */
+.yy-rail-sec__body {
+  padding-bottom: 8px;
+  max-height: calc(100vh - 360px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #3a403d transparent;
+}
+
+/* 01 情報は名前が短いので 2 列で詰める */
+.yy-rail-info {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 6px;
+  row-gap: 0;
+  padding: 0 10px 0 16px;
+}
+.yy-rail-info .rail-info { padding: 3px 0; white-space: nowrap; overflow: hidden; }
+
+/* 段の中の分類（建材 16 分類・設計ツールの分野）は行を詰める */
+.yy-rail-sec .accordion-toggle { padding-top: 3px; padding-bottom: 3px; }
+
 /* 訪問者数（管理者だけに出る）。目立たせない: 等幅の小さな灰色 1 行 */
 .yy-visits {
   display: flex;

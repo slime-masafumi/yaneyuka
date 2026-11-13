@@ -89,7 +89,6 @@ type RailMode = {
   tree?: typeof DESIGN_TOOL_MENU;
 };
 
-const ROMAN = ['Ⅰ', 'Ⅱ', 'Ⅲ', 'Ⅳ', 'Ⅴ', 'Ⅵ'];
 
 /**
  * 左カラムの6モード。Ⅰ 情報は旧上部ナビ、Ⅱ は従来どおり建材検索ツリー（下の JSX をそのまま使う）。
@@ -199,28 +198,42 @@ const RailIcon: React.FC<{ src?: string }> = ({ src }) =>
 const MODE_INFO = RAIL_MODES.findIndex((m) => m.kind === 'info');
 const MODE_MATERIAL = RAIL_MODES.findIndex((m) => m.kind === 'material');
 const INFO_IDS = new Set(TOP_NAV_SCREENS.map((s) => s.id));
-const MATERIAL_IDS = new Set(screensInGroup('material').map((s) => s.id));
+const MATERIAL_IDS = new Set([...screensInGroup('material').map((s) => s.id), 'makerconect', 'chatbot']);
+
+/** 画面 ID → それが入っている段の番号。どこにも無ければ -1 */
+function sectionOf(activeContent?: string): number {
+  if (!activeContent) return -1;
+  if (INFO_IDS.has(activeContent)) return MODE_INFO;
+  if (MATERIAL_IDS.has(activeContent)) return MODE_MATERIAL;
+  // 設計ツールは items ではなく tree で持っているので、そちらも見る。
+  return RAIL_MODES.findIndex((m) => m.items.some((i) => i.menu === activeContent) || (m.tree && activeContent === 'design-tools'));
+}
+
+/** 見出しの右に出す件数 */
+const sectionCount = (m: RailMode) =>
+  m.kind === 'info'
+    ? TOP_NAV_SCREENS.length
+    : m.kind === 'material'
+      ? screensInGroup('material').length
+      : m.items.length + (m.tree ? m.tree.reduce((n, c) => n + c.subTabs.length, 0) : 0);
 
 const Sidebar: React.FC<SidebarProps> = ({ onItemClick, onPageChange, onLogoClick, onMenuClick, activeContent }) => {
-  const [mode, setMode] = useState(MODE_INFO);
+  // 開いている段は 1 つだけ。別の段を開くと前の段は閉じる。
+  // 複数開けると 1280×720 で下の段の見出しが画面の外へ押し出され、6 段あることが見えなくなる。
+  // 初期は「情報」。いまの画面が入っている段は下の効果で開く。
+  const [open, setOpen] = useState<number>(MODE_INFO);
+  const toggleSection = (i: number) => setOpen((prev) => (prev === i ? -1 : i));
   const forumUnread = useForumUnread();
   // 一般ツール・設計ツールは activeContent だけでは中のどれを開いたか分からないので、
   // 左カラムから開いたものを覚えておく（lg 以上では中央のタブを畳んであるので、これで一致する）。
   const [activeTool, setActiveTool] = useState<string | null>(null);
   const [activeDesignTool, setActiveDesignTool] = useState<string | null>(null);
 
-  // URL で直接ツールを開かれたときは、左カラムもその段（Ⅰ〜Ⅴ）に合わせる。
-  // 押して切り替えた場合はこの効果より前に mode が変わっているので、結果は同じ。
+  // いまの画面が入っている段を開く（閉じていた段の中の画面を URL や検索で開かれたときも）
+  const current = sectionOf(activeContent);
   useEffect(() => {
-    if (!activeContent) return;
-    if (INFO_IDS.has(activeContent)) return setMode(MODE_INFO);
-    if (MATERIAL_IDS.has(activeContent)) return setMode(MODE_MATERIAL);
-    // 設計ツールは items ではなく tree で持っているので、そちらも見る。
-    const found = RAIL_MODES.findIndex(
-      (m) => m.items.some((i) => i.menu === activeContent) || (m.tree && activeContent === 'design-tools')
-    );
-    if (found >= 0) setMode(found);
-  }, [activeContent]);
+    if (current >= 0) setOpen(current);
+  }, [current]);
 
   // 開いているツールの印。切り替えは MainLayout が投げるイベントで拾う。
   useEffect(() => onGeneralTool(({ toolId }) => setActiveTool(toolId)), []);
@@ -241,7 +254,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onItemClick, onPageChange, onLogoClic
     item.tool
       ? activeContent === 'general-tools' && activeTool === item.tool
       : activeContent === item.menu;
-  const railMode = RAIL_MODES[mode];
   const { isLoggedIn, currentUser, logout } = useAuth();
   useEffect(() => {
     // アコーディオン機能の実装（最大2つまで開く、3つ目で最初を閉じる）
@@ -320,12 +332,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onItemClick, onPageChange, onLogoClic
         subcategory.removeEventListener('click', handleSubcategoryClick);
       });
     };
-  }, [onItemClick, onPageChange, mode]);
+  }, [onItemClick, onPageChange]);
 
   return (
     <aside
       className="w-full md:w-[200px] lg:w-[180px] shrink-0 text-[14px] left-column"
-      style={{ ['--rail-bg' as string]: railMode.bg, ['--rail-ac' as string]: railMode.ac } as React.CSSProperties}
+      style={{ ['--rail-bg' as string]: RAIL_BG, ['--rail-ac' as string]: RAIL_AC } as React.CSSProperties}
     >
       <div className="left-column__scroll">
       {/* ロゴ */}
@@ -347,398 +359,395 @@ const Sidebar: React.FC<SidebarProps> = ({ onItemClick, onPageChange, onLogoClic
           <span className="text-white text-xl font-bold" style={{ display: 'none' }}>yaneyuka</span>
         </Link>
       </div>
-      <div style={{ height: '40px' }} className="hidden lg:block" />
-      <h3 className="font-semibold mb-0 text-white hidden lg:block text-[12px] 2xl:text-[13px]">
-        {ROMAN[mode]}　{railMode.label}
-      </h3>
+      <div style={{ height: '28px' }} className="hidden lg:block" />
       <div className="category-scroll-container"></div>
 
-      {/* Ⅰ 情報：旧上部ナビの 15 本。URL を持つページなので a で出す（クローラも辿れる） */}
-      {railMode.kind === 'info' && (
-        <div className="space-y-0 pb-2">
-          {TOP_NAV_SCREENS.map((s) => (
-            <Link
-              key={s.id}
-              href={`${screenPath(s.id)}/`}
-              onClick={() => onItemClick?.()}
-              // .subcategory を付けると建材ツリー用のクリック処理に拾われるので、別の名前にする
-              className={`rail-info flex items-center gap-2 w-full text-left px-4 py-[3px] leading-tight text-[12px] 2xl:text-[13px] hover:text-white ${
-                activeContent === s.id ? ACTIVE : 'text-gray-300'
-              }`}
-            >
-              {s.label}
-              {s.id === 'forum' && forumUnread > 0 && (
-                <span
-                  className="inline-flex min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-4 text-white"
-                  title={`未読の投稿が${forumUnread}件あります`}
-                >
-                  {forumUnread > 99 ? '99+' : forumUnread}
-                </span>
-              )}
-            </Link>
-          ))}
-        </div>
-      )}
-
-      {/* Ⅲ〜Ⅵ：旧フッターバーから引き取ったメニュー。
-          行の高さは 21px。Ⅳ の22本が 1280×720 で切り替えバーの上に収まる高さにしてある
-          （24.8px だと最後の2本が隠れ、スクロールバーも出さないので気づけなかった）。 */}
-      {railMode.kind === undefined && (
-        <div className="space-y-0 pb-2">
-          {railMode.items.map((item) =>
-            item.menu.startsWith('http') ? (
-              <div key={item.label} className="flex items-center pr-3">
-                <a
-                  href={item.menu}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title={item.label}
-                  className="subcategory flex items-center gap-2 flex-1 min-w-0 text-left px-4 py-[3px] leading-tight text-[12px] 2xl:text-[13px] hover:text-white text-gray-300"
-                >
-                  <RailIcon src={item.icon} />
-                  <span className="truncate">{item.label}</span>
-                </a>
-                {item.store && (
-                  <a
-                    href={item.store}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title={`${item.label}（iOS 版）を App Store で開く`}
-                    className="shrink-0 text-[10px] leading-none px-1 py-0.5 border border-gray-500 text-gray-400 hover:text-white hover:border-white"
+      {/* 6 段を縦に並べる。見出しを押すと開閉（複数開ける）。中身は閉じても DOM に残す（建材のリンクをクローラが辿れるように）。
+          旧 Ⅰ〜Ⅵ の切替ボタンは 2026-11-13 に廃止。 */}
+      {RAIL_MODES.map((m, i) => (
+        <section key={m.label} className="yy-rail-sec" data-open={open === i ? '' : undefined}>
+          <button
+            type="button"
+            className={`yy-rail-sec__head${current === i ? ' is-current' : ''}`}
+            aria-expanded={open === i}
+            onClick={() => toggleSection(i)}
+          >
+            <span className="yy-rail-sec__no">{String(i + 1).padStart(2, '0')}</span>
+            <span className="yy-rail-sec__label">{RAIL_MODES[i].label}</span>
+            <span className="yy-rail-sec__count">{sectionCount(RAIL_MODES[i])}</span>
+          </button>
+          <div className="yy-rail-sec__body" style={open === i ? undefined : { display: 'none' }}>
+            {m.kind === 'info' && (
+              <div className="yy-rail-info">
+                {TOP_NAV_SCREENS.map((s) => (
+                  <Link
+                    key={s.id}
+                    href={`${screenPath(s.id)}/`}
+                    onClick={() => onItemClick?.()}
+                    // .subcategory を付けると建材ツリー用のクリック処理に拾われるので、別の名前にする
+                    className={`rail-info flex items-center gap-1 min-w-0 leading-tight text-[12px] hover:text-white ${
+                      activeContent === s.id ? ACTIVE : 'text-gray-300'
+                    }`}
                   >
-                    iOS
-                  </a>
-                )}
+                    {s.label}
+                    {s.id === 'forum' && forumUnread > 0 && (
+                      <span
+                        className="inline-flex min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-4 text-white"
+                        title={`未読の投稿が${forumUnread}件あります`}
+                      >
+                        {forumUnread > 99 ? '99+' : forumUnread}
+                      </span>
+                    )}
+                  </Link>
+                ))}
               </div>
-            ) : (
-              <button
-                key={item.label}
-                type="button"
-                className={`subcategory flex items-center gap-2 w-full text-left px-4 py-[3px] leading-tight text-[12px] 2xl:text-[13px] hover:text-white ${
-                  isItemActive(item) ? ACTIVE : 'text-gray-300'
-                }`}
-                onClick={() => {
-                  if (item.tool) requestGeneralTool({ toolId: item.tool });
-                  setActiveTool(item.tool ?? null);
-                  onMenuClick?.(item.menu, { menu: item.menu, tool: item.tool });
-                  onItemClick?.();
-                }}
-              >
-                <RailIcon src={item.icon} />
-                {item.label}
-              </button>
-            )
-          )}
-
-          {/* Ⅳ 設計ツール：分野7 ＞ ツール38。建材検索とまったく同じアコーディオン。 */}
-          {railMode.tree?.map((category) => (
-            <div key={category.id}>
-              <button
-                type="button"
-                className="w-full text-left px-4 py-2 cursor-pointer accordion-toggle text-[12px] 2xl:text-[13px] text-gray-300"
-              >
-                {category.label}
-              </button>
-              <ul className="accordion-content ml-4 text-[12px] space-y-1">
-                {category.subTabs.map((sub) => (
-                  <li key={sub.id}>
+      
+            )}
+            {m.kind === 'material' && (
+            <div className="space-y-0">
+              {/* Maker conect */}
+              <div>
+                <button className="subcategory w-full text-left px-4 py-1 text-[12px] 2xl:text-[13px] text-gray-300" data-page="makerconect">Maker conect</button>
+              </div>
+              {/* Chatbot */}
+              <div>
+                <button className="subcategory w-full text-left px-4 py-1 text-[12px] 2xl:text-[13px] text-gray-300" data-page="chatbot">Chatbot</button>
+              </div>
+      
+              {/* 屋根 */}
+              <div>
+                <button className="w-full text-left px-4 py-2 cursor-pointer accordion-toggle text-[12px] 2xl:text-[13px] text-gray-300">屋根</button>
+                <ul className="accordion-content ml-4 text-[12px] space-y-1">
+                  <li><a href={buildHref('折板')} className="subcategory text-white" data-page="折板">折板</a></li>
+                  <li><a href={buildHref('金属屋根')} className="subcategory text-white" data-page="金属屋根">金属屋根</a></li>
+                  <li><a href={buildHref('スレート')} className="subcategory text-white" data-page="スレート">スレート</a></li>
+                  <li><a href={buildHref('瓦')} className="subcategory text-white" data-page="瓦">瓦</a></li>
+                  <li><a href={buildHref('屋根その他')} className="subcategory text-white" data-page="屋根その他">その他</a></li>
+                </ul>
+              </div>
+      
+              {/* 外壁 */}
+              <div>
+                <button className="w-full text-left px-4 py-2 cursor-pointer accordion-toggle text-[12px] 2xl:text-[13px] text-gray-300">外壁</button>
+                <ul className="accordion-content ml-4 text-[12px] space-y-1">
+                  <li><a href={buildHref('alc')} className="subcategory text-white" data-page="alc">ALC</a></li>
+                  <li><a href={buildHref('ecp')} className="subcategory text-white" data-page="ecp">ECPパネル</a></li>
+                  <li><a href={buildHref('金属サイディング')} className="subcategory text-white" data-page="金属サイディング">金属サイディング</a></li>
+                  <li><a href={buildHref('窯業サイディング')} className="subcategory text-white" data-page="窯業サイディング">窯業サイディング</a></li>
+                  <li><a href={buildHref('metalpanel')} className="subcategory text-white" data-page="metalpanel">金属パネル</a></li>
+                  <li><a href={buildHref('exterior-wall-other')} className="subcategory text-white" data-page="exterior-wall-other">その他</a></li>
+                </ul>
+              </div>
+      
+              {/* 開口部 */}
+              <div>
+                <button className="w-full text-left px-4 py-2 cursor-pointer accordion-toggle text-[12px] 2xl:text-[13px] text-gray-300">開口部</button>
+                <ul className="accordion-content ml-4 text-[12px] space-y-1">
+                  <li><a href={buildHref('aluminum-sash')} className="subcategory text-white" data-page="aluminum-sash">アルミサッシ</a></li>
+                  <li><a href={buildHref('resin-sash')} className="subcategory text-white" data-page="resin-sash">樹脂サッシ</a></li>
+                  <li><a href={buildHref('wood-sash')} className="subcategory text-white" data-page="wood-sash">木製サッシ</a></li>
+                  <li><a href={buildHref('light-shutter')} className="subcategory text-white" data-page="light-shutter">軽量シャッター</a></li>
+                  <li><a href={buildHref('heavy-shutter')} className="subcategory text-white" data-page="heavy-shutter">重量シャッター</a></li>
+                </ul>
+              </div>
+      
+              {/* 外壁仕上げ */}
+              <div>
+                <button className="w-full text-left px-4 py-2 cursor-pointer accordion-toggle text-[12px] 2xl:text-[13px] text-gray-300">外壁仕上げ</button>
+                <ul className="accordion-content ml-4 text-[12px] space-y-1">
+                  <li><a href={buildHref('paint')} className="subcategory text-white" data-page="paint">塗装</a></li>
+                  <li><a href={buildHref('plaster')} className="subcategory text-white" data-page="plaster">塗り壁</a></li>
+                  <li><a href={buildHref('tile')} className="subcategory text-white" data-page="tile">タイル</a></li>
+                  <li><a href={buildHref('stone-brick')} className="subcategory text-white" data-page="stone-brick">石・レンガ</a></li>
+                  <li><a href={buildHref('metal-panel')} className="subcategory text-white" data-page="metal-panel">金属パネル</a></li>
+                  <li><a href={buildHref('wood-board')} className="subcategory text-white" data-page="wood-board">木板材</a></li>
+                  <li><a href={buildHref('decorative')} className="subcategory text-white" data-page="decorative">装飾材</a></li>
+                  <li><a href={buildHref('other-finish')} className="subcategory text-white" data-page="other-finish">その他</a></li>
+                </ul>
+              </div>
+      
+              {/* 外部床 */}
+              <div>
+                <button className="w-full text-left px-4 py-2 cursor-pointer accordion-toggle text-[12px] 2xl:text-[13px] text-gray-300">外部床</button>
+                <ul className="accordion-content ml-4 text-[12px] space-y-1">
+                  <li><a href={buildHref('external-tile')} className="subcategory text-white" data-page="external-tile">タイル</a></li>
+                  <li><a href={buildHref('external-stone-brick')} className="subcategory text-white" data-page="external-stone-brick">石・レンガ</a></li>
+                  <li><a href={buildHref('pvc-sheet')} className="subcategory text-white" data-page="pvc-sheet">塩ビシート</a></li>
+                  <li><a href={buildHref('external-finish')} className="subcategory text-white" data-page="external-finish">その他</a></li>
+                </ul>
+              </div>
+      
+              {/* 外部その他 */}
+              <div>
+                <button className="w-full text-left px-4 py-2 cursor-pointer accordion-toggle text-[12px] 2xl:text-[13px] text-gray-300">外部その他</button>
+                <ul className="accordion-content ml-4 text-[12px] space-y-1">
+                  <li><a href={buildHref('笠木水切')} className="subcategory text-white" data-page="笠木水切">笠木・水切</a></li>
+                  <li><a href={buildHref('庇オーニング')} className="subcategory text-white" data-page="庇オーニング">庇・オーニング</a></li>
+                  <li><a href={buildHref('雨どい')} className="subcategory text-white" data-page="雨どい">雨どい</a></li>
+                  <li><a href={buildHref('ハト小屋')} className="subcategory text-white" data-page="ハト小屋">ハト小屋</a></li>
+                  <li><a href={buildHref('太陽光パネル')} className="subcategory text-white" data-page="太陽光パネル">太陽光パネル</a></li>
+                  <li><a href={buildHref('手摺')} className="subcategory text-white" data-page="手摺">手摺</a></li>
+                </ul>
+              </div>
+      
+              {/* 内部床材 */}
+              <div>
+                <button className="w-full text-left px-4 py-2 cursor-pointer accordion-toggle text-[12px] 2xl:text-[13px] text-gray-300">内部床材</button>
+                <ul className="accordion-content ml-4 text-[12px] space-y-1">
+                  <li><a href={buildHref('フローリング')} className="subcategory text-white" data-page="フローリング">フローリング</a></li>
+                  <li><a href={buildHref('ビニールタイル')} className="subcategory text-white" data-page="ビニールタイル">ビニールタイル</a></li>
+                  <li><a href={buildHref('ビニールシート')} className="subcategory text-white" data-page="ビニールシート">ビニールシート</a></li>
+                  <li><a href={buildHref('カーペット')} className="subcategory text-white" data-page="カーペット">カーペット</a></li>
+                  <li><a href={buildHref('内装タイル')} className="subcategory text-white" data-page="内装タイル">タイル</a></li>
+                  <li><a href={buildHref('内装床石レンガ')} className="subcategory text-white" data-page="内装床石レンガ">石・レンガ</a></li>
+                  <li><a href={buildHref('畳')} className="subcategory text-white" data-page="畳">畳</a></li>
+                  <li><a href={buildHref('巾木床見切')} className="subcategory text-white" data-page="巾木床見切">巾木・床見切</a></li>
+                  <li><a href={buildHref('内装床機能性')} className="subcategory text-white" data-page="内装床機能性">機能性</a></li>
+                  <li><a href={buildHref('内装床その他')} className="subcategory text-white" data-page="内装床その他">その他</a></li>
+                </ul>
+              </div>
+      
+              {/* 内装壁材 */}
+              <div>
+                <button className="w-full text-left px-4 py-2 cursor-pointer accordion-toggle text-[12px] 2xl:text-[13px] text-gray-300">内装壁材</button>
+                <ul className="accordion-content ml-4 text-[12px] space-y-1">
+                  <li><a href={buildHref('内装壁壁紙')} className="subcategory text-white" data-page="内装壁壁紙">壁紙</a></li>
+                  <li><a href={buildHref('内装壁化粧板')} className="subcategory text-white" data-page="内装壁化粧板">化粧板</a></li>
+                  <li><a href={buildHref('内装壁化粧シート')} className="subcategory text-white" data-page="内装壁化粧シート">化粧シート</a></li>
+                  <li><a href={buildHref('内装壁化粧パネル')} className="subcategory text-white" data-page="内装壁化粧パネル">化粧パネル</a></li>
+                  <li><a href={buildHref('内装壁金属板')} className="subcategory text-white" data-page="内装壁金属板">金属板</a></li>
+                  <li><a href={buildHref('内装壁塗り壁')} className="subcategory text-white" data-page="内装壁塗り壁">塗り壁</a></li>
+                  <li><a href={buildHref('内装壁タイル')} className="subcategory text-white" data-page="内装壁タイル">タイル</a></li>
+                  <li><a href={buildHref('内装壁石レンガ')} className="subcategory text-white" data-page="内装壁石レンガ">石・レンガ</a></li>
+                  <li><a href={buildHref('内装壁装飾材')} className="subcategory text-white" data-page="内装壁装飾材">装飾材</a></li>
+                  <li><a href={buildHref('内装壁機能性')} className="subcategory text-white" data-page="内装壁機能性">機能性</a></li>
+                  <li><a href={buildHref('内装壁壁見切')} className="subcategory text-white" data-page="内装壁壁見切">壁見切</a></li>
+                  <li><a href={buildHref('内装壁その他')} className="subcategory text-white" data-page="内装壁その他">その他</a></li>
+                </ul>
+              </div>
+      
+              {/* 内装天井材 */}
+              <div>
+                <button className="w-full text-left px-4 py-2 cursor-pointer accordion-toggle text-[12px] 2xl:text-[13px] text-gray-300">内装天井材</button>
+                <ul className="accordion-content ml-4 text-[12px] space-y-1">
+                  <li><a href={buildHref('内装天井ボード')} className="subcategory text-white" data-page="内装天井ボード">ボード</a></li>
+                  <li><a href={buildHref('内装天井化粧材')} className="subcategory text-white" data-page="内装天井化粧材">化粧材</a></li>
+                  <li><a href={buildHref('内装天井装飾材')} className="subcategory text-white" data-page="内装天井装飾材">装飾材</a></li>
+                  <li><a href={buildHref('内装天井機能性')} className="subcategory text-white" data-page="内装天井機能性">機能性</a></li>
+                  <li><a href={buildHref('内装天井その他')} className="subcategory text-white" data-page="内装天井その他">その他</a></li>
+                </ul>
+              </div>
+      
+              {/* 内装その他 */}
+              <div>
+                <button className="w-full text-left px-4 py-2 cursor-pointer accordion-toggle text-[12px] 2xl:text-[13px] text-gray-300">内装その他</button>
+                <ul className="accordion-content ml-4 text-[12px] space-y-1">
+                  <li><a href={buildHref('トイレブース')} className="subcategory text-white" data-page="トイレブース">トイレブース</a></li>
+                  <li><a href={buildHref('内装サッシ')} className="subcategory text-white" data-page="内装サッシ">サッシ</a></li>
+                  <li><a href={buildHref('内装シャッター')} className="subcategory text-white" data-page="内装シャッター">シャッター</a></li>
+                  <li><a href={buildHref('ノンスリップ')} className="subcategory text-white" data-page="ノンスリップ">ノンスリップ</a></li>
+                  <li><a href={buildHref('内装手摺')} className="subcategory text-white" data-page="内装手摺">手摺</a></li>
+                  <li><a href={buildHref('グレーチング')} className="subcategory text-white" data-page="グレーチング">グレーチング</a></li>
+                  <li><a href={buildHref('内装緑化')} className="subcategory text-white" data-page="内装緑化">緑化</a></li>
+                  <li><a href={buildHref('点検口')} className="subcategory text-white" data-page="点検口">点検口</a></li>
+                  <li><a href={buildHref('隔壁')} className="subcategory text-white" data-page="隔壁">隔壁</a></li>
+                  <li><a href={buildHref('保護材')} className="subcategory text-white" data-page="保護材">保護材</a></li>
+                  <li><a href={buildHref('点字')} className="subcategory text-white" data-page="点字">点字</a></li>
+                  <li><a href={buildHref('ディスプレイ')} className="subcategory text-white" data-page="ディスプレイ">ディスプレイ</a></li>
+                  <li><a href={buildHref('内装その他製品')} className="subcategory text-white" data-page="内装その他製品">その他</a></li>
+                </ul>
+              </div>
+      
+              {/* 防水 */}
+              <div>
+                <button className="w-full text-left px-4 py-2 cursor-pointer accordion-toggle text-[12px] 2xl:text-[13px] text-gray-300">防水</button>
+                <ul className="accordion-content ml-4 text-[12px] space-y-1">
+                  <li><a href={buildHref('ウレタン防水')} className="subcategory text-white" data-page="ウレタン防水">ウレタン防水</a></li>
+                  <li><a href={buildHref('アスファルト防水')} className="subcategory text-white" data-page="アスファルト防水">アスファルト防水</a></li>
+                  <li><a href={buildHref('シート防水')} className="subcategory text-white" data-page="シート防水">シート防水</a></li>
+                  <li><a href={buildHref('FRP防水')} className="subcategory text-white" data-page="FRP防水">FRP防水</a></li>
+                  <li><a href={buildHref('防水その他')} className="subcategory text-white" data-page="防水その他">その他</a></li>
+                </ul>
+              </div>
+      
+              {/* 金物 */}
+              <div>
+                <button className="w-full text-left px-4 py-2 cursor-pointer accordion-toggle text-[12px] 2xl:text-[13px] text-gray-300">金物</button>
+                <ul className="accordion-content ml-4 text-[12px] space-y-1">
+                  <li><a href={buildHref('ハンドル')} className="subcategory text-white" data-page="ハンドル">ハンドル</a></li>
+                  <li><a href={buildHref('引棒')} className="subcategory text-white" data-page="引棒">引棒</a></li>
+                  <li><a href={buildHref('建具金物')} className="subcategory text-white" data-page="建具金物">建具金物</a></li>
+                  <li><a href={buildHref('棚フック')} className="subcategory text-white" data-page="棚フック">棚・フック他</a></li>
+                  <li><a href={buildHref('サニタリー')} className="subcategory text-white" data-page="サニタリー">サニタリー</a></li>
+                  <li><a href={buildHref('家具金物')} className="subcategory text-white" data-page="家具金物">家具金物</a></li>
+                  <li><a href={buildHref('鍵関係')} className="subcategory text-white" data-page="鍵関係">鍵関係</a></li>
+                  <li><a href={buildHref('EXP,J')} className="subcategory text-white" data-page="EXP,J">EXP.J</a></li>
+                  <li><a href={buildHref('金物その他')} className="subcategory text-white" data-page="金物その他">その他</a></li>
+                </ul>
+              </div>
+      
+              {/* ファニチャー */}
+              <div>
+                <button className="w-full text-left px-4 py-2 cursor-pointer accordion-toggle text-[12px] 2xl:text-[13px] text-gray-300">ファニチャー</button>
+                <ul className="accordion-content ml-4 text-[12px] space-y-1">
+                  <li><a href={buildHref('家具')} className="subcategory text-white" data-page="家具">家具</a></li>
+                  <li><a href={buildHref('カーテン')} className="subcategory text-white" data-page="カーテン">カーテン</a></li>
+                  <li><a href={buildHref('ブラインド')} className="subcategory text-white" data-page="ブラインド">ブラインド</a></li>
+                  <li><a href={buildHref('生地')} className="subcategory text-white" data-page="生地">生地</a></li>
+                  <li><a href={buildHref('ファニチャーその他')} className="subcategory text-white" data-page="ファニチャーその他">その他</a></li>
+                </ul>
+              </div>
+      
+              {/* 電気設備 */}
+              <div>
+                <button className="w-full text-left px-4 py-2 cursor-pointer accordion-toggle text-[12px] 2xl:text-[13px] text-gray-300">電気設備</button>
+                <ul className="accordion-content ml-4 text-[12px] space-y-1">
+                  <li><a href={buildHref('照明')} className="subcategory text-white" data-page="照明">照明</a></li>
+                  <li><a href={buildHref('外構照明')} className="subcategory text-white" data-page="外構照明">外構照明</a></li>
+                  <li><a href={buildHref('スイッチコンセント')} className="subcategory text-white" data-page="スイッチコンセント">SW・コンセント</a></li>
+                  <li><a href={buildHref('発電機')} className="subcategory text-white" data-page="発電機">発電機</a></li>
+                  <li><a href={buildHref('電気設備その他')} className="subcategory text-white" data-page="電気設備その他">その他</a></li>
+                </ul>
+              </div>
+      
+              {/* 機械設備 */}
+              <div>
+                <button className="w-full text-left px-4 py-2 cursor-pointer accordion-toggle text-[12px] 2xl:text-[13px] text-gray-300">機械設備</button>
+                <ul className="accordion-content ml-4 text-[12px] space-y-1">
+                  <li><a href={buildHref('水栓')} className="subcategory text-white" data-page="水栓">水栓</a></li>
+                  <li><a href={buildHref('衛生機器')} className="subcategory text-white" data-page="衛生機器">衛生機器</a></li>
+                  <li><a href={buildHref('住宅設備')} className="subcategory text-white" data-page="住宅設備">住宅設備</a></li>
+                  <li><a href={buildHref('キッチン')} className="subcategory text-white" data-page="キッチン">キッチン</a></li>
+                  <li><a href={buildHref('空調機')} className="subcategory text-white" data-page="空調機">空調機</a></li>
+                  <li><a href={buildHref('機械設備その他')} className="subcategory text-white" data-page="機械設備その他">その他</a></li>
+                </ul>
+              </div>
+      
+              {/* 外構 */}
+              <div>
+                <button className="w-full text-left px-4 py-2 cursor-pointer accordion-toggle text-[12px] 2xl:text-[13px] text-gray-300">外構</button>
+                <ul className="accordion-content ml-4 text-[12px] space-y-1">
+                  <li><a href={buildHref('縁石')} className="subcategory text-white" data-page="縁石">縁石</a></li>
+                  <li><a href={buildHref('外構舗装')} className="subcategory text-white" data-page="外構舗装">舗装</a></li>
+                  <li><a href={buildHref('雨水桝')} className="subcategory text-white" data-page="雨水桝">雨水桝</a></li>
+                  <li><a href={buildHref('桝蓋')} className="subcategory text-white" data-page="桝蓋">桝蓋</a></li>
+                  <li><a href={buildHref('外構グレーチング')} className="subcategory text-white" data-page="外構グレーチング">グレーチング</a></li>
+                  <li><a href={buildHref('外構その他')} className="subcategory text-white" data-page="外構その他">その他</a></li>
+                </ul>
+              </div>
+      
+              {/* エクステリア */}
+              <div>
+                <button className="w-full text-left px-4 py-2 cursor-pointer accordion-toggle text-[12px] 2xl:text-[13px] text-gray-300">エクステリア</button>
+                <ul className="accordion-content ml-4 text-[12px] space-y-1">
+                  <li><a href={buildHref('宅配ボックス')} className="subcategory text-white" data-page="宅配ボックス">宅配ボックス</a></li>
+                  <li><a href={buildHref('郵便受け')} className="subcategory text-white" data-page="郵便受け">郵便受け</a></li>
+                  <li><a href={buildHref('表札')} className="subcategory text-white" data-page="表札">表札</a></li>
+                  <li><a href={buildHref('門扉')} className="subcategory text-white" data-page="門扉">門扉</a></li>
+                  <li><a href={buildHref('フェンス')} className="subcategory text-white" data-page="フェンス">フェンス</a></li>
+                  <li><a href={buildHref('カーポート')} className="subcategory text-white" data-page="カーポート">カーポート</a></li>
+                  <li><a href={buildHref('大型引戸')} className="subcategory text-white" data-page="大型引戸">大型引戸</a></li>
+                  <li><a href={buildHref('ウッドデッキ')} className="subcategory text-white" data-page="ウッドデッキ">ウッドデッキ</a></li>
+                  <li><a href={buildHref('駐輪場')} className="subcategory text-white" data-page="駐輪場">駐輪場</a></li>
+                  <li><a href={buildHref('ゴミストッカー')} className="subcategory text-white" data-page="ゴミストッカー">ゴミストッカー</a></li>
+                  <li><a href={buildHref('エクステリア緑化')} className="subcategory text-white" data-page="エクステリア緑化">緑化</a></li>
+                  <li><a href={buildHref('エクステリアその他')} className="subcategory text-white" data-page="エクステリアその他">その他</a></li>
+                </ul>
+              </div>
+      
+            </div>
+      
+            )}
+            {m.kind === undefined && (
+              <div className="space-y-0 pb-2">
+                {m.items.map((item) =>
+                  item.menu.startsWith('http') ? (
+                    <div key={item.label} className="flex items-center pr-3">
+                      <a
+                        href={item.menu}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={item.label}
+                        className="subcategory flex items-center gap-2 flex-1 min-w-0 text-left px-4 py-[3px] leading-tight text-[12px] 2xl:text-[13px] hover:text-white text-gray-300"
+                      >
+                        <RailIcon src={item.icon} />
+                        <span className="truncate">{item.label}</span>
+                      </a>
+                      {item.store && (
+                        <a
+                          href={item.store}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title={`${item.label}（iOS 版）を App Store で開く`}
+                          className="shrink-0 text-[10px] leading-none px-1 py-0.5 border border-gray-500 text-gray-400 hover:text-white hover:border-white"
+                        >
+                          iOS
+                        </a>
+                      )}
+                    </div>
+                  ) : (
                     <button
+                      key={item.label}
                       type="button"
-                      className={`rail-tool ${
-                        activeContent === 'design-tools' && activeDesignTool === sub.id
-                          ? ACTIVE
-                          : 'text-white'
+                      className={`subcategory flex items-center gap-2 w-full text-left px-4 py-[3px] leading-tight text-[12px] 2xl:text-[13px] hover:text-white ${
+                        isItemActive(item) ? ACTIVE : 'text-gray-300'
                       }`}
                       onClick={() => {
-                        requestDesignToolsTarget({ categoryId: category.id, subTabId: sub.id });
-                        setActiveDesignTool(sub.id);
-                        onMenuClick?.('design-tools', { menu: 'design-tools', category: category.id, sub: sub.id });
+                        if (item.tool) requestGeneralTool({ toolId: item.tool });
+                        setActiveTool(item.tool ?? null);
+                        onMenuClick?.(item.menu, { menu: item.menu, tool: item.tool });
                         onItemClick?.();
                       }}
                     >
-                      {sub.label}
+                      <RailIcon src={item.icon} />
+                      {item.label}
                     </button>
-                  </li>
+                  )
+                )}
+      
+                {/* Ⅳ 設計ツール：分野7 ＞ ツール38。建材検索とまったく同じアコーディオン。 */}
+                {m.tree?.map((category) => (
+                  <div key={category.id}>
+                    <button
+                      type="button"
+                      className="w-full text-left px-4 py-2 cursor-pointer accordion-toggle text-[12px] 2xl:text-[13px] text-gray-300"
+                    >
+                      {category.label}
+                    </button>
+                    <ul className="accordion-content ml-4 text-[12px] space-y-1">
+                      {category.subTabs.map((sub) => (
+                        <li key={sub.id}>
+                          <button
+                            type="button"
+                            className={`rail-tool ${
+                              activeContent === 'design-tools' && activeDesignTool === sub.id
+                                ? ACTIVE
+                                : 'text-white'
+                            }`}
+                            onClick={() => {
+                              requestDesignToolsTarget({ categoryId: category.id, subTabId: sub.id });
+                              setActiveDesignTool(sub.id);
+                              onMenuClick?.('design-tools', { menu: 'design-tools', category: category.id, sub: sub.id });
+                              onItemClick?.();
+                            }}
+                          >
+                            {sub.label}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Ⅰ：建材検索ツリー。DOM には常に残す（リンクを消さないため） */}
-      <div className="space-y-0" style={railMode.kind === 'material' ? undefined : { display: 'none' }}>
-        {/* Maker conect */}
-        <div>
-          <button className="subcategory w-full text-left px-4 py-1 text-[12px] 2xl:text-[13px] text-gray-300" data-page="makerconect">Maker conect</button>
-        </div>
-        {/* Chatbot */}
-        <div>
-          <button className="subcategory w-full text-left px-4 py-1 text-[12px] 2xl:text-[13px] text-gray-300" data-page="chatbot">Chatbot</button>
-        </div>
-
-        {/* 屋根 */}
-        <div>
-          <button className="w-full text-left px-4 py-2 cursor-pointer accordion-toggle text-[12px] 2xl:text-[13px] text-gray-300">屋根</button>
-          <ul className="accordion-content ml-4 text-[12px] space-y-1">
-            <li><a href={buildHref('折板')} className="subcategory text-white" data-page="折板">折板</a></li>
-            <li><a href={buildHref('金属屋根')} className="subcategory text-white" data-page="金属屋根">金属屋根</a></li>
-            <li><a href={buildHref('スレート')} className="subcategory text-white" data-page="スレート">スレート</a></li>
-            <li><a href={buildHref('瓦')} className="subcategory text-white" data-page="瓦">瓦</a></li>
-            <li><a href={buildHref('屋根その他')} className="subcategory text-white" data-page="屋根その他">その他</a></li>
-          </ul>
-        </div>
-
-        {/* 外壁 */}
-        <div>
-          <button className="w-full text-left px-4 py-2 cursor-pointer accordion-toggle text-[12px] 2xl:text-[13px] text-gray-300">外壁</button>
-          <ul className="accordion-content ml-4 text-[12px] space-y-1">
-            <li><a href={buildHref('alc')} className="subcategory text-white" data-page="alc">ALC</a></li>
-            <li><a href={buildHref('ecp')} className="subcategory text-white" data-page="ecp">ECPパネル</a></li>
-            <li><a href={buildHref('金属サイディング')} className="subcategory text-white" data-page="金属サイディング">金属サイディング</a></li>
-            <li><a href={buildHref('窯業サイディング')} className="subcategory text-white" data-page="窯業サイディング">窯業サイディング</a></li>
-            <li><a href={buildHref('metalpanel')} className="subcategory text-white" data-page="metalpanel">金属パネル</a></li>
-            <li><a href={buildHref('exterior-wall-other')} className="subcategory text-white" data-page="exterior-wall-other">その他</a></li>
-          </ul>
-        </div>
-
-        {/* 開口部 */}
-        <div>
-          <button className="w-full text-left px-4 py-2 cursor-pointer accordion-toggle text-[12px] 2xl:text-[13px] text-gray-300">開口部</button>
-          <ul className="accordion-content ml-4 text-[12px] space-y-1">
-            <li><a href={buildHref('aluminum-sash')} className="subcategory text-white" data-page="aluminum-sash">アルミサッシ</a></li>
-            <li><a href={buildHref('resin-sash')} className="subcategory text-white" data-page="resin-sash">樹脂サッシ</a></li>
-            <li><a href={buildHref('wood-sash')} className="subcategory text-white" data-page="wood-sash">木製サッシ</a></li>
-            <li><a href={buildHref('light-shutter')} className="subcategory text-white" data-page="light-shutter">軽量シャッター</a></li>
-            <li><a href={buildHref('heavy-shutter')} className="subcategory text-white" data-page="heavy-shutter">重量シャッター</a></li>
-          </ul>
-        </div>
-
-        {/* 外壁仕上げ */}
-        <div>
-          <button className="w-full text-left px-4 py-2 cursor-pointer accordion-toggle text-[12px] 2xl:text-[13px] text-gray-300">外壁仕上げ</button>
-          <ul className="accordion-content ml-4 text-[12px] space-y-1">
-            <li><a href={buildHref('paint')} className="subcategory text-white" data-page="paint">塗装</a></li>
-            <li><a href={buildHref('plaster')} className="subcategory text-white" data-page="plaster">塗り壁</a></li>
-            <li><a href={buildHref('tile')} className="subcategory text-white" data-page="tile">タイル</a></li>
-            <li><a href={buildHref('stone-brick')} className="subcategory text-white" data-page="stone-brick">石・レンガ</a></li>
-            <li><a href={buildHref('metal-panel')} className="subcategory text-white" data-page="metal-panel">金属パネル</a></li>
-            <li><a href={buildHref('wood-board')} className="subcategory text-white" data-page="wood-board">木板材</a></li>
-            <li><a href={buildHref('decorative')} className="subcategory text-white" data-page="decorative">装飾材</a></li>
-            <li><a href={buildHref('other-finish')} className="subcategory text-white" data-page="other-finish">その他</a></li>
-          </ul>
-        </div>
-
-        {/* 外部床 */}
-        <div>
-          <button className="w-full text-left px-4 py-2 cursor-pointer accordion-toggle text-[12px] 2xl:text-[13px] text-gray-300">外部床</button>
-          <ul className="accordion-content ml-4 text-[12px] space-y-1">
-            <li><a href={buildHref('external-tile')} className="subcategory text-white" data-page="external-tile">タイル</a></li>
-            <li><a href={buildHref('external-stone-brick')} className="subcategory text-white" data-page="external-stone-brick">石・レンガ</a></li>
-            <li><a href={buildHref('pvc-sheet')} className="subcategory text-white" data-page="pvc-sheet">塩ビシート</a></li>
-            <li><a href={buildHref('external-finish')} className="subcategory text-white" data-page="external-finish">その他</a></li>
-          </ul>
-        </div>
-
-        {/* 外部その他 */}
-        <div>
-          <button className="w-full text-left px-4 py-2 cursor-pointer accordion-toggle text-[12px] 2xl:text-[13px] text-gray-300">外部その他</button>
-          <ul className="accordion-content ml-4 text-[12px] space-y-1">
-            <li><a href={buildHref('笠木水切')} className="subcategory text-white" data-page="笠木水切">笠木・水切</a></li>
-            <li><a href={buildHref('庇オーニング')} className="subcategory text-white" data-page="庇オーニング">庇・オーニング</a></li>
-            <li><a href={buildHref('雨どい')} className="subcategory text-white" data-page="雨どい">雨どい</a></li>
-            <li><a href={buildHref('ハト小屋')} className="subcategory text-white" data-page="ハト小屋">ハト小屋</a></li>
-            <li><a href={buildHref('太陽光パネル')} className="subcategory text-white" data-page="太陽光パネル">太陽光パネル</a></li>
-            <li><a href={buildHref('手摺')} className="subcategory text-white" data-page="手摺">手摺</a></li>
-          </ul>
-        </div>
-
-        {/* 内部床材 */}
-        <div>
-          <button className="w-full text-left px-4 py-2 cursor-pointer accordion-toggle text-[12px] 2xl:text-[13px] text-gray-300">内部床材</button>
-          <ul className="accordion-content ml-4 text-[12px] space-y-1">
-            <li><a href={buildHref('フローリング')} className="subcategory text-white" data-page="フローリング">フローリング</a></li>
-            <li><a href={buildHref('ビニールタイル')} className="subcategory text-white" data-page="ビニールタイル">ビニールタイル</a></li>
-            <li><a href={buildHref('ビニールシート')} className="subcategory text-white" data-page="ビニールシート">ビニールシート</a></li>
-            <li><a href={buildHref('カーペット')} className="subcategory text-white" data-page="カーペット">カーペット</a></li>
-            <li><a href={buildHref('内装タイル')} className="subcategory text-white" data-page="内装タイル">タイル</a></li>
-            <li><a href={buildHref('内装床石レンガ')} className="subcategory text-white" data-page="内装床石レンガ">石・レンガ</a></li>
-            <li><a href={buildHref('畳')} className="subcategory text-white" data-page="畳">畳</a></li>
-            <li><a href={buildHref('巾木床見切')} className="subcategory text-white" data-page="巾木床見切">巾木・床見切</a></li>
-            <li><a href={buildHref('内装床機能性')} className="subcategory text-white" data-page="内装床機能性">機能性</a></li>
-            <li><a href={buildHref('内装床その他')} className="subcategory text-white" data-page="内装床その他">その他</a></li>
-          </ul>
-        </div>
-
-        {/* 内装壁材 */}
-        <div>
-          <button className="w-full text-left px-4 py-2 cursor-pointer accordion-toggle text-[12px] 2xl:text-[13px] text-gray-300">内装壁材</button>
-          <ul className="accordion-content ml-4 text-[12px] space-y-1">
-            <li><a href={buildHref('内装壁壁紙')} className="subcategory text-white" data-page="内装壁壁紙">壁紙</a></li>
-            <li><a href={buildHref('内装壁化粧板')} className="subcategory text-white" data-page="内装壁化粧板">化粧板</a></li>
-            <li><a href={buildHref('内装壁化粧シート')} className="subcategory text-white" data-page="内装壁化粧シート">化粧シート</a></li>
-            <li><a href={buildHref('内装壁化粧パネル')} className="subcategory text-white" data-page="内装壁化粧パネル">化粧パネル</a></li>
-            <li><a href={buildHref('内装壁金属板')} className="subcategory text-white" data-page="内装壁金属板">金属板</a></li>
-            <li><a href={buildHref('内装壁塗り壁')} className="subcategory text-white" data-page="内装壁塗り壁">塗り壁</a></li>
-            <li><a href={buildHref('内装壁タイル')} className="subcategory text-white" data-page="内装壁タイル">タイル</a></li>
-            <li><a href={buildHref('内装壁石レンガ')} className="subcategory text-white" data-page="内装壁石レンガ">石・レンガ</a></li>
-            <li><a href={buildHref('内装壁装飾材')} className="subcategory text-white" data-page="内装壁装飾材">装飾材</a></li>
-            <li><a href={buildHref('内装壁機能性')} className="subcategory text-white" data-page="内装壁機能性">機能性</a></li>
-            <li><a href={buildHref('内装壁壁見切')} className="subcategory text-white" data-page="内装壁壁見切">壁見切</a></li>
-            <li><a href={buildHref('内装壁その他')} className="subcategory text-white" data-page="内装壁その他">その他</a></li>
-          </ul>
-        </div>
-
-        {/* 内装天井材 */}
-        <div>
-          <button className="w-full text-left px-4 py-2 cursor-pointer accordion-toggle text-[12px] 2xl:text-[13px] text-gray-300">内装天井材</button>
-          <ul className="accordion-content ml-4 text-[12px] space-y-1">
-            <li><a href={buildHref('内装天井ボード')} className="subcategory text-white" data-page="内装天井ボード">ボード</a></li>
-            <li><a href={buildHref('内装天井化粧材')} className="subcategory text-white" data-page="内装天井化粧材">化粧材</a></li>
-            <li><a href={buildHref('内装天井装飾材')} className="subcategory text-white" data-page="内装天井装飾材">装飾材</a></li>
-            <li><a href={buildHref('内装天井機能性')} className="subcategory text-white" data-page="内装天井機能性">機能性</a></li>
-            <li><a href={buildHref('内装天井その他')} className="subcategory text-white" data-page="内装天井その他">その他</a></li>
-          </ul>
-        </div>
-
-        {/* 内装その他 */}
-        <div>
-          <button className="w-full text-left px-4 py-2 cursor-pointer accordion-toggle text-[12px] 2xl:text-[13px] text-gray-300">内装その他</button>
-          <ul className="accordion-content ml-4 text-[12px] space-y-1">
-            <li><a href={buildHref('トイレブース')} className="subcategory text-white" data-page="トイレブース">トイレブース</a></li>
-            <li><a href={buildHref('内装サッシ')} className="subcategory text-white" data-page="内装サッシ">サッシ</a></li>
-            <li><a href={buildHref('内装シャッター')} className="subcategory text-white" data-page="内装シャッター">シャッター</a></li>
-            <li><a href={buildHref('ノンスリップ')} className="subcategory text-white" data-page="ノンスリップ">ノンスリップ</a></li>
-            <li><a href={buildHref('内装手摺')} className="subcategory text-white" data-page="内装手摺">手摺</a></li>
-            <li><a href={buildHref('グレーチング')} className="subcategory text-white" data-page="グレーチング">グレーチング</a></li>
-            <li><a href={buildHref('内装緑化')} className="subcategory text-white" data-page="内装緑化">緑化</a></li>
-            <li><a href={buildHref('点検口')} className="subcategory text-white" data-page="点検口">点検口</a></li>
-            <li><a href={buildHref('隔壁')} className="subcategory text-white" data-page="隔壁">隔壁</a></li>
-            <li><a href={buildHref('保護材')} className="subcategory text-white" data-page="保護材">保護材</a></li>
-            <li><a href={buildHref('点字')} className="subcategory text-white" data-page="点字">点字</a></li>
-            <li><a href={buildHref('ディスプレイ')} className="subcategory text-white" data-page="ディスプレイ">ディスプレイ</a></li>
-            <li><a href={buildHref('内装その他製品')} className="subcategory text-white" data-page="内装その他製品">その他</a></li>
-          </ul>
-        </div>
-
-        {/* 防水 */}
-        <div>
-          <button className="w-full text-left px-4 py-2 cursor-pointer accordion-toggle text-[12px] 2xl:text-[13px] text-gray-300">防水</button>
-          <ul className="accordion-content ml-4 text-[12px] space-y-1">
-            <li><a href={buildHref('ウレタン防水')} className="subcategory text-white" data-page="ウレタン防水">ウレタン防水</a></li>
-            <li><a href={buildHref('アスファルト防水')} className="subcategory text-white" data-page="アスファルト防水">アスファルト防水</a></li>
-            <li><a href={buildHref('シート防水')} className="subcategory text-white" data-page="シート防水">シート防水</a></li>
-            <li><a href={buildHref('FRP防水')} className="subcategory text-white" data-page="FRP防水">FRP防水</a></li>
-            <li><a href={buildHref('防水その他')} className="subcategory text-white" data-page="防水その他">その他</a></li>
-          </ul>
-        </div>
-
-        {/* 金物 */}
-        <div>
-          <button className="w-full text-left px-4 py-2 cursor-pointer accordion-toggle text-[12px] 2xl:text-[13px] text-gray-300">金物</button>
-          <ul className="accordion-content ml-4 text-[12px] space-y-1">
-            <li><a href={buildHref('ハンドル')} className="subcategory text-white" data-page="ハンドル">ハンドル</a></li>
-            <li><a href={buildHref('引棒')} className="subcategory text-white" data-page="引棒">引棒</a></li>
-            <li><a href={buildHref('建具金物')} className="subcategory text-white" data-page="建具金物">建具金物</a></li>
-            <li><a href={buildHref('棚フック')} className="subcategory text-white" data-page="棚フック">棚・フック他</a></li>
-            <li><a href={buildHref('サニタリー')} className="subcategory text-white" data-page="サニタリー">サニタリー</a></li>
-            <li><a href={buildHref('家具金物')} className="subcategory text-white" data-page="家具金物">家具金物</a></li>
-            <li><a href={buildHref('鍵関係')} className="subcategory text-white" data-page="鍵関係">鍵関係</a></li>
-            <li><a href={buildHref('EXP,J')} className="subcategory text-white" data-page="EXP,J">EXP.J</a></li>
-            <li><a href={buildHref('金物その他')} className="subcategory text-white" data-page="金物その他">その他</a></li>
-          </ul>
-        </div>
-
-        {/* ファニチャー */}
-        <div>
-          <button className="w-full text-left px-4 py-2 cursor-pointer accordion-toggle text-[12px] 2xl:text-[13px] text-gray-300">ファニチャー</button>
-          <ul className="accordion-content ml-4 text-[12px] space-y-1">
-            <li><a href={buildHref('家具')} className="subcategory text-white" data-page="家具">家具</a></li>
-            <li><a href={buildHref('カーテン')} className="subcategory text-white" data-page="カーテン">カーテン</a></li>
-            <li><a href={buildHref('ブラインド')} className="subcategory text-white" data-page="ブラインド">ブラインド</a></li>
-            <li><a href={buildHref('生地')} className="subcategory text-white" data-page="生地">生地</a></li>
-            <li><a href={buildHref('ファニチャーその他')} className="subcategory text-white" data-page="ファニチャーその他">その他</a></li>
-          </ul>
-        </div>
-
-        {/* 電気設備 */}
-        <div>
-          <button className="w-full text-left px-4 py-2 cursor-pointer accordion-toggle text-[12px] 2xl:text-[13px] text-gray-300">電気設備</button>
-          <ul className="accordion-content ml-4 text-[12px] space-y-1">
-            <li><a href={buildHref('照明')} className="subcategory text-white" data-page="照明">照明</a></li>
-            <li><a href={buildHref('外構照明')} className="subcategory text-white" data-page="外構照明">外構照明</a></li>
-            <li><a href={buildHref('スイッチコンセント')} className="subcategory text-white" data-page="スイッチコンセント">SW・コンセント</a></li>
-            <li><a href={buildHref('発電機')} className="subcategory text-white" data-page="発電機">発電機</a></li>
-            <li><a href={buildHref('電気設備その他')} className="subcategory text-white" data-page="電気設備その他">その他</a></li>
-          </ul>
-        </div>
-
-        {/* 機械設備 */}
-        <div>
-          <button className="w-full text-left px-4 py-2 cursor-pointer accordion-toggle text-[12px] 2xl:text-[13px] text-gray-300">機械設備</button>
-          <ul className="accordion-content ml-4 text-[12px] space-y-1">
-            <li><a href={buildHref('水栓')} className="subcategory text-white" data-page="水栓">水栓</a></li>
-            <li><a href={buildHref('衛生機器')} className="subcategory text-white" data-page="衛生機器">衛生機器</a></li>
-            <li><a href={buildHref('住宅設備')} className="subcategory text-white" data-page="住宅設備">住宅設備</a></li>
-            <li><a href={buildHref('キッチン')} className="subcategory text-white" data-page="キッチン">キッチン</a></li>
-            <li><a href={buildHref('空調機')} className="subcategory text-white" data-page="空調機">空調機</a></li>
-            <li><a href={buildHref('機械設備その他')} className="subcategory text-white" data-page="機械設備その他">その他</a></li>
-          </ul>
-        </div>
-
-        {/* 外構 */}
-        <div>
-          <button className="w-full text-left px-4 py-2 cursor-pointer accordion-toggle text-[12px] 2xl:text-[13px] text-gray-300">外構</button>
-          <ul className="accordion-content ml-4 text-[12px] space-y-1">
-            <li><a href={buildHref('縁石')} className="subcategory text-white" data-page="縁石">縁石</a></li>
-            <li><a href={buildHref('外構舗装')} className="subcategory text-white" data-page="外構舗装">舗装</a></li>
-            <li><a href={buildHref('雨水桝')} className="subcategory text-white" data-page="雨水桝">雨水桝</a></li>
-            <li><a href={buildHref('桝蓋')} className="subcategory text-white" data-page="桝蓋">桝蓋</a></li>
-            <li><a href={buildHref('外構グレーチング')} className="subcategory text-white" data-page="外構グレーチング">グレーチング</a></li>
-            <li><a href={buildHref('外構その他')} className="subcategory text-white" data-page="外構その他">その他</a></li>
-          </ul>
-        </div>
-
-        {/* エクステリア */}
-        <div>
-          <button className="w-full text-left px-4 py-2 cursor-pointer accordion-toggle text-[12px] 2xl:text-[13px] text-gray-300">エクステリア</button>
-          <ul className="accordion-content ml-4 text-[12px] space-y-1">
-            <li><a href={buildHref('宅配ボックス')} className="subcategory text-white" data-page="宅配ボックス">宅配ボックス</a></li>
-            <li><a href={buildHref('郵便受け')} className="subcategory text-white" data-page="郵便受け">郵便受け</a></li>
-            <li><a href={buildHref('表札')} className="subcategory text-white" data-page="表札">表札</a></li>
-            <li><a href={buildHref('門扉')} className="subcategory text-white" data-page="門扉">門扉</a></li>
-            <li><a href={buildHref('フェンス')} className="subcategory text-white" data-page="フェンス">フェンス</a></li>
-            <li><a href={buildHref('カーポート')} className="subcategory text-white" data-page="カーポート">カーポート</a></li>
-            <li><a href={buildHref('大型引戸')} className="subcategory text-white" data-page="大型引戸">大型引戸</a></li>
-            <li><a href={buildHref('ウッドデッキ')} className="subcategory text-white" data-page="ウッドデッキ">ウッドデッキ</a></li>
-            <li><a href={buildHref('駐輪場')} className="subcategory text-white" data-page="駐輪場">駐輪場</a></li>
-            <li><a href={buildHref('ゴミストッカー')} className="subcategory text-white" data-page="ゴミストッカー">ゴミストッカー</a></li>
-            <li><a href={buildHref('エクステリア緑化')} className="subcategory text-white" data-page="エクステリア緑化">緑化</a></li>
-            <li><a href={buildHref('エクステリアその他')} className="subcategory text-white" data-page="エクステリアその他">その他</a></li>
-          </ul>
-        </div>
-
-      </div>
+              </div>
+      
+            )}
+          </div>
+        </section>
+      ))}
       </div>{/* left-column__scroll */}
 
       {/* フッター：Ⅰ〜Ⅴ ＋ アカウント行。lg 以上では viewport に固定される */}
       <div className="left-column__foot">
-      {/* 切替ボタン：〇の中は常に白、Ⅰ〜Ⅴ は常に黒。バーの地色は左カラムに追従 */}
-      <div className="left-column__switch">
-        {RAIL_MODES.map((m, index) => (
-          <button
-            key={m.label}
-            type="button"
-            title={m.label}
-            aria-label={`${ROMAN[index]} ${m.label}`}
-            aria-current={index === mode}
-            onClick={() => setMode(index)}
-          >
-            {ROMAN[index]}
-          </button>
-        ))}
-      </div>
-
       {/* アカウント行：旧フッターバー左端にあった項目 */}
       <div className="left-column__account">
         {isLoggedIn ? (
