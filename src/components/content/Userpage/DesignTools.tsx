@@ -18,6 +18,7 @@ import RainwaterCalculation from '@/components/content/Userpage/design-tools/2_R
 import ExteriorRainwater from '@/components/content/Userpage/design-tools/ExteriorRainwater';
 import PavementDesign from '@/components/content/Userpage/design-tools/PavementDesign';
 import SlopeCalc from '@/components/content/Userpage/design-tools/SlopeCalc';
+import LoadCalc from '@/components/content/Userpage/design-tools/LoadCalc';
 import AreaTableLauncher from '@/components/content/Userpage/design-tools/AreaTableLauncher';
 import FireEquipment from '@/components/content/Userpage/design-tools/3_FireEquipment';
 import BuildingRegulations from '@/components/content/Userpage/design-tools/7_BuildingRegulations';
@@ -75,7 +76,7 @@ const TOOL_COMPONENTS: Record<string, React.ReactNode> = {
   'formulas': <StructuralTools defaultTab="formulas" hideTabBar />,
   'unit-weight-calc': <UnitVolumeCalculation defaultTab="calculator" hideTabBar />,
   'density-list': <UnitVolumeCalculation defaultTab="reference" hideTabBar />,
-  'load-calc': <PlaceholderTool name="荷重計算" description="建築物の荷重計算ツールです。（準備中）" />,
+  'load-calc': <LoadCalc />,
   'vent-24h': <VentilationCalculation defaultTab="sickhouse" hideTabBar sheet />,
   'vent-fire': <VentilationCalculation defaultTab="fire" hideTabBar />,
   'vent-occupancy': <VentilationCalculation defaultTab="occupancy" hideTabBar />,

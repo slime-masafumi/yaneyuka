@@ -71,7 +71,7 @@ export const DESIGN_TOOL_MENU: DesignToolCategory[] = [
       { id: 'formulas', label: '公式集', title: '構造公式集', description: '構造計算でよく使う公式・係数のリファレンス' },
       { id: 'unit-weight-calc', label: '単位体積算定', title: '単位体積重量計算', description: '建材・土木資材の寸法から重量を算出' },
       { id: 'density-list', label: '密度一覧', title: '材料密度一覧', description: '各種建材・資材の単位体積重量の参考データ' },
-      { id: 'load-calc', label: '荷重計算', title: '荷重計算', description: '建築物の荷重計算ツール（準備中）' },
+      { id: 'load-calc', label: '荷重計算', title: '荷重計算', description: '床・屋根の 1 m² あたりの荷重を、固定(令 84 条)・積載(令 85 条)・積雪(令 86 条)の表から積み上げる' },
     ],
   },
   {
