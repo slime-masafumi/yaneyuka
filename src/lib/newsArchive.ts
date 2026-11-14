@@ -22,6 +22,8 @@ export type ArchiveDoc = {
   ts: number
   image: string
   imageTried: boolean
+  /** og:image を読めなかった回数(時間切れ等)。3 回で諦める。2026-11-14 */
+  imageTries?: number
   firstSeen: number
 }
 

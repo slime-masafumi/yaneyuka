@@ -8,6 +8,8 @@
  * 取れなかった記事は写真なしで出す(一覧は写真が無くても成り立つ組み方にしてある)。
  */
 
+import { isNotPhoto } from './feedPhotos';
+
 function decodeEntities(v: string): string {
   return v
     .replace(/&amp;/g, '&')
@@ -27,6 +29,8 @@ export function normalizeImageUrl(value: string | undefined, base?: string): str
     // 1px の計測画像・アイコン類は写真として使わない
     if (/(spacer|pixel|blank|1x1|favicon|logo|icon)[^/]*\.(gif|png|svg|ico)$/i.test(u.pathname)) return '';
     if (/\.(svg|ico)$/i.test(u.pathname)) return '';
+    // WordPress の絵文字・サイトのロゴ(ローマ字の rogo も)は記事の写真ではない
+    if (isNotPhoto(u.toString())) return '';
     // 配信サイト共通の画像(記事ごとの写真ではない)。PR TIMES は記事ページの og:image がサイトのロゴになる
     if (u.hostname.endsWith('prtimes.jp') && u.pathname.startsWith('/common/')) return '';
     return u.toString();
@@ -53,6 +57,14 @@ export function imageFromFeedItem(raw: string, base?: string): string {
 
 /** 記事ページの先頭だけ読んで og:image / twitter:image を返す。取れなければ '' */
 export async function fetchOgImage(url: string, timeoutMs = 4000): Promise<string> {
+  return (await fetchOgImageResult(url, timeoutMs)).image;
+}
+
+/**
+ * fetchOgImage の結果に「読めなかった(時間切れ・接続失敗・相手の 5xx / 429)」を添える。2026-11-14
+ * 読めなかった記事は写真が無いと決めつけず、あとで取り直す(一度の時間切れで写真なしのまま残っていた)。
+ */
+export async function fetchOgImageResult(url: string, timeoutMs = 4000): Promise<{ image: string; failed: boolean }> {
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), timeoutMs);
   try {
@@ -66,7 +78,8 @@ export async function fetchOgImage(url: string, timeoutMs = 4000): Promise<strin
         'Accept-Language': 'ja,en;q=0.5',
       },
     });
-    if (!res.ok || !(res.headers.get('content-type') || '').includes('html')) return '';
+    if (res.status >= 500 || res.status === 429) return { image: '', failed: true };
+    if (!res.ok || !(res.headers.get('content-type') || '').includes('html')) return { image: '', failed: false };
     // og タグは <head> にあるので先頭だけで足りる。巨大なページを全部読まない
     const reader = res.body?.getReader();
     let html = '';
@@ -87,16 +100,22 @@ export async function fetchOgImage(url: string, timeoutMs = 4000): Promise<strin
       html.match(new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]*(?:property|name)=["']${key}["']`, 'i'))?.[1] ||
       '';
     const finalUrl = res.url || url;
-    return (
+    const linkSrc = html.match(/<link[^>]+rel=["']image_src["'][^>]*href=["']([^"']+)["']/i)?.[1];
+    const image =
       normalizeImageUrl(meta('og:image(?::secure_url|:url)?'), finalUrl) ||
-      normalizeImageUrl(meta('twitter:image(?::src)?'), finalUrl)
-    );
+      normalizeImageUrl(meta('twitter:image(?::src)?'), finalUrl) ||
+      normalizeImageUrl(linkSrc, finalUrl);
+    return { image, failed: false };
   } catch {
-    return '';
+    return { image: '', failed: true };
   } finally {
     clearTimeout(timer);
   }
 }
+
+/** 読めなかった記事と、その時刻(API ルートの中だけで覚える) */
+const FAILED = new Map<string, number>();
+const RETRY_MS = 10 * 60 * 1000;
 
 /**
  * 複数の記事に写真を埋める。持ち時間(budgetMs)を過ぎたら待たずに返す。
@@ -110,20 +129,24 @@ export async function fillImages<T extends { link: string; image?: string }>(
   for (const it of items) {
     if (!it.image && cache.has(it.link)) it.image = cache.get(it.link) || undefined;
   }
-  const todo = items.filter((it) => !it.image && !cache.has(it.link) && !(skip && skip(it.link)));
+  const now = Date.now();
+  const todo = items.filter((it) => !it.image && !cache.has(it.link) && now - (FAILED.get(it.link) ?? 0) > RETRY_MS && !(skip && skip(it.link)));
   if (!todo.length) return;
   let idx = 0;
   const worker = async () => {
     while (idx < todo.length) {
       const it = todo[idx++];
-      const img = await fetchOgImage(it.link);
-      cache.set(it.link, img);
+      const { image: img, failed } = await fetchOgImageResult(it.link);
+      // 読めなかった記事は覚えておかず、10 分おいて取り直す
+      if (failed) FAILED.set(it.link, Date.now());
+      else cache.set(it.link, img);
       if (img) it.image = img;
     }
   };
   const all = Promise.all(Array.from({ length: Math.min(parallel, todo.length) }, worker));
   await Promise.race([all, new Promise((r) => setTimeout(r, budgetMs))]);
   // 古いものから捨てて、覚えておく数に上限を置く
+  if (FAILED.size > 600) FAILED.clear();
   if (cache.size > 600) {
     for (const k of Array.from(cache.keys()).slice(0, cache.size - 600)) cache.delete(k);
   }

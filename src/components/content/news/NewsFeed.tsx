@@ -5,6 +5,7 @@ import { getJson, peekJson } from '@/lib/apiCache';
 import { sanitizeHtml } from '@/lib/sanitize'
 import FeedPic from '@/components/ui/FeedPic'
 import BrickWall from '@/components/ui/BrickWall'
+import { photoPicker } from '@/lib/feedPhotos'
 import { NEWS_SOURCES } from '@/lib/newsSources'
 
 export type NewsItem = {
@@ -312,6 +313,9 @@ export default function NewsFeed({ onToggleBookmark, isBookmarked, selectedMonth
     return <div className="text-[12px] text-gray-500">{selectedMonth} の記事を読み込み中...</div>
   }
 
+  // サイト共通のロゴや、何件もの記事で同じ画像は写真として出さない(表紙に回す)
+  const photoOf = photoPicker(selectedMonth === 'all' ? items : shown)
+
   return (
     <div className="yy-news">
       {/* 馬目地: 1 枚のレンガが 1 記事(2026-11-14)。写真を上に大きく、その下に題、いちばん下に出どころ・日時。☆ で保存 */}
@@ -339,7 +343,7 @@ export default function NewsFeed({ onToggleBookmark, isBookmarked, selectedMonth
               </button>
               <a href={item.link} target="_blank" rel="noopener noreferrer" className="yy-bc" title={item.title}>
                 <span className="yy-bc__pic">
-                  <FeedPic src={item.image} size="row" />
+                  <FeedPic src={photoOf(item)} size="row" cover={{ label: 'NEWS', word: item.source.replace(/[（(]検索[)）]$/, '') }} />
                 </span>
                 <span className="yy-bc__body">
                   <span className="yy-bc__title">{item.title}</span>

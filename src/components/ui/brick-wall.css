@@ -76,10 +76,13 @@
 .yy-brick--card .yy-brick__b.is-half .yy-bc__pic { display: block; }
 .yy-brick--card .yy-brick__b.is-half .yy-bc__body { padding: 8px 9px; }
 .yy-brick--card .yy-brick__b.is-half .yy-bc__title { font-size: 12px; -webkit-line-clamp: 4; }
-/* 写真の無い記事は、題を大きく上から組む */
-.yy-brick--card .yy-bc:has(.yy-pic.is-empty) .yy-bc__body { padding-top: 16px; }
-.yy-brick--card .yy-bc:has(.yy-pic.is-empty) .yy-bc__title { font-size: 16px; line-height: 1.6; -webkit-line-clamp: 6; }
-.yy-brick--card .yy-brick__b.is-half .yy-bc:has(.yy-pic.is-empty) .yy-bc__title { font-size: 13px; -webkit-line-clamp: 8; }
+/* 写真の無い記事は表紙(FeedPic の cover)で写真の場所を埋め、壁の並びをそろえる */
+.yy-brick--card .yy-pic.is-cover { padding: 12px 14px; }
+.yy-brick--card .yy-pic__label { font-size: 9px; }
+.yy-brick--card .yy-pic__word { padding: 3px 8px; font-size: 19px; line-height: 1.3; }
+.yy-brick--card .yy-brick__b.is-half .yy-pic.is-cover { padding: 9px; }
+.yy-brick--card .yy-brick__b.is-half .yy-pic__word { font-size: 14px; }
+.yy-brick.is-past-wall .yy-bc__pic:has(.is-cover) { filter: none; opacity: 0.75; }
 
 @media (max-width: 767px) {
   .yy-brick--card { --brick-h: 236px; }
@@ -90,6 +93,3 @@
 .yy-brick--ev .yy-bc__body { gap: 4px; }
 .yy-brick--ev .yy-bc__title { -webkit-line-clamp: 2; }
 .yy-brick--ev .yy-brick__b.is-half .yy-bc__title { -webkit-line-clamp: 2; }
-.yy-brick--ev .yy-bc:has(.yy-pic.is-empty) .yy-bc__big { font-size: 24px; }
-.yy-brick--ev .yy-bc:has(.yy-pic.is-empty) .yy-bc__title { -webkit-line-clamp: 5; }
-.yy-brick--ev .yy-brick__b.is-half .yy-bc:has(.yy-pic.is-empty) .yy-bc__title { -webkit-line-clamp: 6; }

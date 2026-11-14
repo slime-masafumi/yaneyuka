@@ -11,7 +11,7 @@ import { appendFileSync, readFileSync } from 'node:fs';
 import { cert, initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { GENERAL_PRODUCT_SOURCES, collectProducts, makerProductSources, productTime, type NewProductItem } from '../src/lib/productCollect.ts';
-import { fetchOgImage, normalizeImageUrl } from '../src/lib/feedImage.ts';
+import { fetchOgImageResult, normalizeImageUrl } from '../src/lib/feedImage.ts';
 
 const ARCHIVE = 'new-products-archive';
 const dryRun = process.argv.includes('--dry-run');
@@ -19,15 +19,23 @@ const docId = (link: string) => createHash('sha256').update(link).digest('hex').
 // 以前の API が入れたローカルの汎用画像・相対パス・配信サイト共通の画像は「写真なし」とみなす
 const isLocalFallback = (u?: string) => !u || !normalizeImageUrl(u);
 
-type Doc = NewProductItem & { ts: number; imageTried?: boolean; firstSeen?: number };
+type Doc = NewProductItem & { ts: number; imageTried?: boolean; imageTries?: number; firstSeen?: number };
 
+/** 読めた記事だけ found に入れる。読めなかった(時間切れ等)記事は failed に入れ、次の回に取り直す */
+const failed = new Set<string>();
+/** 読めなかった記事を取り直す回数の上限 */
+const MAX_IMAGE_TRIES = 3;
+/** 2026-11-14 より前は一度の時間切れでも imageTried を立てていた。その記事(imageTries が無い)は 1 度だけ取り直す */
+const stuck = (p?: Doc) => !!p && !!p.imageTried && isLocalFallback(p.image) && p.imageTries === undefined;
 async function fillOg(items: NewProductItem[]): Promise<Map<string, string>> {
   const found = new Map<string, string>();
   let i = 0;
   const worker = async () => {
     while (i < items.length) {
       const it = items[i++];
-      found.set(it.link, await fetchOgImage(it.link, 8000));
+      const r = await fetchOgImageResult(it.link, 8000);
+      if (r.failed) failed.add(it.link);
+      else found.set(it.link, r.image);
     }
   };
   await Promise.all(Array.from({ length: Math.min(6, items.length) }, worker));
@@ -67,7 +75,7 @@ async function main() {
 
   const needOg = items.filter((it) => {
     const prev = existing.get(docId(it.link));
-    return isLocalFallback(it.image) && !(prev && (!isLocalFallback(prev.image) || prev.imageTried));
+    return isLocalFallback(it.image) && !(prev && (!isLocalFallback(prev.image) || (prev.imageTried && !stuck(prev))));
   });
   const og = await fillOg(needOg);
 
@@ -89,11 +97,12 @@ async function main() {
       category: it.category,
       image,
       ts: productTime(it.pubDate) || prev?.ts || now,
-      imageTried: Boolean(prev?.imageTried || og.has(it.link) || image),
+      imageTried: Boolean(prev?.imageTried || og.has(it.link) || image || (prev?.imageTries ?? 0) + (failed.has(it.link) ? 1 : 0) >= MAX_IMAGE_TRIES),
+      imageTries: (prev?.imageTries ?? 0) + (failed.has(it.link) ? 1 : 0),
       firstSeen: prev?.firstSeen || now,
     };
     if (!prev) added++;
-    if (prev && prev.title === doc.title && prev.image === doc.image && prev.imageTried === doc.imageTried && prev.ts === doc.ts && prev.category === doc.category) continue;
+    if (prev && prev.title === doc.title && prev.image === doc.image && prev.imageTried === doc.imageTried && prev.imageTries === doc.imageTries && prev.ts === doc.ts && prev.category === doc.category) continue;
     batch.set(col.doc(id), doc);
     if (++writes % 400 === 0) {
       await batch.commit();

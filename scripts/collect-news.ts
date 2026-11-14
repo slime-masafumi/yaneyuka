@@ -14,20 +14,28 @@ import { appendFileSync } from 'node:fs';
 import { cert, initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { collectNews, pubTime, type NewsItem } from '../src/lib/newsCollect.ts';
-import { fetchOgImage } from '../src/lib/feedImage.ts';
+import { fetchOgImageResult } from '../src/lib/feedImage.ts';
 import { ARCHIVE, META, STATUS_DOC, type ArchiveDoc, type CollectStatus } from '../src/lib/newsArchive.ts';
 
 const dryRun = process.argv.includes('--dry-run');
 const docId = (link: string) => createHash('sha1').update(link).digest('hex').slice(0, 20);
 
 /** 写真を並列で取る(相手に負担をかけないよう 6 本ずつ) */
+/** 読めた記事だけ found に入れる。読めなかった(時間切れ等)記事は failed に入れ、次の回に取り直す */
+const failed = new Set<string>();
+/** 読めなかった記事を取り直す回数の上限 */
+const MAX_IMAGE_TRIES = 3;
+/** 2026-11-14 より前は一度の時間切れでも imageTried を立てていた。その記事(imageTries が無い)は 1 度だけ取り直す */
+const stuck = (p?: ArchiveDoc) => !!p && p.imageTried && !p.image && p.imageTries === undefined;
 async function fillOg(items: NewsItem[]): Promise<Map<string, string>> {
   const found = new Map<string, string>();
   let i = 0;
   const worker = async () => {
     while (i < items.length) {
       const it = items[i++];
-      found.set(it.link, await fetchOgImage(it.link, 8000));
+      const r = await fetchOgImageResult(it.link, 8000);
+      if (r.failed) failed.add(it.link);
+      else found.set(it.link, r.image);
     }
   };
   await Promise.all(Array.from({ length: Math.min(6, items.length) }, worker));
@@ -67,7 +75,7 @@ async function main() {
   // 写真がまだ無く、取りに行ってもいない記事だけ og:image を取る
   const needOg = items.filter((it) => {
     const prev = existing.get(docId(it.link));
-    return !it.image && !(prev && (prev.image || prev.imageTried)) && !it.link.includes('news.google.com');
+    return !it.image && !(prev && (prev.image || (prev.imageTried && !stuck(prev)))) && !it.link.includes('news.google.com');
   });
   const og = await fillOg(needOg);
 
@@ -88,12 +96,13 @@ async function main() {
       // 日付の無い記事は最初に見た時刻で並べる
       ts: pubTime(it.pubDate) || prev?.ts || now,
       image,
-      imageTried: Boolean(prev?.imageTried || og.has(it.link) || image),
+      imageTried: Boolean(prev?.imageTried || og.has(it.link) || image || (prev?.imageTries ?? 0) + (failed.has(it.link) ? 1 : 0) >= MAX_IMAGE_TRIES),
+      imageTries: (prev?.imageTries ?? 0) + (failed.has(it.link) ? 1 : 0),
       firstSeen: prev?.firstSeen || now,
     };
     if (!prev) added++;
     // 変わっていない記事は書かない(書き込み回数を抑える)
-    if (prev && prev.title === doc.title && prev.image === doc.image && prev.imageTried === doc.imageTried && prev.ts === doc.ts) continue;
+    if (prev && prev.title === doc.title && prev.image === doc.image && prev.imageTried === doc.imageTried && prev.imageTries === doc.imageTries && prev.ts === doc.ts) continue;
     batch.set(col.doc(id), doc);
     writes++;
   }

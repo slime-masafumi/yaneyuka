@@ -255,7 +255,7 @@ export default function EventsWithBookmarks() {
           )}
           <a className="yy-bc" href={ev.link} target="_blank" rel="noopener noreferrer" title={[ev.title, ev.venue, ev.coShows?.length ? `同時開催 ${ev.coShows.length} 展` : ''].filter(Boolean).join('\n')}>
             <span className="yy-bc__pic">
-              <FeedPic src={ev.image} size="row" />
+              <FeedPic src={ev.image} size="row" cover={{ label: `EVENT · ${regionName[ev.region || 'other'] || 'その他'}`, word: ev.venue || ev.title }} />
             </span>
             <span className="yy-bc__body">
               <span className="yy-bc__big">

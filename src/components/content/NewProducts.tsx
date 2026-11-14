@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { getJson } from '@/lib/apiCache';
 import FeedPic from '@/components/ui/FeedPic';
 import BrickWall from '@/components/ui/BrickWall';
+import { isNotPhoto, photoPicker } from '@/lib/feedPhotos';
 import PageHead, { Stat } from '../ui/PageHead';
 import './see-pages.css';
 
@@ -94,9 +95,10 @@ function isGenericLocalFallback(url: string): boolean {
 // 記事の写真。取得できなかった分類の見本画像(ローカルの汎用画像)は出さない
 const ProductPhoto: React.FC<{ product: ProductCard; lead: boolean }> = ({ product, lead }) => (
   <FeedPic
-    src={product.image && !isGenericLocalFallback(product.image) ? product.image : undefined}
+    src={product.image && !isGenericLocalFallback(product.image) && !isNotPhoto(product.image) ? product.image : undefined}
     size={lead ? 'lead' : 'row'}
     className="yy-np-photo"
+    cover={{ label: `NEW · ${CATEGORY_LABEL[product.category] || '新製品'}`, word: product.source || '新製品' }}
   />
 );
 
