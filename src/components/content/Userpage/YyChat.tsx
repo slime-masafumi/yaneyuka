@@ -19,6 +19,7 @@ import {
   query, onSnapshot, deleteDoc, increment
 } from 'firebase/firestore';
 import { getUsersByUids, listBoardsForUser, addBoardTask, type BoardDoc } from '@/lib/firebaseUserData';
+import { findUserByExactEmail, getPublicProfiles, setOwnAvatar } from '@/lib/userDirectory';
 import { useTaskContext } from '@/components/providers/TaskProvider';
 import { searchTerms, matchesAll, snippet, splitHits, parseDueHint, mentionsIn, taskTextFrom, minutesHtml, formatTaken } from '@/lib/chatTools';
 
@@ -447,13 +448,57 @@ const YyChat: React.FC = () => {
     return () => unsub();
   }, [currentUser]);
 
+  // 相手の候補は「もう知っている相手」だけ（今ある部屋の参加者と、連絡先に入れた人）。
+  // 以前は getDocs(collection(db, 'users')) で全会員の表示名とメールを一覧していた（2026-11-15 に廃止）。
+  // 初めての相手は、登録メールアドレスの完全一致で 1 人ずつ探す（findByEmail）。
+  const [emailLookup, setEmailLookup] = useState<'' | 'searching' | 'notfound' | 'error'>('');
   const loadUsers = async () => {
+    if (!currentUser) return;
     setUsersLoading(true);
-    const snap = await getDocs(collection(db, 'users'));
-    setAvailableUsers(snap.docs.map(d => ({ 
-      uid: d.id, username: d.data().displayName || '不明', email: d.data().email 
-    })));
-    setUsersLoading(false);
+    setEmailLookup('');
+    const known = new Map<string, string>();
+    rooms.forEach((r) => r.participants.forEach((uid) => {
+      if (uid !== currentUser.uid && !known.get(uid)) known.set(uid, r.participantUsernames?.[uid] || '');
+    }));
+    Object.keys(customNicknames).forEach((uid) => { if (uid !== currentUser.uid && !known.has(uid)) known.set(uid, ''); });
+    try {
+      const profiles = await getPublicProfiles(Array.from(known.keys()));
+      setAvailableUsers((prev) => {
+        // メールで見つけた相手は、一覧を読み直しても残す
+        const found = prev.filter((u) => u.email && !known.has(u.uid));
+        return [...found, ...profiles.map((p) => ({
+          uid: p.uid,
+          username: customNicknames[p.uid] || p.displayName || known.get(p.uid) || '名前未登録',
+          email: null,
+        }))];
+      });
+      const avts: Record<string, string> = {};
+      profiles.forEach((p) => { if (p.avatarUrl) avts[p.uid] = p.avatarUrl; });
+      if (Object.keys(avts).length) setUserAvatars((prev) => ({ ...prev, ...avts }));
+    } catch (e) {
+      console.error('相手の候補の読み込みに失敗', e);
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+  const looksLikeEmail = (s: string) => /^[^s@]+@[^s@]+.[^s@]+$/.test(s.trim());
+  const findByEmail = async () => {
+    const email = userSearchTerm.trim();
+    if (!currentUser || !looksLikeEmail(email)) return;
+    setEmailLookup('searching');
+    try {
+      const hit = await findUserByExactEmail(email);
+      if (!hit || hit.uid === currentUser.uid) { setEmailLookup('notfound'); return; }
+      setAvailableUsers((prev) => [
+        { uid: hit.uid, username: customNicknames[hit.uid] || hit.displayName || '名前未登録', email },
+        ...prev.filter((u) => u.uid !== hit.uid),
+      ]);
+      if (hit.avatarUrl) setUserAvatars((prev) => ({ ...prev, [hit.uid]: hit.avatarUrl! }));
+      setEmailLookup('');
+    } catch (e) {
+      console.error('メールでの相手探しに失敗', e);
+      setEmailLookup('error');
+    }
   };
 
   const handleSendMessage = async () => {
@@ -581,7 +626,8 @@ const YyChat: React.FC = () => {
     ctx.drawImage(img, -img.naturalWidth/2, -img.naturalHeight/2);
 
     const url = canvas.toDataURL('image/png');
-    await setDoc(doc(db, 'users', currentUser.uid), { avatarUrl: url }, { merge: true });
+    // 本人用（users）と、相手に見せる用（publicProfiles）の両方に書く
+    await setOwnAvatar(currentUser.uid, url);
     setUserAvatars(prev => ({ ...prev, [currentUser.uid]: url }));
     setShowIconSettings(false);
     setIconImageSrc('');
@@ -589,7 +635,7 @@ const YyChat: React.FC = () => {
 
   const handleRemoveIcon = async () => {
     if (!currentUser) return;
-    await updateDoc(doc(db, 'users', currentUser.uid), { avatarUrl: deleteField() });
+    await setOwnAvatar(currentUser.uid, null);
     setUserAvatars(prev => { const n = {...prev}; delete n[currentUser.uid]; return n; });
     setIconImageSrc('');
   };
@@ -1047,12 +1093,33 @@ const YyChat: React.FC = () => {
                   </button>
                 )}
                 <input 
-                  className="flex-1 text-xs border px-2 py-1.5 focus:outline-none" 
-                  placeholder="ユーザー検索..." 
+                  className="flex-1 min-w-0 text-xs border px-2 py-1.5 focus:outline-none" 
+                  placeholder="名前で絞り込む・メールアドレスで探す" 
                   value={userSearchTerm}
-                  onChange={e => setUserSearchTerm(e.target.value)}
+                  inputMode="email"
+                  onChange={e => { setUserSearchTerm(e.target.value); setEmailLookup(''); }}
+                  onKeyDown={e => { if (e.key === 'Enter' && looksLikeEmail(userSearchTerm)) { e.preventDefault(); void findByEmail(); } }}
                 />
               </div>
+              {/* 初めての相手は登録メールアドレスの完全一致で探す。全会員の一覧は出さない */}
+              {looksLikeEmail(userSearchTerm) && !availableUsers.some((u) => u.email && u.email.toLowerCase() === userSearchTerm.trim().toLowerCase()) ? (
+                <div className="mb-2 px-1 text-[11px] text-gray-600 flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => void findByEmail()}
+                    disabled={emailLookup === 'searching'}
+                    className="underline underline-offset-2 text-gray-800 disabled:opacity-50"
+                  >
+                    {emailLookup === 'searching' ? '探しています…' : 'このメールアドレスの会員を探す'}
+                  </button>
+                  {emailLookup === 'notfound' && <span className="text-gray-500">見つかりませんでした。相手が yaneyuka に登録したメールアドレスと完全に同じものを入れてください。</span>}
+                  {emailLookup === 'error' && <span className="text-red-600">探せませんでした。通信を確かめてもう一度押してください。</span>}
+                </div>
+              ) : (
+                !usersLoading && availableUsers.length === 0 && (
+                  <p className="mb-2 px-1 text-[11px] text-gray-500">初めての相手は、相手が登録したメールアドレスを上に入れて探します（全会員の一覧は出しません）。</p>
+                )
+              )}
               {userSelectMode !== 'dm' && (
                 <div className="mb-2 p-2 bg-white border border-gray-200 space-y-1.5 text-xs">
                   {userSelectMode === 'group' && (
@@ -1106,7 +1173,7 @@ const YyChat: React.FC = () => {
                         </div>
                         <div>
                           <div className="text-[12px] text-gray-800">{u.username}</div>
-                          <div className="text-[10px] text-gray-400">{u.email}</div>
+                          {u.email && <div className="text-[10px] text-gray-400">{u.email}</div>}
                         </div>
                       </div>
                     ))}

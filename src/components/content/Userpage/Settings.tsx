@@ -5,6 +5,7 @@ import { auth, db } from '@/lib/firebaseClient'
 import { collection, getDocs, deleteDoc, doc, writeBatch, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { EmailAuthProvider, deleteUser, reauthenticateWithCredential, updateProfile } from 'firebase/auth'
 import { listBoardsForUser, updateBoard } from '@/lib/firebaseUserData'
+import { publishOwnProfile, removeOwnProfile } from '@/lib/userDirectory'
 
 const Settings: React.FC = () => {
   const { currentUser } = useAuth()
@@ -62,6 +63,10 @@ const Settings: React.FC = () => {
           displayName: displayName.trim(),
           updatedAt: serverTimestamp()
         })
+        // チャット・Teamタスクの相手に見える名前（publicProfiles）も合わせる
+        try {
+          await publishOwnProfile({ uid: currentUser.uid, email: user.email, emailVerified: user.emailVerified, displayName: displayName.trim() })
+        } catch (e) { console.warn('公開用の名前の更新に失敗', e) }
       }
       
       setDisplayNameMessage('表示名を更新しました。')
@@ -142,6 +147,8 @@ const Settings: React.FC = () => {
         await batch.commit()
       }
       try { await deleteDoc(doc(db, 'users', user.uid)) } catch {}
+      // 他人に見せていた名前・アイコンと、メールでの相手探しの索引も消す
+      await removeOwnProfile(user.uid, user.email)
       try {
         localStorage.removeItem(`newsBookmarks:${user.uid}`)
         localStorage.removeItem(`eventBookmarks:${user.uid}`)

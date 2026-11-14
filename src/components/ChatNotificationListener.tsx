@@ -3,7 +3,8 @@
 import { useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { db } from '@/lib/firebaseClient';
-import { collection, query, where, onSnapshot, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { getPublicProfiles } from '@/lib/userDirectory';
 
 /**
  * チャット通知を監視するコンポーネント
@@ -189,10 +190,10 @@ const ChatNotificationListener = () => {
           let senderDisplayName = lastMsg.senderUsername || '不明なユーザー';
           if (!userDisplayNamesRef.current[lastMsg.senderId]) {
             try {
-              const senderDoc = await getDoc(doc(db, 'users', lastMsg.senderId));
-              if (senderDoc.exists()) {
-                const senderData = senderDoc.data();
-                senderDisplayName = senderData?.displayName || lastMsg.senderUsername || '不明なユーザー';
+              // 他人の users は読めない。名前は公開用の publicProfiles から引く
+              const [sender] = await getPublicProfiles([lastMsg.senderId]);
+              if (sender?.displayName) {
+                senderDisplayName = sender.displayName;
                 userDisplayNamesRef.current[lastMsg.senderId] = senderDisplayName;
               }
             } catch (error) {

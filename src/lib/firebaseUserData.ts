@@ -1,5 +1,6 @@
 import { auth, db } from './firebaseClient'
-import { doc, getDoc, setDoc, updateDoc, collection, getDocs, query, where, addDoc, deleteDoc, serverTimestamp, documentId, orderBy, limit } from 'firebase/firestore'
+import { doc, getDoc, setDoc, updateDoc, collection, getDocs, query, where, addDoc, deleteDoc, serverTimestamp, orderBy, limit } from 'firebase/firestore'
+import { findUserByExactEmail, getPublicProfiles } from './userDirectory'
 
 export type UserBookmark = {
   id: string;
@@ -230,62 +231,20 @@ export async function deleteBoardTask(boardId: string, taskId: string) {
 }
 
 // Users lookups
+// 他の会員の users/{uid}（メール・role 入り）は読めない（firestore.rules・2026-11-15）。
+// 名前とアイコンは publicProfiles、メールでの相手探しは userDirectory の完全一致だけ（src/lib/userDirectory.ts）。
+// email は相手のものを返さない。メールで探したときは、探した人が打ったメールを入れて返す。
 export type UserProfile = { uid: string; email: string | null; displayName: string | null; avatarUrl?: string | null }
 
 export async function findUserByEmail(email: string): Promise<UserProfile | null> {
-  const colRef = collection(db, 'users')
-  const qy = query(colRef, where('email', '==', email))
-  const snap = await getDocs(qy)
-  if (snap.empty) return null
-  const d = snap.docs[0]
-  const data = d.data() as any
-  return { uid: d.id, email: data.email || null, displayName: data.displayName || null }
+  const p = await findUserByExactEmail(email)
+  if (!p) return null
+  return { uid: p.uid, email: email.trim(), displayName: p.displayName, avatarUrl: p.avatarUrl }
 }
 
-// シンプルなメモリキャッシュでユーザープロファイルの再取得を抑制
-const userProfileCache = new Map<string, UserProfile>()
-
 export async function getUsersByUids(uids: string[]): Promise<UserProfile[]> {
-  if (!uids || uids.length === 0) return []
-  const unique = Array.from(new Set(uids.filter(Boolean)))
-
-  const fromCache: UserProfile[] = []
-  const toFetch: string[] = []
-  for (const uid of unique) {
-    const cached = userProfileCache.get(uid)
-    // キャッシュがある場合は使用（avatarUrlがnullでも問題ない）
-    if (cached) {
-      fromCache.push(cached)
-    } else {
-      toFetch.push(uid)
-    }
-  }
-
-  if (toFetch.length === 0) return fromCache
-
-  // Firestoreのinクエリでまとめて取得（10件単位）
-  const chunks: string[][] = []
-  for (let i = 0; i < toFetch.length; i += 10) chunks.push(toFetch.slice(i, i + 10))
-
-  const fetched: UserProfile[] = []
-  await Promise.all(chunks.map(async (ids) => {
-    const colRef = collection(db, 'users')
-    const qy = query(colRef, where(documentId(), 'in', ids))
-    const snap = await getDocs(qy)
-    snap.docs.forEach(d => {
-      const data = d.data() as any
-      const profile: UserProfile = { 
-        uid: d.id, 
-        email: data?.email || null, 
-        displayName: data?.displayName || null,
-        avatarUrl: data?.avatarUrl || null
-      }
-      userProfileCache.set(d.id, profile)
-      fetched.push(profile)
-    })
-  }))
-
-  return [...fromCache, ...fetched]
+  const list = await getPublicProfiles(uids)
+  return list.map(p => ({ uid: p.uid, email: null, displayName: p.displayName, avatarUrl: p.avatarUrl }))
 }
 
 export async function deleteBoard(boardId: string) {

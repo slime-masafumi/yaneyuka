@@ -106,10 +106,44 @@ service cloud.firestore {
       }
     }
 
-    // ユーザープロファイル（読み出しはログイン済み全ユーザー、書き込みは本人のみ）
+    // ユーザープロファイル（本人だけ）。
+    // 以前は read: ログイン済み全員 で、yychat の相手選びが getDocs(collection('users')) で
+    // 全会員の表示名とメールを一覧していた（2026-11-15）。メール・role はここにしか置かない。
+    // 他人に見せてよい名前とアイコンは publicProfiles、メールでの相手探しは userDirectory。
     match /users/{uid} {
-      allow read: if request.auth != null;
+      allow read: if request.auth != null && request.auth.uid == uid;
       allow write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // 他人に見せる名前とアイコンだけ。uid を知っている人が 1 件ずつ読む。一覧は不可。
+    // uid はチャットの参加者・ボードのメンバーとして既に見えているので、そこから名前を引くのに使う。
+    match /publicProfiles/{uid} {
+      allow get: if request.auth != null;
+      allow list: if false;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['displayName', 'avatarUrl', 'updatedAt'])
+        && (!('displayName' in request.resource.data)
+            || request.resource.data.displayName == null
+            || (request.resource.data.displayName is string && request.resource.data.displayName.size() <= 100))
+        && (!('avatarUrl' in request.resource.data)
+            || request.resource.data.avatarUrl == null
+            || (request.resource.data.avatarUrl is string && request.resource.data.avatarUrl.size() <= 400000));
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // メールアドレス（小文字）→ uid の索引。メールを完全に知っている人だけが 1 件引ける。一覧は不可。
+    // 返すのは uid だけで、メールは載せない（キーそのものが、引いた人が打ったメール）。
+    // 書けるのは、確認済みの自分のメールの行だけ（他人のメールで行を作って相手になりすますのを防ぐ）。
+    match /userDirectory/{emailKey} {
+      allow get: if request.auth != null;
+      allow list: if false;
+      allow create, update: if request.auth != null
+        && request.auth.token.email != null
+        && request.auth.token.email_verified == true
+        && emailKey == request.auth.token.email.lower()
+        && request.resource.data.keys().hasOnly(['uid', 'updatedAt'])
+        && request.resource.data.uid == request.auth.uid;
+      allow delete: if request.auth != null && resource.data.uid == request.auth.uid;
     }
 
     // そのほかユーザー配下データは原則本人のみ（必要に応じて拡張）

@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 import { auth, db } from './firebaseClient';
 import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updateProfile, sendEmailVerification, User as FirebaseUser } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { publishOwnProfile } from './userDirectory';
 
 interface User {
   uid: string;
@@ -64,6 +65,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const snap = await getDoc(ref);
         const data = snap.exists() ? (snap.data() as any) : null;
         setRole((data?.role as 'admin' | 'user') || 'user');
+        // 他人に見せる名前・アイコンと、メールでの相手探しの索引を書く（src/lib/userDirectory.ts）。
+        // users は本人しか読めないので、yychat・Teamタスクの相手の名前はここから引く
+        try {
+          await publishOwnProfile({
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            emailVerified: firebaseUser.emailVerified,
+            displayName: data?.displayName || firebaseUser.displayName || (firebaseUser.email || '').split('@')[0] || null,
+            avatarUrl: data?.avatarUrl ?? null,
+          });
+        } catch (err) {
+          console.warn('公開用プロフィールの保存に失敗:', err);
+        }
       } catch (err) {
         console.warn('ユーザーロールの取得に失敗:', err);
         setRole('user');

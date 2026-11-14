@@ -262,7 +262,7 @@ const TeamTasks: React.FC = () => {
         ;(async () => {
           try {
             const members = await getUsersByUids([b.ownerUid, ...((b.memberUids || []) as any)])
-            const list = members.map(m => ({ uid: m.uid, label: m.displayName || m.email || m.uid }))
+            const list = members.map(m => ({ uid: m.uid, label: m.displayName || '名前未登録' }))
             setMembersByProject(prev => ({ ...prev, [b.id]: list }))
             try { localStorage.setItem(`teamMembers:${currentUser.uid}:${b.id}`, JSON.stringify(list)) } catch {}
           } finally {
