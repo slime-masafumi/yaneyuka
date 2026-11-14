@@ -78,7 +78,8 @@ def text(el, tag):
 
 
 def fetch_prefecture(code, since):
-    params = {'LG_Code': str(int(code)), 'Category': '2', 'CFT_Issue_Date': f'{since}/', 'Count': '1000'}
+    # 都道府県コードは 2 桁のまま渡す('1' だと 0 件になる。'01' が正しい)
+    params = {'LG_Code': code, 'Category': '2', 'CFT_Issue_Date': f'{since}/', 'Count': '1000'}
     for attempt in range(len(RETRY_WAITS) + 1):
         try:
             res = requests.get(API_URL, params=params, headers={'User-Agent': UA}, timeout=60)
