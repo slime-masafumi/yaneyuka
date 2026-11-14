@@ -61,7 +61,8 @@ export function topicOf(text: string, category?: string): Topic {
  * public/image/cover/ に写真を置いた話題。置く前に URL を出すと 404 を何度も踏むので、置いたものだけ並べる。
  * Codex の写真が届いたら slug を足す(2 枚そろっている話題だけ)。
  */
-const READY = new Set<string>([]);
+// 2026-11-14 Codex の 52 枚(26 話題 × 2)を検品して全部入れた
+const READY = new Set<string>(['exhibition', 'seismic', 'energy', 'digital', 'finance', 'economy', 'policy', 'safety', 'workforce', 'civil', 'wood', 'renovation', 'lighting', 'equipment', 'windows', 'exterior', 'interior', 'frame', 'condo', 'realestate', 'office', 'design', 'site', 'house', 'materials', 'detail']);
 
 /** 同じ話題が並んでも同じ写真ばかりにならないよう、記事ごとに 1 か 2 を選ぶ。写真がまだ無い話題は undefined(ハッチの表紙) */
 export function topicPhoto(topic: Topic, key: string): string | undefined {
