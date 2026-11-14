@@ -74,8 +74,6 @@ const GROUPS: Array<{ no: string; label: string; items: Entry[] }> = [
       page('landscape-cad', '添景・CAD', FiImage),
       page('books-software', '書籍・ソフト', FiBookOpen),
       page('pickup', 'Pickup', FiStar),
-      menu('design-info', '設計情報', FiInfo),
-      menu('material-info', '材料情報', FiBox),
     ],
   },
   {
@@ -86,6 +84,9 @@ const GROUPS: Array<{ no: string; label: string; items: Entry[] }> = [
       menu(INDEX_MENUS.design, '設計ツール', FiPenTool, (c) => c === INDEX_MENUS.design || c === 'design-tools'),
       menu(INDEX_MENUS.general, '一般ツール', FiGrid, (c) => GENERAL_TOOL_MENU_IDS.has(c)),
       { label: '建築の調べもの', icon: FiCompass, href: '/lookup/', active: (_c, p) => p.startsWith('/lookup') || p.startsWith('/calc') },
+      // 設計情報・材料情報は実務で引く資料なので「使う」に置く(2026-11-14 に「見る」から移した)
+      menu('design-info', '設計情報', FiInfo),
+      menu('material-info', '材料情報', FiBox),
       menu(INDEX_MENUS.external, '外部ツール', FiExternalLink),
     ],
   },

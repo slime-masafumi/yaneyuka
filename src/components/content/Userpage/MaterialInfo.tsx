@@ -122,7 +122,7 @@ const MaterialInfo: React.FC = () => {
   return (
     <div ref={rootRef} className="yy-mi" data-tab={CAT_CODE[tab]}>
       <PageHead
-        no="12"
+        no="16"
         en="material info"
         title="材料情報"
         desc={

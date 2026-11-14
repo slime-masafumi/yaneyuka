@@ -163,7 +163,7 @@ export default function KarteApp() {
     <div ref={rootRef} style={{ scrollMarginTop: 8 }}>
       <h1 className="sr-only">物件カルテ</h1>
       <PageHead
-        no="13"
+        no="11"
         en="property chart"
         title="物件カルテ"
         desc="条件を一度入れると、各分野の検討で使い回す · 根拠つきの記録が貯まる"

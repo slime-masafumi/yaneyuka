@@ -323,7 +323,7 @@ const DesignInfo: React.FC = () => {
   return (
     <div className="yy-di" id="yy-di-top">
       <PageHead
-        no="11"
+        no="15"
         en="design info"
         title="設計情報"
         desc={

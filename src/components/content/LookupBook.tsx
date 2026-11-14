@@ -21,7 +21,7 @@ export default function LookupBook({ category }: { category: LookupCategory }) {
   return (
     <div className="yy-lkb">
       <PageHead
-        no="16"
+        no="14"
         en="lookup"
         title="建築の調べもの"
         desc="「これはどこで決まる?」を条文と計算から引く"
