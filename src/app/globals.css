@@ -2263,7 +2263,7 @@ nav {
 .yy-mk { margin: 6px 0 14px; }
 .yy-mk__row {
   display: grid;
-  grid-template-columns: 26px 60px minmax(0, 1.5fr) minmax(0, 1.1fr) repeat(6, 52px) 40px;
+  grid-template-columns: 44px 60px minmax(0, 1.5fr) minmax(0, 1.1fr) repeat(6, 52px) 40px;
   align-items: center;
   min-height: 30px;
   padding: 3px 0;
@@ -2272,7 +2272,18 @@ nav {
 }
 .yy-mk__row--head { min-height: 26px; font-size: 11px; color: var(--yy-t3); }
 .yy-mk__row > .flex { display: contents; }
-.yy-mk__no { font-family: var(--yy-serif); font-size: 13px; color: var(--yy-t3); font-variant-numeric: lining-nums tabular-nums; }
+.yy-mk__no { display: flex; align-items: center; gap: 5px; font-family: var(--yy-serif); font-size: 13px; color: var(--yy-t3); font-variant-numeric: lining-nums tabular-nums; }
+.yy-mk__row--head .yy-mk__no { font-family: inherit; font-size: 10.5px; }
+.yy-mk__pick { width: 13px; height: 13px; margin: 0; accent-color: var(--yy-acc); cursor: pointer; }
+/* 写真の無い表(2026-11-14) */
+.yy-mk.is-nopic .yy-mk__row { grid-template-columns: 44px minmax(0, 1.5fr) minmax(0, 1.1fr) repeat(6, 52px) 40px; }
+/* 選んだメーカーを Maker conect に渡す帯(MakerPick) */
+.yy-mkpick { position: sticky; bottom: 12px; z-index: 20; display: flex; align-items: center; gap: 12px; margin: 12px 0 0; padding: 8px 10px 8px 14px; background: var(--yy-deep); color: var(--yy-deep-t); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18); font-size: 12px; }
+.yy-mkpick__n { flex: 0 0 auto; font-family: var(--font-mono), ui-monospace, monospace; font-size: 11px; letter-spacing: 0.06em; }
+.yy-mkpick__n b { font-size: 14px; color: #fff; }
+.yy-mkpick__names { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #fff; }
+.yy-mkpick__clear { flex: 0 0 auto; padding: 0; border: 0; background: none; font: inherit; font-size: 11px; color: var(--yy-deep-t2); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.yy-mkpick__go { flex: 0 0 auto; background: var(--yy-acc) !important; border-color: var(--yy-acc) !important; color: #fff !important; }
 .yy-mk__name { font-family: var(--yy-serif); font-size: 13px; font-weight: 500; color: var(--yy-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 8px; }
 .yy-mk__pages { font-size: 11px; color: var(--yy-t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 8px; }
 .yy-mk__cell { display: flex; align-items: center; }
@@ -2281,7 +2292,8 @@ nav {
 .yy-mk__cell .is-none { color: #d4d4cf; }
 .yy-mk__cell .is-moved { font-size: 9.5px; color: var(--yy-t3); margin-left: 2px; }
 @media (max-width: 1023px) {
-  .yy-mk__row { grid-template-columns: 22px 52px minmax(0, 1fr) repeat(6, 40px) 32px; }
+  .yy-mk__row { grid-template-columns: 38px 52px minmax(0, 1fr) repeat(6, 40px) 32px; }
+  .yy-mk.is-nopic .yy-mk__row { grid-template-columns: 38px minmax(0, 1fr) repeat(6, 40px) 32px; }
   .yy-mk__pages, .yy-mk__row--head .yy-mk__pages { display: none; }
 }
 

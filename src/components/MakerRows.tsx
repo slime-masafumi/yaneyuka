@@ -6,6 +6,7 @@ import MakerLink from '@/components/MakerLink';
 import makers from '@/data/makers.json';
 import makerImages from '@/data/maker-images.json';
 import FeedPic from '@/components/ui/FeedPic';
+import { PICK_MAX, useMakerPick } from '@/components/MakerPick';
 import SaveToMakerBox from '@/components/SaveToMakerBox';
 import MakerLinkLogger from '@/components/MakerLinkLogger';
 import { subcategoryLabel } from '@/lib/materialCategories';
@@ -76,24 +77,28 @@ const MakerRows: React.FC<MakerRowsProps> = ({
   topMargin = false,
 }) => {
   const { filter } = useMakerFilter();
+  const pick = useMakerPick();
   // 見出しの「CAD ◯」などで絞り込み中なら、その資料がある社だけ
   const rows = (DATA[category] || []).filter(
     (m) => m.pages.includes(page) && (m.group || '') === group && (!filter || Boolean(m[filter]))
   );
 
   if (!rows.length) return null;
+  // 写真が 1 枚も無い表は写真の列ごと出さない(空の列が続くのを避ける)
+  const hasPic = rows.some((m) => IMAGES[m.products]);
+  const part = subcategoryLabel(page);
 
   // モック「高級感 3」Q9 の表：番号・社名（明朝）・扱い・リンク 6 列・保存。
   // nameWidth / topMargin は旧レイアウト用で、表になってからは使わない（呼び出し側の互換のため残す）
   void nameWidth;
   void topMargin;
   return (
-    <div className="yy-mk" role="table" aria-label={`${page} のメーカー`}>
+    <div className={`yy-mk${hasPic ? '' : ' is-nopic'}`} role="table" aria-label={`${page} のメーカー`}>
       <div className="yy-mk__row yy-mk__row--head" role="row">
-        <span />
-        <span />
+        <span className="yy-mk__no">{pick ? <span title={`選んだ社にまとめて問い合わせ(${PICK_MAX} 社まで)`}>選ぶ</span> : null}</span>
+        {hasPic && <span />}
         <span>メーカー</span>
-        <span className="yy-mk__pages">扱い</span>
+        <span className="yy-mk__pages">ほかの扱い</span>
         {SLOTS.map((slot) => (
           <span key={slot.key}>{slot.short}</span>
         ))}
@@ -101,8 +106,20 @@ const MakerRows: React.FC<MakerRowsProps> = ({
       </div>
       {rows.map((m, i) => (
         <div key={`${m.name}-${i}`} className="yy-mk__row" role="row">
-          <span className="yy-mk__no">{String(i + 1).padStart(2, '0')}</span>
-          {IMAGES[m.products] ? (
+          <span className="yy-mk__no">
+            {pick && (
+              <input
+                type="checkbox"
+                className="yy-mk__pick"
+                checked={pick.picked.includes(m.name)}
+                disabled={!pick.picked.includes(m.name) && pick.picked.length >= PICK_MAX}
+                onChange={() => pick.toggle(m.name, part)}
+                aria-label={`${m.name} を問い合わせ先に選ぶ`}
+              />
+            )}
+            {String(i + 1).padStart(2, '0')}
+          </span>
+          {!hasPic ? null : IMAGES[m.products] ? (
             <a className="yy-mk__pic" href={m.products} target="_blank" rel="noopener nofollow" tabIndex={-1} aria-hidden="true">
               <FeedPic src={IMAGES[m.products]} size="mk" />
             </a>
@@ -110,7 +127,8 @@ const MakerRows: React.FC<MakerRowsProps> = ({
             <span className="yy-mk__pic" aria-hidden="true" />
           )}
           <span className="yy-mk__name" title={m.name}>{m.name}</span>
-          <span className="yy-mk__pages">{m.pages.map(subcategoryLabel).join(' · ')}</span>
+          {/* この表の分類は見出しで分かるので、ほかに扱っている分類だけ */}
+          <span className="yy-mk__pages">{m.pages.filter((p) => p !== page).map(subcategoryLabel).join(' · ')}</span>
           {/* MakerLinkLogger の span は CSS で display: contents にして、中の 7 つを表の列に並べる */}
           <MakerLinkLogger name={m.name} page={page}>
             {SLOTS.map((slot) => (

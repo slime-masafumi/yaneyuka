@@ -59,6 +59,7 @@ const DesignTools = dynamic(() => import('../content/Userpage/DesignTools'), { l
 const ToolIndex = dynamic(() => import('../content/ToolIndex'), { loading: () => <ToolLoading /> });
 import MaterialNav from '../content/MaterialNav';
 import { MakerFilterProvider } from '../MakerFilter';
+import { MakerPickProvider } from '../MakerPick';
 import { MakerNews, MaterialSide, MaterialSponsor } from '../content/MaterialSide';
 import { INDEX_MENUS } from '@/lib/railMenu';
 import { OPEN_SCREEN_EVENT } from '@/lib/openScreen';
@@ -1460,7 +1461,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
                     />
                     <div className="yy-matbody">
                       {/* 見出しの絞り込み(CAD あり など)。小分類が変わったら作り直して解除 */}
-                      <MakerFilterProvider key={`${activeContent}:${materialSubcategory}`}>{renderContent()}</MakerFilterProvider>
+                      <MakerFilterProvider key={`${activeContent}:${materialSubcategory}`}>
+                        {/* 表の行で選んだメーカーを、下の帯から Maker conect にまとめて渡す */}
+                        <MakerPickProvider>{renderContent()}</MakerPickProvider>
+                      </MakerFilterProvider>
                       {/* 分類・小分類ページの構造化データ（JSON-LD）。本文は null なので見た目には出ない */}
                       {children}
                     </div>

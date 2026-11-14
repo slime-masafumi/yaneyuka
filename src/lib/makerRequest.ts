@@ -67,10 +67,12 @@ export function buildRequest(purpose: RequestPurpose, maker: string, who: Reques
   const subject = `${SUBJECT[purpose]}${d.projectName ? `（${d.projectName}）` : ''}`;
   // 空の項目は null にして行ごと消す（'' は意図した空行）
   const line = (label: string, v?: string): string | null => (v && v.trim() ? `${label}: ${v.trim()}` : null);
+  // 依頼者の欄が空のうちは〔会社名〕のように見せる(送るボタンはそろうまで押せない)
+  const or = (v: string | undefined, label: string) => (v && v.trim() ? v.trim() : `〔${label}〕`);
   const raw: Array<string | null> = [
     `${maker} ご担当者様`,
     '',
-    `${who.companyName} の ${who.personName} と申します。`,
+    `${or(who.companyName, '会社名')} の ${or(who.personName, '氏名')} と申します。`,
     LEAD[purpose],
     '',
     '■ 物件',
@@ -88,9 +90,9 @@ export function buildRequest(purpose: RequestPurpose, maker: string, who: Reques
     d.body?.trim() ? d.body.trim() : null,
     '',
     '■ 連絡先',
-    `${who.companyName}　${who.personName}`,
-    line('メール', who.email),
-    line('電話', who.phone),
+    `${or(who.companyName, '会社名')}　${or(who.personName, '氏名')}`,
+    `メール: ${or(who.email, 'メール')}`,
+    `電話: ${or(who.phone, '電話')}`,
     '',
     'よろしくお願いいたします。',
     '（yaneyuka.com の Maker conect から作成）',

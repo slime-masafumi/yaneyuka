@@ -39,7 +39,21 @@ export default function MakerConect() {
   const [profileMsg, setProfileMsg] = useState('')
   // メーカーごとに手で直した本文（直していなければ自動で作った文面）
   const [edited, setEdited] = useState<Record<string, string>>({})
-  const [done, setDone] = useState<Record<string, string>>({})
+  const [done, setDone] = useState<Record<string, string>>(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem('makerconect-done') || '{}')
+    } catch {
+      return {}
+    }
+  })
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('makerconect-done', JSON.stringify(done))
+    } catch {
+      /* 残せなくても送れる */
+    }
+  }, [done])
+  const doneKey = (name: string) => `${name}|${purpose}`
 
   useEffect(() => {
     import('@/data/makers.json').then((m) => setData((m.default ?? m) as unknown as MakerData))
@@ -73,6 +87,22 @@ export default function MakerConect() {
   }, [])
 
   const hits = useMemo(() => (data && q.trim() ? searchMakers(data, q, 10) : []), [data, q])
+
+  // 同じ部位のメーカー(相見積の候補)。部位が入っていればその分類、無ければ選んだ社が共通して扱う分類
+  const suggest = useMemo(() => {
+    if (!data) return { page: '', list: [] as string[] }
+    const rows = Object.values(data).flat()
+    const pages = new Set(rows.flatMap((r) => r.pages))
+    let page = detail.part && pages.has(detail.part.trim()) ? detail.part.trim() : ''
+    if (!page && makers.length) {
+      const count = new Map<string, number>()
+      for (const r of rows) if (makers.includes(r.name)) for (const p of r.pages) count.set(p, (count.get(p) ?? 0) + 1)
+      page = [...count].sort((a, b) => b[1] - a[1])[0]?.[0] ?? ''
+    }
+    if (!page) return { page: '', list: [] as string[] }
+    const list = [...new Set(rows.filter((r) => r.pages.includes(page) && r.name !== '掲載準備中').map((r) => r.name))].filter((n) => !makers.includes(n))
+    return { page, list: list.slice(0, 12) }
+  }, [data, detail.part, makers])
   const missing = missingRequester(profile)
   const who: Requester = profile
   const set = (patch: Partial<RequestDetail>) => {
@@ -117,7 +147,7 @@ export default function MakerConect() {
     }
     if (d.target) window.open(d.target.url, '_blank', 'noopener,noreferrer')
     const logged = await log(d.name, d.text)
-    setDone((p) => ({ ...p, [d.name]: `依頼文をコピーしました。開いた${d.target?.label ?? '窓口'}に貼って送ってください。${logged ? '担当者連絡先に記録しました。' : currentUser ? '' : '（ログインすると送った記録が残ります）'}` }))
+    setDone((p) => ({ ...p, [doneKey(d.name)]: `依頼文をコピーしました。開いた${d.target?.label ?? '窓口'}に貼って送ってください。${logged ? '担当者連絡先に記録しました。' : currentUser ? '' : '（ログインすると送った記録が残ります）'}` }))
   }
 
   const makerTotal = useMemo(() => (data ? new Set(Object.values(data).flat().map((m) => m.name)).size : 0), [data])
@@ -177,12 +207,28 @@ export default function MakerConect() {
                     <span className="yy-mk2-cb__no">{String(i + 1).padStart(2, '0')}</span>
                     <FeedPic src={data ? makerPhotoMap(data).get(m) : undefined} size="mk" />
                     <span className="yy-mk2-cb__name">{m}</span>
+                    {done[doneKey(m)] && <span className="yy-mk2-mc__sent"><i className="yy-dot" />済</span>}
                     <button type="button" onClick={() => setMakers((p) => p.filter((x) => x !== m))} aria-label="外す" className="yy-mk2-mc__x">✕</button>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="yy-mk2-mc__hint">建材ページ・資料箱・Chatbot の「問い合わせ」からも入ります</p>
+              <p className="yy-mk2-mc__hint">建材ページの表で選ぶ・資料箱・Chatbot の「問い合わせ」からも入ります</p>
+            )}
+            {suggest.list.length > 0 && makers.length < MAX_MAKERS && (
+              <div className="yy-mk2-mc__sug">
+                <div className="yy-mk2-mc__sugh">
+                  <span className="yy-label">{suggest.page} のほかのメーカー</span>
+                  <span>押すと宛先に加わります(相見積・比較)</span>
+                </div>
+                <div className="yy-mk2-mc__sugl">
+                  {suggest.list.map((n) => (
+                    <button key={n} type="button" className="yy-mk2-btn" disabled={makers.length >= MAX_MAKERS} onClick={() => setMakers((p) => (p.includes(n) || p.length >= MAX_MAKERS ? p : [...p, n]))}>
+                      ＋ {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
           </section>
 
@@ -262,6 +308,7 @@ export default function MakerConect() {
                 <div key={d.name} className="yy-mk2-mc__draft">
                   <div className="yy-mk2-mc__dhead">
                     <span className="yy-mk2-mc__dname">{d.name}</span>
+                    {done[doneKey(d.name)] && <span className="yy-mk2-mc__sent"><i className="yy-dot" />済</span>}
                     <span className="yy-mk2-mc__dto">{d.target ? `送り先: ${d.target.label}` : '窓口のページが登録されていません'}</span>
                   </div>
                   <div className="yy-mk2-mc__subj">件名: {d.subject}</div>
@@ -276,7 +323,17 @@ export default function MakerConect() {
                     >
                       {d.target ? `コピーして${d.target.label}を開く` : '依頼文をコピー'}
                     </button>
-                    {done[d.name] && <span className="yy-mk2-ok">{done[d.name]}</span>}
+                    {done[doneKey(d.name)] && <span className="yy-mk2-ok">{done[doneKey(d.name)]}</span>}
+                  </div>
+                  {/* 開いた窓口が違ったときのために、そのメーカーのほかの窓口 */}
+                  <div className="yy-mk2-mc__alt">
+                    {([['catalog', 'カタログ'], ['sample', 'サンプル'], ['cad', 'CAD・技術資料'], ['contact', 'お問い合わせ'], ['office', '営業所'], ['products', '商品']] as const)
+                      .filter(([k]) => { const u = (d.links as Record<string, string | undefined>)[k]; return !!u && u !== '#' && /^https?:/.test(u) && u !== d.target?.url })
+                      .map(([k, label]) => (
+                        <a key={k} href={(d.links as Record<string, string>)[k]} target="_blank" rel="noopener noreferrer">
+                          {label} ↗
+                        </a>
+                      ))}
                   </div>
                 </div>
               ))
