@@ -3,7 +3,7 @@
  *   - 情報ページ・建材 16 分類 ……… siteScreens.ts
  *   - 建材の小分類 ……………………… materialCategories.ts
  *   - 一般ツール・設計ツール …………… generalToolsMenu.ts / designToolsMenu.ts
- *   - 建築の調べもの 2,016 項目 ……… lookup.ts(items.json 約 270KB)
+ *   - 建築の調べもの ……… 設計情報の記事と材料情報の章(src/lib/infoLinks.ts)。2026-11-14 まで条文の目次 2,016 項目だった
  *
  * 調べものの JSON が重いので、このファイルは検索窓を開いたときに import() で読む。
  * 上部の帯から静的に import しないこと(全ページの配信が重くなる)。
@@ -12,7 +12,8 @@ import { ROUTED_SCREENS, screenPath } from './siteScreens';
 import { CATEGORY_SUBCATEGORIES, materialSubPath, subcategoryLabel } from './materialCategories';
 import { GENERAL_TOOL_MENU } from './generalToolsMenu';
 import { DESIGN_TOOL_MENU } from './designToolsMenu';
-import { LOOKUP_CATEGORIES } from './lookup';
+import { MATERIAL_INFO_SECTIONS, designInfoHref, materialInfoHref } from './infoLinks';
+import { designPosts } from '@/data/design-posts';
 import type { UserpageTarget } from './userpageUrl';
 
 export type SearchEntry = {
@@ -90,12 +91,13 @@ export function siteIndex(): SearchEntry[] {
       }));
     }
   }
-  out.push(entry({ label: '建築の調べもの', sub: '索引', group: '調べもの', href: '/lookup/' }));
-  for (const c of LOOKUP_CATEGORIES) {
-    for (const s of c.sections) {
-      for (const it of s.items) {
-        out.push(entry({ label: it.title, sub: `${c.short} · ${it.basis}`, group: '調べもの', href: `/lookup/${c.slug}/#${it.id}` }));
-      }
+  out.push(entry({ label: '建築の調べもの', sub: '設計情報・材料情報', group: '調べもの', href: '/lookup/' }));
+  for (const p of designPosts) {
+    out.push(entry({ label: p.title.replace(/^【[^】]*】s*/, ''), sub: `設計情報 · ${p.category}`, group: '調べもの', href: designInfoHref(p.id) }));
+  }
+  for (const [cat, list] of Object.entries(MATERIAL_INFO_SECTIONS)) {
+    for (const s of list) {
+      out.push(entry({ label: s.title, sub: `材料情報 · ${cat}`, group: '調べもの', href: materialInfoHref(s.id) }));
     }
   }
   cache = out;

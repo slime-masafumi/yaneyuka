@@ -7,7 +7,7 @@ import { DESIGN_TOOL_MENU } from '@/lib/designToolsMenu';
 import { Store } from '@/lib/karte/engine';
 import { TOOL_ART } from '@/components/home/toolArt';
 import { ScreenLink } from '@/components/home/HomeParts';
-import type { LookupItem } from '@/lib/lookup';
+import { infoRows } from '@/lib/infoLinks';
 
 /**
  * 建材ページの周り(モック「高級感 3」Q9)。
@@ -108,7 +108,6 @@ export function MaterialSide({ category, subcategory }: { category: string; subc
   const link = MATERIAL_LINKS[category];
   const [proj, setProj] = useState<{ id: string; name: string } | null | undefined>(undefined);
   const [added, setAdded] = useState(false);
-  const [lookup, setLookup] = useState<{ title: string; slug: string; items: LookupItem[] } | null>(null);
 
   useEffect(() => {
     const db = Store.load();
@@ -122,19 +121,8 @@ export function MaterialSide({ category, subcategory }: { category: string; subc
     }
   }, [subcategory]);
 
-  useEffect(() => {
-    if (!link) return;
-    let alive = true;
-    import('@/lib/lookup').then((m) => {
-      if (!alive) return;
-      const cat = m.LOOKUP_CATEGORIES.find((c) => c.slug === link.lookup.slug);
-      const sec = cat?.sections.find((s) => s.id === link.lookup.section);
-      if (cat && sec) setLookup({ title: sec.title, slug: cat.slug, items: sec.items });
-    });
-    return () => {
-      alive = false;
-    };
-  }, [link]);
+  // 建築の調べもの(材料情報の章・設計情報の記事)。2026-11-14 まで条文の目次を出していた
+  const info = link ? infoRows(link.info.sections, link.info.posts) : [];
 
   const toggleAdd = () => {
     if (!proj) return;
@@ -193,22 +181,22 @@ export function MaterialSide({ category, subcategory }: { category: string; subc
         </section>
       )}
 
-      {lookup && (
+      {info.length > 0 && (
         <section>
-          <SecHead no="IV" title={`調べもの · ${lookup.title}`} right={`${lookup.items.length} 項目`} />
+          <SecHead no="IV" title="建築の調べもの" right={`${info.length} 件`} />
           <ul className="yy-matside__idx">
-            {lookup.items.slice(0, 12).map((it) => (
-              <li key={it.id}>
-                <a href={`/lookup/${lookup.slug}/#${it.id}`} title={`${it.title}(${it.basis})`}>
-                  <span className="yy-matside__it">{it.title}</span>
+            {info.map((r) => (
+              <li key={r.href}>
+                <a href={r.href} title={`${r.kind} · ${r.title}`}>
+                  <span className="yy-matside__it">{r.title}</span>
                   <span className="yy-leader" />
-                  <span className="yy-fmt">{it.format}</span>
+                  <span className="yy-fmt">{r.kind === '材料情報' ? '早見表' : '読みもの'}</span>
                 </a>
               </li>
             ))}
           </ul>
-          <a className="yy-home__more" href={`/lookup/${lookup.slug}/#${link.lookup.section}`}>
-            この章をすべて <span aria-hidden="true">›</span>
+          <a className="yy-home__more" href="/lookup/?tab=material">
+            材料情報をすべて <span aria-hidden="true">›</span>
           </a>
         </section>
       )}

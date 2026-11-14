@@ -7,7 +7,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { FiActivity, FiArrowDown, FiArrowUp, FiBookmark, FiLink, FiPlus, FiPrinter, FiRotateCcw, FiSettings, FiX } from 'react-icons/fi';
-import { CaseSave, KV, LookupList, ModeBar, ResultPanel, ResultRow, SecHead, Sheet, SheetButton, SheetHead, useCase } from '@/components/ui/Sheet';
+import { CaseSave, KV, InfoList, ModeBar, ResultPanel, ResultRow, SecHead, Sheet, SheetButton, SheetHead, useCase } from '@/components/ui/Sheet';
 import { saveStudy } from '@/lib/caseStudies';
 import { DESIGN_TOOL_MENU } from '@/lib/designToolsMenu';
 import './condensation/sheet.css';
@@ -590,7 +590,7 @@ export default function MultiLayerCondensation({ hideHeader, sheet }: Props) {
             </div>
             {ng && worst && <p className="yy-cond__why">{causeOf(profile, worst)}</p>}
             <CaseSave tool={TOOL_ID} result={saveResult} ok={!ng} />
-            <LookupList slug="design" section="1-13" mark={[8]} />
+            <InfoList sections={['section-11', 'section-27', 'section-5']} posts={['1', '9']} />
           </>
         }
       />

@@ -1,6 +1,5 @@
 import { MetadataRoute } from 'next'
 import { allLegalPaths } from '@/lib/legalPages'
-import { LOOKUP_ORDER } from '@/lib/lookup'
 import { FLOW_ARTICLES } from '@/lib/forceFlowArticles'
 import { ROUTED_SCREENS, screenPath, type ChangeFreq } from '@/lib/siteScreens'
 import { CATEGORY_SUBCATEGORIES, materialSubPath } from '@/lib/materialCategories'
@@ -45,7 +44,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   // 索引ページは検索流入の受け皿なので優先度を高めに置く。カルテは端末内アプリなので低め。
   const lookup: SitemapEntry[] = [
     { path: '/lookup', changeFrequency: 'monthly', priority: 0.8 },
-    ...LOOKUP_ORDER.map((slug) => ({ path: `/lookup/${slug}`, changeFrequency: 'monthly' as ChangeFreq, priority: 0.7 })),
+    // /lookup/{分野}/(旧・条文の目次)は 2026-11-14 に載せるのをやめた。ページは公開済みの URL なので残している
     { path: '/calc', changeFrequency: 'monthly', priority: 0.6 },
     { path: '/calc/glass-thickness', changeFrequency: 'monthly', priority: 0.7 },
     { path: '/calc/force-flow', changeFrequency: 'monthly', priority: 0.7 },

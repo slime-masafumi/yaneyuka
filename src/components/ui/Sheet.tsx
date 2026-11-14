@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { CASE_EVENT, getMode, loadCases, saveStudy, selectCase, setMode, studiesOf, touchRecent, type CaseInfo } from '@/lib/caseStudies';
-import type { LookupItem } from '@/lib/lookup';
+import { infoRows } from '@/lib/infoLinks';
 
 /**
  * 計算書の組版(モック「高級感 3」の ガラス厚 Q3 / 結露 Q7 / 換気 Q8 / 設計ツール一覧 Q5・Q6)で使う部品。
@@ -225,30 +225,23 @@ export function CaseSave({ tool, result, ok }: { tool: string; result: string; o
 }
 
 /** 調べもの:章の項目を「項目 ……… 形式」で */
-export function LookupList({ slug, section, no = 'V', limit = 12, mark = [] }: { slug: string; section: string; no?: string; limit?: number; mark?: number[] }) {
-  const [sec, setSec] = useState<{ title: string; items: LookupItem[] } | null>(null);
-  useEffect(() => {
-    let alive = true;
-    import('@/lib/lookup').then((m) => {
-      const s = m.LOOKUP_CATEGORIES.find((c) => c.slug === slug)?.sections.find((x) => x.id === section);
-      if (alive && s) setSec({ title: s.title, items: s.items });
-    });
-    return () => {
-      alive = false;
-    };
-  }, [slug, section]);
-  if (!sec) return null;
+/**
+ * 建築の調べもの(材料情報の章・設計情報の記事)へのつなぎ。計算ツールの右列に出す。
+ * 2026-11-14 まで LookupList(条文の目次)だった。対応は呼び出し側で章 id・記事 id を渡す(src/lib/infoLinks.ts)。
+ */
+export function InfoList({ sections = [], posts = [], no = 'V' }: { sections?: string[]; posts?: string[]; no?: string }) {
+  const rows = infoRows(sections, posts);
+  if (!rows.length) return null;
   return (
     <section className="yy-sheet__block">
-      <SecHead no={no} title={`調べもの · ${sec.title}`} right={`${sec.items.length} 項目`} />
+      <SecHead no={no} title="建築の調べもの" right={`${rows.length} 件`} />
       <ul className="yy-matside__idx">
-        {sec.items.slice(0, limit).map((it, k) => (
-          <li key={it.id}>
-            <a href={`/lookup/${slug}/#${it.id}`} title={`${it.title}(${it.basis})`}>
-              {mark.includes(k) && <i className="yy-dot" />}
-              <span className="yy-matside__it">{it.title}</span>
+        {rows.map((r) => (
+          <li key={r.href}>
+            <a href={r.href} title={`${r.kind} · ${r.title}`}>
+              <span className="yy-matside__it">{r.title}</span>
               <span className="yy-leader" />
-              <span className="yy-fmt">{it.format}</span>
+              <span className="yy-fmt">{r.kind === '材料情報' ? '早見表' : '読みもの'}</span>
             </a>
           </li>
         ))}

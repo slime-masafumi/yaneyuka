@@ -259,7 +259,7 @@ export default function KarteApp() {
       <p className="yy-kt-disc">
         計算結果は設計の目安です。最終判断は建築士など有資格者が、最新の法令・告示を確認したうえで行ってください。
         <br />
-        <Link href="/lookup/">建築の調べもの一覧</Link> · <Link href="/calc/">計算ツール</Link> · <Link href="/calc/glass-thickness/">必要ガラス厚の計算</Link>
+        <Link href="/lookup/">建築の調べもの</Link> · <Link href="/calc/">計算ツール</Link> · <Link href="/calc/glass-thickness/">必要ガラス厚の計算</Link>
       </p>
     </div>
   );

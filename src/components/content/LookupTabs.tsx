@@ -10,6 +10,7 @@ import './lookup-tabs.css';
  * 建築の調べもの(/lookup/)。設計情報と材料情報をタブで切り替える(2026-11-14)。
  *   /lookup/              … 設計情報(設計の技術・法規・設備の読みもの)
  *   /lookup/?tab=material … 材料情報(規格・寸法・特性の早見表)
+ *   /lookup/?tab=material&sec=section-6 … 材料情報の章を指定 / /lookup/?post=7 … 設計情報の記事を指定
  * 以前は左メニューに「設計情報」「材料情報」が別々にあり、調べものは条文の目次(2,016 項目)だった。
  * 目次は /lookup/{分野}/ に残してある(公開済みの URL のため。ここからはつながない)。
  *
@@ -25,9 +26,16 @@ const TABS: { id: Tab; label: string; desc: string }[] = [
 
 export default function LookupTabs() {
   const [tab, setTab] = useState<Tab>('design');
+  const [sec, setSec] = useState<string | null>(null);
+  const [post, setPost] = useState<string | null>(null);
 
   useEffect(() => {
-    const read = () => setTab(new URLSearchParams(window.location.search).get('tab') === 'material' ? 'material' : 'design');
+    const read = () => {
+      const q = new URLSearchParams(window.location.search);
+      setTab(q.get('tab') === 'material' ? 'material' : 'design');
+      setSec(q.get('sec'));
+      setPost(q.get('post'));
+    };
     read();
     window.addEventListener('popstate', read);
     return () => window.removeEventListener('popstate', read);
@@ -53,7 +61,7 @@ export default function LookupTabs() {
           </button>
         ))}
       </nav>
-      {tab === 'design' ? <DesignInfo embedded /> : <MaterialInfo embedded />}
+      {tab === 'design' ? <DesignInfo embedded initialPost={post} /> : <MaterialInfo embedded initialSection={sec} />}
     </div>
   );
 }

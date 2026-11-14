@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { CaseSave, KV, LookupList, ModeBar, ResultPanel, ResultRow, SecHead, Sheet, SheetButton, SheetHead, Step, useCase } from '@/components/ui/Sheet';
+import { CaseSave, KV, InfoList, ModeBar, ResultPanel, ResultRow, SecHead, Sheet, SheetButton, SheetHead, Step, useCase } from '@/components/ui/Sheet';
 import { saveStudy } from '@/lib/caseStudies';
 import { DESIGN_TOOL_MENU } from '@/lib/designToolsMenu';
 import { TOOL_ART } from '@/components/home/toolArt';
@@ -328,7 +328,7 @@ export default function VentSheet(p: VentSheetProps) {
       <div ref={caseRef}>
         <CaseSave tool={TOOL_ID} result={resultText} />
       </div>
-      <LookupList slug="mep" section="3-17" />
+      <InfoList sections={['section-28', 'section-26']} posts={['30', '35', '38']} />
     </>
   );
 

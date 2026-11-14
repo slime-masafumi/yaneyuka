@@ -125,10 +125,10 @@ function StaticSections() {
 
 const RELATED = [
   { href: '/karte/?open=glass', title: '物件カルテで検討を残す', desc: '物件の風速・粗度・高さを一度入れれば、以後の検討で再入力が不要。条件が変わると要再確認が付く' },
-  { href: '/lookup/design/#1-8-02', title: '設計風圧力の算定', desc: '基準風速・粗度区分・ピーク風力係数から外装材用の風圧力を求める' },
-  { href: '/lookup/design/#1-8-08', title: 'ガラスの重量計算', desc: '比重2.5から質量を求める。搬入・取付の可否検討に' },
-  { href: '/lookup/design/#1-8', title: '開口部・ガラスの調べもの一覧', desc: '安全ガラスの選定、サッシの耐風圧等級など開口部まわりの項目をまとめて見る' },
-  { href: '/lookup/', title: '建築の調べもの 逆引き索引', desc: '意匠・構造・設備・電気の2,000項目' },
+  { href: '/lookup/?tab=material&sec=section-1', title: 'ガラス種別(JIS R 3202 他)', desc: 'フロート・強化・合わせ・複層ガラスの厚さと用途の早見表' },
+  { href: '/lookup/?tab=material&sec=section-10', title: 'シーリング材', desc: 'ガラスまわり・目地に使うシーリング材の種類と使い分け' },
+  { href: '/lookup/?post=7', title: '耐火・準耐火構造の考え方', desc: '防火設備としての開口部・ガラスを選ぶ前提' },
+  { href: '/lookup/', title: '建築の調べもの', desc: '設計情報(読みもの)と材料情報(規格・寸法の早見表)' },
 ];
 
 export default function GlassThicknessPage() {
@@ -173,7 +173,7 @@ export default function GlassThicknessPage() {
       <p className="yy-kt-disc">
         計算結果は設計の目安です。実際の採用にあたっては告示の原文と最新の改正内容、ガラスメーカーの技術資料を確認し、最終判断は建築士が行ってください。二辺支持・点支持・特殊形状には対応していません。熱割れ・人体衝突・防火性能は別途の検討が必要です。
         <br />
-        yaneyuka · <Link href="/lookup/">建築の調べもの一覧</Link> · <Link href="/karte/">物件カルテ</Link> · 最終更新 {LAST_UPDATED}
+        yaneyuka · <Link href="/lookup/">建築の調べもの</Link> · <Link href="/karte/">物件カルテ</Link> · 最終更新 {LAST_UPDATED}
       </p>
     </div>
   );

@@ -6,6 +6,7 @@ import PageHead, { Stat } from '@/components/ui/PageHead';
 import { SecHead } from '@/components/ui/Sheet';
 import { ScreenLink } from '@/components/home/HomeParts';
 import './info-pages.css';
+import { MATERIAL_INFO_SECTIONS, findMaterialSection } from '@/lib/infoLinks';
 
 /**
  * 材料情報(左カラム「01 見る」の 12)。本の早見表として組む。
@@ -28,9 +29,18 @@ function splitTitle(title: string): { name: string; note: string } {
 }
 
 /** embedded: 建築の調べもの(/lookup/)のタブの中で出すとき。自前の見出しを出さない */
-const MaterialInfo: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
+const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | null }> = ({ embedded = false, initialSection = null }) => {
   const rootRef = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState<Cat>('意匠');
+  // 章を指定して開いたとき(/lookup/?tab=material&sec=section-6):その分野に切り替えて、章まで送る
+  useEffect(() => {
+    if (!initialSection) return;
+    const s = findMaterialSection(initialSection);
+    if (!s) return;
+    setTab(s.cat as Cat);
+    const t = setTimeout(() => document.getElementById(initialSection)?.scrollIntoView({ block: 'start' }), 120);
+    return () => clearTimeout(t);
+  }, [initialSection]);
   const [current, setCurrent] = useState<string | null>(null);
 
   const scrollToSection = (sectionId: string) => {
@@ -38,58 +48,8 @@ const MaterialInfo: React.FC<{ embedded?: boolean }> = ({ embedded = false }) =>
     if (element) element.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  const categorySections = {
-    '意匠': [
-      { id: 'section-1', title: 'ガラス種別（JIS R 3202 他）' },
-      { id: 'section-2', title: '木材比較表（代表樹種）' },
-      { id: 'section-3', title: '内装仕上げ材（例）' },
-      { id: 'section-4', title: 'タイル・石材・左官材' },
-      { id: 'section-5', title: '内装壁・天井材' },
-      { id: 'section-6', title: '外壁材・屋根材' },
-      { id: 'section-7', title: '天井材（システム天井含む）' },
-      { id: 'section-8', title: '金属板材' },
-      { id: 'section-9', title: '塗料種別' },
-      { id: 'section-10', title: 'シーリング材（シール材）' },
-      { id: 'section-11', title: '主要断熱材一覧（熱伝導率 λ：W/m･K）' },
-      { id: 'section-11a', title: 'LGS（軽量鉄骨天井・壁下地）規格（JIS A 6517）' },
-    ],
-    '構造': [
-      { id: 'section-12', title: '鉄筋（JIS G 3112）' },
-      { id: 'section-13', title: 'H形鋼（JIS G 3192 形鋼の寸法・質量）' },
-      { id: 'section-14', title: '六角ボルト（JIS B 1180・JIS B 1051）' },
-      { id: 'section-15', title: '一般的な鋼板の板厚（JIS G 3193 他）' },
-      { id: 'section-16', title: '鉄筋 断面積・単位重量 早見（参考）' },
-      { id: 'section-17', title: '等辺山形鋼（L形） 代表例' },
-      { id: 'section-18', title: '溝形鋼（C形鋼） 代表例' },
-      { id: 'section-19', title: '角形・矩形鋼管（JIS G 3466 STKR 代表）' },
-      { id: 'section-20', title: '高力ボルト（JIS B 1186 等）' },
-      { id: 'section-21', title: '座金・ナット（対応規格）' },
-      { id: 'section-22', title: 'アンカーボルト（定着材）' },
-      { id: 'section-23', title: 'コンクリート（設計基準強度・材料特性）' },
-      { id: 'section-24', title: '耐震補強・補強材（RC・SRC・S造共通）' },
-    ],
-    '機械': [
-      { id: 'section-25', title: '給排水・衛生配管材' },
-      { id: 'section-26', title: '空調ダクト（材質・用途別）' },
-      { id: 'section-27', title: '熱絶縁（保温材）' },
-      { id: 'section-28', title: '空調・換気機器例（抜粋）' },
-      { id: 'section-29', title: '冷媒配管・ドレン・機器接続材' },
-      { id: 'section-30', title: '衛生器具・給排水装置' },
-      { id: 'section-31', title: 'ポンプ・給水・排水装置' },
-      { id: 'section-32', title: '消火設備・加圧装置' },
-    ],
-    '電気': [
-      { id: 'section-33', title: '電線・配線材（JIS C 3307 等）' },
-      { id: 'section-34', title: '分電盤・配電設備' },
-      { id: 'section-35', title: '照明・スイッチ・コンセント類' },
-      { id: 'section-36', title: '弱電・情報・セキュリティ設備' },
-      { id: 'section-37', title: '接地・避雷・保安設備' },
-      { id: 'section-38', title: '非常電源・防災・避難設備' },
-      { id: 'section-39', title: '制御・計装・BEMS対応' },
-      { id: 'section-40', title: '照度基準と設計目安（JIS Z 9110）' },
-      { id: 'section-41', title: '実務的な配線・設計注意点' },
-    ],
-  };
+  // 章の一覧は src/lib/infoLinks.ts(建材ページ・計算ツール・検索からも章を指定して開くため)
+  const categorySections = MATERIAL_INFO_SECTIONS;
 
   const cats = Object.keys(categorySections) as Cat[];
   const sections = categorySections[tab];

@@ -102,7 +102,7 @@ export default function CalcIndexPage() {
               <span className="yy-sec__title">これから</span>
             </h2>
             <p className="yy-kt-p">
-              <Link className="yy-kt-link" style={{ fontSize: 'inherit' }} href="/lookup/">逆引き索引</Link>
+              <Link className="yy-kt-link" style={{ fontSize: 'inherit' }} href="/lookup/">建築の調べもの</Link>
               の2,000項目のうち、★★★で実装が軽いものから順にツール化していきます。索引の各項目は、ツールができ次第リンクに差し替わります。
             </p>
           </section>

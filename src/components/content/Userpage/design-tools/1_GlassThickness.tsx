@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { WindSpeedTableModal } from './WindSpeedTableModal';
-import { ModeBar, SheetHead, SheetButton, Sheet, SecHead, KV, Step, ResultPanel, ResultRow, CaseSave, LookupList } from '@/components/ui/Sheet';
+import { ModeBar, SheetHead, SheetButton, Sheet, SecHead, KV, Step, ResultPanel, ResultRow, CaseSave, InfoList } from '@/components/ui/Sheet';
 import { DESIGN_TOOL_MENU } from '@/lib/designToolsMenu';
 import './glass-sheet.css';
 import {
@@ -710,7 +710,7 @@ const GlassThickness: React.FC<GlassThicknessProps> = ({ hideHeader, sheet }) =>
         <div ref={caseSaveRef}>
           <CaseSave tool="glass-thickness" result={resultLine} ok={!!res?.ok} />
         </div>
-        <LookupList slug="design" section="1-8" no="IV" />
+        <InfoList sections={['section-1', 'section-10', 'section-8']} posts={['7']} no="IV" />
       </>
     );
 

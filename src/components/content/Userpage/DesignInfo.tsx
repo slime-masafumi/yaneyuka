@@ -30,14 +30,18 @@ interface EditingPost {
 }
 
 /** embedded: 建築の調べもの(/lookup/)のタブの中で出すとき。自前の見出しを出さない */
-const DesignInfo: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
+const DesignInfo: React.FC<{ embedded?: boolean; initialPost?: string | null }> = ({ embedded = false, initialPost = null }) => {
   const { isAdmin, currentUser, isLoggedIn } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest' | 'title'>('newest');
   
   // 選択中の記事ID（初期値はnullだが、useEffectでリストの先頭を自動選択させる）
-  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(initialPost);
+  // 記事を指定して開いたとき(/lookup/?post=7)
+  useEffect(() => {
+    if (initialPost) setSelectedPostId(initialPost);
+  }, [initialPost]);
   
   const [isEditing, setIsEditing] = useState(false);
   const [editingPost, setEditingPost] = useState<EditingPost | null>(null);
