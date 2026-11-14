@@ -381,6 +381,15 @@ export default function PublicWorksList() {
         console.log(`✅ サーバーサイドでソート済み: sortOrder=${sortOrder}`)
       }
 
+      // 同じ案件が 2 件並ばないように(2026-11 に取得方法を官公需 API へ替えたため、旧方式で取った同じ公告が最長 45 日残る)
+      const seenKey = new Set((reset ? [] : works).map((w) => `${w.title}|${w.date}`))
+      filteredWorks = filteredWorks.filter((w) => {
+        const k = `${w.title}|${w.date}`
+        if (seenKey.has(k)) return false
+        seenKey.add(k)
+        return true
+      })
+
       if (reset) {
         setWorks(filteredWorks)
       } else {

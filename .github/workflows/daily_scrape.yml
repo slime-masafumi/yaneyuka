@@ -33,21 +33,14 @@ jobs:
         run: |
           pip install -r scripts/requirements.txt
       
-      - name: Test network connectivity
-        run: |
-          # 接続先は scripts/scrape_kkj.py の BASE_URL に合わせる。
-          # 以前は www.pps.go.jp を見ていたが解決できず、毎回 "DNS lookup failed" が
-          # ログに出ていた（実際のスクレイプ対象ではないので実害はなかった）。
-          echo "Testing DNS resolution..."
-          nslookup www.kkj.go.jp || echo "DNS lookup failed"
-          echo "Testing HTTP connection..."
-          curl -I https://www.kkj.go.jp/ || echo "HTTP connection failed"
-      
-      - name: Run scraping script
+      # 官公需情報ポータルサイトの公式検索 API で取る(scripts/fetch_kkj_api.py)。
+      # 以前の scrape_kkj.py(画面の HTML を読む)は、途中で接続を断られて東京以降が毎回 0 件だった(2026-08〜11)。
+      - name: Fetch public works (kkj API)
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          PYTHONUTF8: '1'
         run: |
-          python scripts/scrape_kkj.py
+          python scripts/fetch_kkj_api.py
 
       - name: Keep workflow alive
         uses: actions/github-script@v7
