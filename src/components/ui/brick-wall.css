@@ -100,3 +100,9 @@
 .yy-bc.is-read .yy-bc__pic { filter: grayscale(1); opacity: 0.5; }
 .yy-bc.is-read::after { content: '既読'; position: absolute; right: 10px; bottom: 8px; padding: 0 4px; background: #efefeb; font-family: var(--font-mono), ui-monospace, monospace; font-size: 9px; letter-spacing: 0.12em; color: var(--yy-t3); }
 .yy-bc.is-read .yy-bc__meta { padding-right: 34px; }
+
+/* レンガの中身がボタン(コンペの詳細など)のとき、ボタンの見た目を消す */
+button.yy-bc { width: 100%; padding: 0; border: 0; background: none; font: inherit; text-align: left; cursor: pointer; }
+/* 締切を過ぎたもの */
+.yy-bc.is-closed .yy-bc__big, .yy-bc.is-closed .yy-bc__title { color: var(--yy-t3); }
+.yy-bc.is-closed .yy-bc__pic { opacity: 0.6; }

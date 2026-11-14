@@ -56,40 +56,42 @@ a.yy-np-ext:hover { color: var(--yy-acc-ink); }
   .yy-np-ext { display: none; }
 }
 
-/* ── 書籍・ソフト:表紙は小さく(最大 44×58)。番号 / 表紙 / 題・説明 / 価格・種別 / 購入先 ── */
-.yy-bk-list { margin: 0; padding: 0; list-style: none; }
+/* ── 書籍・ソフト:表紙の棚(2026-11-14)。縦長の表紙を同じ大きさで並べ、下に題・説明、いちばん下に価格・購入先。
+      番号は表紙の左上に等幅で小さく。1 冊ごとの下に 1px の罫(棚板) ── */
+.yy-bk-list { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 22px 18px; }
 .yy-bk-row {
+  position: relative;
   display: grid;
-  grid-template-columns: 28px 44px minmax(0, 1fr) 96px 150px;
-  grid-template-areas: "no cover body price links";
-  column-gap: 14px;
-  align-items: center;
-  min-height: 74px;
-  padding: 8px 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "cover cover" "body body" "price links";
+  grid-template-rows: auto 1fr auto;
+  row-gap: 8px;
+  column-gap: 8px;
+  align-items: start;
+  padding-bottom: 10px;
   border-bottom: 1px solid var(--yy-line);
 }
-.yy-bk-no { grid-area: no; align-self: baseline; padding-top: 2px; font-family: var(--yy-serif); font-size: 15px; font-weight: 500; color: var(--yy-t3); font-variant-numeric: lining-nums tabular-nums; }
-.yy-bk-cover { grid-area: cover; width: 44px; height: 58px; display: flex; align-items: center; justify-content: center; overflow: hidden; background: var(--yy-surf); }
+.yy-bk-no { position: absolute; top: 6px; left: 7px; z-index: 1; padding: 0 3px; background: rgba(241, 240, 235, 0.9); font-family: var(--font-mono), ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.08em; color: var(--yy-t3); font-variant-numeric: tabular-nums; }
+.yy-bk-cover { grid-area: cover; width: 100%; aspect-ratio: 3 / 4; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 12px; background: var(--yy-surf); }
 .yy-bk-cover a { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
-.yy-bk-cover img { display: block; max-width: 44px; max-height: 58px; width: auto; height: auto; object-fit: contain; border: 0; outline: none; box-shadow: none; }
+.yy-bk-cover img { display: block; max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; border: 0; outline: none; box-shadow: none; transition: opacity 0.2s ease; }
 .yy-bk-cover a:hover img { opacity: 0.8; }
 /* A8.net の広告スクリプトが差し込む要素が表紙の枠を広げないように */
 .yy-bk-cover .a8ad, .yy-bk-a8 { display: contents; }
-.yy-bk-cover .a8ad img { max-width: 44px; max-height: 58px; }
+.yy-bk-cover .a8ad img { max-width: 100%; max-height: 100%; }
 .yy-bk-body { grid-area: body; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-.yy-bk-title { font-size: 13px; line-height: 1.5; color: var(--yy-ink); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.yy-bk-title { font-size: 12.5px; font-weight: 700; line-height: 1.5; color: var(--yy-ink); text-decoration: none; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 a.yy-bk-title:hover { color: var(--yy-acc-ink); text-decoration: underline; text-underline-offset: 3px; }
 .yy-bk-desc { font-size: 11px; line-height: 1.65; color: var(--yy-t3); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.yy-bk-price { grid-area: price; justify-self: end; font-size: 12px; color: var(--yy-t2); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.yy-bk-price .yy-fmt { display: inline-block; }
-.yy-bk-links { grid-area: links; justify-self: end; display: flex; align-items: center; gap: 12px; white-space: nowrap; font-size: 12px; }
+.yy-bk-price { grid-area: price; align-self: baseline; font-family: var(--yy-serif); font-size: 13px; color: var(--yy-ink); font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
+.yy-bk-price .yy-fmt { display: inline-block; font-family: var(--font-mono), ui-monospace, monospace; }
+.yy-bk-links { grid-area: links; align-self: baseline; justify-self: end; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; white-space: nowrap; font-size: 11.5px; }
 .yy-bk-links a { color: var(--yy-acc-ink); text-decoration: none; }
 .yy-bk-links a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .yy-bk-links .is-none { color: var(--yy-t3); font-size: 11px; }
 .yy-bk-pixel { display: none; border: 0; }
 @media (max-width: 767px) {
-  .yy-bk-row { grid-template-columns: 24px 44px auto minmax(0, 1fr); grid-template-areas: "no cover body body" "no cover price links"; row-gap: 4px; }
-  .yy-bk-price { justify-self: start; }
+  .yy-bk-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 14px; }
 }
 
 /* ── Pickup:番号 / 小さな写真 / 種別 / 題・説明 / 値 / 詳細 ── */

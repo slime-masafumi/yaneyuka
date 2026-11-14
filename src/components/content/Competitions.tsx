@@ -2,7 +2,9 @@
 
 import React, { useState } from 'react';
 import PageHead, { Stat } from '../ui/PageHead';
-import { CountList, Photo, RequestPanel, SampleLine, Sec, todayJST } from './ConnectParts';
+import { CountList, RequestPanel, SampleLine, Sec, todayJST } from './ConnectParts';
+import BrickWall from '../ui/BrickWall';
+import FeedPic from '../ui/FeedPic';
 import './connect-pages.css';
 
 interface CompetitionItem {
@@ -105,7 +107,7 @@ const Competitions: React.FC<CompetitionsProps> = ({ onNavigateToRegistration })
     onNavigateToRegistration ? onNavigateToRegistration() : alert('掲載希望フォームを表示します（実装予定）');
   };
 
-  // ---- モック「高級感 3」:分類は下線タブ、一覧は 1 行の索引(募集期間は明朝の数字)、右に締切が近いもの ----
+  // ---- 分類は下線タブ、一覧は馬目地のレンガ(1 枚 1 件。締切を大きく。2026-11-14)、右に締切が近いもの ----
   const TABS: { key: string; label: string }[] = [
     { key: 'public', label: '公共' },
     { key: 'private', label: '民間' },
@@ -173,54 +175,56 @@ const Competitions: React.FC<CompetitionsProps> = ({ onNavigateToRegistration })
       <div className="yy-newspage">
         <div className={`yy-newspage__main yy-cn-fade${isTransitioning ? ' is-out' : ''}`}>
           <section className="yy-cn-list">
-            <Sec no="I" title={current?.label} right={`${items.length} 件 · 締切の順は右列`} />
+            <Sec no="I" title={current?.label} right={`${items.length} 件 · 締切の近い順は右列`} />
             <SampleLine target="コンペ" onRequest={onNavigateToRegistration} />
-            <div className="yy-cp-row yy-cp-row--head">
-              <span />
-              <span />
-              <span>名称 · 概要</span>
-              <span className="yy-cp-org">主催</span>
-              <span className="yy-cp-term">募集期間</span>
-              <span>締切</span>
-              <span />
-            </div>
             {items.length === 0 ? (
               <p className="yy-home__empty">該当するコンペはありません</p>
             ) : (
-              items.map((item, index) => {
-                const t = term(item.schedule);
-                const d = t ? daysLeft(t.end) : null;
-                return (
-                  <div key={item.id} className="yy-cp-row">
-                    <span className="yy-cn-no">{String(index + 1).padStart(2, '0')}</span>
-                    <Photo src={item.image} alt={item.title} fallback="/image/demo project.webp?v=1" />
-                    <span className="yy-cn-body">
-                      <span className="yy-cn-title" title={item.title}>{item.title}</span>
-                      <span className="yy-cn-sub" title={item.outline}>{item.outline}</span>
-                    </span>
-                    <span className="yy-cn-cell yy-cp-org" title={`主催: ${item.organizer}`}>{item.organizer}</span>
-                    <span className="yy-cn-num yy-cp-term" title={item.schedule} style={{ textAlign: 'left' }}>
-                      {t ? (
-                        <>
-                          {yy(t.start)}
-                          {md(t.start)}
-                          <small>〜 {md(t.end)}</small>
-                        </>
-                      ) : (
-                        item.schedule
-                      )}
-                    </span>
-                    <span className={`yy-cp-left${d !== null && d < 0 ? ' is-past' : ''}`}>{t ? leftLabel(t.end) : ''}</span>
+              <BrickWall
+                items={items}
+                label={`${current?.label ?? ''}のコンペ`}
+                brick={290}
+                className="yy-brick--card yy-brick--ev"
+                keyOf={(item) => item.id}
+                render={(item, { half }) => {
+                  const t = term(item.schedule);
+                  const d = t ? daysLeft(t.end) : null;
+                  return (
                     <button
                       type="button"
-                      className="yy-linkbtn yy-cn-act"
+                      className={`yy-bc${d !== null && d < 0 ? ' is-closed' : ''}`}
+                      title={[item.title, item.outline, `主催: ${item.organizer}`, item.schedule].join(' / ')}
                       onClick={() => alert(`${item.title}の詳細を表示します（実装予定）`)}
                     >
-                      詳細
+                      <span className="yy-bc__pic">
+                        {/* 写真は見本の共通画像しか無いので、主催と分類の表紙にする */}
+                        <FeedPic size="row" cover={{ label: `COMPE · ${current?.label ?? ''}`, word: item.organizer }} />
+                      </span>
+                      <span className="yy-bc__body">
+                        <span className="yy-bc__big">
+                          {t ? (
+                            <>
+                              <small>締切 </small>
+                              {yy(t.end)}
+                              {md(t.end)}
+                              <small> {leftLabel(t.end)}</small>
+                            </>
+                          ) : (
+                            <small>{item.schedule}</small>
+                          )}
+                        </span>
+                        <span className="yy-bc__title">{item.title}</span>
+                        {!half && (
+                          <span className="yy-bc__sub">
+                            {item.organizer}
+                            {t ? ` · 募集 ${md(t.start)} 〜 ${md(t.end)}` : ''}
+                          </span>
+                        )}
+                      </span>
                     </button>
-                  </div>
-                );
-              })
+                  );
+                }}
+              />
             )}
           </section>
         </div>

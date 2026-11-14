@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useReadLinks } from '@/lib/readLinks'
 import { collection, query, orderBy, getDocs, where, limit, startAfter, QueryDocumentSnapshot, DocumentData, getCountFromServer } from 'firebase/firestore'
 import { db } from '@/lib/firebaseClient'
 import './public-works.css'
@@ -94,6 +95,8 @@ export async function prefetchPublicWorks() {
 export default function PublicWorksList() {
   const first = LIST_CACHE.get(DEFAULT_KEY)
   const [works, setWorks] = useState<PublicWork[]>(first?.works ?? [])
+  // 開いた公告は既読(灰色)にする。NEWS などと同じ。その端末だけに残る
+  const { isRead, readProps } = useReadLinks()
   const [selectedAreas, setSelectedAreas] = useState<Set<string>>(new Set(['東京'])) // 初期状態は東京のみ表示
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest')
@@ -658,7 +661,7 @@ export default function PublicWorksList() {
             const isNew = isNewArrival(work.date)
             const category = getWorkCategory(work)
             return (
-              <a key={work.id} href={work.link} target="_blank" rel="noopener noreferrer" className="yy-pw__row">
+              <a key={work.id} href={work.link} target="_blank" rel="noopener noreferrer" className={`yy-pw__row${isRead(work.link) ? ' is-read' : ''}`} {...readProps(work.link)}>
                 <span className="yy-pw__no">{String(index + 1).padStart(2, '0')}</span>
                 <span className="yy-fmt yy-pw__cat">{category}</span>
                 <span className="yy-pw__body">

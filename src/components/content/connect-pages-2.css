@@ -166,27 +166,28 @@ select.yy-fr-input { cursor: pointer; }
 .yy-sh-area.is-out { opacity: 0; }
 .yy-sh-area .yy-sec__right { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* 目録：番号 / 小さな正方形の写真 / 銘柄・品名・説明・買う */
+/* 品物の棚(2026-11-14。書籍・ソフトと同じ組み方)。正方形の写真を同じ大きさで並べ、
+   下に銘柄・品名・説明、いちばん下に価格・購入先。番号は写真の左上に等幅で小さく。1 品ごとの下に 1px の罫(棚板) */
 .yy-sh-list {
   margin: 0; padding: 0; list-style: none;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  column-gap: 28px;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 22px 18px;
 }
 .yy-sh-item {
-  display: grid;
-  grid-template-columns: 20px 64px minmax(0, 1fr);
-  column-gap: 12px;
-  align-items: start;
-  padding: 12px 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 10px;
   border-bottom: 1px solid var(--yy-line);
   opacity: 0;
   transition: opacity 0.5s ease;
 }
 .yy-sh-item.is-in { opacity: 1; }
-.yy-sh-no { padding-top: 1px; font-family: var(--yy-serif); font-size: 13px; color: var(--yy-t3); font-variant-numeric: lining-nums tabular-nums; }
+.yy-sh-no { position: absolute; top: 6px; left: 7px; z-index: 1; padding: 0 3px; background: rgba(241, 240, 235, 0.9); font-family: var(--font-mono), ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.08em; color: var(--yy-t3); font-variant-numeric: tabular-nums; }
 .yy-sh-img {
-  width: 64px; height: 64px; overflow: hidden;
+  width: 100%; aspect-ratio: 1 / 1; overflow: hidden; padding: 14px;
   display: flex; align-items: center; justify-content: center;
   background: var(--yy-surf);
 }
@@ -196,7 +197,7 @@ select.yy-fr-input { cursor: pointer; }
 .yy-sh-embed img { max-width: 100%; max-height: 100%; height: auto; object-fit: contain; display: block; }
 .yy-sh-embed iframe { max-width: 100%; max-height: 100%; }
 
-.yy-sh-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.yy-sh-body { flex: 1 1 auto; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .yy-sh-brand { font-family: var(--font-mono), ui-monospace, monospace; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--yy-t3); }
 .yy-sh-name { margin: 0; font-size: 12.5px; font-weight: 700; line-height: 1.5; color: var(--yy-ink); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .yy-sh-desc {
@@ -206,7 +207,7 @@ select.yy-fr-input { cursor: pointer; }
 .yy-sh-desc:hover { color: var(--yy-ink); }
 .yy-sh-desc.is-open { display: block; overflow: visible; }
 .yy-sh-more { align-self: flex-start; font-size: 11px; }
-.yy-sh-foot { display: flex; align-items: baseline; gap: 8px; margin-top: 6px; min-height: 18px; }
+.yy-sh-foot { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin-top: auto; padding-top: 6px; min-height: 18px; }
 .yy-sh-price { font-family: var(--yy-serif); font-size: 15px; font-weight: 500; color: var(--yy-ink); font-variant-numeric: lining-nums tabular-nums; }
 .yy-sh-links { margin-left: auto; display: inline-flex; align-items: baseline; gap: 12px; }
 .yy-sh-buy { font-size: 11.5px; color: var(--yy-acc-ink); text-decoration: none; white-space: nowrap; }
@@ -243,5 +244,5 @@ select.yy-fr-input { cursor: pointer; }
 
 @media (max-width: 767px) {
   .yy-sh-guidetab { margin-left: 0; }
-  .yy-sh-list { grid-template-columns: 1fr; }
+  .yy-sh-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 14px; }
 }

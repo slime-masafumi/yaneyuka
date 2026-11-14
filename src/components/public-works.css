@@ -9,6 +9,9 @@
 .yy-pw__row { display: grid; grid-template-columns: 26px 92px minmax(0, 1fr) 70px 78px 16px; align-items: center; column-gap: 10px; min-height: 40px; padding: 3px 0; border-bottom: 1px solid var(--yy-line); color: var(--yy-ink); text-decoration: none; }
 .yy-pw__row--head { min-height: 26px; font-size: 11px; color: var(--yy-t3); }
 a.yy-pw__row:hover .yy-pw__title { color: var(--yy-acc-ink); }
+/* 開いた公告(既読)は文字を灰色に沈める。src/lib/readLinks.ts。2026-11-14 */
+a.yy-pw__row.is-read, a.yy-pw__row.is-read .yy-pw__title { color: var(--yy-t3); }
+a.yy-pw__row.is-read { background: #f3f3f0; }
 .yy-pw__no { font-family: var(--yy-serif); font-size: 13px; color: var(--yy-t3); font-variant-numeric: lining-nums tabular-nums; }
 .yy-pw__cat { justify-self: start; max-width: 92px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .yy-pw__body { min-width: 0; display: flex; flex-direction: column; gap: 1px; }

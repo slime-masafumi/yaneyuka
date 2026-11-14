@@ -41,11 +41,11 @@ const SHOP_IDS = ['book1', 'book2', 'book3', 'book4', 'book5', 'software1'];
 /** 表紙を Fujisan へのリンクにする雑誌 */
 const MAG_LINK_IDS = ['mag2', 'mag3', 'mag4', 'mag5', 'mag6', 'mag7', 'mag8'];
 
-/** 表紙が読めないときの代わり */
+/** 表紙が読めないときの代わり(棚の表紙の大きさに合わせて伸びる) */
 const NO_IMAGE_SVG = `
-  <svg width="44" height="58" xmlns="http://www.w3.org/2000/svg">
-    <rect width="44" height="58" fill="#F5F5F2"/>
-    <text x="22" y="32" text-anchor="middle" fill="#9A9A96" font-size="7">No Image</text>
+  <svg viewBox="0 0 120 160" width="120" height="160" xmlns="http://www.w3.org/2000/svg">
+    <rect width="120" height="160" fill="#EBEAE4"/>
+    <text x="60" y="84" text-anchor="middle" fill="#9A9A96" font-family="monospace" font-size="9" letter-spacing="1.5">NO IMAGE</text>
   </svg>`;
 const onCoverError = (e: React.SyntheticEvent<HTMLImageElement>) => {
   const target = e.target as HTMLImageElement;
