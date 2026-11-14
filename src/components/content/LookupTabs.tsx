@@ -2,8 +2,12 @@
 
 import React, { useEffect, useState } from 'react';
 import PageHead from '@/components/ui/PageHead';
+import dynamic from 'next/dynamic';
 import DesignInfo from '@/components/content/Userpage/DesignInfo';
-import MaterialInfo from '@/components/content/Userpage/MaterialInfo';
+// 材料情報(表 48 章・約 100KB)は、タブを開いたときに読む。最初の表示を軽くするため
+const MaterialInfo = dynamic(() => import('@/components/content/Userpage/MaterialInfo'), {
+  loading: () => <p className="yy-lkt__loading">材料情報を読み込み中…</p>,
+});
 import './lookup-tabs.css';
 
 /**

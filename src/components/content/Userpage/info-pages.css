@@ -215,3 +215,16 @@
 .yy-mi .yy-mi-note { font-size: 12px; line-height: 1.85; }
 .yy-mi .yy-mi-ch { font-size: 16px; }
 .yy-mi-main { gap: 34px; }
+
+/* 設計情報の段組み(2026-11-14):本文を中央、記事の一覧を右へ。
+   標準の幅 … 本文 | 右:記事一覧 → その下に目次
+   とても広い幅 … 左:目次 | 本文 | 右:記事一覧 */
+.yy-di-body { grid-template-columns: minmax(0, 1fr) 280px; grid-template-areas: 'article index' 'article side'; }
+.yy-di-article { justify-self: center; width: 100%; }
+@media (min-width: 1680px) {
+  .yy-di-body { grid-template-columns: 220px minmax(0, 1fr) 280px; grid-template-rows: auto; grid-template-areas: 'side article index'; }
+  .yy-di-body > .yy-info-side { position: sticky; top: 8px; }
+}
+@media (max-width: 1023px) {
+  .yy-di-body { grid-template-columns: 1fr; grid-template-areas: 'index' 'article' 'side'; }
+}

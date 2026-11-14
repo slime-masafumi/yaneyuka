@@ -27,3 +27,4 @@
   .yy-lkt__tab { grid-template-columns: auto minmax(0, 1fr); }
   .yy-lkt__desc { display: none; }
 }
+.yy-lkt__loading { padding: 24px 0; font-size: 12px; color: var(--yy-t3); }
