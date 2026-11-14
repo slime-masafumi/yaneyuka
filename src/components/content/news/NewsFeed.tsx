@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { getJson, peekJson } from '@/lib/apiCache';
 import { sanitizeHtml } from '@/lib/sanitize'
 import FeedPic from '@/components/ui/FeedPic'
+import BrickWall from '@/components/ui/BrickWall'
 import { NEWS_SOURCES } from '@/lib/newsSources'
 
 export type NewsItem = {
@@ -313,47 +314,46 @@ export default function NewsFeed({ onToggleBookmark, isBookmarked, selectedMonth
 
   return (
     <div className="yy-news">
-      {shown
-        .map((item, i) => {
-        const bookmarked = isBookmarked ? isBookmarked(item.id) : false
-        // 配信元ごとの色は、色の帯ではなく小さな点で示す（本文は組版の白のまま）
-        const highlight = getSourceHighlightColor(item.source)
-        return (
-          <div key={`${item.source}-${item.id}`} className={`yy-news__row${i === 0 ? ' is-lead' : ''}`}>
-            <span className="yy-news__no yy-serif">{String(i + 1).padStart(2, '0')}</span>
-            {/* 写真は左。押すと元記事へ */}
-            <a href={item.link} target="_blank" rel="noopener noreferrer" className="yy-news__piclink" tabIndex={-1} aria-hidden="true">
-              <FeedPic src={item.image} size={i === 0 ? 'lead' : 'row'} className="yy-news__pic" />
-            </a>
-            <div className="yy-news__body">
-              {/* 元記事の出どころ: 配信元 · 日時 · 掲載サイト */}
-              <span className="yy-news__src">
-                <span className="yy-news__srcname">
-                  <span className={`yy-news__dot ${highlight.bg}`} aria-hidden="true" />
-                  {item.source.replace(/[（(]検索[)）]$/, '')}
+      {/* 馬目地: 1 枚のレンガが 1 記事(2026-11-14)。写真は左、出どころ・日時、題。☆ で保存 */}
+      <BrickWall
+        items={shown}
+        label="NEWS"
+        keyOf={(item) => `${item.source}-${item.id}`}
+        render={(item, { index }) => {
+          const bookmarked = isBookmarked ? isBookmarked(item.id) : false
+          const highlight = getSourceHighlightColor(item.source)
+          const when = item.pubDate ? new Date(item.pubDate).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''
+          return (
+            <>
+              <button
+                type="button"
+                onClick={() => onToggleBookmark && onToggleBookmark(item)}
+                className={`yy-bc__save${bookmarked ? ' is-on' : ''}`}
+                aria-label={bookmarked ? 'ブックマーク解除' : 'ブックマーク'}
+                aria-pressed={bookmarked}
+                title={bookmarked ? '保存済み' : '保存'}
+              >
+                {bookmarked ? '★' : '☆'}
+              </button>
+              <a href={item.link} target="_blank" rel="noopener noreferrer" className="yy-bc" title={item.title}>
+                <span className="yy-bc__pic">
+                  <FeedPic src={item.image} size="row" />
                 </span>
-                <span className="yy-news__time">{item.pubDate ? new Date(item.pubDate).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}</span>
-                {hostOf(item.link) && <span className="yy-news__host">{hostOf(item.link)}</span>}
-              </span>
-              <a href={item.link} target="_blank" rel="noopener noreferrer" className="yy-news__title">
-                {item.title}
+                <span className="yy-bc__body">
+                  <span className="yy-bc__meta">
+                    <span className="yy-bc__no">{String(index + 1).padStart(2, '0')}</span>
+                    <span className={`yy-bc__dot ${highlight.bg}`} aria-hidden="true" />
+                    <span>{item.source.replace(/[（(]検索[)）]$/, '')}</span>
+                    <span>{when}</span>
+                  </span>
+                  <span className="yy-bc__title">{item.title}</span>
+                  {hostOf(item.link) && <span className="yy-bc__sub">{hostOf(item.link)}</span>}
+                </span>
               </a>
-              {item.description && (
-                <div className="yy-news__desc line-clamp-2" dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.description) }} />
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={() => onToggleBookmark && onToggleBookmark(item)}
-              className={`yy-news__bm${bookmarked ? ' is-on' : ''}`}
-              aria-label={bookmarked ? 'ブックマーク解除' : 'ブックマーク'}
-              aria-pressed={bookmarked}
-            >
-              {bookmarked ? '★ 保存済' : '☆ 保存'}
-            </button>
-          </div>
-        )
-      })}
+            </>
+          )
+        }}
+      />
       {shown.length === 0 && (
         <div className="text-[12px] text-gray-500">{selectedMonth === 'all' ? '現在表示できるNEWSがありません。' : `${selectedMonth} の記事はまだありません(2026-11-14 から貯めています)。`}</div>
       )}

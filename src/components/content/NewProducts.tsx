@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getJson } from '@/lib/apiCache';
 import FeedPic from '@/components/ui/FeedPic';
+import BrickWall from '@/components/ui/BrickWall';
 import PageHead, { Stat } from '../ui/PageHead';
 import './see-pages.css';
 
@@ -225,45 +226,42 @@ const NewProducts: React.FC<NewProductsProps> = ({ onNavigateToRegistration }) =
       return <p className="yy-np-loading">該当する情報がありません。</p>;
     }
 
+    // 馬目地: 1 枚のレンガが 1 製品(2026-11-14)。写真は左、配信元・日付・分類、製品名
     return (
-      <ol className="yy-np-list">
-        {products.map((product, index) => {
-          const isSample = !product.link;
-          return (
-            <li key={product.id} className={`yy-np-row${index === 0 && !isSample ? ' is-lead' : ''}`}>
-              <span className="yy-np-no">{String(index + 1).padStart(2, '0')}</span>
-              <span className="yy-np-src">
-                <span className="yy-np-srcname" title={product.source}>{product.source || '—'}</span>
-                <span className="yy-np-date">{shortDate(product.pubDate)}</span>
-                {activeCategory === 'all' && <span className="yy-np-cat">{CATEGORY_LABEL[product.category]}</span>}
-              </span>
-              <div className="yy-np-body">
-                {product.link ? (
-                  <a href={product.link} target="_blank" rel="noopener noreferrer" className="yy-np-title">
-                    {product.title}
-                  </a>
-                ) : (
-                  <button
-                    type="button"
-                    className="yy-np-title"
-                    onClick={() => alert(`${product.title}の詳細を表示します（実装予定）`)}
-                  >
-                    {product.title}
-                  </button>
-                )}
-                {product.description && <span className="yy-np-desc">{product.description}</span>}
-                {isSample && <span className="yy-fmt">見本 · {product.price}</span>}
-              </div>
-              <ProductPhoto product={product} lead={index === 0 && !isSample} />
-              {product.link ? (
-                <a href={product.link} target="_blank" rel="noopener noreferrer" className="yy-np-ext" aria-label={`${product.title}の詳細を見る`}>↗</a>
-              ) : (
-                <span className="yy-np-ext" aria-hidden="true" />
-              )}
-            </li>
+      <BrickWall
+        items={products}
+        label="新製品"
+        keyOf={(p) => p.id}
+        render={(product, { index }) => {
+          const meta = (
+            <span className="yy-bc__meta">
+              <span className="yy-bc__no">{String(index + 1).padStart(2, '0')}</span>
+              <span>{product.source || '—'}</span>
+              <span>{shortDate(product.pubDate)}</span>
+              {activeCategory === 'all' && <span>{CATEGORY_LABEL[product.category]}</span>}
+            </span>
           );
-        })}
-      </ol>
+          const inner = (
+            <>
+              <span className="yy-bc__pic">
+                <ProductPhoto product={product} lead={false} />
+              </span>
+              <span className="yy-bc__body">
+                {meta}
+                <span className="yy-bc__title">{product.title}</span>
+                {product.description ? <span className="yy-bc__sub">{product.description}</span> : !product.link ? <span className="yy-bc__sub">見本 · {product.price}</span> : null}
+              </span>
+            </>
+          );
+          return product.link ? (
+            <a href={product.link} target="_blank" rel="noopener noreferrer" className="yy-bc" title={product.title}>
+              {inner}
+            </a>
+          ) : (
+            <span className="yy-bc">{inner}</span>
+          );
+        }}
+      />
     );
   };
 

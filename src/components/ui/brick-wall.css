@@ -1,0 +1,64 @@
+/* 馬目地の一覧(BrickWall)。2026-11-14
+   目地は灰色、レンガは明るい面に小さな角丸。1 枚の中は 写真(左)+ 出どころ・日時(等幅の小さい字)+ 題 */
+.yy-brick {
+  --brick-h: 124px;
+  --mortar: #cfcfca;
+  display: grid;
+  grid-auto-rows: var(--brick-h);
+  gap: 5px;
+  margin: 8px 0 0;
+  padding: 5px;
+  list-style: none;
+  background: var(--mortar);
+  border-radius: 3px;
+}
+.yy-brick__b {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 5px;
+  background: #f7f7f4;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+.yy-brick__b:not(.is-blank):hover { background: #ffffff; box-shadow: inset 0 0 0 1px var(--yy-acc); }
+.yy-brick__b.is-blank { background: #e9e9e5; }
+
+/* 1 枚の中身(各画面が使う共通の組み方) */
+.yy-bc { display: flex; height: 100%; min-width: 0; color: var(--yy-ink); text-decoration: none; }
+.yy-bc__pic { flex: 0 0 38%; height: 100%; overflow: hidden; background: #ececE8; }
+.yy-bc__pic .yy-pic { width: 100%; height: 100%; border-radius: 0; box-shadow: none; }
+/* 写真が読めなかったレンガは、写真の場所ごと消して文字を広げる */
+.yy-bc__pic:has(.yy-pic.is-empty) { display: none; }
+.yy-bc__body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; padding: 8px 10px 8px 10px; }
+.yy-bc__meta { display: flex; align-items: center; gap: 6px; min-width: 0; font-family: var(--font-mono), ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.04em; color: var(--yy-t3); white-space: nowrap; overflow: hidden; }
+.yy-bc__meta > span { overflow: hidden; text-overflow: ellipsis; }
+.yy-bc__meta .yy-bc__no { flex: 0 0 auto; color: var(--yy-t3); }
+.yy-bc__dot { flex: 0 0 auto; width: 5px; height: 5px; border-radius: 50%; }
+.yy-bc__title { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; font-size: 12.5px; line-height: 1.5; font-weight: 500; color: var(--yy-ink); }
+.yy-bc:hover .yy-bc__title { color: var(--yy-acc-ink); }
+/* 題は行の途中で切らない(縮めない)。下の補足は場所が足りなければ消える */
+.yy-bc__title { flex: 0 0 auto; }
+.yy-bc__meta { flex: 0 0 auto; }
+.yy-bc__sub { flex: 0 1 auto; min-height: 0; margin-top: auto; font-size: 10.5px; color: var(--yy-t2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.yy-bc__big { font-family: var(--yy-serif); font-size: 17px; line-height: 1.1; color: var(--yy-ink); font-variant-numeric: lining-nums tabular-nums; }
+.yy-bc__big small { font-size: 11px; color: var(--yy-t2); }
+/* 保存(☆)は右上 */
+.yy-bc__save { position: absolute; top: 4px; right: 5px; z-index: 1; padding: 0 3px; border: 0; background: none; font-size: 13px; line-height: 1; color: var(--yy-t3); cursor: pointer; }
+.yy-bc__save:hover, .yy-bc__save.is-on { color: var(--yy-acc-ink); }
+.yy-bc__save + .yy-bc .yy-bc__meta { padding-right: 16px; }
+
+/* 半レンガ: 写真なし、題は 3 行まで */
+.yy-brick__b.is-half .yy-bc__pic { display: none; }
+.yy-brick__b.is-half .yy-bc__body { padding: 8px 8px; }
+.yy-brick__b.is-half .yy-bc__title { font-size: 11.5px; -webkit-line-clamp: 3; }
+.yy-brick__b.is-half .yy-bc__sub { display: none; }
+
+/* 終わったもの(イベント)の壁は沈める */
+.yy-brick.is-past-wall .yy-brick__b:not(.is-blank) { background: #efefeb; }
+.yy-brick.is-past-wall .yy-bc__title, .yy-brick.is-past-wall .yy-bc__big { color: var(--yy-t2); }
+.yy-brick.is-past-wall .yy-bc__pic { filter: grayscale(1); opacity: 0.7; }
+
+@media (max-width: 767px) {
+  .yy-brick { --brick-h: 104px; }
+  .yy-bc__title { font-size: 12px; }
+}

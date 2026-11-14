@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { getJson, peekJson } from '@/lib/apiCache';
 import FeedPic from '@/components/ui/FeedPic';
+import BrickWall from '@/components/ui/BrickWall';
 import type { EventItem } from '../../content/EventInfo';
 import { listEventBookmarks, setEventBookmark, deleteEventBookmark } from '@/lib/firebaseUserData';
 import { useAuth } from '@/lib/AuthContext';
@@ -231,28 +232,47 @@ export default function EventsWithBookmarks() {
     return { label: `${y}.${String(m + 1).padStart(2, '0')}`, first, days, hit, todayD: isThis ? Number(today.slice(8, 10)) : 0 };
   });
 
-  const row = (ev: ApiEventItem, i: number, done: boolean) => (
-    <div key={ev.id} className={`yy-ev__row${done ? ' is-past' : ''}${!done && i === 0 ? ' is-next' : ''}`}>
-      <span className="yy-ev__date">{yy(ev.startDate)}{md(ev.startDate)}{ev.endDate && ev.endDate !== ev.startDate ? <small> 〜 {md(ev.endDate)}</small> : null}</span>
-      <FeedPic src={ev.image} size="mini" className="yy-ev__pic" />
-      <span className="yy-ev__titlecell">
-        <a className="yy-ev__title" href={ev.link} target="_blank" rel="noopener noreferrer" title={ev.description || ev.title}>{ev.title}</a>
-        {ev.coShows?.length ? (
-          <span className="yy-ev__co" title={ev.coShows.join('\n')}>
-            同時開催 {ev.coShows.length} 展 · {ev.coShows.slice(0, 3).map((n) => n.replace(/^第\d+回\s*/, '')).join('、')}
-          </span>
-        ) : ev.discovered ? (
-          <span className="yy-ev__co">{ev.description ? `${ev.description} · ` : ''}会場の開催予定から</span>
-        ) : null}
-      </span>
-      <span className="yy-ev__venue" title={ev.venue}>{ev.venue}</span>
-      <span className="yy-ev__region">{regionName[ev.region || 'other'] || 'その他'}</span>
-      {!done ? (
-        <button type="button" className={`yy-news__bm${isBookmarked(ev.id) ? ' is-on' : ''}`} onClick={() => toggleBookmark(ev)} aria-pressed={isBookmarked(ev.id)}>
-          {isBookmarked(ev.id) ? '★' : '☆'}
-        </button>
-      ) : <span />}
-    </div>
+  // 馬目地: 1 枚のレンガが 1 イベント(2026-11-14)。会期を大きく、名称、会場・地域。☆ で保存
+  const wall = (list: ApiEventItem[], done: boolean) => (
+    <BrickWall
+      items={list}
+      label={done ? '終わったイベント' : 'これからのイベント'}
+      className={done ? 'is-past-wall' : ''}
+      keyOf={(ev) => ev.id}
+      render={(ev, { half }) => (
+        <>
+          {!done && (
+            <button
+              type="button"
+              className={`yy-bc__save${isBookmarked(ev.id) ? ' is-on' : ''}`}
+              onClick={() => toggleBookmark(ev)}
+              aria-pressed={isBookmarked(ev.id)}
+              aria-label={isBookmarked(ev.id) ? 'ブックマーク解除' : 'ブックマーク'}
+            >
+              {isBookmarked(ev.id) ? '★' : '☆'}
+            </button>
+          )}
+          <a className="yy-bc" href={ev.link} target="_blank" rel="noopener noreferrer" title={[ev.title, ev.venue, ev.coShows?.length ? `同時開催 ${ev.coShows.length} 展` : ''].filter(Boolean).join('\n')}>
+            <span className="yy-bc__pic">
+              <FeedPic src={ev.image} size="row" />
+            </span>
+            <span className="yy-bc__body">
+              <span className="yy-bc__big">
+                {md(ev.startDate)}
+                {ev.endDate && ev.endDate !== ev.startDate ? <small> 〜 {md(ev.endDate)}</small> : null}
+              </span>
+              <span className="yy-bc__title">{ev.title}</span>
+              {!half && (
+                <span className="yy-bc__sub">
+                  {regionName[ev.region || 'other'] || 'その他'} · {ev.venue}
+                  {ev.coShows?.length ? ` · 同時開催 ${ev.coShows.length} 展` : ''}
+                </span>
+              )}
+            </span>
+          </a>
+        </>
+      )}
+    />
   );
 
   return (
@@ -288,13 +308,12 @@ export default function EventsWithBookmarks() {
               <span className="yy-sec__no">I</span><span className="yy-sec__title">これから</span>
               <span className="yy-sec__right">{upcoming.length} 件{daysTo !== null ? ` · 次は ${daysTo <= 0 ? '開催中' : `${daysTo} 日後`}` : ''}</span>
             </div>
-            <div className="yy-ev__row yy-ev__row--head"><span>会期</span><span /><span>名称</span><span>会場</span><span>地域</span><span /></div>
-            {upcoming.length === 0 ? <p className="yy-home__empty">該当するイベントはありません</p> : upcoming.map((ev, i) => row(ev, i, false))}
+            {upcoming.length === 0 ? <p className="yy-home__empty">該当するイベントはありません</p> : wall(upcoming, false)}
           </section>
           {past.length > 0 && (
             <section>
               <div className="yy-sec"><span className="yy-sec__no">II</span><span className="yy-sec__title">終わったもの</span><span className="yy-sec__right">{past.length} 件</span></div>
-              {past.map((ev, i) => row(ev, i, true))}
+              {wall(past, true)}
             </section>
           )}
         </div>
