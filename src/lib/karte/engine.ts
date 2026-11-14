@@ -87,6 +87,8 @@ export type Study = {
   memo: string;
   /** ISO 日時 */
   at: string;
+  /** 設計ツール(tool = dt)の記録を開き直す先。2026-11-15 */
+  href?: string;
 };
 
 /** 保存前の検討（id / projId / memo / at が付く前） */

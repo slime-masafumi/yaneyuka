@@ -68,9 +68,17 @@ export default function ChartView({ project, studies, onSaveProject, onReopen, o
                       </p>
                       <p className={`yy-kt-rec__memo${s.memo ? '' : ' is-empty'}`}>{s.memo || 'メモなし'}</p>
                       <div className="yy-kt-rec__acts">
-                        <button type="button" className="yy-kt-link" onClick={() => onReopen(s.tool)}>
-                          開き直す
-                        </button>
+                        {s.tool === 'dt' ? (
+                          s.href && (
+                            <a className="yy-kt-link" href={s.href}>
+                              開き直す
+                            </a>
+                          )
+                        ) : (
+                          <button type="button" className="yy-kt-link" onClick={() => onReopen(s.tool)}>
+                            開き直す
+                          </button>
+                        )}
                         <button type="button" className="yy-kt-link is-mute is-del" onClick={() => onDelete(s.id)}>
                           削除
                         </button>

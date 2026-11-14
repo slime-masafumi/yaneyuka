@@ -449,7 +449,8 @@ export function checksFor(type: BizKey): CheckDef[] {
 }
 
 /* ══════ 検討項目カタログ ══════ */
-export type ToolKey = 'glass' | 'pipe' | 'fnb';
+/** dt = 設計ツール(/calc/{id}/)から保存した記録。2026-11-15 */
+export type ToolKey = 'glass' | 'pipe' | 'fnb' | 'dt';
 
 export type ItemDef = {
   cat: CatKey;

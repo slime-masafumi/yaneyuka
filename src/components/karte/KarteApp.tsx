@@ -92,6 +92,8 @@ export default function KarteApp() {
   };
   const back = () => setViewRaw(db.backTo || 'chart');
   const openTool = (tool: ToolKey, from: TabView) => {
+    // 設計ツール(dt)の記録は記録側のリンクで /calc/{id}/ を開くので、ここでは何もしない
+    if (tool === 'dt') return;
     setDb((d) => ({ ...d, backTo: from }));
     setViewRaw(tool);
   };

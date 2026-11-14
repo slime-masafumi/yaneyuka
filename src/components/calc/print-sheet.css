@@ -21,3 +21,6 @@ body.yy-ps-doc { margin: 0; background: #fff; }
   .yy-ps.is-printing .yy-result { break-inside: avoid; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .yy-ps.is-printing img, .yy-ps.is-printing svg, .yy-ps.is-printing table { break-inside: avoid; max-width: 100%; }
 }
+.yy-ps__bar { gap: 14px; align-items: center; flex-wrap: wrap; }
+.yy-ps__msg { font-size: 11px; color: var(--yy-t2); }
+.yy-ps__msg a { color: var(--yy-acc-ink); }

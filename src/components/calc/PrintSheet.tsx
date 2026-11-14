@@ -8,8 +8,9 @@
  * 印刷のときだけ、ツール名・根拠・日付・URL の頭書きと、免責の 1 行を出す。
  * 計算書型のツール(ガラス厚・結露・24 時間換気)は自前の印刷があるので使わない。
  */
-import React, { useRef } from 'react';
-import { FiPrinter } from 'react-icons/fi';
+import React, { useRef, useState } from 'react';
+import { FiPrinter, FiSave } from 'react-icons/fi';
+import { saveToolResult } from '@/lib/karte/saveFromTool';
 import './print-sheet.css';
 
 function snapshot(src: HTMLElement): HTMLElement {
@@ -49,6 +50,16 @@ function snapshot(src: HTMLElement): HTMLElement {
 
 export default function PrintSheet({ title, basis, url, children }: { title: string; basis?: string; url?: string; children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
+  const [saved, setSaved] = useState<React.ReactNode>(null);
+  // 物件カルテ(この端末)の今の物件に、答えを記録として残す
+  const save = () => {
+    const el = ref.current;
+    if (!el) return;
+    const r = saveToolResult(el, { title, basis, href: url ? new URL(url).pathname : undefined });
+    if (r.ok) setSaved(<>物件「{r.project}」に保存しました · <a href="/karte/">物件カルテで見る</a></>);
+    else if (r.reason === 'no-karte') setSaved(<>先に<a href="/karte/">物件カルテ</a>で物件を作ると保存できます</>);
+    else setSaved('答えが出てから保存してください');
+  };
   const print = () => {
     const el = ref.current;
     if (!el) return;
@@ -92,6 +103,10 @@ export default function PrintSheet({ title, basis, url, children }: { title: str
   return (
     <div ref={ref} className="yy-ps">
       <div className="yy-ps__bar">
+        {saved && <span className="yy-ps__msg">{saved}</span>}
+        <button type="button" className="yy-dt-link yy-ps__btn" onClick={save} title="入力と答えを、物件カルテで開いている物件の記録に残します">
+          <FiSave aria-hidden="true" /> 物件カルテに保存
+        </button>
         <button type="button" className="yy-dt-link yy-ps__btn" onClick={print} title="入力と答えを A4 の計算書として印刷します(印刷画面で PDF に保存できます)">
           <FiPrinter aria-hidden="true" /> 計算書を印刷・PDF
         </button>

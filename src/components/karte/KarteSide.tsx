@@ -12,7 +12,7 @@ export type Progress = {
   next: Array<{ label: string; cat: CatKey; tool?: ToolKey }>;
 };
 
-export const TOOL_LABEL: Record<ToolKey, string> = { glass: '必要ガラス厚', pipe: '縦樋のサイズ', fnb: '内装の必要諸元' };
+export const TOOL_LABEL: Record<ToolKey, string> = { glass: '必要ガラス厚', pipe: '縦樋のサイズ', fnb: '内装の必要諸元', dt: '設計ツール' };
 
 type Props = {
   progress: Progress;

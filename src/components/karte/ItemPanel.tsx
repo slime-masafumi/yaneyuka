@@ -19,7 +19,7 @@ type Props = {
   onOpenTool: (tool: ToolKey) => void;
 };
 
-const TOOL_NAME: Record<ToolKey, string> = { glass: '必要ガラス厚の計算', pipe: '縦樋の計算', fnb: '内装(区画)の計算' };
+const TOOL_NAME: Record<ToolKey, string> = { glass: '必要ガラス厚の計算', pipe: '縦樋の計算', fnb: '内装(区画)の計算', dt: '設計ツール' };
 
 /** 入力欄 1 つ(数値・選択・はい/いいえ) */
 function Input({ f, value, onChange }: { f: Field; value: string; onChange: (v: string) => void }) {
