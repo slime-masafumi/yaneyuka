@@ -91,7 +91,7 @@ export default function CalcIndexPage() {
             <h2 className="yy-sec yy-kt-h2">
               <span className="yy-sec__no">II</span>
               <span className="yy-sec__title">物件カルテの中で使える検討</span>
-              <span className="yy-sec__right">単体ページは準備中</span>
+              <span className="yy-sec__right">物件カルテの項目から開きます</span>
             </h2>
             <Rows rows={IN_KARTE} />
             <p className="yy-kt-note">物件条件（降雨強度・供給スペック）と組み合わせて使います。</p>

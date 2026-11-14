@@ -71,13 +71,27 @@ if (typeof window !== 'undefined') {
 }
 
 // Firebase Analytics（ブラウザのみ、サポート時）
+// クッキー同意のバナー(CookieConsent.tsx)が「解析は同意後のみ有効化」と書いているので、
+// 同意(consent:v1 の status = all)を見てから起動する。同意した瞬間は 'yy-consent' イベントで起動する。2026-11-14
 export let analytics: Analytics | null = null
-if (typeof window !== 'undefined') {
+function consented(): boolean {
+  try {
+    return JSON.parse(localStorage.getItem('consent:v1') || 'null')?.status === 'all'
+  } catch {
+    return false
+  }
+}
+function startAnalytics() {
+  if (analytics || !consented()) return
   isSupported().then((ok) => {
-    if (ok) {
+    if (ok && !analytics) {
       try { analytics = getAnalytics(app) } catch (err) { console.warn('Analytics初期化失敗:', err) }
     }
   })
+}
+if (typeof window !== 'undefined') {
+  startAnalytics()
+  window.addEventListener('yy-consent', startAnalytics)
 }
 
 export function logEvent(eventName: string, params?: Record<string, any>) {

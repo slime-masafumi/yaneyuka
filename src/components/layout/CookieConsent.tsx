@@ -31,6 +31,8 @@ const CookieConsent: React.FC = () => {
       };
       localStorage.setItem(CONSENT_KEY, JSON.stringify(consentData));
     } catch {}
+    // 同意したら解析(Firebase Analytics)をその場で起動する(src/lib/firebaseClient.ts)
+    try { window.dispatchEvent(new Event('yy-consent')); } catch {}
     setOpen(false);
   };
 

@@ -189,7 +189,7 @@ const MechanicalSystemsContent: React.FC<MechanicalSystemsContentProps> = ({ sub
       {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
       
       <div className="mt-4">
-        <p className="yy-mk2-empty">準備中...</p>
+        <p className="yy-mk2-empty">この分類のメーカーは、いまは載せていません。建材の検索や Chatbot で探せます。掲載のご希望は上の「掲載希望はコチラ」から。</p>
       </div>
     </div>
   );
@@ -198,7 +198,7 @@ const MechanicalSystemsContent: React.FC<MechanicalSystemsContentProps> = ({ sub
     <div>
       {renderHeader(title)}
       <div className="mt-4">
-        <p className="yy-mk2-empty">準備中...</p>
+        <p className="yy-mk2-empty">この分類のメーカーは、いまは載せていません。建材の検索や Chatbot で探せます。掲載のご希望は上の「掲載希望はコチラ」から。</p>
       </div>
     </div>
   );
