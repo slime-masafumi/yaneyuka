@@ -41,7 +41,7 @@ export const DESIGN_TOOL_MENU: DesignToolCategory[] = [
       { id: 'fire-equipment', label: '消防設備', title: '消防設備判定', description: '防火対象物区分・面積・階数から消防設備の設置要否を簡易判定' },
       { id: 'color-palette', label: '配色パレット', title: '配色パレット', description: '基準色から調和する色の組み合わせを提案' },
       { id: 'jpma-search', label: '日塗工番号検索', title: '日塗工番号検索', description: '日塗工番号から近似色・マンセル値を検索' },
-      { id: 'shadow-regulation', label: '日影規制', title: '日影規制', description: '日影規制の検討ツール（準備中）' },
+      { id: 'shadow-regulation', label: '日影規制', title: '日影規制', description: '直方体の建物の日影時間を冬至日の真太陽時で数え、別表第 4 の規制時間(5m・10m の線)と比べる' },
       { id: 'setback-regulation', label: '斜線制限', title: '斜線制限', description: '道路斜線・隣地斜線・北側斜線で、建物の面で許される高さを出す(法 56 条・別表第 3。後退距離の緩和つき)' },
     ],
   },

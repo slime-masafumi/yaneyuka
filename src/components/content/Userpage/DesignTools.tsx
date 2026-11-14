@@ -20,6 +20,7 @@ import PavementDesign from '@/components/content/Userpage/design-tools/PavementD
 import SlopeCalc from '@/components/content/Userpage/design-tools/SlopeCalc';
 import LoadCalc from '@/components/content/Userpage/design-tools/LoadCalc';
 import SetbackCalc from '@/components/content/Userpage/design-tools/SetbackCalc';
+import ShadowCalc from '@/components/content/Userpage/design-tools/ShadowCalc';
 import AreaTableLauncher from '@/components/content/Userpage/design-tools/AreaTableLauncher';
 import FireEquipment from '@/components/content/Userpage/design-tools/3_FireEquipment';
 import BuildingRegulations from '@/components/content/Userpage/design-tools/7_BuildingRegulations';
@@ -64,7 +65,7 @@ const TOOL_COMPONENTS: Record<string, React.ReactNode> = {
   'fire-equipment': <FireEquipment hideHeader />,
   'color-palette': <ColorProposal defaultTab="harmony" hideTabBar />,
   'jpma-search': <ColorProposal defaultTab="jpma" hideTabBar />,
-  'shadow-regulation': <PlaceholderTool name="日影規制" description="日影規制の検討ツールです。（準備中）" />,
+  'shadow-regulation': <ShadowCalc />,
   'setback-regulation': <SetbackCalc />,
   'glass-thickness': <GlassThickness hideHeader sheet />,
   'condensation': <MultiLayerCondensation hideHeader sheet />,
