@@ -4,7 +4,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { getJson } from '@/lib/apiCache';
 import FeedPic from '@/components/ui/FeedPic';
 import BrickWall from '@/components/ui/BrickWall';
-import { isNotPhoto, photoPicker } from '@/lib/feedPhotos';
+import { isNotPhoto } from '@/lib/feedPhotos';
+import { topicOf, topicPhoto } from '@/lib/feedTopic';
+import { useReadLinks } from '@/lib/readLinks';
 import PageHead, { Stat } from '../ui/PageHead';
 import './see-pages.css';
 
@@ -98,9 +100,14 @@ const ProductPhoto: React.FC<{ product: ProductCard; lead: boolean }> = ({ produ
     src={product.image && !isGenericLocalFallback(product.image) && !isNotPhoto(product.image) ? product.image : undefined}
     size={lead ? 'lead' : 'row'}
     className="yy-np-photo"
-    cover={{ label: `NEW · ${CATEGORY_LABEL[product.category] || '新製品'}`, word: product.source || '新製品' }}
+    cover={productCover(product)}
   />
 );
+
+function productCover(product: ProductCard) {
+  const t = topicOf(product.title, product.category);
+  return { label: `NEW · ${CATEGORY_LABEL[product.category] || '新製品'}`, word: product.source || '新製品', photo: topicPhoto(t, product.link || product.id), tag: `IMAGE · ${t.label}` };
+}
 
 type ApiItem = {
   id: string;
@@ -131,6 +138,8 @@ function shortDate(iso?: string): string {
 
 const NewProducts: React.FC<NewProductsProps> = ({ onNavigateToRegistration }) => {
   const [activeCategory, setActiveCategory] = useState<string>('all');
+  // 開いた製品は既読(灰色)にする。その端末だけに残る
+  const { isRead, readProps } = useReadLinks();
   const [apiItems, setApiItems] = useState<ProductCard[] | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
@@ -257,7 +266,7 @@ const NewProducts: React.FC<NewProductsProps> = ({ onNavigateToRegistration }) =
             </>
           );
           return product.link ? (
-            <a href={product.link} target="_blank" rel="noopener noreferrer" className="yy-bc" title={product.title}>
+            <a href={product.link} target="_blank" rel="noopener noreferrer" className={`yy-bc${isRead(product.link) ? ' is-read' : ''}`} title={product.title} {...readProps(product.link)}>
               {inner}
             </a>
           ) : (

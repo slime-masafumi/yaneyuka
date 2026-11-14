@@ -4,6 +4,10 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { getJson, peekJson } from '@/lib/apiCache';
 import FeedPic from '@/components/ui/FeedPic';
 import BrickWall from '@/components/ui/BrickWall';
+import { TOPICS, topicPhoto } from '@/lib/feedTopic';
+import { useReadLinks } from '@/lib/readLinks';
+
+const EXHIBITION = TOPICS[0];
 import type { EventItem } from '../../content/EventInfo';
 import { listEventBookmarks, setEventBookmark, deleteEventBookmark } from '@/lib/firebaseUserData';
 import { useAuth } from '@/lib/AuthContext';
@@ -32,6 +36,8 @@ export default function EventsWithBookmarks() {
   // 先に取ってあれば(src/lib/apiCache.ts)最初から出す
   const [events, setEvents] = useState<ApiEventItem[]>(() => peekJson<{ items?: ApiEventItem[] }>('/api/events/')?.items ?? []);
   // 'other' も選択できるように復活
+  // 開いたイベントは既読(灰色)にする。その端末だけに残る
+  const { isRead, readProps } = useReadLinks();
   const [region, setRegion] = useState<'all' | 'tokyo' | 'nagoya' | 'osaka' | 'fukuoka' | 'other'>('all');
 
   // --- ブックマーク関連のuseEffect（変更なし） ---
@@ -253,9 +259,9 @@ export default function EventsWithBookmarks() {
               {isBookmarked(ev.id) ? '★' : '☆'}
             </button>
           )}
-          <a className="yy-bc" href={ev.link} target="_blank" rel="noopener noreferrer" title={[ev.title, ev.venue, ev.coShows?.length ? `同時開催 ${ev.coShows.length} 展` : ''].filter(Boolean).join('\n')}>
+          <a className={`yy-bc${isRead(ev.link) ? ' is-read' : ''}`} {...readProps(ev.link)} href={ev.link} target="_blank" rel="noopener noreferrer" title={[ev.title, ev.venue, ev.coShows?.length ? `同時開催 ${ev.coShows.length} 展` : ''].filter(Boolean).join('\n')}>
             <span className="yy-bc__pic">
-              <FeedPic src={ev.image} size="row" cover={{ label: `EVENT · ${regionName[ev.region || 'other'] || 'その他'}`, word: ev.venue || ev.title }} />
+              <FeedPic src={ev.image} size="row" cover={{ label: `EVENT · ${regionName[ev.region || 'other'] || 'その他'}`, word: ev.venue || ev.title, photo: topicPhoto(EXHIBITION, ev.id), tag: 'IMAGE · 展示会' }} />
             </span>
             <span className="yy-bc__body">
               <span className="yy-bc__big">

@@ -10,8 +10,10 @@ import { useState } from 'react';
  *
  * cover を渡すと、写真が無い・読めないときに「表紙」を出す(レンガ積みの一覧。2026-11-14)。
  * 図面の断面ハッチの上に、小さな等幅のラベルと明朝の 1 語。写真の場所を空けずに壁の並びをそろえる。
+ * cover.photo があれば、まず話題の写真(src/lib/feedTopic.ts。記事そのものの写真ではない)を「IMAGE」の札付きで出し、
+ * それも読めなければハッチに戻す。
  */
-export type PicCover = { label: string; word: string };
+export type PicCover = { label: string; word: string; photo?: string; tag?: string };
 export default function FeedPic({
   src,
   size = 'row',
@@ -28,6 +30,15 @@ export default function FeedPic({
   const failed = !!src && failedSrc === src;
   const cls = `yy-pic yy-pic--${size}${className ? ` ${className}` : ''}`;
   if (!src || failed) {
+    if (cover?.photo && failedSrc !== cover.photo) {
+      const photo = cover.photo;
+      return (
+        <span className={`${cls} is-cover is-topic`} aria-hidden="true">
+          <img src={photo} alt="" loading="lazy" decoding="async" draggable={false} onError={() => setFailedSrc(photo)} />
+          <span className="yy-pic__label">{cover.tag || 'IMAGE'}</span>
+        </span>
+      );
+    }
     if (cover) {
       return (
         <span className={`${cls} is-cover`} aria-hidden="true">

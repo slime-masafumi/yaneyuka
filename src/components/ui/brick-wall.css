@@ -93,3 +93,10 @@
 .yy-brick--ev .yy-bc__body { gap: 4px; }
 .yy-brick--ev .yy-bc__title { -webkit-line-clamp: 2; }
 .yy-brick--ev .yy-brick__b.is-half .yy-bc__title { -webkit-line-clamp: 2; }
+
+/* 開いた記事(既読)。灰色に沈め、右下に小さく「既読」。src/lib/readLinks.ts。2026-11-14 */
+.yy-brick__b:has(> .yy-bc.is-read) { background: #efefeb; }
+.yy-bc.is-read .yy-bc__title, .yy-bc.is-read .yy-bc__big { color: var(--yy-t3); font-weight: 400; }
+.yy-bc.is-read .yy-bc__pic { filter: grayscale(1); opacity: 0.5; }
+.yy-bc.is-read::after { content: '既読'; position: absolute; right: 10px; bottom: 8px; padding: 0 4px; background: #efefeb; font-family: var(--font-mono), ui-monospace, monospace; font-size: 9px; letter-spacing: 0.12em; color: var(--yy-t3); }
+.yy-bc.is-read .yy-bc__meta { padding-right: 34px; }

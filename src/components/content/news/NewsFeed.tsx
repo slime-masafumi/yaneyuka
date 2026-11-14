@@ -6,6 +6,8 @@ import { sanitizeHtml } from '@/lib/sanitize'
 import FeedPic from '@/components/ui/FeedPic'
 import BrickWall from '@/components/ui/BrickWall'
 import { photoPicker } from '@/lib/feedPhotos'
+import { topicOf, topicPhoto } from '@/lib/feedTopic'
+import { useReadLinks } from '@/lib/readLinks'
 import { NEWS_SOURCES } from '@/lib/newsSources'
 
 export type NewsItem = {
@@ -78,6 +80,8 @@ export default function NewsFeed({ onToggleBookmark, isBookmarked, selectedMonth
   const [items, setItems] = useState<NewsItem[]>(() => peekJson<{ items?: NewsItem[] }>('/api/news/')?.items ?? [])
   const [loading, setLoading] = useState(() => !peekJson('/api/news/'))
   const [minScoreUsed, setMinScoreUsed] = useState<number>(3)
+  // 開いた記事は既読(灰色)にする。その端末だけに残る
+  const { isRead, readProps } = useReadLinks()
   const cacheKey = 'newsCache:v1'
   // 建設・建築ドメインに強く寄せるフィルタ
   const strongKeywords = [
@@ -341,9 +345,9 @@ export default function NewsFeed({ onToggleBookmark, isBookmarked, selectedMonth
               >
                 {bookmarked ? '★' : '☆'}
               </button>
-              <a href={item.link} target="_blank" rel="noopener noreferrer" className="yy-bc" title={item.title}>
+              <a href={item.link} target="_blank" rel="noopener noreferrer" className={`yy-bc${isRead(item.link) ? ' is-read' : ''}`} title={item.title} {...readProps(item.link)}>
                 <span className="yy-bc__pic">
-                  <FeedPic src={photoOf(item)} size="row" cover={{ label: 'NEWS', word: item.source.replace(/[（(]検索[)）]$/, '') }} />
+                  <FeedPic src={photoOf(item)} size="row" cover={(() => { const t = topicOf(item.title); return { label: 'NEWS', word: item.source.replace(/[（(]検索[)）]$/, ''), photo: topicPhoto(t, item.link), tag: `IMAGE · ${t.label}` } })()} />
                 </span>
                 <span className="yy-bc__body">
                   <span className="yy-bc__title">{item.title}</span>

@@ -2593,6 +2593,10 @@ nav {
 .yy-pic.is-empty { background: none; box-shadow: none; }
 /* 写真の無い記事の表紙(FeedPic の cover)。図面の断面ハッチの上に、等幅の小さなラベルと明朝の 1 語。2026-11-14 */
 .yy-pic.is-cover { display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; gap: 4px; padding: 6px 7px; background-color: #ebeae4; background-image: repeating-linear-gradient(135deg, rgba(20, 20, 20, 0.075) 0 1px, transparent 1px 7px); }
+/* 話題の写真(記事の写真ではない)。少し色を抑え、左上に IMAGE の札 */
+.yy-pic.is-topic { display: block; padding: 0; background: var(--yy-surf); }
+.yy-pic.is-topic img { filter: saturate(0.82); }
+.yy-pic.is-topic .yy-pic__label { position: absolute; top: 8px; left: 8px; }
 .yy-pic__label, .yy-pic__word { max-width: 100%; padding: 1px 5px; background: #f7f7f4; box-shadow: 0 0 0 1px rgba(20, 20, 20, 0.08); }
 .yy-pic__label { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-family: var(--font-mono), ui-monospace, monospace; font-size: 8.5px; letter-spacing: 0.12em; color: var(--yy-t3); }
 .yy-pic__word { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-family: var(--yy-serif); font-size: 11px; line-height: 1.35; color: var(--yy-ink); }
