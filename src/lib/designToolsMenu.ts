@@ -88,7 +88,7 @@ export const DESIGN_TOOL_MENU: DesignToolCategory[] = [
       { id: 'duct-sizing', label: 'ダクト径', title: 'ダクト径選定', description: '風量・許容圧損からダクト径を算出' },
       { id: 'duct-insulation', label: 'ダクト結露', title: 'ダクト結露・保温判定', description: 'ダクト表面の結露リスクと必要保温厚を判定' },
       { id: 'duct-outlet', label: '吹出口', title: '吹出口・NC値', description: '吹出口のサイズ選定とNC値の確認' },
-      { id: 'plumbing', label: '給排水計算', title: '給排水計算', description: '給排水管の管径計算ツール（準備中）' },
+      { id: 'plumbing', label: '給排水計算', title: '給排水計算', description: '給水は器具給水負荷単位から同時使用流量と必要内径、排水は器具排水負荷単位から横枝管・立て管の管径と最小勾配' },
     ],
   },
   {
@@ -98,8 +98,8 @@ export const DESIGN_TOOL_MENU: DesignToolCategory[] = [
     description: '',
     subTabs: [
       { id: 'illumination', label: '照度計算', title: '照度計算', description: '光束法で必要台数と平均照度を出し、室指数と配置の目安を見せる(JIS Z 9110 の推奨照度つき)' },
-      { id: 'elec-capacity', label: '電気容量計算', title: '電気容量計算', description: '電気設備容量の計算ツール（準備中）' },
-      { id: 'trunk-size', label: '幹線サイズ', title: '幹線サイズ選定', description: '幹線ケーブルサイズの選定ツール（準備中）' },
+      { id: 'elec-capacity', label: '電気容量計算', title: '電気容量計算', description: '電灯・コンセントを内線規程の標準負荷で想定し、動力と合わせて最大需要電力・受電の区分・変圧器容量の目安を出す' },
+      { id: 'trunk-size', label: '幹線サイズ', title: '幹線サイズ選定', description: '設計電流の許容電流(IV・CVT)と電圧降下の両方を満たす最小の太さを選ぶ' },
     ],
   },
   {

@@ -22,6 +22,9 @@ import LoadCalc from '@/components/content/Userpage/design-tools/LoadCalc';
 import SetbackCalc from '@/components/content/Userpage/design-tools/SetbackCalc';
 import ShadowCalc from '@/components/content/Userpage/design-tools/ShadowCalc';
 import IlluminationCalc from '@/components/content/Userpage/design-tools/IlluminationCalc';
+import TrunkSizeCalc from '@/components/content/Userpage/design-tools/TrunkSizeCalc';
+import ElecCapacityCalc from '@/components/content/Userpage/design-tools/ElecCapacityCalc';
+import PlumbingCalc from '@/components/content/Userpage/design-tools/PlumbingCalc';
 import AreaTableLauncher from '@/components/content/Userpage/design-tools/AreaTableLauncher';
 import FireEquipment from '@/components/content/Userpage/design-tools/3_FireEquipment';
 import BuildingRegulations from '@/components/content/Userpage/design-tools/7_BuildingRegulations';
@@ -88,10 +91,10 @@ const TOOL_COMPONENTS: Record<string, React.ReactNode> = {
   'duct-sizing': <DuctMeasure defaultTab="duct" hideTabBar />,
   'duct-insulation': <DuctMeasure defaultTab="insulation" hideTabBar />,
   'duct-outlet': <DuctMeasure defaultTab="outlet" hideTabBar />,
-  'plumbing': <PlaceholderTool name="給排水計算" description="給排水管の管径計算ツールです。（準備中）" />,
+  'plumbing': <PlumbingCalc />,
   'illumination': <IlluminationCalc />,
-  'elec-capacity': <PlaceholderTool name="電気容量計算" description="電気設備容量の計算ツールです。（準備中）" />,
-  'trunk-size': <PlaceholderTool name="幹線サイズ" description="幹線ケーブルサイズの選定ツールです。（準備中）" />,
+  'elec-capacity': <ElecCapacityCalc />,
+  'trunk-size': <TrunkSizeCalc />,
   'plant-selection': <PlantSelection hideHeader />,
   'exterior-rainwater': <ExteriorRainwater />,
   'slope-calc': <SlopeCalc />,
