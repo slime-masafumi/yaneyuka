@@ -12,6 +12,7 @@ import PageHead, { Stat } from '@/components/ui/PageHead';
 import { ROUGH_LABEL } from '@/lib/karte/glass';
 import { Store, defaultDb, defaultFnb, itemStatus, uid, type DB, type Fnb, type StudyDraft, type TabView, type View } from '@/lib/karte/engine';
 import { CATS, ITEMS, STR_LABEL, USE_LABEL, newProject, type CatKey, type Project, type ToolKey } from '@/lib/karte/masters';
+import KarteGuide from './KarteGuide';
 
 const TABS: Array<[TabView, string]> = [['chart', 'カルテ'], ...CATS];
 const TOOLS: View[] = ['glass', 'pipe', 'fnb'];
@@ -176,6 +177,8 @@ export default function KarteApp() {
           </>
         }
       />
+
+      <KarteGuide />
 
       {/* ══ 案件の帯（灰色） ══ */}
       <div className="yy-gray yy-kt-case">
