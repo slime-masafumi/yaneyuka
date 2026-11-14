@@ -1,20 +1,20 @@
 import type { Metadata } from 'next';
-import { LOOKUP_CATEGORIES, LOOKUP_ORDER } from '@/lib/lookup';
-import LookupBook from '@/components/content/LookupBook';
+import LookupTabs from '@/components/content/LookupTabs';
+
 export const metadata: Metadata = {
-  title: '建築の調べもの 逆引き索引（意匠・構造・設備・電気）',
+  title: '建築の調べもの(設計情報・材料情報)',
   description:
-    '建築実務で「すぐ引きたい」項目を、意匠・構造・設備・電気の4分野・各28章に分けた逆引き索引。各項目に根拠条文の略記と、計算ツール／判定／早見表／選定表の形式を付けています。',
+    '設計の技術・法規・設備の読みもの(設計情報)と、建材の規格・寸法・特性の早見表(材料情報)。意匠・構造・機械・電気の分野ごとにまとめています。',
   alternates: { canonical: '/lookup/' },
 };
 
-// モック「高級感 3」Q1。索引トップは最初の分野(意匠・法規)を開いた状態で出す。他の分野はタブ(/lookup/{分野}/)
+// 建築の調べもの = 設計情報 / 材料情報 のタブ(2026-11-14 に作り替え)。
+// 以前ここにあった条文の目次(意匠・構造・設備・電気 2,016 項目)は /lookup/{分野}/ に残っている(公開済みの URL)。
 export default function LookupIndexPage() {
-  const first = LOOKUP_CATEGORIES.find((c) => c.slug === LOOKUP_ORDER[0])!;
   return (
     <>
-      <h1 className="sr-only">建築の調べもの 逆引き索引</h1>
-      <LookupBook category={first} />
+      <h1 className="sr-only">建築の調べもの(設計情報・材料情報)</h1>
+      <LookupTabs />
     </>
   );
 }

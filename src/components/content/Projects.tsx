@@ -268,7 +268,7 @@ const Projects: React.FC<ProjectsProps> = ({ onNavigateToRegistration, initialCa
   return (
     <div>
       <PageHead
-        no="18"
+        no="16"
         en="projects"
         title="プロジェクト"
         desc="公共・民間の建設案件、パートナー募集、現地調査案件の情報"

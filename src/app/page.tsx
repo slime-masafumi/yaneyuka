@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { screensInGroup, screenPath } from '@/lib/siteScreens';
 import { CATEGORY_SUBCATEGORIES } from '@/lib/materialCategories';
-import { LOOKUP_CATEGORIES, LOOKUP_TOOL_LINKS, LOOKUP_TOTAL } from '@/lib/lookup';
+import { designPosts } from '@/data/design-posts';
 import { DESIGN_TOOL_MENU } from '@/lib/designToolsMenu';
 import { TOOL_ART } from '@/components/home/toolArt';
 import { HomeCase, HomeEvents, HomeNews, ScreenLink } from '@/components/home/HomeParts';
@@ -58,8 +58,11 @@ function SecHead({ no, title, right }: { no: string; title: string; right?: Reac
 
 export default function Home() {
   const mats = screensInGroup('material');
-  const design = LOOKUP_CATEGORIES[0];
-  const toolSections = new Set(Object.keys(LOOKUP_TOOL_LINKS).map((id) => id.split('-').slice(0, 2).join('-')));
+  // 建築の調べもの(/lookup/)= 設計情報 / 材料情報。設計情報は記事の分類と件数、材料情報は分野
+  const infoCats = Object.entries(
+    designPosts.reduce<Record<string, number>>((m, p) => ((m[p.category] = (m[p.category] || 0) + 1), m), {})
+  ).sort((a, b) => b[1] - a[1]);
+  const MATERIAL_FIELDS = ['意匠', '構造', '機械', '電気'];
   const month = new Date(Date.now() + 9 * 3600_000).toISOString().slice(0, 7);
 
   return (
@@ -131,21 +134,31 @@ export default function Home() {
         {/* 右:調べものと法規 */}
         <div className="yy-home__side">
           <section>
-            <SecHead no="V" title="建築の調べもの" right={`${LOOKUP_TOTAL.toLocaleString('ja-JP')} 項目`} />
+            <SecHead no="V" title="建築の調べもの" right={`${designPosts.length} 記事 · ${MATERIAL_FIELDS.length} 分野`} />
             <ol className="yy-home__toc">
-              {design.sections.slice(0, 12).map((s, i) => (
-                <li key={s.id}>
-                  <Link href={`/lookup/${design.slug}/#${s.id}`}>
-                    <span className={`yy-home__tocno${toolSections.has(s.id) ? ' is-tool' : ''}`}>{String(i + 1).padStart(2, '0')}</span>
-                    <span className="yy-home__toct">{s.title}</span>
+              {infoCats.map(([cat, n], i) => (
+                <li key={cat}>
+                  <Link href="/lookup/">
+                    <span className="yy-home__tocno">{String(i + 1).padStart(2, '0')}</span>
+                    <span className="yy-home__toct">設計情報 · {cat}</span>
                     <span className="yy-leader" />
-                    <span className="yy-home__n">{s.items.length}</span>
+                    <span className="yy-home__n">{n}</span>
+                  </Link>
+                </li>
+              ))}
+              {MATERIAL_FIELDS.map((f, i) => (
+                <li key={f}>
+                  <Link href="/lookup/?tab=material">
+                    <span className="yy-home__tocno is-tool">{String(infoCats.length + i + 1).padStart(2, '0')}</span>
+                    <span className="yy-home__toct">材料情報 · {f}の早見表</span>
+                    <span className="yy-leader" />
+                    <span className="yy-home__n">表</span>
                   </Link>
                 </li>
               ))}
             </ol>
             <Link className="yy-home__more" href="/lookup/">
-              目次へ <span aria-hidden="true">›</span>
+              調べものへ <span aria-hidden="true">›</span>
             </Link>
           </section>
           <section>

@@ -1298,7 +1298,7 @@ const ShopContent: React.FC = () => {
   return (
     <div className="yy-sh">
       <PageHead
-        no="24"
+        no="22"
         en="shop"
         title="Shop"
         desc="設計・現場で役立つ道具"

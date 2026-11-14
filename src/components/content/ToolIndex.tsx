@@ -23,7 +23,7 @@ type Group = { label: string; rows: Row[] };
 const HEAD: Record<Kind, { no: string; en: string; title: string; desc: string }> = {
   design: { no: '12', en: 'design tools', title: '設計ツール', desc: '分野ごとの計算・判定・検討。条件はその場で入れる' },
   general: { no: '13', en: 'general tools', title: '一般ツール', desc: '日々の仕事の道具。予定・記録・やりとり・現場' },
-  external: { no: '17', en: 'apps', title: '外部ツール', desc: 'yaneyuka の Web アプリと iOS アプリ。新しいタブで開く' },
+  external: { no: '15', en: 'apps', title: '外部ツール', desc: 'yaneyuka の Web アプリと iOS アプリ。新しいタブで開く' },
 };
 
 export default function ToolIndex({

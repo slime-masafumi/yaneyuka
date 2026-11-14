@@ -213,7 +213,7 @@ const DesignOffices: React.FC<DesignOfficesProps> = ({ onNavigateToRegistration 
   return (
     <div>
       <PageHead
-        no="21"
+        no="19"
         en="design offices"
         title="設計事務所"
         desc="意匠・構造・設備など専門分野ごとの設計事務所"

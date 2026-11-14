@@ -75,7 +75,7 @@ const ConstructionCompanies: React.FC<ConstructionCompaniesProps> = ({ onNavigat
   return (
     <div>
       <PageHead
-        no="20"
+        no="18"
         en="contractors"
         title="施工会社"
         desc="建築・土木・設備など各専門分野の施工会社"

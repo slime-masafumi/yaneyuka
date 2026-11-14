@@ -602,7 +602,7 @@ export default function Forum() {
   return (
     <div className="yy-fr">
       <PageHead
-        no="23"
+        no="21"
         en="forum"
         title="掲示板"
         desc="業務の疑問・事例共有・協力先探し"

@@ -29,7 +29,8 @@ interface EditingPost {
   tags: string;
 }
 
-const DesignInfo: React.FC = () => {
+/** embedded: 建築の調べもの(/lookup/)のタブの中で出すとき。自前の見出しを出さない */
+const DesignInfo: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
   const { isAdmin, currentUser, isLoggedIn } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -322,7 +323,7 @@ const DesignInfo: React.FC = () => {
 
   return (
     <div className="yy-di" id="yy-di-top">
-      <PageHead
+      {!embedded && <PageHead
         no="15"
         en="design info"
         title="設計情報"
@@ -338,7 +339,7 @@ const DesignInfo: React.FC = () => {
             {isLoggedIn && <Stat n={bookmarkCount} label="お気に入り" />}
           </>
         }
-      />
+      />}
 
       <nav className="yy-tabs" aria-label="分類">
         {categories.map(cat => (

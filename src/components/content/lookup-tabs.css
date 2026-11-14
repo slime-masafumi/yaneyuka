@@ -1,0 +1,29 @@
+/* 建築の調べもの(LookupTabs):設計情報 / 材料情報 の切り替え。中の分類タブ(下線タブ)と見分けるため、番号つきの 2 段の札にする */
+.yy-lkt__switch { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 4px 0 18px; border-bottom: 1px solid var(--yy-ink); }
+.yy-lkt__tab {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: baseline;
+  column-gap: 10px;
+  padding: 10px 14px 11px 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  color: var(--yy-t3);
+  cursor: pointer;
+}
+.yy-lkt__tab + .yy-lkt__tab { padding-left: 16px; border-left: 1px solid var(--yy-line); }
+.yy-lkt__no { font-family: var(--yy-serif); font-size: 13px; font-variant-numeric: lining-nums tabular-nums; }
+.yy-lkt__label { font-family: var(--yy-serif); font-size: 17px; font-weight: 500; color: inherit; white-space: nowrap; }
+.yy-lkt__desc { min-width: 0; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.yy-lkt__tab:hover { color: var(--yy-t2); }
+.yy-lkt__tab[aria-pressed='true'] { color: var(--yy-ink); }
+.yy-lkt__tab[aria-pressed='true'] .yy-lkt__no { color: var(--yy-acc-ink); }
+.yy-lkt__tab[aria-pressed='true']::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 3px; background: var(--yy-acc); }
+.yy-lkt__tab + .yy-lkt__tab[aria-pressed='true']::after { left: 16px; }
+.yy-lkt .yy-mi, .yy-lkt .yy-di { padding-top: 0; }
+@media (max-width: 767px) {
+  .yy-lkt__tab { grid-template-columns: auto minmax(0, 1fr); }
+  .yy-lkt__desc { display: none; }
+}

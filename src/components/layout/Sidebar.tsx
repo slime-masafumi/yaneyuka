@@ -5,8 +5,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { IconType } from 'react-icons';
 import {
-  FiAward, FiBook, FiBookOpen, FiBookmark, FiBox, FiBriefcase, FiCalendar, FiCompass, FiEdit3, FiExternalLink,
-  FiFileText, FiFlag, FiFolder, FiGrid, FiHome, FiImage, FiInfo, FiLayers, FiMessageSquare, FiPackage, FiPenTool,
+  FiAward, FiBook, FiBookOpen, FiBookmark, FiBriefcase, FiCalendar, FiCompass, FiEdit3, FiExternalLink,
+  FiFileText, FiFlag, FiFolder, FiGrid, FiHome, FiImage, FiLayers, FiMessageSquare, FiPackage, FiPenTool,
   FiShoppingBag, FiStar, FiUsers,
 } from 'react-icons/fi';
 import type { UserpageTarget } from '@/lib/userpageUrl';
@@ -83,10 +83,8 @@ const GROUPS: Array<{ no: string; label: string; items: Entry[] }> = [
       { label: '物件カルテ', icon: FiBookmark, href: '/karte/', active: (_c, p) => p.startsWith('/karte') },
       menu(INDEX_MENUS.design, '設計ツール', FiPenTool, (c) => c === INDEX_MENUS.design || c === 'design-tools'),
       menu(INDEX_MENUS.general, '一般ツール', FiGrid, (c) => GENERAL_TOOL_MENU_IDS.has(c)),
-      { label: '建築の調べもの', icon: FiCompass, href: '/lookup/', active: (_c, p) => p.startsWith('/lookup') || p.startsWith('/calc') },
-      // 設計情報・材料情報は実務で引く資料なので「使う」に置く(2026-11-14 に「見る」から移した)
-      menu('design-info', '設計情報', FiInfo),
-      menu('material-info', '材料情報', FiBox),
+      // 設計情報・材料情報は「建築の調べもの」の中のタブにした(2026-11-14)
+      { label: '建築の調べもの', icon: FiCompass, href: '/lookup/', active: (c, p) => p.startsWith('/lookup') || p.startsWith('/calc') || c === 'design-info' || c === 'material-info' },
       menu(INDEX_MENUS.external, '外部ツール', FiExternalLink),
     ],
   },

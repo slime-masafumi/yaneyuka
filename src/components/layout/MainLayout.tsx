@@ -171,6 +171,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
    * 置いておく必要があるので、setActiveContent より先に渡す。
    */
   const applyUserpageTarget = useCallback((target: UserpageTarget) => {
+    // 旧 URL(/?m=design-info・/?m=material-info)は建築の調べものの該当タブへ
+    if (target.menu === 'design-info' || target.menu === 'material-info') {
+      window.location.replace(target.menu === 'material-info' ? '/lookup/?tab=material' : '/lookup/');
+      return;
+    }
     if (target.menu === 'general-tools' && target.tool) {
       requestGeneralTool({ toolId: target.tool as GeneralToolId });
     }
@@ -499,6 +504,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
   
 
   const handleMenuClick = (menuItem: string, target?: UserpageTarget) => {
+    // 設計情報・材料情報は「建築の調べもの」(/lookup/)のタブになった。どこから開いても調べものへ
+    if (menuItem === 'design-info' || menuItem === 'material-info') {
+      setActiveContent('topix');
+      activeContentRef.current = 'topix';
+      router.push(menuItem === 'material-info' ? '/lookup/?tab=material' : '/lookup/');
+      return;
+    }
     console.log('Menu clicked:', menuItem);
     
     // URLベースのルーティングを使用するメニューは、Navigation.tsxで処理される

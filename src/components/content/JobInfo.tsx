@@ -355,7 +355,7 @@ const JobInfo: React.FC<JobInfoProps> = ({ onNavigateToRegistration }) => {
   return (
     <div>
       <PageHead
-        no="22"
+        no="20"
         en="jobs"
         title="求人情報"
         desc="建築・設備・施工分野の求人を職種別に"

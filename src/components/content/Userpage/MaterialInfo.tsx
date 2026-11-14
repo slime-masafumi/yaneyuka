@@ -27,7 +27,8 @@ function splitTitle(title: string): { name: string; note: string } {
   return { name: title, note: '' };
 }
 
-const MaterialInfo: React.FC = () => {
+/** embedded: 建築の調べもの(/lookup/)のタブの中で出すとき。自前の見出しを出さない */
+const MaterialInfo: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
   const rootRef = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState<Cat>('意匠');
   const [current, setCurrent] = useState<string | null>(null);
@@ -121,7 +122,7 @@ const MaterialInfo: React.FC = () => {
 
   return (
     <div ref={rootRef} className="yy-mi" data-tab={CAT_CODE[tab]}>
-      <PageHead
+      {!embedded && <PageHead
         no="16"
         en="material info"
         title="材料情報"
@@ -136,7 +137,7 @@ const MaterialInfo: React.FC = () => {
             <Stat n={total} label="章" />
           </>
         }
-      />
+      />}
       <nav className="yy-tabs" aria-label="分野">
         {cats.map((c) => (
           <button key={c} type="button" className="yy-tab" aria-pressed={c === tab} onClick={() => changeTab(c)}>

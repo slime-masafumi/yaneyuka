@@ -139,7 +139,7 @@ const Competitions: React.FC<CompetitionsProps> = ({ onNavigateToRegistration })
   return (
     <div>
       <PageHead
-        no="19"
+        no="17"
         en="competitions"
         title="コンペ"
         desc="公共・民間・学生向けなど建築系コンペ情報"
