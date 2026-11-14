@@ -113,3 +113,23 @@
   .yy-jb-row { grid-template-columns: 50px minmax(0, 1fr) 48px; }
   .yy-jb-loc, .yy-jb-pay { display: none !important; }
 }
+
+/* 掲載受付の画面(ConnectParts の Intake)。2026-11-14 */
+.yy-intake { display: flex; flex-direction: column; gap: 14px; }
+.yy-intake__lead { margin: 0; font-size: 12.5px; line-height: 1.8; color: var(--yy-t2); max-width: 640px; }
+.yy-intake__table { border-top: 1px solid var(--yy-ink); }
+.yy-intake__head { display: flex; gap: 18px; padding: 6px 0; border-bottom: 1px solid var(--yy-line); font-size: 11px; color: var(--yy-t3); }
+.yy-intake__head span:first-child { flex: 1 1 auto; }
+.yy-intake__empty { margin: 0; padding: 22px 0; border-bottom: 1px solid var(--yy-line); font-size: 12px; color: var(--yy-t3); text-align: center; background-image: repeating-linear-gradient(135deg, rgba(20, 20, 20, 0.04) 0 1px, transparent 1px 7px); }
+.yy-intake__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 28px; }
+.yy-intake__list { margin: 6px 0 12px; padding: 0; list-style: none; }
+.yy-intake__list li { display: flex; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--yy-line); font-size: 12px; color: var(--yy-ink); }
+.yy-intake__no { flex: 0 0 auto; font-family: var(--font-mono), ui-monospace, monospace; font-size: 10px; letter-spacing: 0.08em; color: var(--yy-t3); padding-top: 2px; }
+.yy-intake__cats { margin: 6px 0 0; font-size: 12px; color: var(--yy-t2); }
+.yy-intake__rules { padding: 10px 12px; border-left: 2px solid var(--yy-acc); background: var(--yy-surf); }
+.yy-intake__rules ul { margin: 6px 0 0; padding-left: 1.1em; font-size: 11.5px; line-height: 1.8; color: var(--yy-t2); }
+.yy-intake__btn { align-self: flex-start; }
+@media (max-width: 767px) {
+  .yy-intake__grid { grid-template-columns: 1fr; }
+  .yy-intake__head { flex-wrap: wrap; gap: 4px 12px; }
+}

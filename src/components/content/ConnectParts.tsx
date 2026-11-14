@@ -128,3 +128,92 @@ export function Photo({ src, alt, fallback, size }: { src: string; alt: string; 
     </span>
   );
 }
+
+/**
+ * 掲載を受け付けている一覧の画面(施工会社・設計事務所・求人)。2026-11-14
+ * 他のサイトからの転載はせず、企業から直接の申し込みで載せる。掲載が 0 件のあいだはこの画面を出す。
+ *   columns … 一覧に並ぶ列(掲載されたらこの並びで出る)
+ *   fields  … 申し込みでいただく項目
+ *   cats    … 分類
+ *   rules   … この一覧の決まりごと(求人の職業安定法の扱いなど)
+ */
+export function Intake({
+  what,
+  uses,
+  columns,
+  fields,
+  cats,
+  rules,
+  onRequest,
+}: {
+  what: string;
+  uses: string;
+  columns: string[];
+  fields: string[];
+  cats: string[];
+  rules?: string[];
+  onRequest?: () => void;
+}) {
+  const request = () => (onRequest ? onRequest() : (window.location.href = '/register'));
+  return (
+    <section className="yy-intake">
+      <Sec no="I" title="掲載を受け付けています" right="掲載 0 件" />
+      <p className="yy-intake__lead">{uses}</p>
+      <div className="yy-intake__table" role="table" aria-label={`${what}の一覧(まだ掲載はありません)`}>
+        <div className="yy-intake__head" role="row">
+          {columns.map((c) => (
+            <span key={c} role="columnheader">
+              {c}
+            </span>
+          ))}
+        </div>
+        <p className="yy-intake__empty">まだ掲載はありません。最初の{what}として載せませんか。</p>
+      </div>
+
+      <div className="yy-intake__grid">
+        <div>
+          <Sec no="II" title="載せる項目" />
+          <ol className="yy-intake__list">
+            {fields.map((f, i) => (
+              <li key={f}>
+                <span className="yy-intake__no">{String(i + 1).padStart(2, '0')}</span>
+                {f}
+              </li>
+            ))}
+          </ol>
+        </div>
+        <div>
+          <Sec no="III" title="掲載の流れ" />
+          <ol className="yy-intake__list">
+            <li>
+              <span className="yy-intake__no">01</span>下の「掲載を申し込む」から送る
+            </li>
+            <li>
+              <span className="yy-intake__no">02</span>内容を確かめ、掲載の条件をご連絡
+            </li>
+            <li>
+              <span className="yy-intake__no">03</span>この一覧に掲載。変更・取り下げはいつでも
+            </li>
+          </ol>
+          <Sec no="IV" title="分類" />
+          <p className="yy-intake__cats">{cats.join(' · ')}</p>
+        </div>
+      </div>
+
+      {rules && rules.length > 0 && (
+        <div className="yy-intake__rules">
+          <span className="yy-label">この一覧の決まり</span>
+          <ul>
+            {rules.map((r) => (
+              <li key={r}>{r}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <button type="button" className="yy-pill yy-intake__btn" onClick={request}>
+        {what}の掲載を申し込む ↗
+      </button>
+    </section>
+  );
+}
