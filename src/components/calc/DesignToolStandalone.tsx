@@ -8,6 +8,7 @@ import React from 'react';
 import dynamic from 'next/dynamic';
 import '@/components/content/Userpage/design-tools/dt-premium.css';
 import { SHEET_IDS } from '@/lib/designToolPages';
+import PrintSheet from './PrintSheet';
 
 const Loading = () => <p className="yy-home__empty">読み込み中…</p>;
 const d = (load: () => Promise<{ default: React.ComponentType }>) => dynamic(load, { ssr: false, loading: Loading });
@@ -50,12 +51,22 @@ const TOOLS: Record<string, React.ComponentType> = {
 };
 
 
-export default function DesignToolStandalone({ id }: { id: string }) {
+export default function DesignToolStandalone({ id, title, basis }: { id: string; title: string; basis?: string }) {
   const Tool = TOOLS[id];
   if (!Tool) return null;
+  // 計算書型は自前の印刷を持つ
+  if (SHEET_IDS.has(id)) {
+    return (
+      <div className="w-full">
+        <Tool />
+      </div>
+    );
+  }
   return (
-    <div className={SHEET_IDS.has(id) ? 'w-full' : 'w-full yy-dt'}>
-      <Tool />
-    </div>
+    <PrintSheet title={title} basis={basis} url={`https://yaneyuka.com/calc/${id}/`}>
+      <div className="w-full yy-dt">
+        <Tool />
+      </div>
+    </PrintSheet>
   );
 }

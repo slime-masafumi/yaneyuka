@@ -1,0 +1,23 @@
+/* 設計ツールの計算書印刷(PrintSheet.tsx)。2026-11-15
+   画面では頭書きと免責を隠す。印刷はツールの写しを iframe(body.yy-ps-doc)に入れて行う */
+.yy-ps { position: relative; }
+.yy-ps__bar { display: flex; justify-content: flex-end; padding: 6px 16px 0; }
+.yy-ps__btn { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; background: none; border: 0; cursor: pointer; }
+.yy-ps__head, .yy-ps__foot { display: none; }
+
+/* 印刷用の写し */
+body.yy-ps-doc { margin: 0; background: #fff; }
+.yy-ps.is-printing .yy-ps__bar { display: none; }
+.yy-ps.is-printing .yy-ps__head { display: block !important; margin: 0 0 8mm; padding-bottom: 3mm; border-bottom: 1px solid #000; }
+.yy-ps.is-printing .yy-ps__foot { display: block; margin-top: 6mm; padding-top: 2mm; border-top: 1px solid #999; font-size: 8.5pt; color: #444; }
+.yy-ps.is-printing .yy-ps__label { display: block; font-family: ui-monospace, monospace; font-size: 7.5pt; letter-spacing: 0.12em; color: #555; }
+.yy-ps.is-printing .yy-ps__title { margin: 1mm 0; font-size: 15pt; font-weight: 700; }
+.yy-ps.is-printing .yy-ps__basis, .yy-ps.is-printing .yy-ps__meta { margin: 0; font-size: 8.5pt; color: #333; }
+.yy-ps.is-printing button { display: none !important; }
+.yy-ps.is-printing input, .yy-ps.is-printing select { border: 0 !important; border-bottom: 1px solid #999 !important; background: none !important; }
+
+@media print {
+  @page { size: A4; margin: 12mm; }
+  .yy-ps.is-printing .yy-result { break-inside: avoid; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .yy-ps.is-printing img, .yy-ps.is-printing svg, .yy-ps.is-printing table { break-inside: avoid; max-width: 100%; }
+}

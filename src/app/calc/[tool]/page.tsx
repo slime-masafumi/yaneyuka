@@ -60,7 +60,7 @@ export default async function DesignToolPage({ params }: { params: Promise<{ too
         {t.description}
       </p>
 
-      <DesignToolStandalone id={t.id} />
+      <DesignToolStandalone id={t.id} title={t.title} basis={t.basis} />
 
       {same.length > 0 && (
         <section className="yy-kt-wide">

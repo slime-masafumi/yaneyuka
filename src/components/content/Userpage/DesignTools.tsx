@@ -3,7 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import { consumeDesignToolsTarget, onDesignToolsTarget, type DesignToolsTarget } from '@/lib/designToolsNav';
 import { DESIGN_TOOL_MENU, type DesignToolEntry } from '@/lib/designToolsMenu';
-import { toolHref } from '@/lib/designToolPages';
+import { toolHref, toolPage } from '@/lib/designToolPages';
+import PrintSheet from '@/components/calc/PrintSheet';
 import MultiLayerCondensation from '@/components/content/Userpage/design-tools/MultiLayerCondensation';
 import StructuralTools from '@/components/content/Userpage/design-tools/10_StructuralTools';
 import VentilationCalculation from '@/components/content/Userpage/design-tools/12_VentilationCalculation';
@@ -201,7 +202,10 @@ const DesignTools: React.FC = () => {
       </div>
 
       {/* コンテンツ。計算書型・構造フロー以外は .yy-dt で共通の組版(dt-premium.css)をかぶせる */}
-      <div className={OWN_STYLE_TOOLS.has(activeSubTab) ? 'w-full' : 'w-full yy-dt'}>
+      {/* 計算書型・構造フロー以外は「計算書を印刷・PDF」をつける(PrintSheet。2026-11-15) */}
+      {currentSubTab && !OWN_STYLE_TOOLS.has(activeSubTab) && !['schedule', 'area-table', 'property-card'].includes(activeSubTab) ? (
+        <PrintSheet title={currentSubTab.title} basis={toolPage(activeSubTab)?.basis} url={toolHref(activeSubTab) ? `https://yaneyuka.com${toolHref(activeSubTab)}` : undefined}>
+          <div className={OWN_STYLE_TOOLS.has(activeSubTab) ? 'w-full' : 'w-full yy-dt'}>
         {currentSubTab ? currentSubTab.component : (
           <div className="yy-dt-soon">
             <span className="yy-label">select — ツール</span>
@@ -209,6 +213,17 @@ const DesignTools: React.FC = () => {
           </div>
         )}
       </div>
+        </PrintSheet>
+      ) : (
+        <div className={OWN_STYLE_TOOLS.has(activeSubTab) ? 'w-full' : 'w-full yy-dt'}>
+        {currentSubTab ? currentSubTab.component : (
+          <div className="yy-dt-soon">
+            <span className="yy-label">select — ツール</span>
+            <p className="yy-dt-soon__text">左の一覧から使うツールを選んでください</p>
+          </div>
+        )}
+      </div>
+      )}
     </div>
   );
 };
