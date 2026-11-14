@@ -5,6 +5,21 @@
 //   東京ビッグサイト … /visitor/event/search.php?page=N(1 件ずつ article.lyt-event-01)
 //   幕張メッセ       … /event/?page=N(li.eventInr。リンク先は会場の詳細ページ)
 // どちらも robots.txt での制限は無い(2026-11-14 確認)。読むのは週 1 回、各数ページだけ。
+//   インテックス大阪   … /jp/event/ が JS で読む /jp/event/ajax_search/?is_holding=1&page=N(10 件ずつ、
+//                        div.grid-item。最大 7 ページ)。robots.txt は無い(HTML の 404 ページが返る)ので
+//                        サイトポリシー(/jp/organizer/sitepolicy/)を確認: 自動取得の禁止は無い。
+//                        画像・文章の無断転載は禁止とあるので、画像は持たず、説明は種別(展示会など)だけ。
+//                        (紹介文は長い宣伝文で「設備」「オフィス」等に広く当たり、販促展なども拾ってしまう)
+//                        リンクは主催者のホームページ、無ければ会場一覧の該当箇所(#event-ID)。
+//   ポートメッセなごや … /event/ は施設ページへ転送されるだけ。開催予定は /events(WordPress の My Calendar)。
+//                        /events のナビから cid を拾い、月ごとの一覧 ?cid=…&time=month&format=list&yr=&month=
+//                        を今月から 4 か月分読む。robots.txt は /wp-admin/ 以外許可。サイトポリシーにも
+//                        自動取得の禁止は無い(著作物の無断複製は禁止 → 画像は持たない)。
+//                        リンクは主催者サイト、無ければ /events?mc_id=回の ID(会場の詳細ページ)。
+//   マリンメッセ福岡   … 足していない。/messe/event/(A館)・/messe-b/event/(B館)は Studio.Design の JS 描画で、
+//                        HTML にもサイトマップにも開催予定が無い。データは別ホスト(api.cms.studiodesignapp.com)の
+//                        非公開の検索 API から来ており、会場のサイトではないので読まない。robots.txt は / を許可。
+// 3 会場とも robots.txt・利用条件は 2026-11-15 確認。
 import crypto from 'node:crypto';
 
 const UA = 'Mozilla/5.0 (compatible; yaneyuka-eventbot/1.0; +https://yaneyuka.com/)';
@@ -12,7 +27,7 @@ const UA = 'Mozilla/5.0 (compatible; yaneyuka-eventbot/1.0; +https://yaneyuka.co
 /** 建築・建設・住まい・設備に関係するイベントの語(題か説明に含む) */
 export const ARCH_WORDS = /建築|建材|住宅|住まい|建設|リフォーム|リノベ|インテリア|照明|ライティング|空調|冷凍|設備|ビル|不動産|BIM|CAD|土木|測量|防災|ファシリティ|メンテナンス|エクステリア|ガーデン|木材|木造|塗料|塗装|防水|店舗|商空間|オフィス|スマートシティ|まちづくり|都市|インフラ|省エネ|太陽光|断熱|ZEB|ZEH|JAPAN BUILD|JAPAN SHOP|HCJ|ジャパンホーム/;
 /** 建築系の語を含んでも対象外(就職・資格予備校・物販の催事など) */
-const EXCLUDE = /インターンシップ|就職|採用|合同説明会|キャリア|同人|コミック|ゲーム|アニメ|アイドル|ライブ|コンサート|即売会|物産展|ペット|ブライダル|学会|学術大会|総会|介護|ケアウィーク|CareTEX|医療|通信技術/;
+const EXCLUDE = /バックオフィス|インターンシップ|就職|採用|合同説明会|キャリア|同人|コミック|ゲーム|アニメ|アイドル|ライブ|コンサート|即売会|物産展|ペット|ブライダル|学会|学術大会|総会|介護|ケアウィーク|CareTEX|医療|通信技術/;
 
 async function fetchText(url) {
   const ac = new AbortController();
@@ -93,6 +108,84 @@ async function makuhari() {
   return out;
 }
 
+const cut = (s, n) => (s.length > n ? `${s.slice(0, n)}…` : s);
+
+async function intex() {
+  const base = 'https://www.intex-osaka.com/';
+  const out = [];
+  for (let page = 1; page <= 7; page++) {
+    const html = await fetchText(`${base}jp/event/ajax_search/?is_holding=1&page=${page}`);
+    const blocks = html.split("<div id='show_event-").slice(1);
+    if (!blocks.length) break;
+    for (const b of blocks) {
+      const id = b.match(/^(\d+)/)?.[1];
+      const title = strip(b.match(/class="event-ttl">([\s\S]*?)<\/h3>/)?.[1] || '');
+      const day = (cls) => {
+        const m = b.match(new RegExp(`class="${cls}">\\s*<p class="year-txt">(20\\d{2})</p>\\s*<p class="date-txt[^"]*">(\\d{1,2})/(\\d{1,2})`));
+        return m ? iso(+m[1], +m[2], +m[3]) : null;
+      };
+      // 1 日だけの催しは last-date しか無い
+      const start = day('start-date') || day('last-date');
+      if (!id || !title || !start) continue;
+      const end = day('last-date') || start;
+      const tag = strip(b.match(/class="event-tag[^"]*">([\s\S]*?)<\/p>/)?.[1] || '');
+      const halls = [...(b.match(/<ul class="event-place-list">([\s\S]*?)<\/ul>/)?.[1] || '').matchAll(/<li>([\s\S]*?)<\/li>/g)].map((m) => strip(m[1])).filter(Boolean);
+      const home = b.match(/ホームページ<\/span>[\s\S]*?<a href='([^']+)'/)?.[1];
+      out.push({
+        title, desc: tag,
+        link: home && /^https?:\/\//.test(home) ? home : `${base}jp/event/#event-${id}`,
+        image: '',
+        venue: `インテックス大阪${halls.length ? ` ${halls.join('・')}` : ''}`, region: 'osaka', from: 'intex', start, end,
+      });
+    }
+  }
+  return out;
+}
+
+async function portmesse() {
+  const base = 'https://portmesse.com/';
+  const top = await fetchText(`${base}events`);
+  if (!top) return [];
+  const cid = top.match(/[?&;]cid=(mc-[0-9a-f]{32})/)?.[1] || 'mc-6283c3d6aca5e46d3578b28e91eb2d8d';
+  const now = new Date();
+  const seen = new Set();
+  const out = [];
+  for (let i = 0; i < 4; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    const html = await fetchText(`${base}events?cid=${cid}&time=month&format=list&yr=${d.getFullYear()}&month=${d.getMonth() + 1}`);
+    // 会期が複数日の催しは日ごとに同じ article が並ぶ。回の ID(mc_list_NNN)で 1 件にする
+    for (const b of html.split("<article id='mc_list_").slice(1)) {
+      const occ = b.match(/class='mc-mc_list_(\d+)/)?.[1];
+      if (!occ || seen.has(occ)) continue;
+      seen.add(occ);
+      const title = strip(b.match(/<span class="summary screen-reader-text">([\s\S]*?)<\/span>/)?.[1] || '');
+      const db = b.match(/class="mc_db">([^<]+)</)?.[1] || '';
+      const de = b.match(/class="mc_de">([^<]+)</)?.[1] || '';
+      const p = period(`${db} ${de}`);
+      if (!title || title === '休館日' || !p) continue;
+      const hall = strip(b.match(/<dt>会場<\/dt>\s*<dd>([\s\S]*?)<\/dd>/)?.[1] || '');
+      const desc = strip(b.match(/class="event-description">([\s\S]*?)<\/div>/)?.[1] || '');
+      const href = b.match(/href="(https?:\/\/[^"]+)"/)?.[1];
+      out.push({
+        title, desc: cut(desc, 120),
+        link: href || `${base}events?mc_id=${occ}`,
+        image: '',
+        venue: `ポートメッセなごや${hall ? ` ${hall}` : ''}`, region: 'nagoya', from: 'portmesse', ...p,
+      });
+    }
+  }
+  return out;
+}
+
+/** 1 会場の取得が落ちても他の会場は続ける */
+const safe = async (fn) => {
+  try {
+    return await fn();
+  } catch {
+    return [];
+  }
+};
+
 /** 題の比べ方: 空白・年号・括弧の中を外す */
 const norm = (s) => s.replace(/[（(][^）)]*[）)]/g, '').replace(/20\d{2}|第\d+回/g, '').replace(/[\s　・\-–—:：]/g, '').toLowerCase();
 
@@ -102,7 +195,8 @@ const norm = (s) => s.replace(/[（(][^）)]*[）)]/g, '').replace(/20\d{2}|第\
  * 戻り値: { added: 追加した題の一覧, removed: 消した件数, scanned: 読んだ件数 }
  */
 export async function discoverEvents(events, today) {
-  const found = [...(await bigsight()), ...(await makuhari())];
+  const found = [];
+  for (const fn of [bigsight, makuhari, intex, portmesse]) found.push(...(await safe(fn)));
   const near = (a, b) => Math.abs(Date.parse(a) - Date.parse(b)) <= 3 * 86_400_000;
   const added = [];
   for (const f of found) {

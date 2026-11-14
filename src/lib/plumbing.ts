@@ -79,13 +79,17 @@ export const innerDia = (lpm: number, v: number) => Math.sqrt((4 * (lpm / 60000)
 
 export type DrainFixture = { id: string; label: string; du: number };
 
-/** 器具排水負荷単位(SHASE-S206-2019)。確認できた行だけ */
+/**
+ * 器具排水負荷単位(SHASE-S206 の表)。
+ * 下関市「排水設備技術基準」(令和 4 年 6 月改正)別表第 2 と全行照合(2026-11-15)。流し類・床排水などもこの表から足した
+ */
 export const DRAIN: DrainFixture[] = [
   { id: 'wc-priv', label: '大便器(私室用)', du: 4 },
   { id: 'wc-pub', label: '大便器(公衆用)', du: 6 },
   { id: 'wc-pub-heavy', label: '大便器(公衆用・使用頻度が高い)', du: 8 },
   { id: 'ur-wall', label: '小便器(壁掛小型)', du: 4 },
   { id: 'ur-stall', label: '小便器(ストール大形)', du: 4 },
+  { id: 'ur-stall-heavy', label: '小便器(ストール大形・使用頻度が高い)', du: 5 },
   { id: 'lav', label: '洗面器', du: 1 },
   { id: 'lav-row', label: '洗面器(並列式)', du: 2 },
   { id: 'hand', label: '手洗器', du: 0.5 },
@@ -95,7 +99,25 @@ export const DRAIN: DrainFixture[] = [
   { id: 'tub-west', label: '浴槽(洋風)', du: 3 },
   { id: 'shower', label: '囲いシャワー', du: 2 },
   { id: 'shower-row', label: '連立シャワー(ヘッド 1 個)', du: 3 },
-  { id: 'mop', label: '掃除流し(台形トラップ)', du: 2.5 },
+  { id: 'mop', label: '掃除流し(台形トラップ 65mm)', du: 2.5 },
+  { id: 'mop-75', label: '掃除流し(台形トラップ 75mm)', du: 3 },
+  { id: 'mop-p', label: '掃除・雑用流し(P トラップ)', du: 2 },
+  { id: 'bidet', label: 'ビデ', du: 1 },
+  { id: 'sink-house', label: '調理用流し(住宅用)', du: 2 },
+  { id: 'sink-pantry', label: '調理用流し(パントリー・皿洗用)', du: 4 },
+  { id: 'sink-kettle', label: '調理用流し(湯沸し場用)', du: 3 },
+  { id: 'bar-priv', label: 'バーシンク(私室用)', du: 1 },
+  { id: 'bar-pub', label: 'バーシンク(公衆用)', du: 2 },
+  { id: 'laundry-sink', label: '洗濯流し', du: 2 },
+  { id: 'combo-sink', label: '連合流し', du: 2 },
+  { id: 'slop-sink', label: '汚物流し', du: 6 },
+  { id: 'lab-sink', label: '実験流し', du: 1.5 },
+  { id: 'dish-house', label: '食器洗浄機(住宅用)', du: 2 },
+  { id: 'washer', label: '洗濯機(住宅用・営業用)', du: 3 },
+  { id: 'dental', label: '歯科用ユニット・歯科用洗面器', du: 1 },
+  { id: 'floor-40', label: '床排水(トラップ 40mm)', du: 2 },
+  { id: 'floor-50', label: '床排水(トラップ 50mm)', du: 3 },
+  { id: 'floor-75', label: '床排水(トラップ 75mm)', du: 5 },
   { id: 'bath-tank', label: '浴室一式(洗浄タンク)', du: 6 },
   { id: 'bath-valve', label: '浴室一式(洗浄弁)', du: 8 },
 ];

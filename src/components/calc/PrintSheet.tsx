@@ -111,7 +111,7 @@ export default function PrintSheet({ title, basis, url, children }: { title: str
           <FiPrinter aria-hidden="true" /> 計算書を印刷・PDF
         </button>
       </div>
-      <header className="yy-ps__head" aria-hidden="true">
+      <div className="yy-ps__head" aria-hidden="true">
         <span className="yy-ps__label">CALCULATION SHEET — yaneyuka.com</span>
         <h1 className="yy-ps__title">{title}</h1>
         {basis && <p className="yy-ps__basis">根拠: {basis}</p>}
@@ -119,11 +119,11 @@ export default function PrintSheet({ title, basis, url, children }: { title: str
           作成日 {today}
           {url ? ` · ${url}` : ''}
         </p>
-      </header>
+      </div>
       {children}
-      <footer className="yy-ps__foot" aria-hidden="true">
+      <div className="yy-ps__foot" aria-hidden="true">
         この計算書は設計の目安です。最終判断は建築士など有資格者が、最新の法令・告示・基準を確認したうえで行ってください。
-      </footer>
+      </div>
     </div>
   );
 }

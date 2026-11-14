@@ -2,8 +2,10 @@ import { initializeApp, getApps } from 'firebase/app'
 import { getAuth } from 'firebase/auth'
 import { getFirestore, initializeFirestore, enableIndexedDbPersistence, enableMultiTabIndexedDbPersistence } from 'firebase/firestore'
 import { getStorage } from 'firebase/storage'
-import { getAnalytics, isSupported, type Analytics, logEvent as gaLogEvent } from 'firebase/analytics'
-import { getMessaging, getToken, onMessage, type Messaging } from 'firebase/messaging'
+// 解析(analytics)とプッシュ通知(messaging)は、要るときだけ読み込む(2026-11-15)。
+// 以前は全ページの最初の読み込みに入っていた。解析は同意した人だけ、通知は今どこからも使っていない
+import type { Analytics } from 'firebase/analytics'
+import type { Messaging } from 'firebase/messaging'
 
 // 必須環境変数のバリデーション
 // 注意: Next.jsのwebpackは process.env.NEXT_PUBLIC_XXX の静的アクセスのみインライン化する
@@ -81,13 +83,25 @@ function consented(): boolean {
     return false
   }
 }
+let gaLogEvent: typeof import('firebase/analytics').logEvent | null = null
+let analyticsLoading = false
 function startAnalytics() {
-  if (analytics || !consented()) return
-  isSupported().then((ok) => {
-    if (ok && !analytics) {
-      try { analytics = getAnalytics(app) } catch (err) { console.warn('Analytics初期化失敗:', err) }
-    }
-  })
+  if (analytics || analyticsLoading || !consented()) return
+  analyticsLoading = true
+  import('firebase/analytics')
+    .then(async (m) => {
+      if (!(await m.isSupported()) || analytics) return
+      try {
+        analytics = m.getAnalytics(app)
+        gaLogEvent = m.logEvent
+      } catch (err) {
+        console.warn('Analytics初期化失敗:', err)
+      }
+    })
+    .catch((err) => console.warn('Analytics読み込み失敗:', err))
+    .finally(() => {
+      analyticsLoading = false
+    })
 }
 if (typeof window !== 'undefined') {
   startAnalytics()
@@ -95,43 +109,28 @@ if (typeof window !== 'undefined') {
 }
 
 export function logEvent(eventName: string, params?: Record<string, any>) {
-  if (analytics) {
+  if (analytics && gaLogEvent) {
     try { gaLogEvent(analytics, eventName, params) } catch (err) { console.warn('logEvent失敗:', err) }
   }
 }
 
 // Firebase Cloud Messaging（ブラウザのみ、Service Workerが利用可能な場合）
 // Safariなど、Firebase Messagingをサポートしていないブラウザでは初期化をスキップ
-export let messaging: Messaging | null = null
-if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-  // ブラウザサポートのチェック（Push APIとNotification APIが必要）
-  const isMessagingSupported = 
-    'serviceWorker' in navigator &&
-    'PushManager' in window &&
-    ('Notification' in window || 'webkitNotifications' in window);
-  
-  if (!isMessagingSupported) {
-    // Safariなど、Firebase Messagingをサポートしていないブラウザでは初期化をスキップ
-    console.log('⚠️ このブラウザはFirebase Messagingをサポートしていません。プッシュ通知機能は使用できませんが、アプリの動作には影響しません。')
-  } else {
-    try {
-      // messagingSenderIdとappIdが設定されている場合のみ初期化を試みる
-      if (process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID && process.env.NEXT_PUBLIC_FIREBASE_APP_ID) {
-        messaging = getMessaging(app)
-      } else {
-        console.warn('⚠️ Firebase Messagingの設定が不完全です。messagingSenderIdまたはappIdが設定されていません。')
-      }
-    } catch (error: any) {
-      // 403 PERMISSION_DENIEDエラーは、FCM APIが有効化されていない場合に発生するが、アプリの動作には影響しない
-      if (error?.code === 'installations/request-failed' || error?.message?.includes('PERMISSION_DENIED')) {
-        console.warn('⚠️ Firebase Cloud Messaging APIが有効化されていないか、権限が不足しています。プッシュ通知機能は使用できませんが、アプリの動作には影響しません。')
-      } else if (error?.code === 'messaging/unsupported-browser') {
-        // Safariなど、サポートされていないブラウザの場合
-        console.log('⚠️ このブラウザはFirebase Messagingをサポートしていません。プッシュ通知機能は使用できませんが、アプリの動作には影響しません。')
-      } else {
-        console.warn('Firebase Messagingの初期化に失敗しました:', error)
-      }
-    }
+let messaging: Messaging | null = null
+let messagingApi: typeof import('firebase/messaging') | null = null
+/** 通知が使えるブラウザなら messaging を用意する(初回だけ firebase/messaging を読み込む) */
+async function loadMessaging(): Promise<Messaging | null> {
+  if (messaging) return messaging
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return null
+  if (!process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || !process.env.NEXT_PUBLIC_FIREBASE_APP_ID) return null
+  try {
+    messagingApi = await import('firebase/messaging')
+    if (!(await messagingApi.isSupported())) return null
+    messaging = messagingApi.getMessaging(app)
+    return messaging
+  } catch (error: any) {
+    console.warn('Firebase Messagingの初期化に失敗しました:', error?.code || error)
+    return null
   }
 }
 
@@ -179,7 +178,8 @@ async function waitForServiceWorkerRegistration(): Promise<ServiceWorkerRegistra
 
 // FCMトークンを取得する関数
 export async function getFCMToken(): Promise<string | null> {
-  if (!messaging) {
+  const messaging = await loadMessaging()
+  if (!messaging || !messagingApi) {
     console.warn('[getFCMToken] Firebase Messagingが利用できません')
     return null
   }
@@ -201,7 +201,7 @@ export async function getFCMToken(): Promise<string | null> {
     }
 
     console.log('[getFCMToken] VAPIDキーが設定されています。FCMトークンを取得します...')
-    const token = await getToken(messaging, { vapidKey })
+    const token = await messagingApi.getToken(messaging, { vapidKey })
     if (token) {
       console.log('[getFCMToken] FCMトークン取得成功:', token.substring(0, 20) + '...')
     } else {
@@ -222,12 +222,16 @@ export async function getFCMToken(): Promise<string | null> {
 
 // フォアグラウンドメッセージの処理
 export function onForegroundMessage(callback: (payload: any) => void) {
-  if (!messaging) {
-    console.warn('Firebase Messagingが利用できません')
-    return () => {}
+  let off: () => void = () => {}
+  let stopped = false
+  loadMessaging().then((m) => {
+    if (!m || !messagingApi || stopped) return
+    off = messagingApi.onMessage(m, callback)
+  })
+  return () => {
+    stopped = true
+    off()
   }
-
-  return onMessage(messaging, callback)
 }
 
 
