@@ -7,7 +7,7 @@ import { DESIGN_TOOL_MENU } from '@/lib/designToolsMenu';
 import { Store } from '@/lib/karte/engine';
 import { TOOL_ART } from '@/components/home/toolArt';
 import { ScreenLink } from '@/components/home/HomeParts';
-import { infoRows } from '@/lib/infoLinks';
+import { useInfoRows } from '@/lib/useInfoRows';
 
 /**
  * 建材ページの周り(モック「高級感 3」Q9)。
@@ -122,7 +122,7 @@ export function MaterialSide({ category, subcategory }: { category: string; subc
   }, [subcategory]);
 
   // 建築の調べもの(材料情報の章・設計情報の記事)。2026-11-14 まで条文の目次を出していた
-  const info = link ? infoRows(link.info.sections, link.info.posts) : [];
+  const info = useInfoRows(link?.info.sections, link?.info.posts);
 
   const toggleAdd = () => {
     if (!proj) return;

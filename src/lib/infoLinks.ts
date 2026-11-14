@@ -5,7 +5,14 @@
  *   材料情報の章 … /lookup/?tab=material&sec=section-6
  *   設計情報の記事 … /lookup/?post=7
  */
-import { designPosts } from '@/data/design-posts';
+// 設計情報の記事本文(約 200KB)は、ここで静的に読み込まない。建材の右列・計算ツールは全ページ共通の
+// 土台から読まれるため、静的に読むと全ページの初期 JS に記事が丸ごと入る(2026-11-14 に 379KB 増えていた)。
+// 記事の題は loadPostIndex() で後から読む。
+export type PostIndex = { id: string; title: string; category: string }[];
+export async function loadPostIndex(): Promise<PostIndex> {
+  const m = await import('@/data/design-posts');
+  return m.designPosts.map(({ id, title, category }) => ({ id, title, category }));
+}
 
 export type InfoCat = '意匠' | '構造' | '機械' | '電気';
 
@@ -84,14 +91,14 @@ export function findMaterialSection(id: string): { cat: InfoCat; id: string; tit
 export type InfoRow = { kind: '材料情報' | '設計情報'; title: string; sub: string; href: string };
 
 /** 章 id・記事 id の並びを、一覧の行に。見つからないものは飛ばす */
-export function infoRows(sections: string[] = [], posts: string[] = []): InfoRow[] {
+export function infoRows(sections: string[] = [], posts: string[] = [], postIndex: PostIndex = []): InfoRow[] {
   const rows: InfoRow[] = [];
   for (const id of sections) {
     const s = findMaterialSection(id);
     if (s) rows.push({ kind: '材料情報', title: s.title.replace(/（.*?）/g, ''), sub: `${s.cat} · 早見表`, href: materialInfoHref(id) });
   }
   for (const id of posts) {
-    const p = designPosts.find((x) => x.id === id);
+    const p = postIndex.find((x) => x.id === id);
     if (p) rows.push({ kind: '設計情報', title: p.title.replace(/^【[^】]*】\s*/, ''), sub: `${p.category} · 読みもの`, href: designInfoHref(id) });
   }
   return rows;

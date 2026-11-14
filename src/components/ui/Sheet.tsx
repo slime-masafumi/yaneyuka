@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { CASE_EVENT, getMode, loadCases, saveStudy, selectCase, setMode, studiesOf, touchRecent, type CaseInfo } from '@/lib/caseStudies';
-import { infoRows } from '@/lib/infoLinks';
+import { useInfoRows } from '@/lib/useInfoRows';
 
 /**
  * 計算書の組版(モック「高級感 3」の ガラス厚 Q3 / 結露 Q7 / 換気 Q8 / 設計ツール一覧 Q5・Q6)で使う部品。
@@ -230,7 +230,7 @@ export function CaseSave({ tool, result, ok }: { tool: string; result: string; o
  * 2026-11-14 まで LookupList(条文の目次)だった。対応は呼び出し側で章 id・記事 id を渡す(src/lib/infoLinks.ts)。
  */
 export function InfoList({ sections = [], posts = [], no = 'V' }: { sections?: string[]; posts?: string[]; no?: string }) {
-  const rows = infoRows(sections, posts);
+  const rows = useInfoRows(sections, posts);
   if (!rows.length) return null;
   return (
     <section className="yy-sheet__block">
