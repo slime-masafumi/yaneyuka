@@ -2406,6 +2406,8 @@ nav {
 .yy-newspage__main, .yy-newspage__side { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
 .yy-newspage section { display: flex; flex-direction: column; }
 .yy-newspage .yy-news { border-top: 0; }
+/* NEWS: 右の欄を外して全幅(2026-11-14) */
+.yy-newspage--wide { grid-template-columns: minmax(0, 1fr); }
 .yy-news__row { grid-template-columns: 28px 120px minmax(0, 1fr) auto !important; align-items: baseline !important; }
 .yy-news__src { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .yy-news__srcname { display: flex; align-items: center; gap: 5px; font-family: var(--font-mono), monospace; font-size: 10.5px; color: var(--yy-t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

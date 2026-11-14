@@ -3,7 +3,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { NEWS_SOURCES } from '@/lib/newsSources'
 import PageHead, { Stat } from '../../ui/PageHead'
-import { HomeEvents } from '@/components/home/HomeParts'
 import NewsFeed, { NewsItem } from './NewsFeed'
 import { logEvent } from '@/lib/firebaseClient'
 import { listNewsBookmarks, setNewsBookmark, deleteNewsBookmark } from '@/lib/firebaseUserData'
@@ -108,7 +107,7 @@ export default function NewsWithBookmarks() {
     return ['all', ...out]
   }, [])
 
-  // モック「高級感 3」Q10：左に I 業界ニュース / II メーカーのお知らせ、右に III イベント / IV 配信元 / V 保存した記事
+  // I 業界ニュース / II メーカーのお知らせ / III 保存した記事。2026-11-14 右の欄(イベント・配信元)を外し、記事を全幅で大きく
   return (
     <div>
       <PageHead
@@ -136,36 +135,15 @@ export default function NewsWithBookmarks() {
           </button>
         ))}
       </div>
-      <div className="yy-newspage">
+      <div className="yy-newspage yy-newspage--wide">
         <div className="yy-newspage__main">
           <section>
             <div className="yy-sec"><span className="yy-sec__no">I</span><span className="yy-sec__title">業界ニュース</span><span className="yy-sec__right">見出しと要約は配信元から</span></div>
             <NewsFeed onToggleBookmark={toggleBookmark} isBookmarked={isBookmarked} selectedMonth={selectedMonth} />
           </section>
           <AllMakerNews onTotal={setFeedsTotal} />
-        </div>
-        <aside className="yy-newspage__side">
           <section>
-            <div className="yy-sec"><span className="yy-sec__no">III</span><span className="yy-sec__title">イベント</span><span className="yy-sec__right"><a href="/event/">これから</a></span></div>
-            <HomeEvents limit={4} />
-          </section>
-          <section>
-            <div className="yy-sec"><span className="yy-sec__no">IV</span><span className="yy-sec__title">配信元</span><span className="yy-sec__right">{NEWS_SOURCE_ROWS.length}</span></div>
-            <ol className="yy-home__toc">
-              {NEWS_SOURCE_ROWS.map(([name, kind], i) => (
-                <li key={name}>
-                  <span className="yy-srcrow">
-                    <span className="yy-home__tocno">{String(i + 1).padStart(2, '0')}</span>
-                    <span className="yy-home__toct">{name}</span>
-                    <span className="yy-leader" />
-                    <span className="yy-home__n">{kind}</span>
-                  </span>
-                </li>
-              ))}
-            </ol>
-          </section>
-          <section>
-            <div className="yy-sec"><span className="yy-sec__no">V</span><span className="yy-sec__title">保存した記事</span><span className="yy-sec__right">{bookmarkedList.length} 件</span></div>
+            <div className="yy-sec"><span className="yy-sec__no">III</span><span className="yy-sec__title">保存した記事</span><span className="yy-sec__right">{bookmarkedList.length} 件</span></div>
             {bookmarkedList.length === 0 ? (
               <p className="yy-home__empty">記事の「☆ 保存」でここに残ります</p>
             ) : (
@@ -181,7 +159,7 @@ export default function NewsWithBookmarks() {
               </ul>
             )}
           </section>
-        </aside>
+        </div>
       </div>
     </div>
   )

@@ -314,10 +314,12 @@ export default function NewsFeed({ onToggleBookmark, isBookmarked, selectedMonth
 
   return (
     <div className="yy-news">
-      {/* 馬目地: 1 枚のレンガが 1 記事(2026-11-14)。写真は左、出どころ・日時、題。☆ で保存 */}
+      {/* 馬目地: 1 枚のレンガが 1 記事(2026-11-14)。写真を上に大きく、その下に題、いちばん下に出どころ・日時。☆ で保存 */}
       <BrickWall
         items={shown}
         label="NEWS"
+        brick={290}
+        className="yy-brick--card"
         keyOf={(item) => `${item.source}-${item.id}`}
         render={(item, { index }) => {
           const bookmarked = isBookmarked ? isBookmarked(item.id) : false
@@ -340,14 +342,13 @@ export default function NewsFeed({ onToggleBookmark, isBookmarked, selectedMonth
                   <FeedPic src={item.image} size="row" />
                 </span>
                 <span className="yy-bc__body">
+                  <span className="yy-bc__title">{item.title}</span>
                   <span className="yy-bc__meta">
                     <span className="yy-bc__no">{String(index + 1).padStart(2, '0')}</span>
                     <span className={`yy-bc__dot ${highlight.bg}`} aria-hidden="true" />
-                    <span>{item.source.replace(/[（(]検索[)）]$/, '')}</span>
+                    <span>{hostOf(item.link) || item.source.replace(/[（(]検索[)）]$/, '')}</span>
                     <span>{when}</span>
                   </span>
-                  <span className="yy-bc__title">{item.title}</span>
-                  {hostOf(item.link) && <span className="yy-bc__sub">{hostOf(item.link)}</span>}
                 </span>
               </a>
             </>

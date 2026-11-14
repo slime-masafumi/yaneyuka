@@ -62,3 +62,26 @@
   .yy-brick { --brick-h: 104px; }
   .yy-bc__title { font-size: 12px; }
 }
+
+/* 縦組みのレンガ(NEWS)。写真を上に大きく、その下に題、いちばん下に出どころ・日時。2026-11-14 */
+.yy-brick--card { --brick-h: 272px; }
+.yy-brick--card .yy-bc { flex-direction: column; }
+.yy-brick--card .yy-bc__pic { flex: 0 0 60%; width: 100%; height: auto; min-height: 0; }
+.yy-brick--card .yy-bc__body { gap: 6px; padding: 10px 12px 9px; }
+.yy-brick--card .yy-bc__title { font-size: 13.5px; line-height: 1.55; -webkit-line-clamp: 3; }
+.yy-brick--card .yy-bc__meta { margin-top: auto; }
+.yy-brick--card .yy-bc__save { top: 6px; right: 6px; width: 24px; height: 24px; padding: 0; border-radius: 50%; background: rgba(247, 247, 244, 0.92); font-size: 13px; }
+.yy-brick--card .yy-bc__save + .yy-bc .yy-bc__meta { padding-right: 0; }
+/* 半レンガも写真は上に出す(幅が狭いぶん題は小さく) */
+.yy-brick--card .yy-brick__b.is-half .yy-bc__pic { display: block; }
+.yy-brick--card .yy-brick__b.is-half .yy-bc__body { padding: 8px 9px; }
+.yy-brick--card .yy-brick__b.is-half .yy-bc__title { font-size: 12px; -webkit-line-clamp: 4; }
+/* 写真の無い記事は、題を大きく上から組む */
+.yy-brick--card .yy-bc:has(.yy-pic.is-empty) .yy-bc__body { padding-top: 16px; }
+.yy-brick--card .yy-bc:has(.yy-pic.is-empty) .yy-bc__title { font-size: 16px; line-height: 1.6; -webkit-line-clamp: 6; }
+.yy-brick--card .yy-brick__b.is-half .yy-bc:has(.yy-pic.is-empty) .yy-bc__title { font-size: 13px; -webkit-line-clamp: 8; }
+
+@media (max-width: 767px) {
+  .yy-brick--card { --brick-h: 236px; }
+  .yy-brick--card .yy-bc__title { font-size: 12.5px; }
+}
