@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 300" width="720" height="300" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>溝形鋼の断面と寸法記号</title>
+  <defs>
+    <marker id="tk" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#141414" stroke-width="1"/></marker>
+    <marker id="tka" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#2E7D6B" stroke-width="1.2"/></marker>
+    <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#9a9a96" stroke-width="0.6"/></pattern>
+  </defs>
+
+  <text x="20" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">SECTION — 断面</text>
+  <text x="380" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">SYMBOLS — 記号</text>
+  <line x1="360" y1="16" x2="360" y2="284" stroke="#e6e6e2" stroke-width="1"/>
+
+  <!-- C-150×75×6.5×10 の比率(1.5px/mm、r1=10・r2=5) -->
+  <path d="M100,50 H212.5 V57.5 A7.5,7.5 0 0 1 205,65 H124.75 A15,15 0 0 0 109.75,80 V245 A15,15 0 0 0 124.75,260 H205 A7.5,7.5 0 0 1 212.5,267.5 V275 H100 Z" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+
+  <!-- h -->
+  <line x1="96" y1="50" x2="56" y2="50" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="96" y1="275" x2="56" y2="275" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="62" y1="50" x2="62" y2="275" stroke="#2E7D6B" stroke-width="1.2" marker-start="url(#tka)" marker-end="url(#tka)"/>
+  <text x="54" y="166" font-size="12" fill="#2E7D6B" text-anchor="end">h</text>
+
+  <!-- b -->
+  <line x1="100" y1="46" x2="100" y2="28" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="212.5" y1="46" x2="212.5" y2="28" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="100" y1="34" x2="212.5" y2="34" stroke="#2E7D6B" stroke-width="1.2" marker-start="url(#tka)" marker-end="url(#tka)"/>
+  <text x="156" y="29" font-size="12" fill="#2E7D6B" text-anchor="middle">b</text>
+
+  <!-- tw -->
+  <line x1="80" y1="170" x2="100" y2="170" stroke="#2E7D6B" stroke-width="1.2" marker-end="url(#tka)"/>
+  <line x1="109.75" y1="170" x2="132" y2="170" stroke="#2E7D6B" stroke-width="1.2" marker-start="url(#tka)"/>
+  <text x="138" y="174" font-size="12" fill="#2E7D6B">tw</text>
+
+  <!-- tf:フランジの中ほどで測る -->
+  <line x1="161" y1="244" x2="161" y2="260" stroke="#2E7D6B" stroke-width="1.2" marker-end="url(#tka)"/>
+  <line x1="161" y1="275" x2="161" y2="290" stroke="#2E7D6B" stroke-width="1.2" marker-start="url(#tka)"/>
+  <text x="168" y="252" font-size="12" fill="#2E7D6B">tf</text>
+
+  <!-- r1・r2 -->
+  <line x1="114" y1="70" x2="150" y2="104" stroke="#141414" stroke-width="0.6"/>
+  <rect x="148" y="102" width="4" height="4" fill="#141414"/>
+  <text x="157" y="109" font-size="12" fill="#141414">r1</text>
+  <line x1="210" y1="62" x2="240" y2="88" stroke="#141414" stroke-width="0.6"/>
+  <rect x="238" y="86" width="4" height="4" fill="#141414"/>
+  <text x="247" y="93" font-size="12" fill="#141414">r2</text>
+
+  <!-- 記号の説明 -->
+  <g font-size="11" fill="#141414">
+    <text x="380" y="58"><tspan font-family="ui-monospace,Menlo,Consolas,monospace" fill="#2E7D6B">h </tspan><tspan x="414">せい(高さ)。JIS の表記は H</tspan></text>
+    <text x="380" y="82"><tspan font-family="ui-monospace,Menlo,Consolas,monospace" fill="#2E7D6B">b </tspan><tspan x="414">フランジ幅。JIS の表記は B</tspan></text>
+    <text x="380" y="106"><tspan font-family="ui-monospace,Menlo,Consolas,monospace" fill="#2E7D6B">tw</tspan><tspan x="414">ウェブの厚さ。JIS の表記は t1</tspan></text>
+    <text x="380" y="130"><tspan font-family="ui-monospace,Menlo,Consolas,monospace" fill="#2E7D6B">tf</tspan><tspan x="414">フランジの厚さ。JIS の表記は t2</tspan></text>
+    <text x="380" y="154"><tspan font-family="ui-monospace,Menlo,Consolas,monospace">r1</tspan><tspan x="414">内側の隅の丸み</tspan><tspan font-family="ui-monospace,Menlo,Consolas,monospace" dx="14">r2</tspan><tspan dx="8">先端の丸み</tspan></text>
+  </g>
+  <line x1="380" y1="176" x2="700" y2="176" stroke="#e6e6e2" stroke-width="1"/>
+  <text x="380" y="200" font-size="11" fill="#141414">表の寸法は h×b×tw×tf の順(mm)</text>
+  <text x="380" y="224" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10.5" fill="#5c5c5a"><tspan fill="#9a9a96">例</tspan><tspan dx="8">C-150×75 = 150×75×6.5×10</tspan></text>
+  <text x="380" y="244" font-size="10.5" fill="#5c5c5a">図はこの寸法の比率(r1=10・r2=5)</text>
+  <text x="380" y="268" font-size="10.5" fill="#5c5c5a">tf はフランジの中ほど((b−tw)/2 の位置)で測る</text>
+</svg>

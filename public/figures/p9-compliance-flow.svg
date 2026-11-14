@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 300" width="720" height="300" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>省エネ基準の適合義務と省エネ適判の流れ</title>
+  <defs>
+    <marker id="ar" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1 L7 4 L1 7" fill="none" stroke="#141414" stroke-width="1"/></marker>
+  </defs>
+
+  <text x="20" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">DIAGRAM — 手続き(2025年4月以降に着工)</text>
+
+  <!-- 起点 -->
+  <rect x="20" y="128" width="150" height="46" fill="none" stroke="#141414" stroke-width="0.8"/>
+  <text x="95" y="148" font-size="11" fill="#141414" text-anchor="middle">新築・増改築</text>
+  <text x="95" y="164" font-size="10.5" fill="#5c5c5a" text-anchor="middle">住宅・非住宅とも</text>
+  <line x1="170" y1="151" x2="198" y2="151" stroke="#141414" stroke-width="0.8" marker-end="url(#ar)"/>
+
+  <!-- 適合義務 -->
+  <rect x="200" y="128" width="150" height="46" fill="#eef6f3" stroke="#2E7D6B" stroke-width="1.5"/>
+  <text x="275" y="148" font-size="11" fill="#2E7D6B" text-anchor="middle">省エネ基準 適合義務</text>
+  <text x="275" y="164" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" fill="#2E7D6B" text-anchor="middle">法10条</text>
+
+  <!-- 対象外 -->
+  <line x1="95" y1="174" x2="95" y2="206" stroke="#9a9a96" stroke-width="0.8" stroke-dasharray="3 3"/>
+  <rect x="93" y="204" width="4" height="4" fill="#9a9a96"/>
+  <text x="20" y="226" font-size="10.5" fill="#5c5c5a">床面積 10m² 以下などは</text>
+  <text x="20" y="241" font-size="10.5" fill="#5c5c5a">適合義務の対象外(令3条)</text>
+
+  <!-- 分岐 -->
+  <line x1="350" y1="151" x2="372" y2="151" stroke="#141414" stroke-width="0.8"/>
+  <line x1="372" y1="70" x2="372" y2="232" stroke="#141414" stroke-width="0.8"/>
+  <line x1="372" y1="70" x2="388" y2="70" stroke="#141414" stroke-width="0.8" marker-end="url(#ar)"/>
+  <line x1="372" y1="151" x2="388" y2="151" stroke="#141414" stroke-width="0.8" marker-end="url(#ar)"/>
+  <line x1="372" y1="232" x2="388" y2="232" stroke="#141414" stroke-width="0.8" marker-end="url(#ar)"/>
+
+  <g fill="none" stroke="#141414" stroke-width="0.8">
+    <rect x="390" y="47" width="150" height="46"/>
+    <rect x="390" y="128" width="150" height="46"/>
+    <rect x="390" y="209" width="150" height="46"/>
+  </g>
+  <text x="465" y="67" font-size="11" fill="#141414" text-anchor="middle">新3号建築物</text>
+  <text x="465" y="83" font-size="10.5" fill="#5c5c5a" text-anchor="middle">平屋かつ延べ 200m² 以下</text>
+  <text x="465" y="148" font-size="11" fill="#141414" text-anchor="middle">住宅で仕様基準等</text>
+  <text x="465" y="164" font-size="10.5" fill="#5c5c5a" text-anchor="middle">施行規則2条</text>
+  <text x="465" y="229" font-size="11" fill="#141414" text-anchor="middle">上記以外</text>
+  <text x="465" y="245" font-size="10.5" fill="#5c5c5a" text-anchor="middle">非住宅は原則ここ</text>
+
+  <!-- 結果 -->
+  <line x1="540" y1="70" x2="562" y2="70" stroke="#141414" stroke-width="0.8" marker-end="url(#ar)"/>
+  <line x1="540" y1="151" x2="562" y2="151" stroke="#141414" stroke-width="0.8" marker-end="url(#ar)"/>
+  <line x1="540" y1="232" x2="562" y2="232" stroke="#141414" stroke-width="0.8" marker-end="url(#ar)"/>
+  <text x="568" y="67" font-size="11" fill="#141414">確認審査・適判とも</text>
+  <text x="568" y="83" font-size="10.5" fill="#5c5c5a">省略</text>
+  <text x="568" y="148" font-size="11" fill="#141414">省エネ適判は省略</text>
+  <text x="568" y="164" font-size="10.5" fill="#5c5c5a">確認審査で適合を確認</text>
+  <text x="568" y="229" font-size="11" fill="#141414">省エネ適判(法11条)</text>
+  <text x="568" y="245" font-size="10.5" fill="#5c5c5a">通知書の提出後に確認済証</text>
+
+  <line x1="20" y1="268" x2="700" y2="268" stroke="#e6e6e2" stroke-width="1"/>
+  <text x="20" y="288" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10.5" fill="#5c5c5a"><tspan fill="#9a9a96">建築物省エネ法</tspan><tspan dx="10">評価は 外皮性能(住宅のみ)+ 一次エネルギー消費量</tspan></text>
+</svg>

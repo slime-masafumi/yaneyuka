@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 306" width="720" height="306" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>移動等円滑化経路の主な寸法</title>
+  <defs>
+    <marker id="tk" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#141414" stroke-width="1"/></marker>
+    <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#9a9a96" stroke-width="0.6"/></pattern>
+  </defs>
+
+  <text x="20" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">PLAN — 平面(幅は同縮尺・長さは省略)</text>
+
+  <!-- 道等 -->
+  <line x1="50" y1="80" x2="50" y2="220" stroke="#9a9a96" stroke-width="0.8" stroke-dasharray="3 3"/>
+  <text x="34" y="154" font-size="11" fill="#141414" text-anchor="middle">道等</text>
+  <!-- 敷地内の通路 -->
+  <line x1="50" y1="130" x2="200" y2="130" stroke="#9a9a96" stroke-width="0.8"/>
+  <line x1="50" y1="170" x2="200" y2="170" stroke="#9a9a96" stroke-width="0.8"/>
+  <!-- 外壁(出入口 80cm) -->
+  <rect x="200" y="70" width="10" height="66.7" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="200" y="163.3" width="10" height="66.7" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <!-- 廊下 -->
+  <g stroke="#141414" stroke-width="1">
+    <line x1="210" y1="130" x2="460" y2="130"/>
+    <line x1="210" y1="170" x2="460" y2="170"/>
+    <line x1="460" y1="125" x2="460" y2="130"/>
+    <line x1="460" y1="170" x2="460" y2="175"/>
+    <line x1="460" y1="125" x2="510" y2="125"/>
+    <line x1="460" y1="175" x2="510" y2="175"/>
+  </g>
+  <!-- 昇降路・籠 -->
+  <path d="M510 136.7 V118 H576 V182 H510 V163.3" fill="none" stroke="#141414" stroke-width="1.6"/>
+  <rect x="516" y="127" width="45" height="46" fill="#f5f5f2" stroke="#141414" stroke-width="1"/>
+
+  <!-- 経路 -->
+  <line x1="56" y1="150" x2="532" y2="150" stroke="#2E7D6B" stroke-width="1.5"/>
+  <path d="M526 145 L536 150 L526 155" fill="none" stroke="#2E7D6B" stroke-width="1.5"/>
+  <text x="586" y="146" font-size="11" fill="#2E7D6B">利用居室の</text>
+  <text x="586" y="162" font-size="11" fill="#2E7D6B">ある階へ</text>
+
+  <!-- 幅の寸法 -->
+  <line x1="110" y1="130" x2="110" y2="170" stroke="#141414" stroke-width="0.6" marker-start="url(#tk)" marker-end="url(#tk)"/>
+  <line x1="330" y1="130" x2="330" y2="170" stroke="#141414" stroke-width="0.6" marker-start="url(#tk)" marker-end="url(#tk)"/>
+
+  <!-- 注記 -->
+  <g font-size="11" fill="#141414" text-anchor="middle">
+    <text x="125" y="104">敷地内の通路</text>
+    <text x="335" y="104">廊下等</text>
+    <text x="543" y="90">エレベーター</text>
+  </g>
+  <g font-size="10.5" fill="#5c5c5a" text-anchor="middle">
+    <text x="125" y="120">幅 120cm 以上</text>
+    <text x="335" y="120">幅 120cm 以上</text>
+    <text x="543" y="106">籠の奥行 135cm 以上</text>
+    <text x="335" y="192">50m 以内ごとに車椅子の転回場所</text>
+    <text x="205" y="250">出入口 幅 80cm 以上</text>
+    <text x="485" y="214">乗降ロビー 150×150cm 以上</text>
+    <text x="560" y="232">籠・昇降路の出入口 80cm 以上</text>
+  </g>
+
+  <line x1="20" y1="262" x2="700" y2="262" stroke="#e6e6e2" stroke-width="1"/>
+  <text x="20" y="280" font-size="10.5" fill="#5c5c5a">経路上に段を設けない(傾斜路・昇降機を併設すれば可。令19条2項)。</text>
+  <text x="20" y="296" font-size="10.5" fill="#5c5c5a">床面積 2,000m² 以上で不特定多数が利用する建築物は、籠の幅 140cm 以上・車椅子が転回できる構造</text>
+</svg>

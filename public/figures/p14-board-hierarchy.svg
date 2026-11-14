@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" fill="#141414" viewBox="0 0 720 300" width="720" height="300" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>主幹盤・分電盤・動力盤・制御盤の関係</title>
+  <style>
+    text{font-size:11px}
+    .s{font-size:10.5px;fill:#5c5c5a}
+    .m{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10px}
+    .t{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10px;letter-spacing:1.2px;fill:#9a9a96}
+    .a{fill:#2E7D6B}
+    .k{stroke:#141414;stroke-width:1;fill:none}
+    .b{stroke:#141414;stroke-width:1;fill:#f5f5f2}
+    .g{stroke:#9a9a96;stroke-width:.8;fill:none}
+    .d{stroke-dasharray:3 3}
+    .c{stroke:#2E7D6B;stroke-width:1.4;fill:none}
+    .h{stroke:#e6e6e2;stroke-width:1}
+  </style>
+
+  <text x="20" y="24" class="t">DIAGRAM — 盤の系統</text>
+
+  <!-- 変圧器 -->
+  <text x="47" y="136" class="s" text-anchor="middle">変圧器</text>
+  <circle cx="40" cy="150" r="9" class="k"/><circle cx="54" cy="150" r="9" class="k"/>
+  <line x1="63" y1="150" x2="100" y2="150" class="c"/>
+
+  <!-- MDB -->
+  <rect x="100" y="66" width="124" height="168" class="b"/>
+  <text x="162" y="92" text-anchor="middle">低圧主幹盤</text>
+  <text x="162" y="108" class="m" text-anchor="middle">MDB</text>
+  <text x="162" y="140" class="m" fill="#5c5c5a" text-anchor="middle">主幹 ACB</text>
+  <text x="162" y="154" class="m" fill="#5c5c5a" text-anchor="middle">800〜4000A</text>
+  <text x="162" y="180" class="m" fill="#5c5c5a" text-anchor="middle">分岐 MCCB</text>
+  <text x="162" y="194" class="m" fill="#5c5c5a" text-anchor="middle">100〜600A</text>
+  <text x="162" y="222" class="s" text-anchor="middle">電気室</text>
+
+  <!-- 幹線(電力) -->
+  <path class="c" d="M224 95 H244 M264 95 H300 M224 150 H244 M264 150 H300 M224 205 H244 M264 205 H300"/>
+  <path class="c" d="M244 95 L262 86 M244 150 L262 141 M244 205 L262 196"/>
+  <path stroke="#2E7D6B" stroke-width="1" d="M261 92 L267 98 M261 98 L267 92 M261 147 L267 153 M261 153 L267 147 M261 202 L267 208 M261 208 L267 202"/>
+
+  <!-- 盤 -->
+  <rect x="300" y="76" width="160" height="38" class="b"/>
+  <text x="310" y="92">分電盤 <tspan class="m">LDB</tspan></text>
+  <text x="310" y="107" class="m" fill="#5c5c5a">MCB・ELB 30mA</text>
+  <rect x="300" y="131" width="160" height="38" class="b"/>
+  <text x="310" y="147">動力盤 <tspan class="m">MCP</tspan></text>
+  <text x="310" y="162" class="m" fill="#5c5c5a">MCCB・MC・THR・INV</text>
+  <rect x="300" y="186" width="160" height="38" class="b"/>
+  <text x="310" y="202">制御盤 <tspan class="m">PLC</tspan></text>
+  <text x="310" y="217" class="m" fill="#5c5c5a">I/O・リレー・通信</text>
+
+  <!-- 負荷 -->
+  <line x1="460" y1="95" x2="500" y2="95" class="k"/>
+  <text x="508" y="92">照明・コンセント</text>
+  <text x="508" y="107" class="m" fill="#5c5c5a">15〜20A / 20A 回路</text>
+  <line x1="460" y1="150" x2="510" y2="150" class="k"/>
+  <circle cx="522" cy="150" r="12" class="k"/>
+  <text x="522" y="154" class="m" text-anchor="middle">M</text>
+  <text x="542" y="154">空調・ポンプ・ファン</text>
+  <line x1="380" y1="186" x2="380" y2="169" class="g d"/>
+  <text x="386" y="181" class="s">制御</text>
+  <line x1="460" y1="205" x2="500" y2="205" class="g d"/>
+  <text x="508" y="209">BAS・中央監視(通信)</text>
+
+  <!-- 凡例 -->
+  <line x1="20" y1="252" x2="700" y2="252" class="h"/>
+  <line x1="20" y1="272" x2="44" y2="272" class="c"/>
+  <text x="50" y="276" class="s">幹線(電力)</text>
+  <line x1="130" y1="272" x2="154" y2="272" class="g d"/>
+  <text x="160" y="276" class="s">制御・通信</text>
+  <text x="250" y="276" class="s">盤前の作業スペース 1.0〜1.2m・背面 0.1〜0.2m(目安)</text>
+</svg>

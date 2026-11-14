@@ -10,6 +10,7 @@ import { listDesignPostBookmarks, setDesignPostBookmark, deleteDesignPostBookmar
 import PageHead, { Stat } from '@/components/ui/PageHead';
 import { SecHead } from '@/components/ui/Sheet';
 import { ScreenLink } from '@/components/home/HomeParts';
+import { figureSrc, figuresOf } from '@/data/figures';
 import './info-pages.css';
 
 /**
@@ -248,7 +249,32 @@ const DesignInfo: React.FC<{ embedded?: boolean; initialPost?: string | null }> 
   //   ## 大見出し(番号を振り、右の目次に出す) / ### 小見出し
   //   - 箇条書き(「・」も可) / 1. 番号付き / | 表 | (1 行目が見出し) / > 注意書き / **強調**
   // 古い記事(## を使っていない)は従来どおり【…】・「1. 」の行を大見出しとして扱う。
-  const formatContent = (content: string) => {
+  const formatContent = (content: string, postId = '') => {
+    // 自作の図(src/data/figures)。after の見出しの節の終わりに差し込む。2026-11-14
+    const figs = figuresOf(postId);
+    const usedFigs = new Set<string>();
+    let curChapter = '';
+    let firstChapter = '';
+    const pushFigs = (head: string, all = false) => {
+      for (const f of figs) {
+        if (usedFigs.has(f.id)) continue;
+        if (!all && !(f.after === head || (!f.after && head && head === firstChapter))) continue;
+        usedFigs.add(f.id);
+        const n = usedFigs.size;
+        formatted.push(
+          <figure key={`fig-${f.id}`} className="yy-di-fig">
+            <a href={figureSrc(f)} target="_blank" rel="noopener" title="図を別のタブで大きく見る">
+              <img src={figureSrc(f)} alt={f.title} width={f.w} height={f.h} loading="lazy" decoding="async" />
+            </a>
+            <figcaption>
+              <span className="yy-di-figno">FIG. {postId}-{n}</span>
+              <b>{f.title}</b>
+              <span>{f.caption}</span>
+            </figcaption>
+          </figure>
+        );
+      }
+    };
     const lines = content.replace(/\r/g, '').replace(/\n{3,}/g, '\n\n').split('\n').map((l) => l.trim());
     const modern = lines.some((l) => l.startsWith('## '));
     const formatted: React.JSX.Element[] = [];
@@ -301,6 +327,9 @@ const DesignInfo: React.FC<{ embedded?: boolean; initialPost?: string | null }> 
     };
     const chapter = (text: string, index: number) => {
       flush();
+      pushFigs(curChapter);
+      curChapter = text;
+      if (!firstChapter) firstChapter = text;
       const id = `yy-di-h-${index}`;
       heads.push({ id, text });
       formatted.push(
@@ -312,6 +341,8 @@ const DesignInfo: React.FC<{ embedded?: boolean; initialPost?: string | null }> 
     };
     const sub = (text: string, index: number) => {
       flush();
+      // 「根拠・参考」の前で、その節の図を出し切る
+      if (/^根拠|^参考/.test(text)) pushFigs(curChapter);
       formatted.push(<h6 key={`s-${index}`} className="yy-di-sub">{text}</h6>);
     };
     const addItem = (ordered: boolean, text: string) => {
@@ -345,10 +376,12 @@ const DesignInfo: React.FC<{ embedded?: boolean; initialPost?: string | null }> 
       para.push(line);
     });
     flush();
+    pushFigs(curChapter);
+    pushFigs('', true); // 見出しが見つからなかった図は最後に
     return { nodes: formatted, heads };
   };
 
-  const article = useMemo(() => (currentPost ? formatContent(currentPost.content) : null), [currentPost]); // eslint-disable-line react-hooks/exhaustive-deps
+  const article = useMemo(() => (currentPost ? formatContent(currentPost.content, currentPost.id) : null), [currentPost]); // eslint-disable-line react-hooks/exhaustive-deps
   const countOf = (cat: string) => (cat === 'all' ? posts.length : posts.filter(p => p.category === cat).length);
   const bookmarkCount = Object.keys(bookmarks).length;
 

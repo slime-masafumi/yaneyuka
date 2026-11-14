@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" fill="#141414" viewBox="0 0 720 340" width="720" height="340" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>キュービクルの保有距離</title>
+  <style>
+    text{font-size:11px}
+    .s{font-size:10.5px;fill:#5c5c5a}
+    .m{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10px}
+    .t{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10px;letter-spacing:1.2px;fill:#9a9a96}
+    .a{fill:#2E7D6B}
+    .k{stroke:#141414;stroke-width:1;fill:none}
+    .g{stroke:#9a9a96;stroke-width:.8;fill:none}
+    .c{stroke:#2E7D6B;stroke-width:1.2;fill:none}
+    .h{stroke:#e6e6e2;stroke-width:1}
+  </style>
+  <defs>
+    <marker id="ta" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#2E7D6B" stroke-width="1.2"/></marker>
+    <pattern id="hp" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#9a9a96" stroke-width="0.6"/></pattern>
+  </defs>
+
+  <text x="20" y="24" class="t">PLAN — 平面(屋内)</text>
+
+  <!-- 壁 -->
+  <rect x="150" y="64" width="374" height="8" fill="url(#hp)" stroke="#141414" stroke-width="1"/>
+  <rect x="516" y="72" width="8" height="216" fill="url(#hp)" stroke="#141414" stroke-width="1"/>
+  <rect x="150" y="280" width="366" height="8" fill="url(#hp)" stroke="#141414" stroke-width="1"/>
+
+  <!-- キュービクル -->
+  <rect x="220" y="120" width="280" height="80" fill="#f5f5f2" stroke="#141414" stroke-width="1"/>
+  <text x="360" y="158" text-anchor="middle">キュービクル</text>
+  <text x="360" y="192" class="s" text-anchor="middle">扉・操作面</text>
+  <path class="k" d="M260 200 V196 M320 200 V196 M400 200 V196 M460 200 V196"/>
+  <path class="k" d="M496 140 H500 M496 150 H500 M496 160 H500 M496 170 H500 M496 180 H500"/>
+
+  <!-- 背面 0.6m -->
+  <line x1="236" y1="72" x2="236" y2="120" class="c" marker-start="url(#ta)" marker-end="url(#ta)"/>
+  <text x="246" y="93" class="a">0.6m 以上</text>
+  <text x="246" y="110" class="s">点検を行う面</text>
+
+  <!-- 前面 1.0m -->
+  <line x1="236" y1="200" x2="236" y2="280" class="c" marker-start="url(#ta)" marker-end="url(#ta)"/>
+  <text x="246" y="236" class="a">1.0m 以上</text>
+  <text x="246" y="253" class="s">操作を行う面</text>
+
+  <!-- 側面 0.2m -->
+  <line x1="500" y1="230" x2="516" y2="230" class="c" marker-start="url(#ta)" marker-end="url(#ta)"/>
+  <line x1="500" y1="200" x2="500" y2="236" class="g"/>
+  <text x="534" y="152" class="a">0.2m 以上</text>
+  <text x="534" y="169" class="s">換気口を有する面</text>
+  <line x1="509" y1="227" x2="528" y2="176" stroke="#141414" stroke-width="0.6"/>
+  <rect x="526" y="174" width="4" height="4" fill="#141414"/>
+
+  <!-- 注記 -->
+  <line x1="20" y1="304" x2="700" y2="304" class="h"/>
+  <text x="20" y="324" class="s">火災予防条例(例)によるキュービクル式の保有距離。屋外・屋上や操作面が向き合う場合などは各市町村の条例で確認する。</text>
+</svg>

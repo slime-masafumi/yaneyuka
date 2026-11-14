@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 290" width="720" height="290" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>建築基準関係規定と確認の対象</title>
+
+  <text x="20" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">DIAGRAM — 確認の対象</text>
+
+  <!-- 関係法令(外側) -->
+  <rect x="20" y="40" width="540" height="232" fill="none" stroke="#9a9a96" stroke-width="0.8" stroke-dasharray="3 3"/>
+  <text x="32" y="60" font-size="12" fill="#141414">関係法令</text>
+  <text x="96" y="60" font-size="10.5" fill="#5c5c5a">敷地に掛かる法令を初期段階で洗い出す</text>
+
+  <!-- 建築基準関係規定 -->
+  <rect x="36" y="72" width="508" height="150" fill="#eef6f3" stroke="#2E7D6B" stroke-width="1.2"/>
+  <text x="48" y="92" font-size="12" fill="#2E7D6B">建築基準関係規定</text>
+  <text x="156" y="92" font-size="10.5" fill="#5c5c5a">= 確認審査の対象(法6条1項・令9条)</text>
+
+  <g fill="#ffffff" stroke="#141414" stroke-width="1">
+    <rect x="48" y="104" width="142" height="106"/>
+    <rect x="200" y="104" width="180" height="106"/>
+    <rect x="390" y="104" width="142" height="106"/>
+  </g>
+  <g font-size="11.5" fill="#141414">
+    <text x="58" y="124">建築基準法令の規定</text>
+    <text x="210" y="124">令9条に列挙の他法令</text>
+    <text x="400" y="124">法律によるみなし</text>
+  </g>
+  <g font-size="10.5" fill="#5c5c5a">
+    <text x="58" y="146">法・施行令・施行規則</text>
+    <text x="58" y="162">告示</text>
+    <text x="58" y="178">法に基づく条例</text>
+
+    <text x="210" y="146">消防法 9条・9条の2・15条・17条</text>
+    <text x="210" y="162">都市計画法 29条 など</text>
+    <text x="210" y="178">駐車場法 20条・水道法 16条</text>
+    <text x="210" y="194">下水道法 10条 など</text>
+
+    <text x="400" y="146">バリアフリー法 14条</text>
+    <text x="400" y="162">建築物省エネ法 10条</text>
+  </g>
+
+  <!-- 確認済証へ -->
+  <line x1="544" y1="147" x2="590" y2="147" stroke="#141414" stroke-width="1"/>
+  <path d="M584 142 L592 147 L584 152" fill="none" stroke="#141414" stroke-width="1"/>
+  <rect x="596" y="124" width="104" height="46" fill="none" stroke="#141414" stroke-width="1"/>
+  <text x="648" y="144" font-size="12" fill="#141414" text-anchor="middle">確認済証</text>
+  <text x="648" y="160" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="9.5" fill="#5c5c5a" text-anchor="middle">法6条・6条の2</text>
+  <text x="596" y="190" font-size="10.5" fill="#5c5c5a">交付後に着工</text>
+
+  <!-- それ以外 -->
+  <text x="32" y="244" font-size="11" fill="#141414">上記以外の関係法令</text>
+  <text x="32" y="262" font-size="10.5" fill="#5c5c5a">許可・届出を別途得る(農地法・文化財保護法・景観法・土壌汚染対策法 など)</text>
+</svg>

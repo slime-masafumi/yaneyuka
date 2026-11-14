@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" fill="#141414" viewBox="0 0 720 300" width="720" height="300" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>調光方式ごとの配線の違い</title>
+  <style>
+    text{font-size:11px}
+    .s{font-size:10.5px;fill:#5c5c5a}
+    .m{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10px}
+    .t{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10px;letter-spacing:1.2px;fill:#9a9a96}
+    .a{fill:#2E7D6B}
+    .k{stroke:#141414;stroke-width:1;fill:none}
+    .b{stroke:#141414;stroke-width:1;fill:#f5f5f2}
+    .c{stroke:#2E7D6B;stroke-width:1.4;fill:none}
+    .h{stroke:#e6e6e2;stroke-width:1}
+  </style>
+  <defs>
+    <g id="fx"><circle cx="0" cy="0" r="9" fill="none" stroke="#141414"/><path d="M-6.4 -6.4 L6.4 6.4 M-6.4 6.4 L6.4 -6.4" stroke="#141414"/></g>
+  </defs>
+
+  <text x="20" y="24" class="t">WIRING — 配線</text>
+  <line x1="240" y1="40" x2="240" y2="250" class="h"/>
+  <line x1="475" y1="40" x2="475" y2="250" class="h"/>
+
+  <!-- 位相制御 -->
+  <text x="20" y="56">位相制御</text>
+  <rect x="20" y="88" width="18" height="24" class="b"/>
+  <text x="29" y="82" class="s" text-anchor="middle">盤</text>
+  <line x1="38" y1="100" x2="60" y2="100" class="k"/>
+  <rect x="60" y="91" width="44" height="18" class="b"/>
+  <text x="82" y="104" class="s" text-anchor="middle">調光器</text>
+  <path class="c" d="M104 100 H205 M140 100 V131 M205 100 V131"/>
+  <use href="#fx" x="140" y="140"/><use href="#fx" x="205" y="140"/>
+  <text x="20" y="204" class="s">電源の波形を削って明るさを変える</text>
+  <text x="20" y="220" class="s">配線は電源線のみ(増えない)</text>
+  <text x="20" y="236" class="s">器具の対応確認が要る</text>
+
+  <!-- 0-10V -->
+  <text x="255" y="56">0-10V</text>
+  <rect x="255" y="88" width="18" height="24" class="b"/>
+  <text x="264" y="82" class="s" text-anchor="middle">盤</text>
+  <path class="k" d="M273 100 H440 M375 100 V131 M440 100 V131"/>
+  <use href="#fx" x="375" y="140"/><use href="#fx" x="440" y="140"/>
+  <rect x="255" y="159" width="44" height="18" class="b"/>
+  <text x="277" y="172" class="s" text-anchor="middle">調光器</text>
+  <path class="c" d="M299 168 H440 M375 168 V149 M440 168 V149"/>
+  <text x="255" y="204" class="s">電源線とは別に制御線 2 本</text>
+  <text x="255" y="220" class="s">直流 0〜10V で明るさを指示</text>
+  <text x="255" y="236" class="s">系統ごとに同じ明るさ</text>
+
+  <!-- DALI -->
+  <text x="490" y="56">DALI</text>
+  <rect x="490" y="88" width="18" height="24" class="b"/>
+  <text x="499" y="82" class="s" text-anchor="middle">盤</text>
+  <path class="k" d="M508 100 H675 M610 100 V131 M675 100 V131"/>
+  <use href="#fx" x="610" y="140"/><use href="#fx" x="675" y="140"/>
+  <text x="622" y="128" class="m" fill="#5c5c5a">#01</text>
+  <text x="687" y="128" class="m" fill="#5c5c5a">#02</text>
+  <rect x="490" y="159" width="44" height="18" class="b"/>
+  <text x="512" y="172" class="m" text-anchor="middle">DALI</text>
+  <path class="c" d="M534 168 H675 M610 168 V149 M675 168 V149"/>
+  <text x="490" y="204" class="s">2 線のバスでデジタル信号</text>
+  <text x="490" y="220" class="s">器具ごとのアドレスで個別制御</text>
+  <text x="490" y="236" class="s">1 系統 64 台まで(IEC 62386)</text>
+
+  <line x1="20" y1="262" x2="700" y2="262" class="h"/>
+  <line x1="20" y1="282" x2="44" y2="282" class="c"/>
+  <text x="50" y="286" class="s">明るさを伝える線</text>
+  <text x="180" y="286" class="s">PWM は LED 電源(ドライバ)内部の方式で、上の配線方式と組み合わせて使う。</text>
+</svg>

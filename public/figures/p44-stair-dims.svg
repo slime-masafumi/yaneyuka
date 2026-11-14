@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 340" width="720" height="340" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>階段のけあげ・踏面・幅の測り方</title>
+  <defs>
+    <marker id="tk" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#141414" stroke-width="1"/></marker>
+    <marker id="tka" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#2E7D6B" stroke-width="1.2"/></marker>
+    <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#9a9a96" stroke-width="0.6"/></pattern>
+  </defs>
+
+  <!-- 見出し -->
+  <text x="20" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">SECTION — 断面</text>
+  <text x="420" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">PLAN — 平面</text>
+  <line x1="400" y1="16" x2="400" y2="300" stroke="#e6e6e2" stroke-width="1"/>
+
+  <!-- 断面:床 -->
+  <line x1="20" y1="250" x2="380" y2="250" stroke="#9a9a96" stroke-width="1"/>
+  <!-- 段(断面) -->
+  <polygon points="60,250 60,214 116,214 116,178 172,178 172,142 228,142 228,106 360,106 360,130 284,130 97,250" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <!-- 勾配線(段鼻を結ぶ) -->
+  <line x1="44" y1="224" x2="300" y2="59" stroke="#9a9a96" stroke-width="0.8" stroke-dasharray="3 3"/>
+  <!-- 手すり -->
+  <line x1="60" y1="150" x2="228" y2="42" stroke="#141414" stroke-width="1.6"/>
+  <line x1="228" y1="42" x2="300" y2="42" stroke="#141414" stroke-width="1.6"/>
+  <line x1="116" y1="114" x2="116" y2="178" stroke="#141414" stroke-width="0.6"/>
+  <line x1="172" y1="78" x2="172" y2="142" stroke="#141414" stroke-width="0.6"/>
+  <text x="236" y="36" font-size="11" fill="#141414">手すり(令25条)</text>
+
+  <!-- けあげ R -->
+  <line x1="40" y1="250" x2="40" y2="214" stroke="#2E7D6B" stroke-width="1.2" marker-start="url(#tka)" marker-end="url(#tka)"/>
+  <line x1="36" y1="214" x2="60" y2="214" stroke="#2E7D6B" stroke-width="0.6"/>
+  <text x="30" y="236" font-size="12" fill="#2E7D6B" text-anchor="end">R</text>
+  <text x="30" y="272" font-size="11" fill="#141414" text-anchor="middle">けあげ</text>
+
+  <!-- 踏面 T(段鼻から段鼻まで) -->
+  <line x1="116" y1="196" x2="172" y2="196" stroke="#2E7D6B" stroke-width="1.2" marker-start="url(#tka)" marker-end="url(#tka)"/>
+  <line x1="116" y1="200" x2="116" y2="178" stroke="#2E7D6B" stroke-width="0.6"/>
+  <text x="144" y="192" font-size="12" fill="#2E7D6B" text-anchor="middle">T</text>
+  <!-- 引き出し -->
+  <line x1="150" y1="200" x2="170" y2="272" stroke="#141414" stroke-width="0.6"/>
+  <rect x="168" y="270" width="4" height="4" fill="#141414"/>
+  <text x="178" y="276" font-size="11" fill="#141414">踏面は段鼻から段鼻まで水平に測る</text>
+
+  <!-- 踊場 -->
+  <line x1="228" y1="96" x2="360" y2="96" stroke="#141414" stroke-width="0.6" marker-start="url(#tk)" marker-end="url(#tk)"/>
+  <text x="294" y="90" font-size="11" fill="#141414" text-anchor="middle">踊場</text>
+  <text x="236" y="196" font-size="10.5" fill="#5c5c5a">踊場は高さ 4m 以内ごと</text>
+  <text x="236" y="210" font-size="10.5" fill="#5c5c5a">(表の(一)(二)は 3m)</text>
+  <text x="236" y="224" font-size="10.5" fill="#5c5c5a">直階段の踏幅 120cm 以上</text>
+
+  <!-- 平面:壁 -->
+  <rect x="440" y="44" width="10" height="216" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="650" y="44" width="10" height="216" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <!-- 段 -->
+  <g stroke="#141414" stroke-width="0.8">
+    <line x1="450" y1="72" x2="650" y2="72"/><line x1="450" y1="100" x2="650" y2="100"/><line x1="450" y1="128" x2="650" y2="128"/>
+    <line x1="450" y1="156" x2="650" y2="156"/><line x1="450" y1="184" x2="650" y2="184"/><line x1="450" y1="212" x2="650" y2="212"/>
+    <line x1="450" y1="240" x2="650" y2="240"/>
+  </g>
+  <!-- 昇り方向 -->
+  <line x1="550" y1="236" x2="550" y2="80" stroke="#9a9a96" stroke-width="0.8"/>
+  <path d="M545 88 L550 78 L555 88" fill="none" stroke="#9a9a96" stroke-width="0.8"/>
+  <text x="558" y="232" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="9" letter-spacing="1" fill="#9a9a96">UP</text>
+  <!-- 手すり(平面) -->
+  <line x1="460" y1="50" x2="460" y2="254" stroke="#141414" stroke-width="1.6"/>
+  <!-- 手すりの出 -->
+  <line x1="450" y1="36" x2="460" y2="36" stroke="#141414" stroke-width="0.6" marker-start="url(#tk)" marker-end="url(#tk)"/>
+  <line x1="460" y1="32" x2="460" y2="50" stroke="#141414" stroke-width="0.4"/>
+  <text x="466" y="39" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="9.5" fill="#5c5c5a">≤10cm</text>
+  <text x="420" y="298" font-size="10.5" fill="#5c5c5a">手すり等の出は 10cm まで無いものとみなす(令23条3項)</text>
+
+  <!-- 幅 W -->
+  <line x1="450" y1="278" x2="650" y2="278" stroke="#2E7D6B" stroke-width="1.2" marker-start="url(#tka)" marker-end="url(#tka)"/>
+  <line x1="450" y1="262" x2="450" y2="284" stroke="#2E7D6B" stroke-width="0.6"/>
+  <line x1="650" y1="262" x2="650" y2="284" stroke="#2E7D6B" stroke-width="0.6"/>
+  <text x="550" y="273" font-size="12" fill="#2E7D6B" text-anchor="middle">W 階段の幅</text>
+
+  <!-- 凡例(数値) -->
+  <line x1="20" y1="304" x2="700" y2="304" stroke="#e6e6e2" stroke-width="1"/>
+  <text x="20" y="324" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10.5" fill="#5c5c5a">
+    <tspan fill="#9a9a96">令23条 例</tspan>
+    <tspan dx="10">(四)一般  W≥75  R≤22  T≥21</tspan>
+    <tspan dx="14">(三)居室200m²超の直下階  W≥120  R≤20  T≥24</tspan>
+    <tspan dx="14">住宅  R≤23  T≥15  [cm]</tspan>
+  </text>
+</svg>

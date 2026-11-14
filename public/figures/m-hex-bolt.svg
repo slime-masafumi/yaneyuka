@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 300" width="720" height="300" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>六角ボルト・平座金の各部の名称と寸法記号</title>
+  <defs>
+    <marker id="tk" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#141414" stroke-width="1"/></marker>
+    <marker id="tka" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#2E7D6B" stroke-width="1.2"/></marker>
+    <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#9a9a96" stroke-width="0.6"/></pattern>
+  </defs>
+  <text x="20" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">ELEVATION — 側面</text>
+  <text x="290" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">HEAD — 頭部</text>
+  <text x="460" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">WASHER — 平座金</text>
+  <line x1="270" y1="16" x2="270" y2="210" stroke="#e6e6e2" stroke-width="1"/>
+  <line x1="440" y1="16" x2="440" y2="210" stroke="#e6e6e2" stroke-width="1"/>
+  <rect x="50" y="98.82" width="22.5" height="62.35" fill="none" stroke="#141414" stroke-width="1"/>
+  <line x1="50" y1="114.41" x2="72.5" y2="114.41" stroke="#141414" stroke-width="0.6"/>
+  <line x1="50" y1="145.59" x2="72.5" y2="145.59" stroke="#141414" stroke-width="0.6"/>
+  <path d="M72.5,112 H219.5 L222.5,114.84 V145.16 L219.5,148 H72.5" fill="none" stroke="#141414" stroke-width="1"/>
+  <line x1="132.5" y1="114.84" x2="222.5" y2="114.84" stroke="#141414" stroke-width="0.6"/>
+  <line x1="132.5" y1="145.16" x2="222.5" y2="145.16" stroke="#141414" stroke-width="0.6"/>
+  <line x1="132.5" y1="112" x2="132.5" y2="148" stroke="#141414" stroke-width="0.8"/>
+  <line x1="135.13" y1="112" x2="137.75" y2="148" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="140.38" y1="112" x2="143" y2="148" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="145.63" y1="112" x2="148.25" y2="148" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="150.88" y1="112" x2="153.5" y2="148" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="156.13" y1="112" x2="158.75" y2="148" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="161.38" y1="112" x2="164" y2="148" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="166.63" y1="112" x2="169.25" y2="148" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="171.88" y1="112" x2="174.5" y2="148" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="177.13" y1="112" x2="179.75" y2="148" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="182.38" y1="112" x2="185" y2="148" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="187.63" y1="112" x2="190.25" y2="148" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="192.88" y1="112" x2="195.5" y2="148" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="198.13" y1="112" x2="200.75" y2="148" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="203.38" y1="112" x2="206" y2="148" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="208.63" y1="112" x2="211.25" y2="148" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="213.88" y1="112" x2="216.5" y2="148" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="219.13" y1="112" x2="221.75" y2="148" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="38" y1="130" x2="234.5" y2="130" stroke="#9a9a96" stroke-width="0.8" stroke-dasharray="6 3 1 3"/>
+  <line x1="50" y1="95.82308546376021" x2="50" y2="74" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="72.5" y1="95.82308546376021" x2="72.5" y2="74" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="50" y1="80" x2="72.5" y2="80" stroke="#141414" stroke-width="0.6" marker-start="url(#tk)" marker-end="url(#tk)"/>
+  <text x="61.25" y="72" font-size="12" fill="#141414" text-anchor="middle">k</text>
+  <line x1="226.5" y1="112" x2="250" y2="112" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="226.5" y1="148" x2="250" y2="148" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="244" y1="112" x2="244" y2="148" stroke="#141414" stroke-width="0.6" marker-start="url(#tk)" marker-end="url(#tk)"/>
+  <text x="252" y="134" font-size="12" fill="#141414">d</text>
+  <line x1="72.5" y1="151" x2="72.5" y2="196" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="222.5" y1="148.1584375" x2="222.5" y2="196" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="132.5" y1="151" x2="132.5" y2="178" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="132.5" y1="172" x2="222.5" y2="172" stroke="#141414" stroke-width="0.6" marker-start="url(#tk)" marker-end="url(#tk)"/>
+  <text x="177.5" y="166" font-size="12" fill="#141414" text-anchor="middle">b</text>
+  <line x1="72.5" y1="190" x2="222.5" y2="190" stroke="#141414" stroke-width="0.6" marker-start="url(#tk)" marker-end="url(#tk)"/>
+  <text x="147.5" y="204" font-size="12" fill="#141414" text-anchor="middle">l</text>
+  <line x1="164" y1="113" x2="178" y2="86" stroke="#141414" stroke-width="0.6"/>
+  <rect x="176" y="84" width="4" height="4" fill="#141414"/>
+  <text x="184" y="90" font-size="12" fill="#141414">P</text>
+  <polygon points="313.82,130 329.41,103 360.59,103 376.18,130 360.59,157 329.41,157" fill="none" stroke="#141414" stroke-width="1"/>
+  <circle cx="345" cy="130" r="27" fill="none" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="364.5884572681199" y1="103" x2="412" y2="103" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="364.5884572681199" y1="157" x2="412" y2="157" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="406" y1="103" x2="406" y2="157" stroke="#2E7D6B" stroke-width="1.2" marker-start="url(#tka)" marker-end="url(#tka)"/>
+  <text x="414" y="134" font-size="12" fill="#2E7D6B">SW</text>
+  <line x1="313.8230854637602" y1="134" x2="313.8230854637602" y2="186" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="376.1769145362398" y1="134" x2="376.1769145362398" y2="186" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="313.82" y1="180" x2="376.18" y2="180" stroke="#141414" stroke-width="0.6" marker-start="url(#tk)" marker-end="url(#tk)"/>
+  <text x="345" y="196" font-size="10.5" fill="#5c5c5a" text-anchor="middle">e 対角距離</text>
+  <rect x="476" y="94" width="7.5" height="16.5" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="476" y="149.5" width="7.5" height="16.5" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <line x1="476" y1="91" x2="476" y2="74" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="483.5" y1="91" x2="483.5" y2="74" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="476" y1="80" x2="483.5" y2="80" stroke="#141414" stroke-width="0.6" marker-start="url(#tk)" marker-end="url(#tk)"/>
+  <text x="488" y="72" font-size="12" fill="#141414">t</text>
+  <line x1="472" y1="110.5" x2="458" y2="110.5" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="472" y1="149.5" x2="458" y2="149.5" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="464" y1="110.5" x2="464" y2="149.5" stroke="#141414" stroke-width="0.6" marker-start="url(#tk)" marker-end="url(#tk)"/>
+  <text x="454" y="134" font-size="12" fill="#141414" text-anchor="end">d</text>
+  <line x1="487.5" y1="94" x2="508" y2="94" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="487.5" y1="166" x2="508" y2="166" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="502" y1="94" x2="502" y2="166" stroke="#141414" stroke-width="0.6" marker-start="url(#tk)" marker-end="url(#tk)"/>
+  <text x="510" y="134" font-size="12" fill="#141414">D</text>
+  <path fill-rule="evenodd" d="M574,130 A36,36 0 1 0 646,130 A36,36 0 1 0 574,130 Z M590.5,130 A19.5,19.5 0 1 0 629.5,130 A19.5,19.5 0 1 0 590.5,130 Z" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <text x="610" y="186" font-size="10.5" fill="#5c5c5a" text-anchor="middle">座金(上から)</text>
+  <line x1="20" y1="222" x2="700" y2="222" stroke="#e6e6e2" stroke-width="1"/>
+  <text x="20" y="244" font-size="11" fill="#141414"><tspan fill="#2E7D6B">SW</tspan><tspan dx="6">二面幅(スパナの口の大きさ)</tspan><tspan dx="14">k 頭部高さ</tspan><tspan dx="14">d 呼び径(M12 → 12mm)</tspan><tspan dx="14">P ピッチ</tspan><tspan dx="14">l 首下長さ</tspan><tspan dx="14">b ねじ部長さ</tspan></text>
+  <text x="20" y="266" font-size="10.5" fill="#5c5c5a">ボルト孔の径は d+1mm 以下(d が 20mm 以上で構造耐力上支障がなければ d+1.5mm まで)― 令68条4項</text>
+  <text x="20" y="286" font-size="10.5" fill="#5c5c5a">図は M12 の比率(SW=18・k=7.5・P=1.75、座金 d=13・D=24・t=2.5)。l・b は例</text>
+</svg>

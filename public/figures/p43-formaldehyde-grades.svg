@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 250" width="720" height="250" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>ホルムアルデヒド発散建築材料の区分と内装の制限</title>
+
+  <text x="20" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">SCALE — 夏季の発散速度 [mg/m²h]</text>
+
+  <!-- 区分の帯 -->
+  <rect x="40" y="84" width="160" height="48" fill="#eef6f3"/>
+  <g fill="none" stroke="#141414" stroke-width="1">
+    <rect x="40" y="84" width="640" height="48"/>
+  </g>
+  <g stroke="#141414" stroke-width="1">
+    <line x1="200" y1="76" x2="200" y2="132"/><line x1="360" y1="76" x2="360" y2="132"/><line x1="520" y1="76" x2="520" y2="132"/>
+  </g>
+  <g font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10.5" fill="#141414" text-anchor="middle">
+    <text x="200" y="70">0.005</text><text x="360" y="70">0.02</text><text x="520" y="70">0.12</text>
+  </g>
+  <text x="680" y="70" font-size="10.5" fill="#5c5c5a" text-anchor="end">発散が多い →</text>
+
+  <text x="120" y="106" font-size="12" fill="#2E7D6B" text-anchor="middle">F☆☆☆☆</text>
+  <text x="280" y="106" font-size="12" fill="#141414" text-anchor="middle">F☆☆☆</text>
+  <text x="440" y="106" font-size="12" fill="#141414" text-anchor="middle">F☆☆</text>
+  <text x="600" y="106" font-size="11" fill="#141414" text-anchor="middle">表示なし等</text>
+  <text x="120" y="123" font-size="10.5" fill="#2E7D6B" text-anchor="middle">規制対象外</text>
+  <text x="280" y="123" font-size="10.5" fill="#5c5c5a" text-anchor="middle">第三種</text>
+  <text x="440" y="123" font-size="10.5" fill="#5c5c5a" text-anchor="middle">第二種</text>
+  <text x="600" y="123" font-size="10.5" fill="#5c5c5a" text-anchor="middle">第一種</text>
+
+  <!-- 内装仕上げへの使用 -->
+  <text x="40" y="156" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="9.5" letter-spacing="1.2" fill="#9a9a96">内装仕上げへの使用</text>
+  <g font-size="11" text-anchor="middle">
+    <text x="120" y="178" fill="#2E7D6B">制限なし</text>
+    <text x="280" y="178" fill="#141414">面積を制限(S3)</text>
+    <text x="440" y="178" fill="#141414">面積を制限(S2)</text>
+    <text x="600" y="178" fill="#141414">使用禁止</text>
+  </g>
+  <line x1="200" y1="186" x2="520" y2="186" stroke="#e6e6e2" stroke-width="1"/>
+  <text x="360" y="206" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="11" fill="#141414" text-anchor="middle">N2·S2 + N3·S3 ≦ A</text>
+  <text x="360" y="222" font-size="10.5" fill="#5c5c5a" text-anchor="middle">A:居室の床面積 N:居室の種類と換気回数による係数</text>
+
+  <text x="20" y="244" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" fill="#9a9a96">令20条の7・平成14年国交告1113〜1115号(JIS・JAS の等級で区分)</text>
+</svg>

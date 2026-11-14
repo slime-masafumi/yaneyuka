@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 330" width="720" height="330" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>令136条の2の区分(階数と延べ面積)</title>
+
+  <text x="20" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">DIAGRAM — 防火地域</text>
+  <text x="340" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">DIAGRAM — 準防火地域</text>
+  <line x1="320" y1="16" x2="320" y2="270" stroke="#e6e6e2" stroke-width="1"/>
+
+  <!-- A 防火地域 -->
+  <text x="70" y="80" font-size="10.5" fill="#5c5c5a">階数(地階を含む)</text>
+  <polygon points="70,90 290,90 290,230 170,230 170,160 70,160" fill="#eef6f3" stroke="#2E7D6B" stroke-width="1.2"/>
+  <rect x="70" y="160" width="100" height="70" fill="#f5f5f2" stroke="#141414" stroke-width="1"/>
+  <g font-size="10.5" fill="#141414" text-anchor="end">
+    <text x="62" y="129">3以上</text>
+    <text x="62" y="199">1・2</text>
+  </g>
+  <text x="230" y="124" font-size="12" fill="#2E7D6B" text-anchor="middle">1号</text>
+  <text x="230" y="141" font-size="10.5" fill="#141414" text-anchor="middle">耐火建築物相当</text>
+  <text x="120" y="192" font-size="12" fill="#141414" text-anchor="middle">2号</text>
+  <text x="120" y="209" font-size="10.5" fill="#141414" text-anchor="middle">準耐火相当</text>
+  <g font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" fill="#141414" text-anchor="middle">
+    <text x="170" y="248">100</text>
+  </g>
+  <text x="290" y="264" font-size="10.5" fill="#5c5c5a" text-anchor="end">延べ面積 m²</text>
+
+  <!-- B 準防火地域 -->
+  <text x="420" y="80" font-size="10.5" fill="#5c5c5a">地階を除く階数</text>
+  <polygon points="420,90 700,90 700,230 600,230 600,130 420,130" fill="#eef6f3" stroke="#2E7D6B" stroke-width="1.2"/>
+  <polygon points="420,130 600,130 600,230 510,230 510,170 420,170" fill="#f5f5f2" stroke="#141414" stroke-width="1"/>
+  <rect x="420" y="170" width="90" height="60" fill="none" stroke="#141414" stroke-width="1"/>
+  <g font-size="10.5" fill="#141414" text-anchor="end">
+    <text x="412" y="114">4以上</text>
+    <text x="412" y="154">3</text>
+    <text x="412" y="204">1・2</text>
+  </g>
+  <text x="560" y="115" font-size="12" fill="#2E7D6B" text-anchor="middle">1号 <tspan font-size="10.5" fill="#141414">耐火建築物相当</tspan></text>
+  <text x="510" y="155" font-size="12" fill="#141414" text-anchor="middle">2号 <tspan font-size="10.5">準耐火建築物相当</tspan></text>
+  <text x="650" y="186" font-size="10.5" fill="#5c5c5a" text-anchor="middle">1,500m² 超は</text>
+  <text x="650" y="202" font-size="10.5" fill="#5c5c5a" text-anchor="middle">階数によらず</text>
+  <text x="465" y="196" font-size="10.5" fill="#141414" text-anchor="middle">3号 木造等</text>
+  <text x="465" y="213" font-size="10.5" fill="#141414" text-anchor="middle">4号 その他</text>
+  <g font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" fill="#141414" text-anchor="middle">
+    <text x="510" y="248">500</text>
+    <text x="600" y="248">1,500</text>
+  </g>
+  <text x="700" y="264" font-size="10.5" fill="#5c5c5a" text-anchor="end">延べ面積 m²</text>
+
+  <!-- 注 -->
+  <line x1="20" y1="278" x2="700" y2="278" stroke="#e6e6e2" stroke-width="1"/>
+  <text x="20" y="298" font-size="10.5" fill="#5c5c5a">境界の数値は「以下」が左・下の区分。3号は外壁・軒裏の延焼のおそれのある部分を防火構造、開口部は屋内側へ20分。4号は開口部のみ</text>
+  <text x="20" y="316" font-size="10.5" fill="#5c5c5a">各号ともイ(仕様)とロ(延焼防止時間で同等以上)のどちらかによる(令136条の2)</text>
+</svg>

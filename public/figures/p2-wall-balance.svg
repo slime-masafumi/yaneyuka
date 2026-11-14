@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 330" width="720" height="330" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>耐力壁の釣合い 四分割法と偏心率</title>
+  <defs>
+    <marker id="tk" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#141414" stroke-width="1"/></marker>
+    <marker id="tka" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#2E7D6B" stroke-width="1.2"/></marker>
+  </defs>
+
+  <!-- 見出し -->
+  <text x="20" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">PLAN — 四分割法</text>
+  <text x="400" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">PLAN — 偏心率</text>
+  <line x1="370" y1="16" x2="370" y2="292" stroke="#e6e6e2" stroke-width="1"/>
+
+  <!-- 四分割法:側端部分 -->
+  <rect x="40" y="64" width="70" height="150" fill="#eef6f3"/>
+  <rect x="250" y="64" width="70" height="150" fill="#eef6f3"/>
+  <rect x="40" y="64" width="280" height="150" fill="none" stroke="#141414" stroke-width="1"/>
+  <line x1="110" y1="64" x2="110" y2="214" stroke="#9a9a96" stroke-width="0.8" stroke-dasharray="3 3"/>
+  <line x1="250" y1="64" x2="250" y2="214" stroke="#9a9a96" stroke-width="0.8" stroke-dasharray="3 3"/>
+  <!-- 耐力壁(Y 方向) -->
+  <g stroke="#141414" stroke-width="4">
+    <line x1="40" y1="64" x2="40" y2="118"/><line x1="40" y1="160" x2="40" y2="214"/>
+    <line x1="88" y1="150" x2="88" y2="200"/>
+    <line x1="320" y1="64" x2="320" y2="104"/>
+    <line x1="180" y1="84" x2="180" y2="130"/>
+  </g>
+  <g font-size="11" fill="#2E7D6B" text-anchor="middle">
+    <text x="64" y="134">側端</text><text x="64" y="148">部分</text>
+    <text x="285" y="134">側端</text><text x="285" y="148">部分</text>
+  </g>
+  <text x="200" y="176" font-size="10.5" fill="#5c5c5a" text-anchor="middle">中央部分</text>
+  <!-- 1/4 寸法 -->
+  <g stroke="#9a9a96" stroke-width="0.6">
+    <line x1="40" y1="44" x2="40" y2="62"/><line x1="110" y1="44" x2="110" y2="62"/>
+    <line x1="250" y1="44" x2="250" y2="62"/><line x1="320" y1="44" x2="320" y2="62"/>
+  </g>
+  <line x1="40" y1="50" x2="110" y2="50" stroke="#141414" stroke-width="0.6" marker-start="url(#tk)" marker-end="url(#tk)"/>
+  <line x1="250" y1="50" x2="320" y2="50" stroke="#141414" stroke-width="0.6" marker-start="url(#tk)" marker-end="url(#tk)"/>
+  <text x="75" y="44" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" fill="#141414" text-anchor="middle">1/4</text>
+  <text x="285" y="44" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" fill="#141414" text-anchor="middle">1/4</text>
+  <text x="40" y="232" font-size="10.5" fill="#5c5c5a">Y 方向の壁を両端 1/4 で拾う(X 方向も同様に確認)</text>
+  <text x="40" y="256" font-size="11" fill="#141414">壁量充足率 = 存在壁量 ÷ 必要壁量(側端部分ごと)</text>
+  <text x="40" y="274" font-size="11" fill="#2E7D6B">壁率比 = 小さい方 ÷ 大きい方 ≥ 0.5</text>
+  <text x="40" y="292" font-size="10.5" fill="#5c5c5a">両側とも充足率が 1 を超えれば壁率比の確認は不要</text>
+
+  <!-- 偏心率 -->
+  <rect x="420" y="64" width="260" height="150" fill="none" stroke="#141414" stroke-width="1"/>
+  <g stroke="#141414" stroke-width="4">
+    <line x1="420" y1="64" x2="420" y2="214"/>
+    <line x1="420" y1="64" x2="500" y2="64"/><line x1="420" y1="214" x2="500" y2="214"/>
+    <line x1="680" y1="64" x2="680" y2="92"/>
+  </g>
+  <!-- 剛心 S・重心 G -->
+  <rect x="477" y="136" width="6" height="6" fill="#141414"/>
+  <circle cx="550" cy="139" r="4" fill="none" stroke="#141414" stroke-width="1"/>
+  <line x1="544" y1="139" x2="556" y2="139" stroke="#141414" stroke-width="0.6"/>
+  <line x1="550" y1="133" x2="550" y2="145" stroke="#141414" stroke-width="0.6"/>
+  <text x="480" y="126" font-size="11" fill="#141414" text-anchor="middle">剛心 S</text>
+  <text x="550" y="126" font-size="11" fill="#141414" text-anchor="middle">重心 G</text>
+  <g stroke="#2E7D6B" stroke-width="0.6"><line x1="480" y1="146" x2="480" y2="174"/><line x1="550" y1="146" x2="550" y2="174"/></g>
+  <line x1="480" y1="168" x2="550" y2="168" stroke="#2E7D6B" stroke-width="1.2" marker-start="url(#tka)" marker-end="url(#tka)"/>
+  <text x="515" y="188" font-size="12" fill="#2E7D6B" text-anchor="middle">e 偏心距離</text>
+  <text x="590" y="88" font-size="10.5" fill="#5c5c5a" text-anchor="middle">壁が片側に寄ると</text>
+  <text x="590" y="102" font-size="10.5" fill="#5c5c5a" text-anchor="middle">S が G から離れる</text>
+  <text x="420" y="256" font-size="11" fill="#2E7D6B">偏心率 Re = e ÷ re ≤ 0.3</text>
+  <text x="420" y="274" font-size="11" fill="#141414">re:弾力半径(ねじり剛性 ÷ 水平剛性 の平方根)</text>
+  <text x="420" y="292" font-size="10.5" fill="#5c5c5a">各階・各方向で確認(令82条の6第2号ロ)</text>
+
+  <!-- 凡例 -->
+  <line x1="20" y1="304" x2="700" y2="304" stroke="#e6e6e2" stroke-width="1"/>
+  <text x="20" y="322" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10.5" fill="#5c5c5a"><tspan fill="#9a9a96">令46条1項・H12建告1352号</tspan><tspan dx="10">四分割法 または 偏心率 0.3 以下 のどちらかで釣合いを確認</tspan></text>
+</svg>

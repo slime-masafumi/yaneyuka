@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 300" width="720" height="300" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>採光関係比率 D/H の測り方</title>
+  <defs>
+    <marker id="tka" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#2E7D6B" stroke-width="1.2"/></marker>
+    <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#9a9a96" stroke-width="0.6"/></pattern>
+  </defs>
+
+  <text x="20" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">SECTION — 断面</text>
+  <line x1="370" y1="16" x2="370" y2="262" stroke="#e6e6e2" stroke-width="1"/>
+
+  <!-- 地盤 -->
+  <line x1="20" y1="250" x2="350" y2="250" stroke="#9a9a96" stroke-width="1"/>
+  <!-- 外壁(開口部で切る) -->
+  <rect x="192" y="76" width="8" height="92" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="192" y="212" width="8" height="38" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <line x1="194" y1="168" x2="194" y2="212" stroke="#141414" stroke-width="0.8"/>
+  <line x1="198" y1="168" x2="198" y2="212" stroke="#141414" stroke-width="0.8"/>
+  <!-- 屋根・軒 -->
+  <rect x="60" y="68" width="200" height="8" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <!-- 室内床 -->
+  <line x1="40" y1="246" x2="192" y2="246" stroke="#141414" stroke-width="0.8"/>
+  <text x="120" y="160" font-size="10.5" fill="#5c5c5a" text-anchor="middle">居室</text>
+
+  <!-- 開口部の中心 -->
+  <line x1="190" y1="190" x2="250" y2="190" stroke="#2E7D6B" stroke-width="0.6" stroke-dasharray="3 3"/>
+  <circle cx="196" cy="190" r="2.5" fill="#2E7D6B"/>
+  <line x1="192" y1="194" x2="150" y2="222" stroke="#141414" stroke-width="0.6"/>
+  <rect x="146" y="220" width="4" height="4" fill="#141414"/>
+  <text x="140" y="226" font-size="10.5" fill="#141414" text-anchor="end">開口部の中心</text>
+
+  <!-- 隣地境界線 -->
+  <line x1="320" y1="40" x2="320" y2="262" stroke="#9a9a96" stroke-width="0.8" stroke-dasharray="8 3 2 3"/>
+  <text x="320" y="276" font-size="10.5" fill="#5c5c5a" text-anchor="middle">隣地境界線</text>
+
+  <!-- D -->
+  <line x1="260" y1="44" x2="260" y2="66" stroke="#2E7D6B" stroke-width="0.6"/>
+  <line x1="260" y1="50" x2="320" y2="50" stroke="#2E7D6B" stroke-width="1.2" marker-start="url(#tka)" marker-end="url(#tka)"/>
+  <text x="290" y="44" font-size="12" fill="#2E7D6B" text-anchor="middle">D</text>
+  <!-- H -->
+  <line x1="244" y1="72" x2="244" y2="190" stroke="#2E7D6B" stroke-width="1.2" marker-start="url(#tka)" marker-end="url(#tka)"/>
+  <text x="252" y="136" font-size="12" fill="#2E7D6B">H</text>
+  <text x="62" y="60" font-size="10.5" fill="#5c5c5a">軒先など開口部の直上にある部分</text>
+
+  <!-- 説明 -->
+  <text x="390" y="46" font-size="11" fill="#2E7D6B">採光関係比率 = D ÷ H</text>
+  <text x="390" y="62" font-size="10.5" fill="#5c5c5a">直上の各部分で求め、最も小さい値をとる</text>
+  <g font-family="ui-monospace,Menlo,Consolas,monospace" font-size="9.5" letter-spacing="1.2" fill="#9a9a96">
+    <text x="390" y="88">用途地域</text><text x="490" y="88">採光補正係数</text><text x="640" y="88">距離</text>
+  </g>
+  <line x1="390" y1="94" x2="700" y2="94" stroke="#141414" stroke-width="0.8"/>
+  <g font-size="11" fill="#141414">
+    <text x="390" y="112">住居系</text><text x="390" y="134">工業系</text><text x="390" y="156">商業系等</text>
+  </g>
+  <g font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10.5" fill="#141414">
+    <text x="490" y="112">D/H × 6.0 − 1.4</text><text x="640" y="112">7m</text>
+    <text x="490" y="134">D/H × 8.0 − 1.0</text><text x="640" y="134">5m</text>
+    <text x="490" y="156">D/H × 10 − 1.0</text><text x="640" y="156">4m</text>
+  </g>
+  <g stroke="#e6e6e2" stroke-width="1"><line x1="390" y1="119" x2="700" y2="119"/><line x1="390" y1="141" x2="700" y2="141"/></g>
+  <line x1="390" y1="163" x2="700" y2="163" stroke="#141414" stroke-width="0.8"/>
+  <text x="390" y="182" font-size="10.5" fill="#5c5c5a">距離:道に面しない場合に 1.0 未満を 1.0 とできる水平距離</text>
+  <text x="390" y="198" font-size="10.5" fill="#5c5c5a">道に面するときは道の反対側の境界線まで。上限 3.0</text>
+  <line x1="390" y1="212" x2="700" y2="212" stroke="#e6e6e2" stroke-width="1"/>
+  <text x="390" y="232" font-size="10.5" fill="#141414">例 住居系 D = 1.5m・H = 3.0m</text>
+  <text x="390" y="248" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10.5" fill="#2E7D6B">0.5 × 6.0 − 1.4 = 1.6</text>
+
+  <text x="390" y="276" font-size="10.5" fill="#5c5c5a">有効採光面積 = 開口部の面積 × 採光補正係数</text>
+  <text x="20" y="296" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" fill="#9a9a96">令20条1項・2項</text>
+</svg>

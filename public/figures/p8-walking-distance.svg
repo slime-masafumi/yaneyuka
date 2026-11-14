@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 300" width="720" height="300" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>直通階段までの歩行距離と重複区間</title>
+  <defs>
+    <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#9a9a96" stroke-width="0.6"/></pattern>
+  </defs>
+
+  <text x="20" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">PLAN — 平面</text>
+  <text x="412" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">令120条 — 歩行距離の上限 [m]</text>
+  <line x1="396" y1="16" x2="396" y2="284" stroke="#e6e6e2" stroke-width="1"/>
+
+  <!-- 外壁・間仕切り -->
+  <rect x="30" y="50" width="350" height="190" fill="none" stroke="#141414" stroke-width="1.6"/>
+  <g stroke="#141414" stroke-width="1" fill="none">
+    <!-- 廊下の壁(扉の開口を残す) -->
+    <line x1="80" y1="130" x2="290" y2="130"/>
+    <line x1="314" y1="130" x2="330" y2="130"/>
+    <line x1="80" y1="160" x2="330" y2="160"/>
+    <!-- 階段室 -->
+    <rect x="30" y="110" width="50" height="70"/>
+    <rect x="330" y="110" width="50" height="70"/>
+    <!-- 居室の間仕切り -->
+    <line x1="200" y1="50" x2="200" y2="130"/>
+    <line x1="210" y1="160" x2="210" y2="240"/>
+    <line x1="30" y1="110" x2="30" y2="110"/>
+  </g>
+  <g stroke="#9a9a96" stroke-width="0.6">
+    <line x1="30" y1="124" x2="80" y2="124"/><line x1="30" y1="138" x2="80" y2="138"/><line x1="30" y1="152" x2="80" y2="152"/><line x1="30" y1="166" x2="80" y2="166"/>
+    <line x1="330" y1="124" x2="380" y2="124"/><line x1="330" y1="138" x2="380" y2="138"/><line x1="330" y1="152" x2="380" y2="152"/><line x1="330" y1="166" x2="380" y2="166"/>
+  </g>
+  <g font-size="10.5" fill="#141414" text-anchor="middle">
+    <text x="55" y="100">階段 A</text>
+    <text x="355" y="100">階段 B</text>
+  </g>
+  <text x="55" y="196" font-size="10" fill="#5c5c5a" text-anchor="middle">直通階段</text>
+  <text x="355" y="196" font-size="10" fill="#5c5c5a" text-anchor="middle">直通階段</text>
+  <text x="140" y="94" font-size="11" fill="#5c5c5a" text-anchor="middle">居室</text>
+  <text x="300" y="214" font-size="11" fill="#5c5c5a" text-anchor="middle">居室</text>
+  <text x="145" y="214" font-size="11" fill="#5c5c5a" text-anchor="middle">居室</text>
+
+  <!-- 歩行経路 -->
+  <polyline points="336,56 302,128 302,145" fill="none" stroke="#2E7D6B" stroke-width="3"/>
+  <polyline points="302,145 84,145" fill="none" stroke="#2E7D6B" stroke-width="1.2"/>
+  <polyline points="302,145 326,145" fill="none" stroke="#2E7D6B" stroke-width="1.2" stroke-dasharray="3 2"/>
+  <path d="M90 140 L80 145 L90 150" fill="none" stroke="#2E7D6B" stroke-width="1.2"/>
+  <circle cx="336" cy="56" r="3" fill="#2E7D6B"/>
+  <text x="380" y="42" font-size="10.5" fill="#141414" text-anchor="end">居室の最も遠い点 P</text>
+
+  <text x="208" y="72" font-size="11" fill="#2E7D6B">重複区間(太線)</text>
+  <text x="208" y="88" font-size="10.5" fill="#5c5c5a">≤ 上限値の 1/2</text>
+  <text x="208" y="104" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="9.5" fill="#9a9a96">令121条3項</text>
+  <text x="90" y="178" font-size="10.5" fill="#2E7D6B">歩行距離 ≤ 表の値</text>
+
+  <text x="20" y="266" font-size="10.5" fill="#5c5c5a">重複区間の制限は 2 以上の直通階段が要る階(令121条1項)に掛かる。</text>
+  <text x="20" y="282" font-size="10.5" fill="#5c5c5a">重複区間を通らずに避難上有効なバルコニー等へ出られれば適用しない</text>
+
+  <!-- 表 -->
+  <g font-size="10" fill="#5c5c5a" text-anchor="middle">
+    <text x="622" y="48">準耐火・不燃</text>
+    <text x="682" y="48">その他</text>
+  </g>
+  <line x1="412" y1="56" x2="704" y2="56" stroke="#e6e6e2" stroke-width="1"/>
+  <g font-size="11" fill="#141414">
+    <text x="412" y="76">無窓居室・物販店舗等</text>
+    <text x="412" y="112">病院・ホテル・共同住宅等</text>
+    <text x="412" y="148">上記以外の居室</text>
+  </g>
+  <g font-family="ui-monospace,Menlo,Consolas,monospace" font-size="9.5" fill="#9a9a96">
+    <text x="412" y="90">表(一) 別表第1(4)項など</text>
+    <text x="412" y="126">表(二) 別表第1(2)項</text>
+    <text x="412" y="162">表(三)</text>
+  </g>
+  <g font-family="ui-monospace,Menlo,Consolas,monospace" font-size="11" fill="#141414" text-anchor="middle">
+    <text x="622" y="83">30</text><text x="682" y="83">30</text>
+    <text x="622" y="119">50</text><text x="682" y="119">30</text>
+    <text x="622" y="155">50</text><text x="682" y="155">40</text>
+  </g>
+  <g stroke="#e6e6e2" stroke-width="1">
+    <line x1="412" y1="98" x2="704" y2="98"/>
+    <line x1="412" y1="134" x2="704" y2="134"/>
+    <line x1="412" y1="170" x2="704" y2="170"/>
+  </g>
+  <text x="412" y="192" font-size="10.5" fill="#5c5c5a">準耐火・不燃の建物で居室と通路の内装を準不燃</text>
+  <text x="412" y="208" font-size="10.5" fill="#5c5c5a">→ +10m(14階以下。令120条2項)</text>
+  <text x="412" y="228" font-size="10.5" fill="#5c5c5a">15階以上の居室 → −10m(令120条3項)</text>
+  <text x="412" y="244" font-size="10.5" fill="#5c5c5a">内装準不燃なら表の値のまま</text>
+</svg>

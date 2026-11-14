@@ -2263,9 +2263,10 @@ nav {
 .yy-mk { margin: 6px 0 14px; }
 .yy-mk__row {
   display: grid;
-  grid-template-columns: 26px minmax(0, 1.5fr) minmax(0, 1.1fr) repeat(6, 52px) 40px;
+  grid-template-columns: 26px 60px minmax(0, 1.5fr) minmax(0, 1.1fr) repeat(6, 52px) 40px;
   align-items: center;
   min-height: 30px;
+  padding: 3px 0;
   border-bottom: 1px solid var(--yy-line);
   font-size: 12px;
 }
@@ -2280,7 +2281,7 @@ nav {
 .yy-mk__cell .is-none { color: #d4d4cf; }
 .yy-mk__cell .is-moved { font-size: 9.5px; color: var(--yy-t3); margin-left: 2px; }
 @media (max-width: 1023px) {
-  .yy-mk__row { grid-template-columns: 22px minmax(0, 1fr) repeat(6, 40px) 32px; }
+  .yy-mk__row { grid-template-columns: 22px 52px minmax(0, 1fr) repeat(6, 40px) 32px; }
   .yy-mk__pages, .yy-mk__row--head .yy-mk__pages { display: none; }
 }
 
@@ -2579,6 +2580,10 @@ nav {
 .yy-pic--row { width: 96px; height: 64px; }
 .yy-pic--lead { width: 200px; height: 125px; }
 .yy-pic--mini { width: 56px; height: 38px; }
+/* 建材メーカーの表の行(商品ページの写真)。写真が無い社は枠も出さない */
+.yy-pic--mk { width: 48px; height: 32px; }
+.yy-mk__pic { display: block; width: 48px; }
+.yy-mk__row--head > span:nth-child(2) { width: 48px; }
 a:hover + .yy-pic img, .yy-pic:hover img { opacity: 0.85; }
 /* NEWS の行: 番号 / 写真(左) / 配信元 · 日時 · 掲載サイト → 題 → 要約 / 保存 */
 .yy-news__row { grid-template-columns: 28px 96px minmax(0, 1fr) auto !important; align-items: start !important; }

@@ -24,6 +24,8 @@
     "check:links": "node scripts/check-maker-links.mjs",
     "makers:extract": "node scripts/extract-makers.mjs",
     "makers:verify": "node scripts/verify-makers.mjs",
+    "makers:images": "node --import ./scripts/lib/register-ts.mjs scripts/collect-maker-images.ts",
+    "figures:check": "node --import ./scripts/lib/register-ts.mjs scripts/check-figures.mjs",
     "knowledge:build": "node scripts/build-knowledge.mjs",
     "knowledge:verify": "node scripts/build-knowledge.mjs --verify",
     "makers:find-cad": "node scripts/find-cad-links.mjs",

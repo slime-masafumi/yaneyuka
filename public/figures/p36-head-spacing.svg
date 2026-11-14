@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 300" width="720" height="300" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>スプリンクラーヘッドの配置と離隔</title>
+  <defs>
+    <marker id="tk" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#141414" stroke-width="1"/></marker>
+    <marker id="tka" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#2E7D6B" stroke-width="1.2"/></marker>
+    <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#9a9a96" stroke-width="0.6"/></pattern>
+  </defs>
+  <text x="20" y="22" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">PLAN — 天井伏</text>
+  <text x="320" y="22" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">SECTION — 断面</text>
+  <line x1="300" y1="14" x2="300" y2="290" stroke="#e6e6e2" stroke-width="1"/>
+  <line x1="530" y1="14" x2="530" y2="290" stroke="#e6e6e2" stroke-width="1"/>
+
+  <!-- 平面:防護範囲 -->
+  <g fill="none" stroke="#9a9a96" stroke-width="0.8" stroke-dasharray="3 3">
+    <circle cx="90" cy="100" r="69"/><circle cx="187.5" cy="100" r="69"/>
+    <circle cx="90" cy="197.5" r="69"/><circle cx="187.5" cy="197.5" r="69"/>
+  </g>
+  <g fill="#141414">
+    <circle cx="90" cy="100" r="3"/><circle cx="187.5" cy="100" r="3"/>
+    <circle cx="90" cy="197.5" r="3"/><circle cx="187.5" cy="197.5" r="3"/>
+  </g>
+  <!-- r(主題) -->
+  <line x1="187.5" y1="197.5" x2="138.75" y2="148.75" stroke="#2E7D6B" stroke-width="1.4" marker-start="url(#tka)" marker-end="url(#tka)"/>
+  <text x="172" y="166" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="12" fill="#2E7D6B">r</text>
+  <!-- 間隔 -->
+  <line x1="90" y1="204" x2="90" y2="288" stroke="#9a9a96" stroke-width="0.6" stroke-dasharray="3 3"/>
+  <line x1="187.5" y1="204" x2="187.5" y2="288" stroke="#9a9a96" stroke-width="0.6" stroke-dasharray="3 3"/>
+  <line x1="90" y1="282" x2="187.5" y2="282" stroke="#141414" stroke-width="0.8" marker-start="url(#tk)" marker-end="url(#tk)"/>
+  <text x="196" y="286" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10.5" fill="#141414">r×√2</text>
+
+  <!-- 断面:ヘッド周りの空き -->
+  <rect x="320" y="58" width="200" height="12" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="417" y="70" width="6" height="10" fill="#f5f5f2" stroke="#141414" stroke-width="1"/>
+  <line x1="410" y1="84" x2="430" y2="84" stroke="#141414" stroke-width="1.4"/>
+  <line x1="420" y1="80" x2="420" y2="84" stroke="#141414" stroke-width="1"/>
+  <rect x="375" y="84" width="90" height="68" fill="#f5f5f2" stroke="#9a9a96" stroke-width="0.8" stroke-dasharray="3 3"/>
+  <text x="420" y="124" font-size="10.5" fill="#5c5c5a" text-anchor="middle">物を置かない</text>
+  <line x1="362" y1="84" x2="362" y2="152" stroke="#141414" stroke-width="0.8" marker-start="url(#tk)" marker-end="url(#tk)"/>
+  <text x="356" y="122" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10.5" fill="#141414" text-anchor="end">0.45m</text>
+  <line x1="420" y1="152" x2="420" y2="174" stroke="#9a9a96" stroke-width="0.6" stroke-dasharray="3 3"/>
+  <line x1="420" y1="168" x2="465" y2="168" stroke="#141414" stroke-width="0.8" marker-start="url(#tk)" marker-end="url(#tk)"/>
+  <text x="442" y="186" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10.5" fill="#141414" text-anchor="middle">0.3m</text>
+  <line x1="430" y1="84" x2="466" y2="100" stroke="#141414" stroke-width="0.6"/>
+  <rect x="464" y="98" width="4" height="4" fill="#141414"/>
+  <text x="472" y="106" font-size="10.5" fill="#141414">デフ</text>
+  <text x="472" y="120" font-size="10.5" fill="#141414">レクター</text>
+  <text x="320" y="230" font-size="10.5" fill="#5c5c5a">閉鎖型・標準型ヘッドの場合</text>
+  <text x="320" y="246" font-size="10.5" fill="#5c5c5a">易燃性可燃物の収納部は下方0.9m</text>
+  <text x="320" y="262" font-size="10.5" fill="#5c5c5a">(規則13条の2第4項)</text>
+
+  <!-- 注記 -->
+  <text x="546" y="50" font-size="11" fill="#2E7D6B">r 天井の各部分から</text>
+  <text x="546" y="66" font-size="11" fill="#2E7D6B">1のヘッドまでの水平距離</text>
+  <text x="546" y="88" font-size="10.5" fill="#5c5c5a">耐火建築物 2.3m 以下</text>
+  <text x="546" y="104" font-size="10.5" fill="#5c5c5a">それ以外 2.1m 以下</text>
+  <text x="546" y="120" font-size="10.5" fill="#5c5c5a">舞台部等 1.7m 以下</text>
+  <text x="546" y="136" font-size="10.5" fill="#5c5c5a">(令12条2項2号イ・標準型)</text>
+  <text x="546" y="168" font-size="11" fill="#141414">正方形配置の間隔</text>
+  <text x="546" y="184" font-size="10.5" fill="#5c5c5a">r×√2 = 約3.25m</text>
+  <text x="546" y="200" font-size="10.5" fill="#5c5c5a">(r = 2.3m のとき)</text>
+  <text x="546" y="232" font-size="10.5" fill="#5c5c5a">高感度型ヘッドは</text>
+  <text x="546" y="248" font-size="10.5" fill="#5c5c5a">性能に応じた距離</text>
+</svg>

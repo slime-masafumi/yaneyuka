@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 230" width="720" height="230" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>移動等円滑化経路の傾斜路(勾配と踊場)</title>
+  <defs>
+    <marker id="tk" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#141414" stroke-width="1"/></marker>
+    <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#9a9a96" stroke-width="0.6"/></pattern>
+  </defs>
+
+  <text x="20" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">SECTION — 断面(縦横同縮尺)</text>
+
+  <g transform="translate(0,-76)">
+  <!-- 地盤 -->
+  <line x1="20" y1="210" x2="700" y2="210" stroke="#9a9a96" stroke-width="1"/>
+  <rect x="20" y="210" width="680" height="8" fill="url(#hatch)"/>
+  <!-- 傾斜路の版 -->
+  <polygon points="60,210 510,172.5 585,172.5 700,162.9 700,168.9 585,178.5 510,178.5 132,210" fill="url(#hatch)" stroke="#141414" stroke-width="0.6"/>
+  <polyline points="60,210 510,172.5 585,172.5 700,162.9" fill="none" stroke="#2E7D6B" stroke-width="1.5"/>
+  <!-- 手すり -->
+  <polyline points="60,170 510,132.5 585,132.5 700,122.9" fill="none" stroke="#141414" stroke-width="1.6"/>
+  <g stroke="#141414" stroke-width="0.6">
+    <line x1="200" y1="158.3" x2="200" y2="198.3"/>
+    <line x1="360" y1="145" x2="360" y2="185"/>
+    <line x1="547" y1="132.5" x2="547" y2="172.5"/>
+  </g>
+  <text x="214" y="140" font-size="11" fill="#141414">手すり</text>
+  <text x="400" y="164" font-size="11" fill="#2E7D6B" text-anchor="middle">勾配 1/12 以下</text>
+
+  <!-- 寸法:水平 -->
+  <g stroke="#141414" stroke-width="0.4">
+    <line x1="60" y1="212" x2="60" y2="240"/>
+    <line x1="510" y1="180" x2="510" y2="240"/>
+    <line x1="585" y1="180" x2="585" y2="240"/>
+  </g>
+  <line x1="60" y1="236" x2="510" y2="236" stroke="#141414" stroke-width="0.6" marker-start="url(#tk)" marker-end="url(#tk)"/>
+  <line x1="510" y1="236" x2="585" y2="236" stroke="#141414" stroke-width="0.6" marker-start="url(#tk)" marker-end="url(#tk)"/>
+  <text x="285" y="254" font-size="10.5" fill="#141414" text-anchor="middle">高さ 75cm を勾配 1/12 で上ると水平 900cm</text>
+  <text x="547" y="254" font-size="10.5" fill="#141414" text-anchor="middle">踊場 150cm 以上</text>
+  <!-- 寸法:高さ -->
+  <line x1="585" y1="172.5" x2="612" y2="172.5" stroke="#141414" stroke-width="0.4"/>
+  <line x1="606" y1="210" x2="606" y2="172.5" stroke="#141414" stroke-width="0.6" marker-start="url(#tk)" marker-end="url(#tk)"/>
+  <text x="614" y="198" font-size="10.5" fill="#141414">75cm 以内ごと</text>
+
+  <line x1="20" y1="266" x2="700" y2="266" stroke="#e6e6e2" stroke-width="1"/>
+  <text x="20" y="284" font-size="10.5" fill="#5c5c5a">幅 120cm 以上(階段に代わる)・90cm 以上(階段に併設)。高さ 16cm 以下なら勾配 1/8 以下(令19条2項4号)</text>
+  <text x="20" y="298" font-size="10.5" fill="#5c5c5a">勾配 1/12 超 又は 高さ 16cm 超の部分に手すり(令13条)</text>
+  </g>
+</svg>

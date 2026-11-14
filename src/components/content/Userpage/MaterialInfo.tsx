@@ -7,6 +7,7 @@ import { SecHead } from '@/components/ui/Sheet';
 import { ScreenLink } from '@/components/home/HomeParts';
 import './info-pages.css';
 import { MATERIAL_INFO_SECTIONS, findMaterialSection } from '@/lib/infoLinks';
+import MatFigs from './MatFigs';
 
 /**
  * 材料情報(左カラム「01 見る」の 12)。本の早見表として組む。
@@ -114,6 +115,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-1" className="yy-mi-sec" data-cat="arch">
           <h4 className="yy-mi-ch">ガラス種別（JIS R 3202 他）</h4>
           <p className="yy-mi-note">主要なガラス種別と用途例。防火・安全・性能は別途要件確認。</p>
+          <MatFigs sec="section-1" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -157,6 +159,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-2" className="yy-mi-sec" data-cat="arch">
           <h4 className="yy-mi-ch">木材比較表（代表樹種）</h4>
           <p className="yy-mi-note">値は代表的な目安。等級・含水率・産地等により変動します。</p>
+          <MatFigs sec="section-2" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -219,6 +222,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-3" className="yy-mi-sec" data-cat="arch">
           <h4 className="yy-mi-ch">内装仕上げ材（例）</h4>
           <p className="yy-mi-note">主要な内装仕上げ材の代表例。実設計ではメーカー資料・仕様書を確認してください。</p>
+          <MatFigs sec="section-3" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -268,6 +272,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-43" className="yy-mi-sec" data-cat="arch">
           <h4 className="yy-mi-ch">床材（フローリング・ビニル床材・タイルカーペット）</h4>
           <p className="yy-mi-note">フローリングはフローリングの日本農林規格（JAS）、ビニル系床材は JIS A 5705、タイルカーペットは JIS L 4406。「既定」は公共建築工事標準仕様書（建築工事編）令和7年版 19章で特記が無い場合の値。寸法例は主要メーカー品。</p>
+          <MatFigs sec="section-43" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -329,6 +334,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-4" className="yy-mi-sec" data-cat="arch">
           <h4 className="yy-mi-ch">タイル・石材・左官材</h4>
           <p className="yy-mi-note">主要なタイル・石材・左官材の代表例。タイルの吸水率区分は JIS A 5209（2008年改正以降。2020年版に基づく公共建築協会の評価名簿と LIXIL の技術資料で照合）。旧区分（磁器質1.0%・せっ器質5.0%・陶器質22.0%以下）は測り方が違い、新区分と数値を直接比べられない。2025年版で区分が変わっていないかは規格票で確認のこと。実設計ではメーカー資料・仕様書を確認してください。</p>
+          <MatFigs sec="section-4" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -378,6 +384,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-5" className="yy-mi-sec" data-cat="arch">
           <h4 className="yy-mi-ch">内装壁・天井材</h4>
           <p className="yy-mi-note">主要な内装壁・天井材の代表例。実設計ではメーカー資料・仕様書を確認してください。</p>
+          <MatFigs sec="section-5" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -427,6 +434,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-42" className="yy-mi-sec" data-cat="arch">
           <h4 className="yy-mi-ch">石膏ボードの種類と規格（JIS A 6901）</h4>
           <p className="yy-mi-note">JIS A 6901:2014（せっこうボード製品）の種類・記号と主な厚さ（石膏ボード工業会の資料による）。防火材料は告示で決まる：厚さ12mm以上で不燃材料（平12建告1400号）、9mm以上で準不燃材料（同1401号）、7mm以上で難燃材料（同1402号）。いずれもボード用原紙の厚さの条件付き。製品の大臣認定番号も確認すること。定尺はメーカー品で 910×1820（3×6）・910×2420（3×8）・910×2730（3×9）など。</p>
+          <MatFigs sec="section-42" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -517,6 +525,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-6" className="yy-mi-sec" data-cat="arch">
           <h4 className="yy-mi-ch">外壁材・屋根材</h4>
           <p className="yy-mi-note">主要な外壁材・屋根材の代表例。実設計ではメーカー資料・仕様書を確認してください。</p>
+          <MatFigs sec="section-6" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -566,6 +575,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-44" className="yy-mi-sec" data-cat="arch">
           <h4 className="yy-mi-ch">防水の種類と工法（公共建築工事標準仕様書 9章）</h4>
           <p className="yy-mi-note">公共建築工事標準仕様書（建築工事編）令和7年版 9章の工法・種別記号・材料規格・標準の厚さ。塗膜防水は膜厚ではなく使用量（kg/㎡、硬化物比重1.0の材料での値）で規定されている。FRP 防水は建築工事編 9章には無く、公共建築木造工事標準仕様書が参照先。</p>
+          <MatFigs sec="section-44" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -628,6 +638,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-7" className="yy-mi-sec" data-cat="arch">
           <h4 className="yy-mi-ch">天井材（システム天井含む）</h4>
           <p className="yy-mi-note">主要な天井材の代表例。実設計ではメーカー資料・仕様書を確認してください。</p>
+          <MatFigs sec="section-7" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -671,6 +682,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-8" className="yy-mi-sec" data-cat="arch">
           <h4 className="yy-mi-ch">金属板材</h4>
           <p className="yy-mi-note">主要な金属板材の代表例。実設計ではメーカー資料・仕様書を確認してください。</p>
+          <MatFigs sec="section-8" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -750,6 +762,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-9" className="yy-mi-sec" data-cat="arch">
           <h4 className="yy-mi-ch">塗料種別</h4>
           <p className="yy-mi-note">主要な塗料種別の代表例。実設計ではメーカー資料・仕様書を確認してください。</p>
+          <MatFigs sec="section-9" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -817,6 +830,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-10" className="yy-mi-sec" data-cat="arch">
           <h4 className="yy-mi-ch">シーリング材（シール材）</h4>
           <p className="yy-mi-note">主要なシーリング材の種類と用途。実設計ではメーカー資料・仕様書を確認してください。</p>
+          <MatFigs sec="section-10" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -872,6 +886,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-11" className="yy-mi-sec" data-cat="arch">
           <h4 className="yy-mi-ch">主要断熱材一覧（熱伝導率 λ：W/m･K）</h4>
           <p className="yy-mi-note">主要な断熱材の熱伝導率と用途。熱伝導率（λ）は値が小さいほど断熱性能が高い。λ は JIS A 9521:2014（吹付けウレタンは JIS A 9526）の区分ごとの値で、建築研究所の省エネ基準計算用の表（3-3 Ver.27、2026-10）と国交省の省エネ技術解説テキストで照合（XPS はカネカ資料とも一致）。現行の JIS A 9521:2022 で値が変わっていないかは規格票で確認のこと。記号ごとの密度（ロックウール・ボード類）は規格票・メーカー資料で確認のこと。</p>
+          <MatFigs sec="section-11" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -987,6 +1002,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-11a" className="yy-mi-sec" data-cat="arch">
           <h4 className="yy-mi-ch">LGS（軽量鉄骨天井・壁下地）規格（JIS A 6517）</h4>
           <p className="yy-mi-note">日本のJIS規格（JIS A 6517）に基づいた、代表的なLGS（壁・天井）の一覧表。振れ止め・開口部補強材・野縁の寸法は公共建築工事標準仕様書（建築工事編）令和7年版 表14.4.1・表14.5.1 による。実設計ではメーカー資料・仕様書を確認してください。※JIS材か一般材（JIS外）かの確認も重要です。</p>
+          <MatFigs sec="section-11a" />
           
           <div className="yy-mi-part">
             <h5 className="yy-mi-sub">1. 壁下地材（LGS：Light Gauge Steel）</h5>
@@ -1140,6 +1156,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-12" className="yy-mi-sec" data-cat="struct">
           <h4 className="yy-mi-ch">鉄筋（異形棒鋼：JIS G 3112）</h4>
           <p className="yy-mi-note">代表的な呼び径と用途目安。実設計では図面・仕様書・メーカー資料を必ず確認してください。構造計算上は設計基準強度（fsy）および設計引張強度（ft）も要確認。</p>
+          <MatFigs sec="section-12" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -1213,6 +1230,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-13" className="yy-mi-sec" data-cat="struct">
           <h4 className="yy-mi-ch">H形鋼（JIS G 3192 / 材質：JIS G 3101 SS400, JIS G 3136 SN490等）</h4>
           <p className="yy-mi-note">代表的な呼称例。単位質量・Ix は JIS G 3192 の寸法による鋼材メーカー（日本製鉄）カタログ値。Ix：強軸まわりの断面二次モーメント、構造設計時の曲げ剛性に関与。</p>
+          <MatFigs sec="section-13" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -1274,6 +1292,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-14" className="yy-mi-sec" data-cat="struct">
           <h4 className="yy-mi-ch">六角ボルト（JIS B 1180・JIS B 1051）</h4>
           <p className="yy-mi-note">並目ねじの代表値。二面幅（SW）は JIS B 1180:2014 本体（ISO 4014 系）の値。旧 JIS 品は附属書JA（将来廃止予定）で M10=17・M12=19（MISUMI・リネックスの規格表で照合）。ボルト孔径は建築基準法施行令第68条第4項：ボルト径＋1mm 以下（※径20mm以上で支障が無ければ＋1.5mm まで）。高力ボルトは同条第2項：径＋2mm 以下（M16→18、M20→22、M24→26）。</p>
+          <MatFigs sec="section-14" />
           <div className="yy-mi-scroll is-gap">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -1368,6 +1387,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-15" className="yy-mi-sec" data-cat="struct">
           <h4 className="yy-mi-ch">鋼板類（JIS G 3101, G 3136 他）</h4>
           <p className="yy-mi-note">よく使う呼び厚の早見。材質により取り合い・在庫は異なります。</p>
+          <MatFigs sec="section-15" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -1423,6 +1443,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-16" className="yy-mi-sec" data-cat="struct">
           <h4 className="yy-mi-ch">鉄筋 断面積・単位重量 早見（参考）</h4>
           <p className="yy-mi-note">JIS G 3112 の公称直径・公称断面積・単位質量（断面積は整数に丸め）。実務ではメーカー資料・構造計算書を確認してください。</p>
+          <MatFigs sec="section-16" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -1453,6 +1474,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-17" className="yy-mi-sec" data-cat="struct">
           <h4 className="yy-mi-ch">等辺山形鋼（L形） 代表例</h4>
           <p className="yy-mi-note">JIS G 3192 の寸法表にある寸法と単位質量（日本鉄鋼連盟の JIS 改正原案・JFE 建材ナビで照合）。40×40×4・100×100×9 は JIS の表に無い（メーカーの受注品）。</p>
+          <MatFigs sec="section-17" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -1476,6 +1498,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
 
         <div id="section-18" className="yy-mi-sec" data-cat="struct">
           <h4 className="yy-mi-ch">溝形鋼（C形鋼） 代表例</h4>
+          <MatFigs sec="section-18" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -1499,6 +1522,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-19" className="yy-mi-sec" data-cat="struct">
           <h4 className="yy-mi-ch">角形・矩形鋼管（JIS G 3466 STKR 代表）</h4>
           <p className="yy-mi-note">JIS G 3466 の寸法表にある寸法と単位質量（日本製鉄 建設用資材ハンドブック 3-65 ほかで照合）。250×125×4.5 は JIS の表に無いため外した（近い寸法は 250×150×6.0〜12.0。規格票で確認のこと）。</p>
+          <MatFigs sec="section-19" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -1524,6 +1548,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-20" className="yy-mi-sec" data-cat="struct">
           <h4 className="yy-mi-ch">高力ボルト（JIS B 1186 等）</h4>
           <p className="yy-mi-note">摩擦接合用高力六角ボルト（JIS B 1186）の代表例。F10T：耐力 900N/mm²以上／引張強さ 1000〜1200N/mm²。引張荷重は F10T の最小値。締付けは軸力管理が必要（トルクコントロール法・ナット回転法）。</p>
+          <MatFigs sec="section-20" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -1577,6 +1602,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-21" className="yy-mi-sec" data-cat="struct">
           <h4 className="yy-mi-ch">座金・ナット（対応規格）</h4>
           <p className="yy-mi-note">摩擦接合用高力六角ボルトのセット（JIS B 1186:2013）の平座金・六角ナットの基準寸法。規格票の表8・表9 の転載と、JFE 建材ナビ（日本ファスナー工業の座金表）・ねじ商社の規格表で照合。</p>
+          <MatFigs sec="section-21" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -1625,6 +1651,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-22" className="yy-mi-sec" data-cat="struct">
           <h4 className="yy-mi-ch">アンカーボルト（定着材）</h4>
           <p className="yy-mi-note">主要なアンカーボルトの種類と用途。</p>
+          <MatFigs sec="section-22" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -1662,6 +1689,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-23" className="yy-mi-sec" data-cat="struct">
           <h4 className="yy-mi-ch">コンクリート（設計基準強度・材料特性）</h4>
           <p className="yy-mi-note">スランプは部材形状・配筋密度による。自己充填コンクリート（SCC）は別途性能試験必要。</p>
+          <MatFigs sec="section-23" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -1711,6 +1739,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-46" className="yy-mi-sec" data-cat="struct">
           <h4 className="yy-mi-ch">コンクリートブロック（JIS A 5406）</h4>
           <p className="yy-mi-note">建築用コンクリートブロック JIS A 5406:2023（2023-04-20 改正）。旧版の「A種・B種・C種」の呼び方は無くなり、A(08)・B(12)・C(16)・D(20) の記号になった（( ) 内だけで書いてもよい）。値は空洞ブロックの圧縮強さによる区分。出典は建材試験センター「建材試験情報」2023年7・8月号の規格紹介。</p>
+          <MatFigs sec="section-46" />
           <div className="yy-mi-scroll is-gap">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -1750,6 +1779,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-24" className="yy-mi-sec" data-cat="struct">
           <h4 className="yy-mi-ch">耐震補強・補強材（RC・SRC・S造共通）</h4>
           <p className="yy-mi-note">主要な耐震補強工法と補強材の種類。</p>
+          <MatFigs sec="section-24" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -1793,6 +1823,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-45" className="yy-mi-sec" data-cat="struct">
           <h4 className="yy-mi-ch">合板・構造用合板（JAS）</h4>
           <p className="yy-mi-note">合板の日本農林規格（JAS 0233:2026、2026-04-13 改正）。構造用合板は建築物の構造耐力上主要な部分に使う合板。寸法は JAS 附属書C（参考）の標準寸法の範囲。壁倍率は昭56建告1100号 別表第一。</p>
+          <MatFigs sec="section-45" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -1846,6 +1877,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-25" className="yy-mi-sec" data-cat="mech">
           <h4 className="yy-mi-ch">給排水・衛生配管材</h4>
           <p className="yy-mi-note">主要な給排水・衛生配管材の種類と用途。</p>
+          <MatFigs sec="section-25" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -1901,6 +1933,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-47" className="yy-mi-sec" data-cat="mech">
           <h4 className="yy-mi-ch">配管の呼び径と外径（JIS G 3452・K 6741・G 3448）</h4>
           <p className="yy-mi-note">外径・厚さは規格の基準寸法。SGP は JIS G 3452、ステンレスは JIS G 3448（いずれも日本製鉄 建設用資材ハンドブック 2025）、VP・VU は JIS K 6741（積水化学 承認図）。呼び径が同じでも管種で外径が違うので、継手・支持金物は管種で選ぶ。</p>
+          <MatFigs sec="section-47" />
 
           <div className="yy-mi-part">
             <h5 className="yy-mi-sub">1. 配管用炭素鋼鋼管 SGP（JIS G 3452）</h5>
@@ -1992,6 +2025,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-26" className="yy-mi-sec" data-cat="mech">
           <h4 className="yy-mi-ch">空調ダクト（材質・用途別）</h4>
           <p className="yy-mi-note">主要な空調ダクトの材質と用途。</p>
+          <MatFigs sec="section-26" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -2041,6 +2075,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-27" className="yy-mi-sec" data-cat="mech">
           <h4 className="yy-mi-ch">熱絶縁（保温材）</h4>
           <p className="yy-mi-note">主要な熱絶縁（保温材）の種類と用途。</p>
+          <MatFigs sec="section-27" />
             <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
                 <thead>
@@ -2090,6 +2125,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-28" className="yy-mi-sec" data-cat="mech">
           <h4 className="yy-mi-ch">空調・換気機器例（抜粋）</h4>
           <p className="yy-mi-note">主要な空調・換気機器の代表例。</p>
+          <MatFigs sec="section-28" />
             <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
                 <thead>
@@ -2139,6 +2175,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-29" className="yy-mi-sec" data-cat="mech">
           <h4 className="yy-mi-ch">冷媒配管・ドレン・機器接続材</h4>
           <p className="yy-mi-note">冷媒配管、ドレン、機器接続材の種類と用途。</p>
+          <MatFigs sec="section-29" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -2182,6 +2219,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-30" className="yy-mi-sec" data-cat="mech">
           <h4 className="yy-mi-ch">衛生器具・給排水装置</h4>
           <p className="yy-mi-note">主要な衛生器具・給排水装置の種類と用途。</p>
+          <MatFigs sec="section-30" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -2231,6 +2269,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-31" className="yy-mi-sec" data-cat="mech">
           <h4 className="yy-mi-ch">ポンプ・給水・排水装置</h4>
           <p className="yy-mi-note">主要なポンプ・給水・排水装置の種類と用途。</p>
+          <MatFigs sec="section-31" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -2274,6 +2313,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-32" className="yy-mi-sec" data-cat="mech">
           <h4 className="yy-mi-ch">消火設備・加圧装置</h4>
           <p className="yy-mi-note">主要な消火設備・加圧装置の種類と用途。</p>
+          <MatFigs sec="section-32" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -2318,6 +2358,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-33" className="yy-mi-sec" data-cat="elec">
           <h4 className="yy-mi-ch">電線・配線材（JIS C 3307 等）</h4>
           <p className="yy-mi-note">主要な電線・配線材の種類と用途。</p>
+          <MatFigs sec="section-33" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -2373,6 +2414,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-34" className="yy-mi-sec" data-cat="elec">
           <h4 className="yy-mi-ch">分電盤・配電設備</h4>
           <p className="yy-mi-note">主要な分電盤・配電設備の種類と用途。</p>
+          <MatFigs sec="section-34" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -2416,6 +2458,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-35" className="yy-mi-sec" data-cat="elec">
           <h4 className="yy-mi-ch">照明・スイッチ・コンセント類</h4>
           <p className="yy-mi-note">主要な照明・スイッチ・コンセント類の種類と用途。</p>
+          <MatFigs sec="section-35" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -2471,6 +2514,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-36" className="yy-mi-sec" data-cat="elec">
           <h4 className="yy-mi-ch">弱電・情報・セキュリティ設備</h4>
           <p className="yy-mi-note">主要な弱電・情報・セキュリティ設備の種類と用途。</p>
+          <MatFigs sec="section-36" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -2520,6 +2564,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-37" className="yy-mi-sec" data-cat="elec">
           <h4 className="yy-mi-ch">接地・避雷・保安設備</h4>
           <p className="yy-mi-note">主要な接地・避雷・保安設備の種類と用途。接地抵抗値・接地線の太さは電気設備の技術基準の解釈（接地工事の種類）による。</p>
+          <MatFigs sec="section-37" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -2563,6 +2608,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-38" className="yy-mi-sec" data-cat="elec">
           <h4 className="yy-mi-ch">非常電源・防災・避難設備</h4>
           <p className="yy-mi-note">主要な非常電源・防災・避難設備の種類と用途。</p>
+          <MatFigs sec="section-38" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -2612,6 +2658,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-39" className="yy-mi-sec" data-cat="elec">
           <h4 className="yy-mi-ch">制御・計装・BEMS対応</h4>
           <p className="yy-mi-note">主要な制御・計装・BEMS対応システムの種類と用途。</p>
+          <MatFigs sec="section-39" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -2655,6 +2702,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-40" className="yy-mi-sec" data-cat="elec">
           <h4 className="yy-mi-ch">照度基準と設計目安（JIS Z 9110）</h4>
           <p className="yy-mi-note">照度は JIS Z 9110:2010（2011年追補）の推奨照度。括弧内は照度範囲。JIS Z 9110 は 2024年に改正され、屋内の照度表は JIS Z 9125:2023（屋内照明基準）に移っている。色温度は設計目安。</p>
+          <MatFigs sec="section-40" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -2704,6 +2752,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
         <div id="section-41" className="yy-mi-sec" data-cat="elec">
           <h4 className="yy-mi-ch">実務的な配線・設計注意点</h4>
           <p className="yy-mi-note">実務的な配線・設計における注意点と指針。</p>
+          <MatFigs sec="section-41" />
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>

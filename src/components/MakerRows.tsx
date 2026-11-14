@@ -4,6 +4,8 @@ import React from 'react';
 import { useMakerFilter } from '@/components/MakerFilter';
 import MakerLink from '@/components/MakerLink';
 import makers from '@/data/makers.json';
+import makerImages from '@/data/maker-images.json';
+import FeedPic from '@/components/ui/FeedPic';
 import SaveToMakerBox from '@/components/SaveToMakerBox';
 import MakerLinkLogger from '@/components/MakerLinkLogger';
 import { subcategoryLabel } from '@/lib/materialCategories';
@@ -40,6 +42,8 @@ type Maker = {
 };
 
 const DATA = makers as unknown as Record<string, Maker[]>;
+// 商品ページの写真(scripts/collect-maker-images.ts が集める。相手のサーバーから直接出す)。2026-11-14
+const IMAGES = makerImages as Record<string, string>;
 
 // 表示順とラベルは全ファイル共通
 const SLOTS: { key: keyof Maker; label: string; short: string }[] = [
@@ -87,6 +91,7 @@ const MakerRows: React.FC<MakerRowsProps> = ({
     <div className="yy-mk" role="table" aria-label={`${page} のメーカー`}>
       <div className="yy-mk__row yy-mk__row--head" role="row">
         <span />
+        <span />
         <span>メーカー</span>
         <span className="yy-mk__pages">扱い</span>
         {SLOTS.map((slot) => (
@@ -97,6 +102,13 @@ const MakerRows: React.FC<MakerRowsProps> = ({
       {rows.map((m, i) => (
         <div key={`${m.name}-${i}`} className="yy-mk__row" role="row">
           <span className="yy-mk__no">{String(i + 1).padStart(2, '0')}</span>
+          {IMAGES[m.products] ? (
+            <a className="yy-mk__pic" href={m.products} target="_blank" rel="noopener nofollow" tabIndex={-1} aria-hidden="true">
+              <FeedPic src={IMAGES[m.products]} size="mk" />
+            </a>
+          ) : (
+            <span className="yy-mk__pic" aria-hidden="true" />
+          )}
           <span className="yy-mk__name" title={m.name}>{m.name}</span>
           <span className="yy-mk__pages">{m.pages.map(subcategoryLabel).join(' · ')}</span>
           {/* MakerLinkLogger の span は CSS で display: contents にして、中の 7 つを表の列に並べる */}

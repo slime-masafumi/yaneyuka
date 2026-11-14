@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" fill="#141414" viewBox="0 0 720 320" width="720" height="320" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>A種・B種・C種・D種接地の対象と抵抗値</title>
+  <style>
+    text{font-size:11px}
+    .s{font-size:10.5px;fill:#5c5c5a}
+    .m{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10px}
+    .t{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10px;letter-spacing:1.2px;fill:#9a9a96}
+    .a{fill:#2E7D6B}
+    .k{stroke:#141414;stroke-width:1;fill:none}
+    .b{stroke:#141414;stroke-width:1;fill:#f5f5f2}
+    .c{stroke:#2E7D6B;stroke-width:1.4;fill:none}
+    .h{stroke:#e6e6e2;stroke-width:1}
+  </style>
+  <defs>
+    <path id="e" class="c" d="M-10 0 H10 M-6 5 H6 M-2 10 H2"/>
+  </defs>
+
+  <text x="20" y="24" class="t">DIAGRAM — 接地の種類</text>
+  <path class="h" d="M185 44 V280 M355 44 V280 M525 44 V280"/>
+
+  <!-- A -->
+  <text x="100" y="56" class="s" text-anchor="middle">高圧 6.6kV</text>
+  <rect x="60" y="66" width="80" height="62" class="b"/>
+  <text x="100" y="94" class="s" text-anchor="middle">キュービクル</text>
+  <text x="100" y="110" class="s" text-anchor="middle">変圧器・VCB</text>
+  <line x1="100" y1="128" x2="100" y2="150" class="c"/>
+  <use href="#e" x="100" y="150"/>
+  <text x="100" y="186" text-anchor="middle">高圧機器の金属製外箱</text>
+
+  <!-- B -->
+  <circle cx="270" cy="80" r="15" class="k"/><circle cx="270" cy="104" r="15" class="k"/>
+  <text x="248" y="84" class="s" text-anchor="end">高圧</text>
+  <text x="248" y="108" class="s" text-anchor="end">低圧</text>
+  <line x1="270" y1="119" x2="270" y2="150" class="c"/>
+  <circle cx="270" cy="119" r="2" fill="#2E7D6B"/>
+  <text x="278" y="138" class="s">中性点</text>
+  <use href="#e" x="270" y="150"/>
+  <text x="270" y="186" text-anchor="middle">変圧器の低圧側中性点</text>
+
+  <!-- C -->
+  <text x="440" y="56" class="s" text-anchor="middle">400V 級</text>
+  <rect x="405" y="66" width="70" height="62" class="b"/>
+  <circle cx="440" cy="97" r="17" class="k"/>
+  <text x="440" y="101" class="m" text-anchor="middle">M</text>
+  <line x1="440" y1="128" x2="440" y2="150" class="c"/>
+  <use href="#e" x="440" y="150"/>
+  <text x="440" y="186" text-anchor="middle">300V を超える低圧機器</text>
+
+  <!-- D -->
+  <text x="610" y="56" class="s" text-anchor="middle">100V・200V</text>
+  <rect x="580" y="66" width="60" height="62" class="b"/>
+  <path class="k" d="M590 82 H630 M590 94 H630 M590 106 H630"/>
+  <text x="610" y="122" class="s" text-anchor="middle">盤</text>
+  <line x1="610" y1="128" x2="610" y2="150" class="c"/>
+  <use href="#e" x="610" y="150"/>
+  <text x="610" y="186" text-anchor="middle">300V 以下の低圧機器</text>
+
+  <!-- 値 -->
+  <line x1="20" y1="198" x2="700" y2="198" class="h"/>
+  <g text-anchor="middle">
+    <text x="100" y="218" class="a" font-size="12">A種</text>
+    <text x="270" y="218" class="a" font-size="12">B種</text>
+    <text x="440" y="218" class="a" font-size="12">C種</text>
+    <text x="610" y="218" class="a" font-size="12">D種</text>
+    <text x="100" y="238" class="m">10Ω 以下</text>
+    <text x="270" y="238" class="m">150/Ig Ω 以下</text>
+    <text x="440" y="238" class="m">10Ω 以下</text>
+    <text x="610" y="238" class="m">100Ω 以下</text>
+    <text x="270" y="254" class="s">自動遮断で 300/Ig・600/Ig</text>
+    <text x="440" y="254" class="s">0.5 秒以内の遮断で 500Ω</text>
+    <text x="610" y="254" class="s">0.5 秒以内の遮断で 500Ω</text>
+    <text x="100" y="272" class="s">接地線 φ2.6mm 以上</text>
+    <text x="270" y="272" class="s">φ2.6mm 以上(高圧-低圧)</text>
+    <text x="440" y="272" class="s">φ1.6mm 以上</text>
+    <text x="610" y="272" class="s">φ1.6mm 以上</text>
+  </g>
+  <line x1="20" y1="286" x2="700" y2="286" class="h"/>
+  <text x="20" y="306" class="s">電技解釈 第17条・第24条・第29条。Ig は高圧側電路の 1 線地絡電流 [A]。接地線は軟銅線の最小値で、実務はより太い線を使う。</text>
+</svg>

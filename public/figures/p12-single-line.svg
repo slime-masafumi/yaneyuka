@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" fill="#141414" viewBox="0 0 720 320" width="720" height="320" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>高圧受電設備(CB形)の単線結線図</title>
+  <style>
+    text{font-size:11px}
+    .s{font-size:10.5px;fill:#5c5c5a}
+    .m{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10px}
+    .t{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10px;letter-spacing:1.2px;fill:#9a9a96}
+    .a{fill:#2E7D6B}
+    .k{stroke:#141414;stroke-width:1;fill:none}
+    .g{stroke:#9a9a96;stroke-width:.8;fill:none}
+    .d{stroke-dasharray:3 3}
+    .c{stroke:#2E7D6B;stroke-width:1.4;fill:none}
+    .h{stroke:#e6e6e2;stroke-width:1}
+  </style>
+
+  <text x="20" y="24" class="t">DIAGRAM — 単線結線図</text>
+
+  <!-- 責任分界点 -->
+  <line x1="70" y1="58" x2="70" y2="250" class="c" stroke-dasharray="6 3"/>
+  <text x="76" y="64" class="a">責任分界点</text>
+  <text x="64" y="86" class="s" text-anchor="end">電力会社</text>
+  <text x="76" y="86" class="s">需要家</text>
+
+  <!-- 配電線 → PAS -->
+  <text x="20" y="150">配電線</text>
+  <text x="20" y="178" class="m" fill="#5c5c5a">6.6kV</text>
+  <path class="k" d="M20 160 H86 M86 160 L104 151 M106 155 V160 M106 160 H214"/>
+  <text x="96" y="140" class="m" text-anchor="middle">PAS</text>
+  <line x1="96" y1="164" x2="96" y2="190" class="g d"/>
+  <rect x="80" y="190" width="32" height="16" class="k"/>
+  <text x="96" y="202" class="m" text-anchor="middle">DGR</text>
+  <text x="80" y="222" class="s">ZPD・ZCT は</text>
+  <text x="80" y="236" class="s">PAS に内蔵が一般的</text>
+  <text x="118" y="182" class="s">引込ケーブル(CVT)</text>
+
+  <!-- キュービクル -->
+  <rect x="196" y="80" width="344" height="168" class="g d"/>
+  <text x="196" y="74" class="s">キュービクル(JIS C 4620)</text>
+
+  <!-- VCT + Wh -->
+  <rect x="214" y="152" width="30" height="16" class="k"/>
+  <text x="229" y="164" class="m" font-size="9" text-anchor="middle">VCT</text>
+  <line x1="229" y1="124" x2="229" y2="152" class="g d"/>
+  <circle cx="229" cy="112" r="12" class="k"/>
+  <text x="229" y="116" class="m" text-anchor="middle">Wh</text>
+  <text x="248" y="116" class="s">取引用計量(電力会社)</text>
+
+  <!-- DS / CT / VCB -->
+  <path class="k" d="M244 160 H262 M262 160 L280 151 M282 155 V160 M282 160 H322 M322 160 L340 151 M339 157 L345 163 M339 163 L345 157 M342 160 H372"/>
+  <text x="272" y="144" class="m" text-anchor="middle">DS</text>
+  <circle cx="306" cy="160" r="6" class="k"/>
+  <text x="306" y="144" class="m" text-anchor="middle">CT</text>
+  <text x="334" y="140" class="m" text-anchor="middle">VCB</text>
+  <line x1="306" y1="166" x2="306" y2="190" class="g d"/>
+  <rect x="290" y="190" width="32" height="16" class="k"/>
+  <text x="306" y="202" class="m" text-anchor="middle">OCR</text>
+  <path class="g d" d="M322 198 H342 V166"/>
+
+  <!-- 高圧母線 -->
+  <line x1="372" y1="104" x2="372" y2="216" stroke="#141414" stroke-width="2.4"/>
+  <text x="372" y="234" class="s" text-anchor="middle">高圧母線</text>
+
+  <!-- 分岐 1 -->
+  <text x="398" y="94" class="m" text-anchor="middle">LBS</text>
+  <text x="430" y="94" class="m" text-anchor="middle">PF</text>
+  <text x="473" y="94" class="m" text-anchor="middle">TR</text>
+  <text x="516" y="94" class="m" text-anchor="middle">MCCB</text>
+  <path class="k" d="M372 110 H388 M388 110 L406 101 M420 110 H408 M440 110 H457 M489 110 H506 M506 110 L524 101 M523 107 L529 113 M523 113 L529 107 M526 110 H556"/>
+  <circle cx="408" cy="110" r="2" class="k"/>
+  <rect x="420" y="106" width="20" height="8" class="k"/>
+  <circle cx="466" cy="110" r="9" class="k"/><circle cx="480" cy="110" r="9" class="k"/>
+  <text x="562" y="107">電灯・コンセント</text>
+  <text x="562" y="123" class="s">単相3線 100/200V</text>
+
+  <!-- 分岐 2 -->
+  <path class="k" d="M372 210 H388 M388 210 L406 201 M420 210 H408 M440 210 H457 M489 210 H506 M506 210 L524 201 M523 207 L529 213 M523 213 L529 207 M526 210 H556"/>
+  <circle cx="408" cy="210" r="2" class="k"/>
+  <rect x="420" y="206" width="20" height="8" class="k"/>
+  <circle cx="466" cy="210" r="9" class="k"/><circle cx="480" cy="210" r="9" class="k"/>
+  <text x="562" y="207">動力</text>
+  <text x="562" y="223" class="s">三相3線 200V</text>
+
+  <!-- 注記 -->
+  <line x1="20" y1="266" x2="700" y2="266" class="h"/>
+  <text x="20" y="286" class="s">CB形:主遮断装置 VCB を OCR(過電流)の信号で引き外す。PAS は DGR により構内の地絡で開放する。</text>
+  <text x="20" y="304" class="s">PF・S形:LBS+限流ヒューズ(PF)を主遮断装置とする形で、受電設備容量 300kVA 以下(JIS C 4620)。</text>
+</svg>

@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 300" width="720" height="300" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>2025年改正後の確認対象の区分</title>
+
+  <text x="20" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">DIAGRAM — 階数と延べ面積</text>
+  <line x1="490" y1="16" x2="490" y2="286" stroke="#e6e6e2" stroke-width="1"/>
+
+  <!-- 新2号 -->
+  <polygon points="120,100 470,100 470,250 230,250 230,200 120,200" fill="#f5f5f2" stroke="#141414" stroke-width="1"/>
+  <g stroke="#e6e6e2" stroke-width="1">
+    <line x1="230" y1="100" x2="230" y2="200"/>
+    <line x1="350" y1="100" x2="350" y2="250"/>
+    <line x1="120" y1="150" x2="470" y2="150"/>
+    <line x1="230" y1="200" x2="470" y2="200"/>
+  </g>
+  <!-- 新3号 -->
+  <rect x="120" y="200" width="110" height="50" fill="#eef6f3" stroke="#2E7D6B" stroke-width="1.2"/>
+  <!-- 旧4号(木造) -->
+  <rect x="124" y="154" width="222" height="92" fill="none" stroke="#9a9a96" stroke-width="0.8" stroke-dasharray="3 3"/>
+
+  <text x="175" y="222" font-size="12" fill="#2E7D6B" text-anchor="middle">新3号</text>
+  <text x="175" y="238" font-size="10.5" fill="#141414" text-anchor="middle">審査省略あり</text>
+  <text x="410" y="172" font-size="12" fill="#141414" text-anchor="middle">新2号</text>
+  <text x="410" y="188" font-size="10.5" fill="#141414" text-anchor="middle">審査省略なし</text>
+  <text x="130" y="168" font-size="10" fill="#9a9a96">旧4号(木造)の範囲</text>
+  <text x="175" y="190" font-size="10.5" fill="#5c5c5a" text-anchor="middle">木造2階建て</text>
+  <text x="290" y="230" font-size="10.5" fill="#5c5c5a" text-anchor="middle">200m² 超の平屋</text>
+
+  <!-- 軸 -->
+  <g font-size="10.5" fill="#141414" text-anchor="end">
+    <text x="112" y="90" fill="#5c5c5a">階数</text>
+    <text x="112" y="129">3階以上</text>
+    <text x="112" y="179">2階</text>
+    <text x="112" y="229">平屋</text>
+  </g>
+  <g font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" fill="#141414" text-anchor="middle">
+    <text x="230" y="266">200</text>
+    <text x="350" y="266">500</text>
+  </g>
+  <text x="470" y="284" font-size="10.5" fill="#5c5c5a" text-anchor="end">延べ面積 m²</text>
+
+  <!-- 説明 -->
+  <text x="506" y="50" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="9.5" fill="#9a9a96">法6条1項(2025年4月〜)</text>
+  <g font-size="11" fill="#141414">
+    <text x="506" y="76">1号 特殊建築物(用途200m²超)</text>
+    <text x="506" y="116">2号 階数2以上 又は 延べ200m²超</text>
+    <text x="506" y="156"><tspan fill="#2E7D6B">3号</tspan> 平屋 かつ 延べ200m²以下</text>
+  </g>
+  <g font-size="10.5" fill="#5c5c5a">
+    <text x="506" y="92">全国で確認・35日</text>
+    <text x="506" y="132">全国で確認・35日</text>
+    <text x="506" y="172">都市計画区域等の内で確認・7日</text>
+    <text x="506" y="188">審査省略(法6条の4)の対象</text>
+  </g>
+  <line x1="506" y1="204" x2="700" y2="204" stroke="#e6e6e2" stroke-width="1"/>
+  <g font-size="10.5" fill="#5c5c5a">
+    <text x="506" y="224">左図は1号以外の建築物</text>
+    <text x="506" y="242">旧4号(木造): 階数2以下・延べ500m²</text>
+    <text x="506" y="258">以下・高さ13m以下・軒高9m以下</text>
+  </g>
+</svg>

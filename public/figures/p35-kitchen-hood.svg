@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 310" width="720" height="310" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>厨房の排気フードと排気ダクト</title>
+  <defs>
+    <marker id="tk" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#141414" stroke-width="1"/></marker>
+    <marker id="tka" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#2E7D6B" stroke-width="1.2"/></marker>
+    <marker id="ar" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M1 1 L7 4 L1 7" fill="none" stroke="#9a9a96" stroke-width="1"/></marker>
+    <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#9a9a96" stroke-width="0.6"/></pattern>
+  </defs>
+  <text x="20" y="20" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">SECTION — 断面</text>
+
+  <!-- 躯体 -->
+  <rect x="40" y="30" width="612" height="12" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="40" y="280" width="612" height="10" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <path d="M40 42 V190 M52 42 V190 M40 214 V280 M52 214 V280" stroke="#141414" stroke-width="1"/>
+  <rect x="40" y="42" width="12" height="148" fill="url(#hatch)"/><rect x="40" y="214" width="12" height="66" fill="url(#hatch)"/>
+  <rect x="400" y="42" width="12" height="18" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="400" y="88" width="12" height="192" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="640" y="42" width="12" height="18" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="640" y="88" width="12" height="192" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+
+  <!-- 給気口 -->
+  <g stroke="#141414" stroke-width="0.8"><line x1="40" y1="196" x2="52" y2="196"/><line x1="40" y1="202" x2="52" y2="202"/><line x1="40" y1="208" x2="52" y2="208"/></g>
+  <path d="M58 202 H92" stroke="#9a9a96" stroke-width="0.8" marker-end="url(#ar)"/>
+  <text x="96" y="224" font-size="10.5" fill="#5c5c5a">給気口</text>
+
+  <!-- 天井(可燃性の部分) -->
+  <path d="M52 118 H150 M210 118 H400" stroke="#9a9a96" stroke-width="1"/>
+
+  <!-- 調理機器 -->
+  <rect x="120" y="244" width="120" height="36" fill="#f5f5f2" stroke="#141414" stroke-width="1"/>
+  <path d="M140 244 V238 M170 244 V238 M200 244 V238 M220 244 V238" stroke="#141414" stroke-width="1"/>
+  <text x="180" y="267" font-size="11" fill="#141414" text-anchor="middle">加熱調理機器</text>
+
+  <!-- フード・ダクト -->
+  <path d="M104 184 L150 150 H210 L256 184 Z" fill="#f5f5f2" stroke="#141414" stroke-width="1"/>
+  <line x1="118" y1="180" x2="150" y2="156" stroke="#141414" stroke-width="1.6"/>
+  <path d="M166 150 V60 H652 M194 150 V88 H652" fill="none" stroke="#141414" stroke-width="1"/>
+  <!-- FD -->
+  <rect x="378" y="60" width="22" height="28" fill="#f5f5f2" stroke="#141414" stroke-width="1"/>
+  <line x1="380" y1="86" x2="398" y2="62" stroke="#141414" stroke-width="1.4"/>
+  <path d="M656 74 H692" stroke="#9a9a96" stroke-width="0.8" marker-end="url(#ar)"/>
+  <text x="692" y="104" font-size="10.5" fill="#5c5c5a" text-anchor="end">屋外へ</text>
+
+  <!-- 10cm -->
+  <line x1="300" y1="88" x2="300" y2="118" stroke="#141414" stroke-width="0.8" marker-start="url(#tk)" marker-end="url(#tk)"/>
+  <text x="306" y="108" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" fill="#141414">10cm以上</text>
+  <text x="220" y="134" font-size="10.5" fill="#5c5c5a">可燃性の部分</text>
+
+  <!-- H(主題) -->
+  <line x1="88" y1="184" x2="88" y2="244" stroke="#2E7D6B" stroke-width="1.2" marker-start="url(#tka)" marker-end="url(#tka)"/>
+  <line x1="82" y1="184" x2="104" y2="184" stroke="#2E7D6B" stroke-width="0.6"/>
+  <line x1="82" y1="244" x2="120" y2="244" stroke="#2E7D6B" stroke-width="0.6"/>
+  <text x="82" y="218" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="11" fill="#2E7D6B" text-anchor="end">H</text>
+
+  <!-- ラベル -->
+  <text x="262" y="174" font-size="11" fill="#141414">排気フード</text>
+  <line x1="126" y1="174" x2="112" y2="150" stroke="#141414" stroke-width="0.6"/>
+  <rect x="110" y="146" width="4" height="4" fill="#141414"/>
+  <text x="60" y="140" font-size="10.5" fill="#141414">グリス除去装置</text>
+  <text x="420" y="110" font-size="11" fill="#141414">排気ダクト</text>
+  <line x1="389" y1="88" x2="376" y2="136" stroke="#141414" stroke-width="0.6"/>
+  <rect x="374" y="134" width="4" height="4" fill="#141414"/>
+  <text x="372" y="152" font-size="10.5" fill="#141414" text-anchor="end">防火ダンパー</text>
+  <text x="418" y="274" font-size="10.5" fill="#5c5c5a">防火区画</text>
+
+  <!-- 注記 -->
+  <text x="420" y="150" font-size="11" fill="#2E7D6B">H 火源等からフード下端まで</text>
+  <text x="420" y="166" font-size="10.5" fill="#5c5c5a">1m 以下(昭和45年建告第1826号)</text>
+  <text x="420" y="194" font-size="11" fill="#141414">ダクトは可燃性の部分から</text>
+  <text x="420" y="210" font-size="10.5" fill="#5c5c5a">10cm 以上離す(東京都火災予防条例等)</text>
+  <text x="420" y="238" font-size="11" fill="#141414">給気は排気量に見合う量</text>
+  <text x="420" y="254" font-size="10.5" fill="#5c5c5a">とし、室を負圧に保つ</text>
+</svg>

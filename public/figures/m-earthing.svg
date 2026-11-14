@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 310" width="720" height="310" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>接地工事の種類と接地する部分</title>
+  <defs>
+    <marker id="tk" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#141414" stroke-width="1"/></marker>
+    <marker id="tka" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#2E7D6B" stroke-width="1.2"/></marker>
+    <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#9a9a96" stroke-width="0.6"/></pattern>
+  </defs>
+  <text x="20" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">DIAGRAM — どこを何種で接地するか</text>
+  <line x1="190" y1="40" x2="190" y2="268" stroke="#e6e6e2" stroke-width="1"/>
+  <line x1="370" y1="40" x2="370" y2="268" stroke="#e6e6e2" stroke-width="1"/>
+  <line x1="545" y1="40" x2="545" y2="268" stroke="#e6e6e2" stroke-width="1"/>
+  <rect x="50" y="62" width="100" height="56" fill="#f5f5f2" stroke="#141414" stroke-width="1"/>
+  <text x="100" y="86" font-size="11" fill="#141414" text-anchor="middle">高圧機器の外箱</text>
+  <text x="100" y="104" font-size="11" fill="#141414" text-anchor="middle">避雷器</text>
+  <line x1="100" y1="118" x2="100" y2="186" stroke="#2E7D6B" stroke-width="1.4"/>
+  <path d="M88,186 H112 M92,191 H108 M96,196 H104" stroke="#2E7D6B" stroke-width="1.4"/>
+  <circle cx="280" cy="76" r="16" fill="none" stroke="#141414" stroke-width="1"/>
+  <circle cx="280" cy="100" r="16" fill="none" stroke="#141414" stroke-width="1"/>
+  <text x="304" y="80" font-size="10.5" fill="#5c5c5a">高圧</text>
+  <text x="304" y="104" font-size="10.5" fill="#5c5c5a">低圧</text>
+  <line x1="280" y1="116" x2="280" y2="186" stroke="#9a9a96" stroke-width="1.4" stroke-dasharray="4 3"/>
+  <path d="M268,186 H292 M272,191 H288 M276,196 H284" stroke="#9a9a96" stroke-width="1.4"/>
+  <text x="272" y="140" font-size="10.5" fill="#5c5c5a" text-anchor="end">変圧器の</text>
+  <text x="272" y="156" font-size="10.5" fill="#5c5c5a" text-anchor="end">低圧側の中性点</text>
+  <rect x="410" y="62" width="100" height="56" fill="none" stroke="#141414" stroke-width="1"/>
+  <circle cx="442" cy="90" r="17" fill="none" stroke="#141414" stroke-width="1"/>
+  <text x="442" y="95" font-size="13" fill="#141414" text-anchor="middle">M</text>
+  <text x="468" y="94" font-size="10.5" fill="#141414">400V</text>
+  <text x="460" y="52" font-size="10.5" fill="#5c5c5a" text-anchor="middle">300V 超の低圧機器</text>
+  <line x1="460" y1="118" x2="460" y2="186" stroke="#2E7D6B" stroke-width="1.4"/>
+  <path d="M448,186 H472 M452,191 H468 M456,196 H464" stroke="#2E7D6B" stroke-width="1.4"/>
+  <text x="468" y="150" font-size="10.5" fill="#5c5c5a">外箱</text>
+  <rect x="580" y="62" width="100" height="56" fill="none" stroke="#141414" stroke-width="1"/>
+  <text x="630" y="86" font-size="10.5" fill="#141414" text-anchor="middle">200V・100V の</text>
+  <text x="630" y="104" font-size="10.5" fill="#141414" text-anchor="middle">機器</text>
+  <text x="630" y="52" font-size="10.5" fill="#5c5c5a" text-anchor="middle">300V 以下の低圧機器</text>
+  <line x1="630" y1="118" x2="630" y2="186" stroke="#2E7D6B" stroke-width="1.4"/>
+  <path d="M618,186 H642 M622,191 H638 M626,196 H634" stroke="#2E7D6B" stroke-width="1.4"/>
+  <text x="638" y="150" font-size="10.5" fill="#5c5c5a">外箱</text>
+  <text x="100" y="222" font-size="12" fill="#2E7D6B" text-anchor="middle">A 種接地</text>
+  <text x="100" y="242" font-size="11" fill="#141414" text-anchor="middle">10Ω 以下</text>
+  <text x="100" y="260" font-size="10.5" fill="#5c5c5a" text-anchor="middle">接地線 φ2.6mm 以上</text>
+  <text x="280" y="222" font-size="12" fill="#5c5c5a" text-anchor="middle">B 種接地(表に無し)</text>
+  <text x="280" y="242" font-size="11" fill="#5c5c5a" text-anchor="middle">抵抗値は計算で決まる</text>
+  <text x="280" y="260" font-size="10.5" fill="#5c5c5a" text-anchor="middle">高低圧の混触に備える</text>
+  <text x="460" y="222" font-size="12" fill="#2E7D6B" text-anchor="middle">C 種接地</text>
+  <text x="460" y="242" font-size="11" fill="#141414" text-anchor="middle">10Ω 以下(※500Ω)</text>
+  <text x="460" y="260" font-size="10.5" fill="#5c5c5a" text-anchor="middle">接地線 φ1.6mm 以上</text>
+  <text x="630" y="222" font-size="12" fill="#2E7D6B" text-anchor="middle">D 種接地</text>
+  <text x="630" y="242" font-size="11" fill="#141414" text-anchor="middle">100Ω 以下(※500Ω)</text>
+  <text x="630" y="260" font-size="10.5" fill="#5c5c5a" text-anchor="middle">接地線 φ1.6mm 以上</text>
+  <line x1="20" y1="274" x2="700" y2="274" stroke="#e6e6e2" stroke-width="1"/>
+  <text x="20" y="294" font-size="10.5" fill="#5c5c5a">※ 地絡時に 0.5 秒以内に自動遮断する装置があるとき。接地線は軟銅線の場合。根拠は電気設備の技術基準の解釈 17条・29条</text>
+</svg>

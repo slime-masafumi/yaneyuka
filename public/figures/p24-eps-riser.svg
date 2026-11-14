@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" fill="#141414" viewBox="0 0 720 350" width="720" height="350" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>EPS の幹線ルートと床貫通部</title>
+  <style>
+    text{font-size:11px}
+    .s{font-size:10.5px;fill:#5c5c5a}
+    .m{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10px}
+    .t{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10px;letter-spacing:1.2px;fill:#9a9a96}
+    .a{fill:#2E7D6B}
+    .k{stroke:#141414;stroke-width:1;fill:none}
+    .b{stroke:#141414;stroke-width:1;fill:#f5f5f2}
+    .g{stroke:#9a9a96;stroke-width:.8;fill:none}
+    .c{stroke:#2E7D6B;stroke-width:1.5;fill:none}
+    .h{stroke:#e6e6e2;stroke-width:1}
+    .l{stroke:#141414;stroke-width:.6}
+  </style>
+  <defs>
+    <pattern id="hp" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#9a9a96" stroke-width="0.6"/></pattern>
+  </defs>
+
+  <text x="20" y="24" class="t">SECTION — 断面</text>
+
+  <!-- シャフトの壁 -->
+  <path class="k" d="M280 50 V90 M280 98 V160 M280 168 V230 M280 238 V300 M340 50 V90 M340 98 V160 M340 168 V230 M340 238 V300 M392 50 V90 M392 98 V160 M392 168 V230 M392 238 V300"/>
+  <text x="310" y="44" class="m" text-anchor="middle">EPS</text>
+  <text x="366" y="44" class="m" text-anchor="middle">DPS</text>
+
+  <!-- スラブ -->
+  <g fill="url(#hp)" stroke="#141414" stroke-width="1">
+    <rect x="120" y="90" width="172" height="8"/><rect x="308" y="90" width="50" height="8"/><rect x="374" y="90" width="46" height="8"/>
+    <rect x="120" y="160" width="172" height="8"/><rect x="308" y="160" width="50" height="8"/><rect x="374" y="160" width="46" height="8"/>
+    <rect x="120" y="230" width="172" height="8"/><rect x="308" y="230" width="50" height="8"/><rect x="374" y="230" width="46" height="8"/>
+  </g>
+  <g class="b">
+    <rect x="292" y="90" width="16" height="8"/><rect x="292" y="160" width="16" height="8"/><rect x="292" y="230" width="16" height="8"/>
+    <rect x="358" y="90" width="16" height="8"/><rect x="358" y="160" width="16" height="8"/><rect x="358" y="230" width="16" height="8"/>
+  </g>
+  <rect x="100" y="300" width="340" height="6" fill="url(#hp)"/>
+  <line x1="100" y1="300" x2="440" y2="300" class="k"/>
+  <text x="126" y="156" class="m" fill="#9a9a96">3F</text>
+  <text x="126" y="226" class="m" fill="#9a9a96">2F</text>
+  <text x="126" y="86" class="m" fill="#9a9a96">4F</text>
+
+  <!-- 電気室 -->
+  <text x="130" y="256" class="s">電気室</text>
+  <rect x="152" y="262" width="44" height="38" class="b"/>
+  <text x="174" y="285" class="m" text-anchor="middle">MDB</text>
+
+  <!-- 幹線 -->
+  <path class="c" d="M174 262 V250 H300 V50"/>
+  <path class="c" d="M300 202 H314 M300 132 H314 M300 70 H314"/>
+  <rect x="314" y="186" width="20" height="32" class="b"/>
+  <rect x="314" y="116" width="20" height="32" class="b"/>
+  <rect x="314" y="58" width="20" height="26" class="b"/>
+
+  <!-- 弱電 -->
+  <rect x="352" y="266" width="28" height="34" class="b"/>
+  <text x="366" y="287" class="m" font-size="9" text-anchor="middle">MDF</text>
+  <line x1="366" y1="266" x2="366" y2="50" class="k"/>
+
+  <!-- 引出し -->
+  <line x1="302" y1="110" x2="436" y2="62" class="l"/><rect x="434" y="60" width="4" height="4"/>
+  <text x="446" y="66">幹線ラック</text>
+  <text x="446" y="82" class="s">幅 300〜600mm(目安)</text>
+  <line x1="334" y1="140" x2="436" y2="122" class="l"/><rect x="434" y="120" width="4" height="4"/>
+  <text x="446" y="126">各階の分電盤</text>
+  <line x1="308" y1="166" x2="436" y2="176" class="l"/><rect x="434" y="174" width="4" height="4"/>
+  <text x="446" y="180">床貫通部の耐火処理</text>
+  <text x="446" y="196" class="s">ケーブル増設時は再施工</text>
+  <line x1="368" y1="212" x2="436" y2="236" class="l"/><rect x="434" y="234" width="4" height="4"/>
+  <text x="446" y="240">弱電は別シャフト(DPS)</text>
+  <text x="446" y="256" class="s">電力線と離隔してノイズを避ける</text>
+
+  <line x1="20" y1="318" x2="700" y2="318" class="h"/>
+  <text x="20" y="338" class="s">EPS の目安:小規模 W600〜900×D600〜900、中規模 W1000〜1500×D800〜1200(mm)。各階の点検口前に 600mm 以上。</text>
+</svg>

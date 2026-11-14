@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 270" width="720" height="270" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>全熱交換器の空気の流れ</title>
+  <defs>
+    <marker id="ar" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M1 1 L7 4 L1 7" fill="none" stroke="#9a9a96" stroke-width="1"/></marker>
+    <marker id="ara" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M1 1 L7 4 L1 7" fill="none" stroke="#2E7D6B" stroke-width="1.2"/></marker>
+    <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#9a9a96" stroke-width="0.6"/></pattern>
+  </defs>
+  <text x="20" y="22" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">DIAGRAM — 全熱交換器</text>
+
+  <!-- 外壁 -->
+  <rect x="150" y="40" width="12" height="28" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="150" y="92" width="12" height="76" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="150" y="192" width="12" height="28" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <text x="20" y="52" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="9.5" letter-spacing="1.2" fill="#9a9a96">屋外</text>
+  <text x="700" y="52" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="9.5" letter-spacing="1.2" fill="#9a9a96" text-anchor="end">室内</text>
+
+  <!-- ダクト -->
+  <g fill="none" stroke="#141414" stroke-width="1">
+    <path d="M162 68 H280 M162 92 H280"/>
+    <path d="M162 168 H280 M162 192 H280"/>
+    <path d="M440 68 H560 M440 92 H560"/>
+    <path d="M440 168 H560 M440 192 H560"/>
+  </g>
+  <!-- 本体と素子 -->
+  <rect x="280" y="60" width="160" height="140" fill="none" stroke="#141414" stroke-width="1"/>
+  <polygon points="360,90 400,130 360,170 320,130" fill="#f5f5f2" stroke="#141414" stroke-width="1"/>
+  <g stroke="#9a9a96" stroke-width="0.5">
+    <line x1="340" y1="110" x2="380" y2="150"/><line x1="350" y1="100" x2="390" y2="140"/><line x1="330" y1="120" x2="370" y2="160"/>
+  </g>
+
+  <!-- 還気 → 排気 -->
+  <path d="M590 80 H420 L300 180 H118" fill="none" stroke="#9a9a96" stroke-width="1" marker-end="url(#ar)"/>
+  <!-- 外気 → 給気(主題) -->
+  <path d="M110 80 H300 L420 180 H592" fill="none" stroke="#2E7D6B" stroke-width="1.5" marker-end="url(#ara)"/>
+
+  <!-- ラベル -->
+  <text x="20" y="84" font-size="11" fill="#2E7D6B"><tspan font-family="ui-monospace,Menlo,Consolas,monospace">OA</tspan> 外気</text>
+  <text x="20" y="184" font-size="11" fill="#141414"><tspan font-family="ui-monospace,Menlo,Consolas,monospace">EA</tspan> 排気</text>
+  <text x="604" y="84" font-size="11" fill="#141414"><tspan font-family="ui-monospace,Menlo,Consolas,monospace">RA</tspan> 還気</text>
+  <text x="604" y="184" font-size="11" fill="#2E7D6B"><tspan font-family="ui-monospace,Menlo,Consolas,monospace">SA</tspan> 給気</text>
+  <text x="280" y="52" font-size="11" fill="#141414">全熱交換器</text>
+  <line x1="372" y1="160" x2="384" y2="214" stroke="#141414" stroke-width="0.6"/>
+  <rect x="382" y="212" width="4" height="4" fill="#141414"/>
+  <text x="392" y="218" font-size="11" fill="#141414">熱交換素子</text>
+
+  <line x1="20" y1="232" x2="700" y2="232" stroke="#e6e6e2" stroke-width="1"/>
+  <text x="20" y="252" font-size="10.5" fill="#5c5c5a">給気と排気は素子の中で交差するが混ざらず、熱と湿気だけが移る。屋外側の OA と EA の口は離して再吸込みを防ぐ。</text>
+</svg>

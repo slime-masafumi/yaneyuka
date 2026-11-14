@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 250" width="720" height="250" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>石膏ボードの長辺エッジの形と継目</title>
+  <defs>
+    <marker id="tk" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#141414" stroke-width="1"/></marker>
+    <marker id="tka" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#2E7D6B" stroke-width="1.2"/></marker>
+    <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#9a9a96" stroke-width="0.6"/></pattern>
+  </defs>
+  <text x="20" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">SECTION — 長辺の継目の断面(表面が上)</text>
+  <line x1="240" y1="44" x2="240" y2="214" stroke="#e6e6e2" stroke-width="1"/>
+  <line x1="480" y1="44" x2="480" y2="214" stroke="#e6e6e2" stroke-width="1"/>
+  <path d="M34,84 H129 V134 H34" fill="#f5f5f2" stroke="#141414" stroke-width="1"/>
+  <path d="M226,84 H131 V134 H226" fill="#f5f5f2" stroke="#141414" stroke-width="1"/>
+  <line x1="30" y1="84" x2="18" y2="84" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="30" y1="134" x2="18" y2="134" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="24" y1="84" x2="24" y2="134" stroke="#141414" stroke-width="0.6" marker-start="url(#tk)" marker-end="url(#tk)"/>
+  <text x="18" y="114" font-size="12" fill="#141414" text-anchor="end">t</text>
+  <text x="130" y="168" font-size="12" fill="#141414" text-anchor="middle">スクエアエッジ</text>
+  <text x="130" y="190" font-size="10.5" fill="#5c5c5a" text-anchor="middle">突付け・目透かし張り、</text>
+  <text x="130" y="206" font-size="10.5" fill="#5c5c5a" text-anchor="middle">二重張りの下張りなど</text>
+  <path d="M316,84 L359,93 L361,93 L404,84 Z" fill="#eef6f3" stroke="none"/>
+  <path d="M264,84 H316 L359,93 V134 H264" fill="#f5f5f2" stroke="#141414" stroke-width="1"/>
+  <path d="M456,84 H404 L361,93 V134 H456" fill="#f5f5f2" stroke="#141414" stroke-width="1"/>
+  <line x1="316" y1="84" x2="404" y2="84" stroke="#2E7D6B" stroke-width="1.5"/>
+  <line x1="338" y1="91" x2="382" y2="91" stroke="#141414" stroke-width="1.2"/>
+  <line x1="374" y1="91" x2="424" y2="60" stroke="#141414" stroke-width="0.6"/>
+  <rect x="422" y="58" width="4" height="4" fill="#141414"/>
+  <text x="430" y="64" font-size="11" fill="#141414">テープ</text>
+  <line x1="330" y1="86" x2="296" y2="60" stroke="#141414" stroke-width="0.6"/>
+  <rect x="294" y="58" width="4" height="4" fill="#141414"/>
+  <text x="290" y="64" font-size="11" fill="#2E7D6B" text-anchor="end">パテ</text>
+  <text x="360" y="168" font-size="12" fill="#2E7D6B" text-anchor="middle">テーパーエッジ</text>
+  <text x="360" y="190" font-size="10.5" fill="#5c5c5a" text-anchor="middle">継目処理(テープ+パテ)で</text>
+  <text x="360" y="206" font-size="10.5" fill="#5c5c5a" text-anchor="middle">継目の見えない平らな面に</text>
+  <path d="M504,84 H592 L599,91 V134 H504" fill="#f5f5f2" stroke="#141414" stroke-width="1"/>
+  <path d="M696,84 H608 L601,91 V134 H696" fill="#f5f5f2" stroke="#141414" stroke-width="1"/>
+  <line x1="600" y1="87" x2="640" y2="60" stroke="#141414" stroke-width="0.6"/>
+  <rect x="638" y="58" width="4" height="4" fill="#141414"/>
+  <text x="646" y="64" font-size="11" fill="#141414">V 目地</text>
+  <text x="600" y="168" font-size="12" fill="#141414" text-anchor="middle">ベベルエッジ</text>
+  <text x="600" y="190" font-size="10.5" fill="#5c5c5a" text-anchor="middle">継目を V 目地として</text>
+  <text x="600" y="206" font-size="10.5" fill="#5c5c5a" text-anchor="middle">見せる張り方に</text>
+  <text x="20" y="238" font-size="10.5" fill="#5c5c5a">エッジの形は製品ごとに選べる(メーカー品)。テーパーの深さは誇張して描いている</text>
+</svg>

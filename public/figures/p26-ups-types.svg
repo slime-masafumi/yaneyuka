@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" fill="#141414" viewBox="0 0 720 350" width="720" height="350" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>UPS の 3 つの給電方式</title>
+  <style>
+    text{font-size:11px}
+    .s{font-size:10.5px;fill:#5c5c5a}
+    .m{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10px}
+    .t{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10px;letter-spacing:1.2px;fill:#9a9a96}
+    .a{fill:#2E7D6B}
+    .k{stroke:#141414;stroke-width:1;fill:none}
+    .b{stroke:#141414;stroke-width:1;fill:#f5f5f2}
+    .g{stroke:#9a9a96;stroke-width:.8;fill:none}
+    .d{stroke-dasharray:3 3}
+    .c{stroke:#2E7D6B;stroke-width:1.5;fill:none}
+    .h{stroke:#e6e6e2;stroke-width:1}
+    .x{font-size:10.5px;text-anchor:middle}
+  </style>
+
+  <text x="20" y="24" class="t">DIAGRAM — 給電方式(JIS C 4411-3)</text>
+  <text x="180" y="50" class="s" text-anchor="middle">入力</text>
+  <text x="550" y="50" class="s" text-anchor="middle">出力</text>
+  <line x1="570" y1="56" x2="570" y2="314" class="h"/>
+
+  <!-- 1 常時商用給電 -->
+  <text x="20" y="80">常時商用給電</text>
+  <text x="20" y="96" class="s">オフライン</text>
+  <path class="c" d="M170 76 H470 M500 76 H540"/>
+  <rect x="470" y="66" width="30" height="20" class="b"/><text x="485" y="80" class="x">切替</text>
+  <path class="k" d="M210 76 V114 H236 M292 114 H312 M356 114 H376 M432 114 H485 V86"/>
+  <rect x="236" y="102" width="56" height="24" class="b"/><text x="264" y="118" class="x">充電器</text>
+  <rect x="312" y="102" width="44" height="24" class="b"/><text x="334" y="118" class="x">蓄電池</text>
+  <rect x="376" y="102" width="56" height="24" class="b"/><text x="404" y="118" class="x">インバータ</text>
+  <text x="584" y="80" class="a">切替 4〜10ms</text>
+  <text x="584" y="96" class="s">事務機・PC 向け</text>
+
+  <line x1="20" y1="140" x2="560" y2="140" class="h"/>
+
+  <!-- 2 ラインインタラクティブ -->
+  <text x="20" y="168">ラインインタラクティブ</text>
+  <text x="20" y="184" class="s">電圧を調整して出力</text>
+  <path class="c" d="M170 164 H220 M250 164 H290 M346 164 H540"/>
+  <rect x="220" y="154" width="30" height="20" class="b"/><text x="235" y="168" class="x">切替</text>
+  <rect x="290" y="152" width="56" height="24" class="b"/><text x="318" y="168" class="x">電圧調整</text>
+  <path class="k" d="M460 164 V202 H432 M376 202 H356"/>
+  <rect x="376" y="190" width="56" height="24" class="b"/><text x="404" y="206" class="x">変換器</text>
+  <rect x="312" y="190" width="44" height="24" class="b"/><text x="334" y="206" class="x">蓄電池</text>
+  <circle cx="460" cy="164" r="2" fill="#2E7D6B"/>
+  <text x="440" y="230" class="s">双方向(平常時は充電)</text>
+  <text x="584" y="168" class="a">切替 4〜10ms</text>
+  <text x="584" y="184" class="s">電圧変動に強い</text>
+
+  <line x1="20" y1="240" x2="560" y2="240" class="h"/>
+
+  <!-- 3 常時インバータ給電 -->
+  <text x="20" y="282">常時インバータ給電</text>
+  <text x="20" y="298" class="s">オンライン</text>
+  <path class="c" d="M170 278 H236 M292 278 H376 M432 278 H470 M500 278 H540"/>
+  <rect x="236" y="266" width="56" height="24" class="b"/><text x="264" y="282" class="x">整流器</text>
+  <rect x="376" y="266" width="56" height="24" class="b"/><text x="404" y="282" class="x">インバータ</text>
+  <rect x="470" y="268" width="30" height="20" class="b"/><text x="485" y="282" class="x">切替</text>
+  <path class="k" d="M334 278 V296"/>
+  <rect x="312" y="296" width="44" height="24" class="b"/><text x="334" y="312" class="x">蓄電池</text>
+  <path class="g d" d="M200 278 V254 H485 V268"/>
+  <text x="300" y="250" class="s">バイパス(保守・故障時)</text>
+  <text x="584" y="282" class="a">無瞬断</text>
+  <text x="584" y="298" class="s">サーバ・医療機器</text>
+
+  <line x1="20" y1="328" x2="44" y2="328" class="c"/>
+  <text x="50" y="332" class="s">平常時に電力が通る経路</text>
+</svg>

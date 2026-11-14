@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 370" width="720" height="370" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>湿式スプリンクラー設備の系統</title>
+  <defs>
+    <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#9a9a96" stroke-width="0.6"/></pattern>
+  </defs>
+  <text x="20" y="22" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">DIAGRAM — 湿式スプリンクラー</text>
+
+  <!-- 建物 -->
+  <rect x="130" y="60" width="430" height="6" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="130" y="140" width="430" height="6" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="130" y="220" width="430" height="6" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <line x1="130" y1="66" x2="130" y2="300" stroke="#141414" stroke-width="1"/>
+  <line x1="560" y1="66" x2="560" y2="300" stroke="#141414" stroke-width="1"/>
+  <line x1="20" y1="300" x2="700" y2="300" stroke="#9a9a96" stroke-width="1"/>
+
+  <!-- 水源 -->
+  <rect x="150" y="312" width="80" height="40" fill="#f5f5f2" stroke="#141414" stroke-width="1"/>
+  <text x="190" y="337" font-size="11" fill="#141414" text-anchor="middle">水源(水槽)</text>
+
+  <!-- 配管(主題:常に加圧水で満たされた配管) -->
+  <g fill="none" stroke="#2E7D6B" stroke-width="1.5">
+    <path d="M206 312 V286 H231"/>
+    <path d="M249 286 H280 V80"/>
+    <path d="M280 80 H298 M310 80 H314 M330 80 H540 V96"/>
+    <path d="M280 160 H298 M310 160 H314 M330 160 H540 V176"/>
+    <path d="M280 240 H298 M310 240 H314 M330 240 H540 V256"/>
+    <path d="M116 262 H252 M264 262 H280"/>
+  </g>
+  <!-- ポンプ -->
+  <circle cx="240" cy="286" r="9" fill="#f5f5f2" stroke="#141414" stroke-width="1"/>
+  <text x="240" y="289.5" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="9" fill="#141414" text-anchor="middle">P</text>
+  <!-- 逆止弁(送水口側) -->
+  <polygon points="252,256 252,268 264,256 264,268" fill="#f5f5f2" stroke="#141414" stroke-width="1"/>
+  <!-- 送水口 -->
+  <rect x="96" y="254" width="20" height="16" fill="#f5f5f2" stroke="#141414" stroke-width="1"/>
+
+  <!-- 各階:制御弁・流水検知装置・ヘッド・末端試験弁 -->
+  <g fill="#f5f5f2" stroke="#141414" stroke-width="1">
+    <polygon points="298,74 298,86 310,74 310,86"/><rect x="314" y="72" width="16" height="16"/>
+    <polygon points="298,154 298,166 310,154 310,166"/><rect x="314" y="152" width="16" height="16"/>
+    <polygon points="298,234 298,246 310,234 310,246"/><rect x="314" y="232" width="16" height="16"/>
+    <polygon points="534,96 546,96 534,108 546,108"/>
+    <polygon points="534,176 546,176 534,188 546,188"/>
+    <polygon points="534,256 546,256 534,268 546,268"/>
+  </g>
+  <g stroke="#141414" stroke-width="1" fill="none">
+    <path d="M380 80 V90 M374 90 H386 M440 80 V90 M434 90 H446 M500 80 V90 M494 90 H506"/>
+    <path d="M380 160 V170 M374 170 H386 M440 160 V170 M434 170 H446 M500 160 V170 M494 170 H506"/>
+    <path d="M380 240 V250 M374 250 H386 M440 240 V250 M434 250 H446 M500 240 V250 M494 250 H506"/>
+  </g>
+
+  <!-- ラベル -->
+  <line x1="322" y1="88" x2="330" y2="112" stroke="#141414" stroke-width="0.6"/>
+  <rect x="328" y="110" width="4" height="4" fill="#141414"/>
+  <text x="338" y="117" font-size="11" fill="#141414">制御弁・流水検知装置</text>
+  <line x1="440" y1="172" x2="452" y2="194" stroke="#141414" stroke-width="0.6"/>
+  <rect x="450" y="192" width="4" height="4" fill="#141414"/>
+  <text x="460" y="199" font-size="11" fill="#141414">閉鎖型ヘッド</text>
+  <line x1="534" y1="264" x2="510" y2="282" stroke="#141414" stroke-width="0.6"/>
+  <rect x="506" y="280" width="4" height="4" fill="#141414"/>
+  <text x="502" y="288" font-size="11" fill="#141414" text-anchor="end">末端試験弁</text>
+  <text x="20" y="250" font-size="11" fill="#141414">送水口</text>
+  <text x="20" y="282" font-size="10.5" fill="#5c5c5a">消防ポンプ車</text>
+  <text x="20" y="296" font-size="10.5" fill="#5c5c5a">から送水</text>
+  <line x1="240" y1="295" x2="252" y2="322" stroke="#141414" stroke-width="0.6"/>
+  <rect x="250" y="320" width="4" height="4" fill="#141414"/>
+  <text x="260" y="327" font-size="11" fill="#141414">加圧送水装置(ポンプ)</text>
+  <text x="290" y="200" font-size="10.5" fill="#2E7D6B">配管</text>
+
+  <!-- 注記 -->
+  <text x="576" y="84" font-size="11" fill="#141414">湿式</text>
+  <text x="576" y="100" font-size="10.5" fill="#5c5c5a">配管内は常に</text>
+  <text x="576" y="116" font-size="10.5" fill="#5c5c5a">加圧水で満たす。</text>
+  <text x="576" y="132" font-size="10.5" fill="#5c5c5a">熱でヘッドが開くと</text>
+  <text x="576" y="148" font-size="10.5" fill="#5c5c5a">放水し、流水検知</text>
+  <text x="576" y="164" font-size="10.5" fill="#5c5c5a">装置が警報を出す</text>
+  <text x="576" y="196" font-size="11" fill="#141414">標準型ヘッド</text>
+  <text x="576" y="212" font-size="10.5" fill="#5c5c5a">0.1MPa 以上</text>
+  <text x="576" y="228" font-size="10.5" fill="#5c5c5a">80L/min 以上</text>
+  <text x="576" y="244" font-size="10.5" fill="#5c5c5a">(規則13条の6)</text>
+  <text x="576" y="276" font-size="10.5" fill="#5c5c5a">双口形の送水口</text>
+  <text x="576" y="292" font-size="10.5" fill="#5c5c5a">(令12条2項7号)</text>
+</svg>

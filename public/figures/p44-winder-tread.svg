@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 280" width="720" height="280" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>回り階段の踏面を測る位置</title>
+  <defs>
+    <marker id="tka" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#2E7D6B" stroke-width="1.2"/></marker>
+    <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#9a9a96" stroke-width="0.6"/></pattern>
+  </defs>
+
+  <text x="20" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">PLAN — 回り階段(90° を 3 段で回る例)</text>
+  <line x1="432" y1="16" x2="432" y2="262" stroke="#e6e6e2" stroke-width="1"/>
+
+  <!-- 外周の壁 -->
+  <rect x="172" y="32" width="8" height="188" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="172" y="32" width="246" height="8" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+
+  <!-- 回り部分 180×180(200px = 1m)、狭い端 C = (360, 220) -->
+  <g stroke="#141414" stroke-width="1" fill="none">
+    <path d="M180 220 H360 V40"/>
+    <line x1="360" y1="220" x2="180" y2="116"/>
+    <line x1="360" y1="220" x2="256" y2="40"/>
+  </g>
+  <!-- 直進部分(上がり口・上がり先) -->
+  <g stroke="#141414" stroke-width="0.8">
+    <line x1="180" y1="250" x2="360" y2="250"/>
+    <line x1="360" y1="40" x2="360" y2="220"/>
+    <line x1="390" y1="40" x2="390" y2="220"/>
+  </g>
+  <line x1="360" y1="220" x2="360" y2="262" stroke="#141414" stroke-width="1"/>
+  <circle cx="360" cy="220" r="3" fill="#141414"/>
+
+  <!-- 30cm の円弧 -->
+  <path d="M300 220 A60 60 0 0 1 360 160" fill="none" stroke="#9a9a96" stroke-width="0.8" stroke-dasharray="3 3"/>
+  <!-- 30cm 寸法 -->
+  <line x1="300" y1="234" x2="360" y2="234" stroke="#2E7D6B" stroke-width="1.2" marker-start="url(#tka)" marker-end="url(#tka)"/>
+  <line x1="300" y1="222" x2="300" y2="240" stroke="#2E7D6B" stroke-width="0.6"/>
+  <text x="292" y="238" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10.5" fill="#2E7D6B" text-anchor="end">30cm</text>
+  <!-- 踏面 T(30cm の位置で測る) -->
+  <path d="M308 190 A60 60 0 0 1 330 168" fill="none" stroke="#2E7D6B" stroke-width="1.5"/>
+  <line x1="304" y1="192" x2="312" y2="188" stroke="#2E7D6B" stroke-width="1.2"/>
+  <line x1="328" y1="164" x2="332" y2="172" stroke="#2E7D6B" stroke-width="1.2"/>
+  <text x="304" y="172" font-size="12" fill="#2E7D6B" text-anchor="end">T</text>
+
+  <!-- 狭い端 -->
+  <line x1="364" y1="226" x2="372" y2="240" stroke="#141414" stroke-width="0.6"/>
+  <rect x="370" y="238" width="4" height="4" fill="#141414"/>
+  <text x="372" y="256" font-size="10.5" fill="#141414">狭い方の端</text>
+  <line x1="360" y1="220" x2="414" y2="220" stroke="#141414" stroke-width="0.8"/>
+
+  <!-- 昇り方向 -->
+  <path d="M226 246 V190 Q226 120 375 120" fill="none" stroke="#9a9a96" stroke-width="0.8"/>
+  <path d="M367 115 L377 120 L367 125" fill="none" stroke="#9a9a96" stroke-width="0.8"/>
+  <text x="232" y="244" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="9" letter-spacing="1" fill="#9a9a96">UP</text>
+
+  <!-- 説明 -->
+  <text x="446" y="52" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="9.5" letter-spacing="1.2" fill="#9a9a96">RULE — 令23条2項</text>
+  <text x="446" y="78" font-size="11" fill="#141414">回り階段の部分の踏面は</text>
+  <text x="446" y="96" font-size="11" fill="#2E7D6B">踏面の狭い方の端から 30cm の位置</text>
+  <text x="446" y="114" font-size="11" fill="#141414">で測る</text>
+  <line x1="446" y1="132" x2="700" y2="132" stroke="#e6e6e2" stroke-width="1"/>
+  <text x="446" y="154" font-size="10.5" fill="#5c5c5a">測った寸法が令23条1項の表の踏面</text>
+  <text x="446" y="170" font-size="10.5" fill="#5c5c5a">(住宅は 15cm 以上)を満たすこと</text>
+  <text x="446" y="194" font-size="10.5" fill="#5c5c5a">扇形の段は内側ほど踏面が狭い。</text>
+  <text x="446" y="210" font-size="10.5" fill="#5c5c5a">段割りは 30cm の位置で確かめる</text>
+  <text x="446" y="234" font-size="10.5" fill="#5c5c5a">告示709号の寸法にも準用される</text>
+</svg>

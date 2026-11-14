@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" fill="#141414" viewBox="0 0 720 300" width="720" height="300" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>自動火災報知設備と連動する設備</title>
+  <style>
+    text{font-size:11px}
+    .s{font-size:10.5px;fill:#5c5c5a}
+    .m{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10px}
+    .t{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10px;letter-spacing:1.2px;fill:#9a9a96}
+    .a{fill:#2E7D6B}
+    .k{stroke:#141414;stroke-width:1;fill:none}
+    .b{stroke:#141414;stroke-width:1;fill:#f5f5f2}
+    .h{stroke:#e6e6e2;stroke-width:1}
+  </style>
+
+  <text x="20" y="24" class="t">DIAGRAM — 信号の流れ</text>
+  <text x="40" y="56" class="m" fill="#9a9a96">INPUT</text>
+  <text x="538" y="42" class="m" fill="#9a9a96">OUTPUT(連動の例)</text>
+
+  <!-- 入力 -->
+  <rect x="40" y="66" width="150" height="40" class="b"/>
+  <text x="52" y="84">感知器</text>
+  <text x="52" y="99" class="s">煙・熱・炎</text>
+  <rect x="40" y="122" width="150" height="40" class="b"/>
+  <text x="52" y="140">発信機</text>
+  <text x="52" y="155" class="s">手動押しボタン</text>
+  <rect x="40" y="178" width="150" height="40" class="b"/>
+  <text x="52" y="196">流水検知装置</text>
+  <text x="52" y="211" class="s">スプリンクラー作動</text>
+  <path class="k" d="M190 86 H240 M190 142 H240 M190 198 H240 M240 86 V198 M240 142 H290"/>
+  <path class="k" d="M280 137 L290 142 L280 147"/>
+
+  <!-- 受信機 -->
+  <rect x="290" y="112" width="140" height="60" fill="#eef6f3" stroke="#2E7D6B" stroke-width="1.5"/>
+  <text x="360" y="138" class="a" text-anchor="middle" font-size="12">受信機</text>
+  <text x="360" y="156" class="s" text-anchor="middle">P型1級・P型2級・R型</text>
+  <text x="360" y="194" class="s" text-anchor="middle">防災センターで監視</text>
+
+  <!-- 出力 -->
+  <path class="k" d="M430 142 H480 M480 66 V242 M480 66 H530 M480 110 H530 M480 154 H530 M480 198 H530 M480 242 H530"/>
+  <path class="k" d="M520 61 L530 66 L520 71 M520 105 L530 110 L520 115 M520 149 L530 154 L520 159 M520 193 L530 198 L520 203 M520 237 L530 242 L520 247"/>
+  <text x="538" y="62">地区音響・非常放送</text>
+  <text x="538" y="77" class="s">避難誘導の放送</text>
+  <text x="538" y="106">排煙口・排煙機</text>
+  <text x="538" y="121" class="s">開放・起動</text>
+  <text x="538" y="150">防火戸・防火シャッター</text>
+  <text x="538" y="165" class="s">閉鎖</text>
+  <text x="538" y="194">ガス遮断装置</text>
+  <text x="538" y="209" class="s">遮断弁を閉止</text>
+  <text x="538" y="238">火災通報装置</text>
+  <text x="538" y="253" class="s">消防機関へ通報</text>
+
+  <line x1="20" y1="268" x2="700" y2="268" class="h"/>
+  <text x="20" y="288" class="s">連動する設備と方法は建物ごとに決める。防火戸・シャッターや排煙口は専用の煙感知器と連動させる場合もある。</text>
+</svg>

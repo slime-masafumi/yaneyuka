@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 280" width="720" height="280" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>防煙区画と排煙口までの水平距離</title>
+  <defs>
+    <marker id="tka" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#2E7D6B" stroke-width="1.2"/></marker>
+  </defs>
+
+  <text x="20" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">PLAN — 平面</text>
+  <line x1="450" y1="16" x2="450" y2="262" stroke="#e6e6e2" stroke-width="1"/>
+
+  <!-- 区画 A 25m×20m・B 20m×20m -->
+  <rect x="40" y="56" width="200" height="160" fill="none" stroke="#141414" stroke-width="1"/>
+  <rect x="240" y="56" width="160" height="160" fill="none" stroke="#141414" stroke-width="1"/>
+  <line x1="240" y1="56" x2="240" y2="216" stroke="#141414" stroke-width="3"/>
+  <text x="140" y="140" font-size="11" fill="#141414" text-anchor="middle">防煙区画部分 A</text>
+  <text x="140" y="156" font-size="10.5" fill="#5c5c5a" text-anchor="middle">500m²(25m × 20m)</text>
+  <text x="320" y="140" font-size="11" fill="#141414" text-anchor="middle">防煙区画部分 B</text>
+  <text x="320" y="156" font-size="10.5" fill="#5c5c5a" text-anchor="middle">400m²</text>
+
+  <!-- 排煙口 -->
+  <rect x="132" y="56" width="16" height="6" fill="#141414"/>
+  <rect x="394" y="128" width="6" height="16" fill="#141414"/>
+  <text x="140" y="48" font-size="10.5" fill="#141414" text-anchor="middle">排煙口</text>
+  <text x="420" y="124" font-size="10.5" fill="#141414" text-anchor="middle">排煙口</text>
+
+  <!-- 最遠点からの水平距離 -->
+  <line x1="44" y1="212" x2="138" y2="64" stroke="#2E7D6B" stroke-width="1.2" marker-start="url(#tka)" marker-end="url(#tka)"/>
+  <circle cx="44" cy="212" r="2.5" fill="#2E7D6B"/>
+  <text x="58" y="104" font-size="11" fill="#2E7D6B">水平距離</text>
+  <text x="58" y="119" font-size="11" fill="#2E7D6B">30m 以下</text>
+  <text x="48" y="232" font-size="10.5" fill="#5c5c5a">区画内の各部分から(最も遠い点で確認)</text>
+
+  <!-- 防煙壁 -->
+  <line x1="240" y1="216" x2="262" y2="238" stroke="#141414" stroke-width="0.6"/>
+  <rect x="260" y="236" width="4" height="4" fill="#141414"/>
+  <text x="270" y="242" font-size="10.5" fill="#141414">防煙壁</text>
+
+  <!-- 規定 -->
+  <g font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" fill="#9a9a96">
+    <text x="470" y="52">1号</text><text x="470" y="96">3号</text><text x="470" y="140">8号</text><text x="470" y="198">9号</text>
+  </g>
+  <g font-size="11" fill="#141414">
+    <text x="504" y="52">床面積 500m² 以内ごとに</text>
+    <text x="504" y="68">防煙壁で区画</text>
+    <text x="504" y="96">各部分から排煙口の一つまで</text>
+    <text x="504" y="112">水平距離 30m 以下</text>
+    <text x="504" y="140">開口が区画の 1/50 以上で外気に</text>
+    <text x="504" y="156">直接接するときは排煙機不要</text>
+    <text x="504" y="198">排煙機は 120m³/min 以上</text>
+    <text x="504" y="214">かつ 1m³/min・m² 以上</text>
+  </g>
+  <text x="504" y="230" font-size="10.5" fill="#5c5c5a">2区画以上を受け持つときは</text>
+  <text x="504" y="245" font-size="10.5" fill="#5c5c5a">最大区画の面積 × 2m³/min</text>
+
+  <line x1="20" y1="256" x2="440" y2="256" stroke="#e6e6e2" stroke-width="1"/>
+  <text x="20" y="272" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" fill="#9a9a96">令126条の3第1項</text>
+</svg>

@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 330" width="720" height="330" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>軽量鉄骨天井下地の構成</title>
+  <defs>
+    <marker id="tk" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#141414" stroke-width="1"/></marker>
+    <marker id="tka" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#2E7D6B" stroke-width="1.2"/></marker>
+    <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#9a9a96" stroke-width="0.6"/></pattern>
+  </defs>
+  <text x="20" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">SECTION A — 野縁の方向に切る</text>
+  <text x="470" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">SECTION B — 野縁を切る</text>
+  <line x1="452" y1="16" x2="452" y2="276" stroke="#e6e6e2" stroke-width="1"/>
+  <rect x="24" y="44" width="412" height="22" fill="url(#hatch)" stroke="none"/>
+  <line x1="24" y1="66" x2="436" y2="66" stroke="#141414" stroke-width="1"/>
+  <rect x="82" y="60" width="8" height="6" fill="#141414"/>
+  <line x1="84.5" y1="66" x2="84.5" y2="176" stroke="#141414" stroke-width="1"/>
+  <line x1="87.5" y1="66" x2="87.5" y2="176" stroke="#141414" stroke-width="1"/>
+  <rect x="80" y="170" width="12" height="5" fill="none" stroke="#141414" stroke-width="1"/>
+  <path d="M81,175 V204 H99 V184" fill="none" stroke="#141414" stroke-width="1.2"/>
+  <path d="M96,186 H85 V202 H96" fill="none" stroke="#141414" stroke-width="1.4"/>
+  <path d="M77,208 V200 H101 V208" fill="none" stroke="#141414" stroke-width="0.8"/>
+  <rect x="232" y="60" width="8" height="6" fill="#141414"/>
+  <line x1="234.5" y1="66" x2="234.5" y2="176" stroke="#141414" stroke-width="1"/>
+  <line x1="237.5" y1="66" x2="237.5" y2="176" stroke="#141414" stroke-width="1"/>
+  <rect x="230" y="170" width="12" height="5" fill="none" stroke="#141414" stroke-width="1"/>
+  <path d="M231,175 V204 H249 V184" fill="none" stroke="#141414" stroke-width="1.2"/>
+  <path d="M246,186 H235 V202 H246" fill="none" stroke="#141414" stroke-width="1.4"/>
+  <path d="M227,208 V200 H251 V208" fill="none" stroke="#141414" stroke-width="0.8"/>
+  <rect x="382" y="60" width="8" height="6" fill="#141414"/>
+  <line x1="384.5" y1="66" x2="384.5" y2="176" stroke="#141414" stroke-width="1"/>
+  <line x1="387.5" y1="66" x2="387.5" y2="176" stroke="#141414" stroke-width="1"/>
+  <rect x="380" y="170" width="12" height="5" fill="none" stroke="#141414" stroke-width="1"/>
+  <path d="M381,175 V204 H399 V184" fill="none" stroke="#141414" stroke-width="1.2"/>
+  <path d="M396,186 H385 V202 H396" fill="none" stroke="#141414" stroke-width="1.4"/>
+  <path d="M377,208 V200 H401 V208" fill="none" stroke="#141414" stroke-width="0.8"/>
+  <rect x="24" y="208" width="412" height="9" fill="none" stroke="#141414" stroke-width="1"/>
+  <rect x="24" y="217" width="412" height="7" fill="#f5f5f2" stroke="#141414" stroke-width="1"/>
+  <line x1="86" y1="110" x2="236" y2="110" stroke="#2E7D6B" stroke-width="1.2" marker-start="url(#tka)" marker-end="url(#tka)"/>
+  <line x1="236" y1="110" x2="386" y2="110" stroke="#2E7D6B" stroke-width="1.2" marker-start="url(#tka)" marker-end="url(#tka)"/>
+  <text x="161" y="104" font-size="11" fill="#2E7D6B" text-anchor="middle">@900 程度</text>
+  <text x="311" y="104" font-size="11" fill="#2E7D6B" text-anchor="middle">@900 程度</text>
+  <line x1="90" y1="63" x2="120" y2="82" stroke="#141414" stroke-width="0.6"/>
+  <rect x="118" y="80" width="4" height="4" fill="#141414"/>
+  <text x="126" y="86" font-size="11" fill="#141414">インサート</text>
+  <line x1="238" y1="140" x2="262" y2="140" stroke="#141414" stroke-width="0.6"/>
+  <rect x="260" y="138" width="4" height="4" fill="#141414"/>
+  <text x="268" y="144" font-size="11" fill="#141414">吊りボルト</text>
+  <text x="268" y="159" font-size="10" fill="#5c5c5a" font-family="ui-monospace,Menlo,Consolas,monospace">W3/8</text>
+  <line x1="392" y1="172" x2="412" y2="152" stroke="#141414" stroke-width="0.6"/>
+  <rect x="410" y="150" width="4" height="4" fill="#141414"/>
+  <text x="418" y="156" font-size="11" fill="#141414">ナット</text>
+  <line x1="81" y1="190" x2="40" y2="150" stroke="#141414" stroke-width="0.6"/>
+  <rect x="38" y="148" width="4" height="4" fill="#141414"/>
+  <text x="24" y="144" font-size="11" fill="#141414">ハンガー</text>
+  <line x1="242" y1="194" x2="262" y2="186" stroke="#141414" stroke-width="0.6"/>
+  <rect x="260" y="184" width="4" height="4" fill="#141414"/>
+  <text x="268" y="190" font-size="11" fill="#141414">野縁受け</text>
+  <text x="268" y="205" font-size="10" fill="#5c5c5a" font-family="ui-monospace,Menlo,Consolas,monospace">C-38×12×1.2</text>
+  <line x1="377" y1="206" x2="360" y2="250" stroke="#141414" stroke-width="0.6"/>
+  <rect x="358" y="248" width="4" height="4" fill="#141414"/>
+  <text x="366" y="254" font-size="11" fill="#141414">クリップ</text>
+  <line x1="150" y1="213" x2="160" y2="250" stroke="#141414" stroke-width="0.6"/>
+  <rect x="158" y="248" width="4" height="4" fill="#141414"/>
+  <text x="166" y="254" font-size="11" fill="#141414">野縁</text>
+  <line x1="60" y1="221" x2="70" y2="250" stroke="#141414" stroke-width="0.6"/>
+  <rect x="68" y="248" width="4" height="4" fill="#141414"/>
+  <text x="76" y="254" font-size="11" fill="#141414">ボード</text>
+  <rect x="466" y="120" width="238" height="14" fill="none" stroke="#141414" stroke-width="1"/>
+  <line x1="466" y1="123" x2="704" y2="123" stroke="#141414" stroke-width="0.5"/>
+  <line x1="466" y1="131" x2="704" y2="131" stroke="#141414" stroke-width="0.5"/>
+  <path d="M495,134 V145 H505 V134" fill="none" stroke="#141414" stroke-width="1.2"/>
+  <path d="M590,134 V145 H610 V134" fill="none" stroke="#141414" stroke-width="1.2"/>
+  <path d="M695,134 V145 H705 V134" fill="none" stroke="#141414" stroke-width="1.2"/>
+  <rect x="466" y="145" width="133" height="7" fill="#f5f5f2" stroke="#141414" stroke-width="1"/>
+  <rect x="601" y="145" width="103" height="7" fill="#f5f5f2" stroke="#141414" stroke-width="1"/>
+  <line x1="594" y1="152" x2="594" y2="137" stroke="#141414" stroke-width="1.2"/>
+  <line x1="606" y1="152" x2="606" y2="137" stroke="#141414" stroke-width="1.2"/>
+  <line x1="500" y1="152" x2="500" y2="137" stroke="#141414" stroke-width="1.2"/>
+  <line x1="500" y1="117" x2="500" y2="92" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="600" y1="117" x2="600" y2="92" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="500" y1="98" x2="600" y2="98" stroke="#2E7D6B" stroke-width="1.2" marker-start="url(#tka)" marker-end="url(#tka)"/>
+  <text x="550" y="92" font-size="10.5" fill="#2E7D6B" text-anchor="middle">@(野縁の間隔)</text>
+  <line x1="640" y1="127" x2="652" y2="74" stroke="#141414" stroke-width="0.6"/>
+  <rect x="650" y="72" width="4" height="4" fill="#141414"/>
+  <text x="658" y="78" font-size="11" fill="#141414">野縁受け</text>
+  <line x1="503" y1="140" x2="484" y2="196" stroke="#141414" stroke-width="0.6"/>
+  <rect x="482" y="194" width="4" height="4" fill="#141414"/>
+  <text x="470" y="210" font-size="11" fill="#141414">シングル野縁</text>
+  <text x="470" y="225" font-size="10" fill="#5c5c5a" font-family="ui-monospace,Menlo,Consolas,monospace">25×19×0.5</text>
+  <line x1="608" y1="140" x2="596" y2="196" stroke="#141414" stroke-width="0.6"/>
+  <rect x="594" y="194" width="4" height="4" fill="#141414"/>
+  <text x="586" y="210" font-size="11" fill="#141414">ダブル野縁</text>
+  <text x="586" y="225" font-size="10" fill="#5c5c5a" font-family="ui-monospace,Menlo,Consolas,monospace">50×19×0.5</text>
+  <text x="586" y="240" font-size="10.5" fill="#5c5c5a">ボードの継目に</text>
+  <line x1="606" y1="149" x2="650" y2="174" stroke="#141414" stroke-width="0.6"/>
+  <rect x="648" y="172" width="4" height="4" fill="#141414"/>
+  <text x="656" y="178" font-size="10.5" fill="#141414">ビス 2 列</text>
+  <line x1="20" y1="284" x2="700" y2="284" stroke="#e6e6e2" stroke-width="1"/>
+  <text x="20" y="304" font-size="10.5" fill="#5c5c5a">部材の断面は誇張。吊りボルトのピッチ 900 程度は国土交通省 建築工事標準詳細図の例。野縁の間隔は張るボードと仕様書で決める</text>
+  <text x="20" y="320" font-size="10.5" fill="#5c5c5a">野縁・野縁受けは 19 形の寸法(表)。クリップで野縁を野縁受けに留め、ハンガーで吊りボルトに掛ける</text>
+</svg>

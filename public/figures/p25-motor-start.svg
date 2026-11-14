@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" fill="#141414" viewBox="0 0 720 300" width="720" height="300" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>動力回路の構成と始動電流</title>
+  <style>
+    text{font-size:11px}
+    .s{font-size:10.5px;fill:#5c5c5a}
+    .m{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10px}
+    .n{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:9.5px;fill:#5c5c5a}
+    .t{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10px;letter-spacing:1.2px;fill:#9a9a96}
+    .a{fill:#2E7D6B}
+    .k{stroke:#141414;stroke-width:1;fill:none}
+    .g{stroke:#9a9a96;stroke-width:.8;fill:none}
+    .d{stroke-dasharray:3 3}
+    .c{stroke:#2E7D6B;stroke-width:1.5;fill:none}
+    .h{stroke:#e6e6e2;stroke-width:1}
+  </style>
+
+  <text x="20" y="24" class="t">DIAGRAM — 回路</text>
+  <text x="340" y="24" class="t">CHART — 始動電流</text>
+  <line x1="320" y1="40" x2="320" y2="270" class="h"/>
+
+  <!-- 回路 -->
+  <text x="70" y="52" class="s" text-anchor="middle">動力盤</text>
+  <path class="k" d="M70 60 V80 M70 80 L61 98 M70 100 V120 M70 120 L61 138 M70 140 V158 M70 176 V194"/>
+  <path class="k" d="M67 97 L73 103 M67 103 L73 97"/>
+  <path class="k" d="M66 140 A4 4 0 0 1 74 140"/>
+  <rect x="62" y="158" width="16" height="18" class="k"/>
+  <path class="k" d="M70 160 V164 H74 V170 H70 V174"/>
+  <circle cx="70" cy="210" r="16" class="k"/>
+  <text x="70" y="214" class="m" text-anchor="middle">M</text>
+  <text x="100" y="96" class="m">MCCB</text><text x="144" y="96" class="s">配線用遮断器</text>
+  <text x="100" y="136" class="m">MC</text><text x="144" y="136" class="s">電磁接触器(入切)</text>
+  <text x="100" y="172" class="m">THR</text><text x="144" y="172" class="s">熱動継電器(過負荷)</text>
+  <text x="100" y="214" class="m">M</text><text x="144" y="214" class="s">三相 200V</text>
+  <text x="20" y="252" class="s">インバータ機は INV で始動電流を抑える。</text>
+  <text x="20" y="268" class="s">湿気のある場所・厨房は ELB を使う。</text>
+
+  <!-- グラフ -->
+  <line x1="370" y1="60" x2="370" y2="240" class="g"/>
+  <line x1="370" y1="240" x2="690" y2="240" class="k"/>
+  <path class="g d" d="M370 90 H520 M370 140 H520"/>
+  <line x1="370" y1="215" x2="690" y2="215" class="h"/>
+  <g class="n" text-anchor="end">
+    <text x="364" y="93">7×</text><text x="364" y="143">5×</text><text x="364" y="218">1×</text><text x="364" y="243">0</text>
+  </g>
+  <text x="374" y="54" class="s">電流(定格電流に対する倍率)</text>
+  <text x="690" y="256" class="s" text-anchor="end">時間 →</text>
+  <text x="370" y="256" class="n" text-anchor="middle">始動</text>
+
+  <path class="c" d="M370 240 V115 H430 C452 115 470 215 492 215 H690"/>
+  <path class="k" d="M370 240 C384 214 396 209 412 209 C450 209 470 215 500 215 H690"/>
+  <text x="440" y="108" class="a">直入れ始動 5〜7 倍</text>
+  <text x="520" y="200">インバータ 1.2〜1.5 倍程度</text>
+  <text x="370" y="284" class="s">目安。直入れの大電流は電圧降下・幹線容量に効く。</text>
+</svg>

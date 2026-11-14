@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" fill="#141414" viewBox="0 0 720 300" width="720" height="300" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>30分デマンドと契約電力の決まり方</title>
+  <style>
+    text{font-size:11px}
+    .s{font-size:10.5px;fill:#5c5c5a}
+    .m{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:9.5px;fill:#5c5c5a}
+    .t{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10px;letter-spacing:1.2px;fill:#9a9a96}
+    .a{fill:#2E7D6B}
+    .k{stroke:#141414;stroke-width:1;fill:none}
+    .g{stroke:#9a9a96;stroke-width:.8;fill:none}
+    .d{stroke-dasharray:3 3}
+    .c{stroke:#2E7D6B;stroke-width:1.4;fill:none}
+    .h{stroke:#e6e6e2;stroke-width:1}
+    .bar{fill:#f5f5f2;stroke:#9a9a96;stroke-width:.8}
+  </style>
+
+  <text x="20" y="24" class="t">CHART — デマンド</text>
+  <text x="50" y="48" class="s">ある日の 2 時間</text>
+  <text x="400" y="48" class="s">月ごとの最大需要電力(1 年)</text>
+  <line x1="365" y1="40" x2="365" y2="290" class="h"/>
+
+  <!-- 左:30分デマンド -->
+  <text x="46" y="62" class="m" text-anchor="end">kW</text>
+  <line x1="50" y1="56" x2="50" y2="230" class="g"/>
+  <rect x="50" y="150" width="70" height="80" class="bar"/>
+  <rect x="120" y="96" width="70" height="134" fill="#eef6f3" stroke="#2E7D6B" stroke-width="1.2"/>
+  <rect x="190" y="120" width="70" height="110" class="bar"/>
+  <rect x="260" y="140" width="70" height="90" class="bar"/>
+  <polyline class="k" stroke-width="0.8" points="50,160 60,140 72,155 84,135 96,158 108,145 120,150 120,120 130,90 142,104 154,76 166,100 178,92 190,105 190,118 202,128 214,110 226,132 238,115 250,125 260,118 260,138 272,150 284,130 296,146 308,136 320,148 330,140"/>
+  <line x1="50" y1="64" x2="330" y2="64" class="k d"/>
+  <line x1="50" y1="84" x2="330" y2="84" class="g d"/>
+  <text x="330" y="60" text-anchor="end">目標デマンド</text>
+  <text x="330" y="80" class="s" text-anchor="end">警報 目標の 90〜95%</text>
+  <text x="155" y="198" class="a" text-anchor="middle">最大の</text>
+  <text x="155" y="214" class="a" text-anchor="middle">30 分平均</text>
+  <line x1="50" y1="230" x2="330" y2="230" class="k"/>
+  <text x="50" y="246" class="m" text-anchor="middle">13:00</text>
+  <text x="120" y="246" class="m" text-anchor="middle">13:30</text>
+  <text x="190" y="246" class="m" text-anchor="middle">14:00</text>
+  <text x="260" y="246" class="m" text-anchor="middle">14:30</text>
+  <text x="330" y="246" class="m" text-anchor="middle">15:00</text>
+  <text x="50" y="270" class="s">30 分ごとの平均電力 = 30 分デマンド。</text>
+  <text x="50" y="286" class="s">その月の最大値が最大需要電力。</text>
+
+  <!-- 右:契約電力 -->
+  <line x1="400" y1="56" x2="400" y2="230" class="g"/>
+  <g class="bar">
+    <rect x="410" y="120" width="16" height="110"/><rect x="434" y="125" width="16" height="105"/>
+    <rect x="458" y="130" width="16" height="100"/><rect x="482" y="118" width="16" height="112"/>
+    <rect x="506" y="110" width="16" height="120"/><rect x="530" y="95" width="16" height="135"/>
+    <rect x="554" y="80" width="16" height="150"/><rect x="578" y="60" width="16" height="170"/>
+    <rect x="602" y="90" width="16" height="140"/><rect x="626" y="115" width="16" height="115"/>
+    <rect x="650" y="112" width="16" height="118"/><rect x="674" y="105" width="16" height="125"/>
+  </g>
+  <path class="c" d="M402 74 H574 V60 H696"/>
+  <text x="404" y="68" class="a">契約電力</text>
+  <text x="696" y="52" class="a" text-anchor="end">当月と過去 11 か月の最大値</text>
+  <line x1="400" y1="230" x2="700" y2="230" class="k"/>
+  <g class="m" text-anchor="middle">
+    <text x="418" y="246">1</text><text x="442" y="246">2</text><text x="466" y="246">3</text><text x="490" y="246">4</text>
+    <text x="514" y="246">5</text><text x="538" y="246">6</text><text x="562" y="246">7</text><text x="586" y="246">8</text>
+    <text x="610" y="246">9</text><text x="634" y="246">10</text><text x="658" y="246">11</text><text x="682" y="246">12</text>
+  </g>
+  <text x="400" y="270" class="s">契約電力 500kW 未満の高圧(実量制)。8 月のピーク</text>
+  <text x="400" y="286" class="s">が翌年 7 月まで基本料金に効く。</text>
+</svg>

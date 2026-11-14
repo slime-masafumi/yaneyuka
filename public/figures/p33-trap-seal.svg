@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 240" width="720" height="240" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>排水トラップの封水深</title>
+  <defs>
+    <marker id="tka" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#2E7D6B" stroke-width="1.2"/></marker>
+  </defs>
+  <text x="20" y="22" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">SECTION — Pトラップ</text>
+
+  <!-- 管(外形 → 内側) -->
+  <g fill="none" stroke-linejoin="miter">
+    <path d="M200 40 V150 A40 40 0 0 0 280 150 V120 H400" stroke="#141414" stroke-width="24"/>
+    <path d="M360 120 V40" stroke="#141414" stroke-width="24"/>
+    <path d="M200 40 V150 A40 40 0 0 0 280 150 V120 H400" stroke="#f5f5f2" stroke-width="22"/>
+    <path d="M360 120 V40" stroke="#f5f5f2" stroke-width="22"/>
+    <!-- 封水 -->
+    <path d="M200 131 V150 A40 40 0 0 0 280 150 V131" stroke="#eef6f3" stroke-width="22"/>
+  </g>
+  <line x1="189" y1="131" x2="211" y2="131" stroke="#2E7D6B" stroke-width="0.8"/>
+  <line x1="269" y1="131" x2="291" y2="131" stroke="#2E7D6B" stroke-width="0.8"/>
+
+  <!-- 基準線 -->
+  <line x1="400" y1="131" x2="446" y2="131" stroke="#9a9a96" stroke-width="0.6" stroke-dasharray="3 3"/>
+  <line x1="240" y1="179" x2="446" y2="179" stroke="#9a9a96" stroke-width="0.6" stroke-dasharray="3 3"/>
+  <!-- 封水深 -->
+  <line x1="440" y1="131" x2="440" y2="179" stroke="#2E7D6B" stroke-width="1.2" marker-start="url(#tka)" marker-end="url(#tka)"/>
+  <text x="448" y="152" font-size="11" fill="#2E7D6B">封水深</text>
+  <text x="448" y="168" font-size="11" fill="#2E7D6B">5〜10cm</text>
+
+  <!-- ラベル -->
+  <text x="186" y="52" font-size="11" fill="#141414" text-anchor="end">器具から</text>
+  <text x="378" y="52" font-size="11" fill="#141414">通気管</text>
+  <text x="406" y="116" font-size="11" fill="#141414">排水管へ</text>
+  <line x1="294" y1="133" x2="302" y2="142" stroke="#141414" stroke-width="0.6"/>
+  <text x="306" y="152" font-size="10.5" fill="#141414">ウェア</text>
+  <line x1="242" y1="181" x2="300" y2="194" stroke="#141414" stroke-width="0.6"/>
+  <rect x="298" y="192" width="4" height="4" fill="#141414"/>
+  <text x="306" y="198" font-size="10.5" fill="#141414">ディップ</text>
+  <text x="240" y="222" font-size="10.5" fill="#5c5c5a" text-anchor="middle">封水</text>
+
+  <!-- 注記 -->
+  <text x="530" y="60" font-size="11" fill="#141414">封水深 5cm以上10cm以下</text>
+  <text x="530" y="76" font-size="10.5" fill="#5c5c5a">阻集器を兼ねるものは5cm以上</text>
+  <text x="530" y="92" font-size="10.5" fill="#5c5c5a">二重トラップとしない</text>
+  <text x="530" y="108" font-size="10.5" fill="#5c5c5a">(昭和50年建設省告示第1597号)</text>
+  <text x="530" y="140" font-size="11" fill="#141414">封水が切れる主な原因</text>
+  <text x="530" y="156" font-size="10.5" fill="#5c5c5a">自己・誘導サイホン作用、</text>
+  <text x="530" y="172" font-size="10.5" fill="#5c5c5a">はね出し、蒸発など</text>
+  <text x="530" y="188" font-size="10.5" fill="#5c5c5a">→ 通気で管内の圧力変動を抑える</text>
+</svg>

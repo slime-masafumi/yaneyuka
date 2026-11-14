@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 260" width="720" height="260" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>断熱等級ごとの UA 値の基準</title>
+
+  <!-- 見出し -->
+  <text x="20" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">SCALE — 6地域(東京・大阪など)</text>
+  <text x="380" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">TABLE — 地域区分別 UA 基準</text>
+  <line x1="360" y1="16" x2="360" y2="212" stroke="#e6e6e2" stroke-width="1"/>
+
+  <!-- 目盛り軸 UA 0〜1.0 (x = 40 + UA×280) -->
+  <line x1="40" y1="130" x2="320" y2="130" stroke="#141414" stroke-width="1"/>
+  <g stroke="#9a9a96" stroke-width="0.8">
+    <line x1="40" y1="130" x2="40" y2="136"/><line x1="96" y1="130" x2="96" y2="136"/><line x1="152" y1="130" x2="152" y2="136"/>
+    <line x1="208" y1="130" x2="208" y2="136"/><line x1="264" y1="130" x2="264" y2="136"/><line x1="320" y1="130" x2="320" y2="136"/>
+  </g>
+  <g font-family="ui-monospace,Menlo,Consolas,monospace" font-size="9.5" fill="#9a9a96" text-anchor="middle">
+    <text x="40" y="148">0</text><text x="96" y="148">0.2</text><text x="152" y="148">0.4</text>
+    <text x="208" y="148">0.6</text><text x="264" y="148">0.8</text><text x="320" y="148">1.0</text>
+  </g>
+
+  <!-- 等級の位置 -->
+  <g stroke="#141414" stroke-width="1">
+    <line x1="113" y1="84" x2="113" y2="130"/>
+    <line x1="169" y1="118" x2="169" y2="130"/>
+    <line x1="208" y1="84" x2="208" y2="130"/>
+  </g>
+  <line x1="284" y1="118" x2="284" y2="130" stroke="#2E7D6B" stroke-width="1.5"/>
+  <rect x="281" y="127" width="6" height="6" fill="#2E7D6B"/>
+  <g font-size="11" fill="#141414" text-anchor="middle">
+    <text x="113" y="64">等級7</text>
+    <text x="169" y="98">等級6</text>
+    <text x="208" y="64">等級5</text>
+  </g>
+  <text x="284" y="98" font-size="11" fill="#2E7D6B" text-anchor="middle">等級4</text>
+  <g font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" fill="#5c5c5a" text-anchor="middle">
+    <text x="113" y="78">0.26</text>
+    <text x="169" y="112">0.46</text>
+    <text x="208" y="78">0.60</text>
+  </g>
+  <text x="284" y="112" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" fill="#2E7D6B" text-anchor="middle">0.87</text>
+  <text x="284" y="168" font-size="10.5" fill="#2E7D6B" text-anchor="middle">義務基準</text>
+  <text x="40" y="168" font-size="10.5" fill="#5c5c5a">UA 値 W/(m²·K)</text>
+  <text x="40" y="190" font-size="10.5" fill="#5c5c5a">値が小さいほど熱が逃げにくい(高性能)</text>
+  <text x="40" y="206" font-size="10.5" fill="#5c5c5a">2025年4月から等級4以上が適合義務</text>
+
+  <!-- 表 -->
+  <g font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" fill="#9a9a96" text-anchor="middle">
+    <text x="458" y="50">1</text><text x="494" y="50">2</text><text x="530" y="50">3</text><text x="566" y="50">4</text>
+    <text x="602" y="50">5</text><text x="638" y="50">6</text><text x="674" y="50">7</text>
+  </g>
+  <text x="380" y="50" font-size="10.5" fill="#5c5c5a">地域</text>
+  <line x1="380" y1="58" x2="692" y2="58" stroke="#141414" stroke-width="0.8"/>
+  <rect x="380" y="132" width="312" height="24" fill="#eef6f3"/>
+  <g stroke="#e6e6e2" stroke-width="1">
+    <line x1="380" y1="84" x2="692" y2="84"/><line x1="380" y1="108" x2="692" y2="108"/><line x1="380" y1="132" x2="692" y2="132"/>
+  </g>
+  <line x1="380" y1="156" x2="692" y2="156" stroke="#141414" stroke-width="0.8"/>
+  <g font-size="11" fill="#141414">
+    <text x="380" y="75">等級7</text><text x="380" y="99">等級6</text><text x="380" y="123">等級5</text>
+  </g>
+  <text x="380" y="148" font-size="11" fill="#2E7D6B">等級4</text>
+  <g font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10.5" fill="#141414" text-anchor="middle">
+    <text x="458" y="75">0.20</text><text x="494" y="75">0.20</text><text x="530" y="75">0.20</text><text x="566" y="75">0.23</text>
+    <text x="602" y="75">0.26</text><text x="638" y="75">0.26</text><text x="674" y="75">0.26</text>
+    <text x="458" y="99">0.28</text><text x="494" y="99">0.28</text><text x="530" y="99">0.28</text><text x="566" y="99">0.34</text>
+    <text x="602" y="99">0.46</text><text x="638" y="99">0.46</text><text x="674" y="99">0.46</text>
+    <text x="458" y="123">0.40</text><text x="494" y="123">0.40</text><text x="530" y="123">0.50</text><text x="566" y="123">0.60</text>
+    <text x="602" y="123">0.60</text><text x="638" y="123">0.60</text><text x="674" y="123">0.60</text>
+  </g>
+  <g font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10.5" fill="#2E7D6B" text-anchor="middle">
+    <text x="458" y="148">0.46</text><text x="494" y="148">0.46</text><text x="530" y="148">0.56</text><text x="566" y="148">0.75</text>
+    <text x="602" y="148">0.87</text><text x="638" y="148">0.87</text><text x="674" y="148">0.87</text>
+  </g>
+  <text x="380" y="180" font-size="10.5" fill="#5c5c5a">8地域は UA の基準なし(ηAC で評価)</text>
+  <text x="380" y="196" font-size="10.5" fill="#5c5c5a">等級6・7 は戸建住宅の値(共同住宅は別の値)</text>
+
+  <!-- 凡例 -->
+  <line x1="20" y1="222" x2="700" y2="222" stroke="#e6e6e2" stroke-width="1"/>
+  <text x="20" y="244" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10.5" fill="#5c5c5a"><tspan fill="#9a9a96">断熱等性能等級</tspan><tspan dx="10">UA と ηAC をそれぞれ評価し、低い方の等級を表示  [W/(m²·K)]</tspan></text>
+</svg>

@@ -1,5 +1,7 @@
 // yaneyuka トップページ中央カラム(モック「高級感 3」Q4:ポータルとして密に)。2026-11-13 に作り直した。
 // 本文はサーバーで組み立てて配信 HTML に載せる(検索エンジン向け)。案件・NEWS・イベントだけブラウザで読む。
+import fs from 'node:fs';
+import path from 'node:path';
 import Link from 'next/link';
 import { screensInGroup, screenPath } from '@/lib/siteScreens';
 import { CATEGORY_SUBCATEGORIES } from '@/lib/materialCategories';
@@ -8,7 +10,12 @@ import { DESIGN_TOOL_MENU } from '@/lib/designToolsMenu';
 import { TOOL_ART } from '@/components/home/toolArt';
 import { HomeCase, HomeEvents, HomeNews, ScreenLink } from '@/components/home/HomeParts';
 
-/** 建材 16 分類の小さな写真(サイトの広告見本を流用。無い分類は図形) */
+/**
+ * 建材 16 分類の小さな写真。public/image/mat/{分類}.jpg(分類ごとに作った写真)があればそれ、
+ * 無ければ下の広告見本を流用、それも無ければ図形。ビルド時に有無を見る。2026-11-14
+ */
+const matPhoto = (id: string) =>
+  fs.existsSync(path.join(process.cwd(), 'public/image/mat', `${id}.jpg`)) ? `/image/mat/${id}.jpg` : MAT_PHOTO[id];
 const MAT_PHOTO: Record<string, string> = {
   roof: '/image/seppan_cm_sample.png',
   'exterior-wall': '/image/gaiheki_cm_sample.png',
@@ -78,7 +85,7 @@ export default function Home() {
             <div className="yy-home__grid2">
               {mats.map((m, i) => {
                 const subs = CATEGORY_SUBCATEGORIES[m.id] ?? [];
-                const photo = MAT_PHOTO[m.id];
+                const photo = matPhoto(m.id);
                 return (
                   <Link key={m.id} className="yy-home__row" href={`${screenPath(m.id)}/`}>
                     {photo ? (

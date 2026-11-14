@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 300" width="720" height="300" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>等辺山形鋼の断面と寸法記号</title>
+  <defs>
+    <marker id="tk" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#141414" stroke-width="1"/></marker>
+    <marker id="tka" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#2E7D6B" stroke-width="1.2"/></marker>
+    <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#9a9a96" stroke-width="0.6"/></pattern>
+  </defs>
+
+  <text x="20" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">SECTION — 断面</text>
+  <text x="380" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">SYMBOLS — 記号</text>
+  <line x1="360" y1="16" x2="360" y2="284" stroke="#e6e6e2" stroke-width="1"/>
+
+  <!-- L-65×65×6 の比率(3px/mm) -->
+  <path d="M100,46 H106 A12,12 0 0 1 118,58 V197.5 A25.5,25.5 0 0 0 143.5,223 H283 A12,12 0 0 1 295,235 V241 H100 Z" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+
+  <!-- A(縦の辺) -->
+  <line x1="96" y1="46" x2="56" y2="46" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="96" y1="241" x2="56" y2="241" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="62" y1="46" x2="62" y2="241" stroke="#2E7D6B" stroke-width="1.2" marker-start="url(#tka)" marker-end="url(#tka)"/>
+  <text x="54" y="148" font-size="12" fill="#2E7D6B" text-anchor="end">A</text>
+
+  <!-- B(横の辺) -->
+  <line x1="100" y1="245" x2="100" y2="276" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="295" y1="245" x2="295" y2="276" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="100" y1="270" x2="295" y2="270" stroke="#2E7D6B" stroke-width="1.2" marker-start="url(#tka)" marker-end="url(#tka)"/>
+  <text x="198" y="264" font-size="12" fill="#2E7D6B" text-anchor="middle">B</text>
+
+  <!-- t(縦の辺) -->
+  <line x1="80" y1="120" x2="100" y2="120" stroke="#2E7D6B" stroke-width="1.2" marker-end="url(#tka)"/>
+  <line x1="118" y1="120" x2="140" y2="120" stroke="#2E7D6B" stroke-width="1.2" marker-start="url(#tka)"/>
+  <text x="146" y="124" font-size="12" fill="#2E7D6B">t</text>
+  <!-- t(横の辺) -->
+  <line x1="240" y1="202" x2="240" y2="223" stroke="#2E7D6B" stroke-width="1.2" marker-end="url(#tka)"/>
+  <line x1="240" y1="241" x2="240" y2="256" stroke="#2E7D6B" stroke-width="1.2" marker-start="url(#tka)"/>
+  <text x="246" y="212" font-size="12" fill="#2E7D6B">t</text>
+
+  <!-- r1・r2 -->
+  <line x1="127" y1="214" x2="168" y2="170" stroke="#141414" stroke-width="0.6"/>
+  <rect x="166" y="167" width="4" height="4" fill="#141414"/>
+  <text x="175" y="174" font-size="12" fill="#141414">r1</text>
+  <line x1="115" y1="52" x2="150" y2="68" stroke="#141414" stroke-width="0.6"/>
+  <rect x="148" y="66" width="4" height="4" fill="#141414"/>
+  <text x="157" y="73" font-size="12" fill="#141414">r2</text>
+
+  <!-- 記号の説明 -->
+  <g font-size="11" fill="#141414">
+    <text x="380" y="58"><tspan font-family="ui-monospace,Menlo,Consolas,monospace" fill="#2E7D6B">A・B</tspan><tspan x="430">辺の長さ(等辺は A=B)</tspan></text>
+    <text x="380" y="82"><tspan font-family="ui-monospace,Menlo,Consolas,monospace" fill="#2E7D6B">t</tspan><tspan x="430">厚さ(両辺とも同じ)</tspan></text>
+    <text x="380" y="106"><tspan font-family="ui-monospace,Menlo,Consolas,monospace">r1</tspan><tspan x="430">内側の隅の丸みの半径</tspan></text>
+    <text x="380" y="130"><tspan font-family="ui-monospace,Menlo,Consolas,monospace">r2</tspan><tspan x="430">辺の先端の丸みの半径</tspan></text>
+  </g>
+  <line x1="380" y1="152" x2="700" y2="152" stroke="#e6e6e2" stroke-width="1"/>
+  <text x="380" y="176" font-size="11" fill="#141414">表の「L×L×t」は 辺×辺×厚さ(mm)</text>
+  <text x="380" y="200" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10.5" fill="#5c5c5a"><tspan fill="#9a9a96">例</tspan><tspan dx="8">L-65×65×6</tspan></text>
+  <text x="380" y="220" font-size="10.5" fill="#5c5c5a">→ A=B=65・t=6。図はこの寸法の比率</text>
+  <text x="380" y="244" font-size="10.5" fill="#5c5c5a">r1・r2 は寸法ごとに JIS G 3192 の表で決まる</text>
+</svg>

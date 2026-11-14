@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 336" width="720" height="336" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>呼び径と外径・厚さ(管種による違い)</title>
+  <defs>
+    <marker id="tk" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#141414" stroke-width="1"/></marker>
+    <marker id="tka" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#2E7D6B" stroke-width="1.2"/></marker>
+    <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#9a9a96" stroke-width="0.6"/></pattern>
+  </defs>
+  <text x="20" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">SECTION — 同じ縮尺の管の断面</text>
+  <path fill-rule="evenodd" d="M41.68,132 A58.32,58.32 0 1 0 158.32,132 A58.32,58.32 0 1 0 41.68,132 Z M50.08,132 A49.92,49.92 0 1 0 149.92,132 A49.92,49.92 0 1 0 50.08,132 Z" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <line x1="33.68" y1="132" x2="166.32" y2="132" stroke="#9a9a96" stroke-width="0.6" stroke-dasharray="6 3 1 3"/>
+  <line x1="41.68" y1="128" x2="41.68" y2="60" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="158.32" y1="128" x2="158.32" y2="60" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="41.68" y1="66" x2="158.32" y2="66" stroke="#2E7D6B" stroke-width="1.2" marker-start="url(#tka)" marker-end="url(#tka)"/>
+  <text x="100" y="60" font-size="11" fill="#2E7D6B" text-anchor="middle">外径 48.6</text>
+  <text x="100" y="226" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="12" fill="#141414" text-anchor="middle">SGP 40A</text>
+  <text x="100" y="246" font-size="10.5" fill="#5c5c5a" text-anchor="middle">厚さ 3.5</text>
+  <text x="100" y="262" font-size="10.5" fill="#5c5c5a" text-anchor="middle">内径 ≒ 41.6</text>
+  <text x="100" y="280" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="9.5" fill="#9a9a96" text-anchor="middle">JIS G 3452</text>
+  <path fill-rule="evenodd" d="M214.4,132 A57.6,57.6 0 1 0 329.6,132 A57.6,57.6 0 1 0 214.4,132 Z M223.04,132 A48.96,48.96 0 1 0 320.96,132 A48.96,48.96 0 1 0 223.04,132 Z" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <line x1="206.4" y1="132" x2="337.6" y2="132" stroke="#9a9a96" stroke-width="0.6" stroke-dasharray="6 3 1 3"/>
+  <line x1="214.4" y1="128" x2="214.4" y2="60" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="329.6" y1="128" x2="329.6" y2="60" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="214.4" y1="66" x2="329.6" y2="66" stroke="#2E7D6B" stroke-width="1.2" marker-start="url(#tka)" marker-end="url(#tka)"/>
+  <text x="272" y="60" font-size="11" fill="#2E7D6B" text-anchor="middle">外径 48.0</text>
+  <text x="272" y="226" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="12" fill="#141414" text-anchor="middle">VP 40</text>
+  <text x="272" y="246" font-size="10.5" fill="#5c5c5a" text-anchor="middle">厚さ 3.6</text>
+  <text x="272" y="262" font-size="10.5" fill="#5c5c5a" text-anchor="middle">内径 ≒ 40.8</text>
+  <text x="272" y="280" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="9.5" fill="#9a9a96" text-anchor="middle">JIS K 6741</text>
+  <path fill-rule="evenodd" d="M386.4,132 A57.6,57.6 0 1 0 501.6,132 A57.6,57.6 0 1 0 386.4,132 Z M390.72,132 A53.28,53.28 0 1 0 497.28,132 A53.28,53.28 0 1 0 390.72,132 Z" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <line x1="378.4" y1="132" x2="509.6" y2="132" stroke="#9a9a96" stroke-width="0.6" stroke-dasharray="6 3 1 3"/>
+  <line x1="386.4" y1="128" x2="386.4" y2="60" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="501.6" y1="128" x2="501.6" y2="60" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="386.4" y1="66" x2="501.6" y2="66" stroke="#2E7D6B" stroke-width="1.2" marker-start="url(#tka)" marker-end="url(#tka)"/>
+  <text x="444" y="60" font-size="11" fill="#2E7D6B" text-anchor="middle">外径 48.0</text>
+  <text x="444" y="226" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="12" fill="#141414" text-anchor="middle">VU 40</text>
+  <text x="444" y="246" font-size="10.5" fill="#5c5c5a" text-anchor="middle">厚さ 1.8</text>
+  <text x="444" y="262" font-size="10.5" fill="#5c5c5a" text-anchor="middle">内径 ≒ 44.4</text>
+  <text x="444" y="280" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="9.5" fill="#9a9a96" text-anchor="middle">JIS K 6741</text>
+  <path fill-rule="evenodd" d="M557.68,132 A58.32,58.32 0 1 0 674.32,132 A58.32,58.32 0 1 0 557.68,132 Z M560.56,132 A55.44,55.44 0 1 0 671.44,132 A55.44,55.44 0 1 0 560.56,132 Z" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <line x1="549.68" y1="132" x2="682.32" y2="132" stroke="#9a9a96" stroke-width="0.6" stroke-dasharray="6 3 1 3"/>
+  <line x1="557.68" y1="128" x2="557.68" y2="60" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="674.32" y1="128" x2="674.32" y2="60" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="557.68" y1="66" x2="674.32" y2="66" stroke="#2E7D6B" stroke-width="1.2" marker-start="url(#tka)" marker-end="url(#tka)"/>
+  <text x="616" y="60" font-size="11" fill="#2E7D6B" text-anchor="middle">外径 48.6</text>
+  <text x="616" y="226" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="12" fill="#141414" text-anchor="middle">SUS 50Su</text>
+  <text x="616" y="246" font-size="10.5" fill="#5c5c5a" text-anchor="middle">厚さ 1.2</text>
+  <text x="616" y="262" font-size="10.5" fill="#5c5c5a" text-anchor="middle">内径 ≒ 46.2</text>
+  <text x="616" y="280" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="9.5" fill="#9a9a96" text-anchor="middle">JIS G 3448</text>
+  <line x1="20" y1="294" x2="700" y2="294" stroke="#e6e6e2" stroke-width="1"/>
+  <text x="20" y="314" font-size="11" fill="#141414"><tspan fill="#2E7D6B">呼び径の数字は外径でも内径でもない</tspan><tspan dx="12">SGP 40A と SUS 50Su は外径が同じ 48.6、VP と VU は外径が同じで厚さが違う</tspan></text>
+  <text x="20" y="330" font-size="10.5" fill="#5c5c5a">寸法は表の基準寸法(mm)。内径は外径 − 2×厚さ の計算値。継手・支持金物は管種ごとに選ぶ</text>
+</svg>

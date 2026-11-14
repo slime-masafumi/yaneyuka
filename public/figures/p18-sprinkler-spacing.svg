@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" fill="#141414" viewBox="0 0 720 350" width="720" height="350" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>スプリンクラーヘッドの水平距離と配置間隔</title>
+  <style>
+    text{font-size:11px}
+    .s{font-size:10.5px;fill:#5c5c5a}
+    .m{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10.5px}
+    .t{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10px;letter-spacing:1.2px;fill:#9a9a96}
+    .a{fill:#2E7D6B}
+    .k{stroke:#141414;stroke-width:1;fill:none}
+    .g{stroke:#9a9a96;stroke-width:.8;fill:none}
+    .d{stroke-dasharray:3 3}
+    .c{stroke:#2E7D6B;stroke-width:1.4;fill:none}
+    .h{stroke:#e6e6e2;stroke-width:1}
+  </style>
+  <defs>
+    <marker id="tk" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#141414" stroke-width="1"/></marker>
+    <clipPath id="room"><rect x="35" y="45" width="390" height="260"/></clipPath>
+  </defs>
+
+  <text x="20" y="24" class="t">PLAN — 天井伏(正方形配置)</text>
+
+  <!-- 有効範囲 -->
+  <g class="g d" clip-path="url(#room)">
+    <circle cx="100" cy="110" r="92"/><circle cx="230" cy="110" r="92"/><circle cx="360" cy="110" r="92"/>
+    <circle cx="100" cy="240" r="92"/><circle cx="230" cy="240" r="92"/><circle cx="360" cy="240" r="92"/>
+  </g>
+  <rect x="35" y="45" width="390" height="260" class="k"/>
+
+  <!-- 最遠点 -->
+  <line x1="100" y1="110" x2="165" y2="175" class="c"/>
+  <text x="124" y="136" class="a">r</text>
+  <circle cx="165" cy="175" r="3" fill="none" stroke="#2E7D6B" stroke-width="1.2"/>
+  <line x1="167" y1="178" x2="262" y2="326" stroke="#141414" stroke-width="0.6"/>
+  <rect x="260" y="324" width="4" height="4" fill="#141414"/>
+  <text x="270" y="330" class="s">ヘッドから最も遠い点(格子の中心)</text>
+
+  <!-- ヘッド -->
+  <g fill="#141414">
+    <circle cx="100" cy="110" r="3.5"/><circle cx="230" cy="110" r="3.5"/><circle cx="360" cy="110" r="3.5"/>
+    <circle cx="100" cy="240" r="3.5"/><circle cx="230" cy="240" r="3.5"/><circle cx="360" cy="240" r="3.5"/>
+  </g>
+
+  <!-- 間隔 -->
+  <line x1="100" y1="324" x2="230" y2="324" class="k" marker-start="url(#tk)" marker-end="url(#tk)"/>
+  <path class="g" d="M100 305 V330 M230 305 V330"/>
+  <text x="165" y="318" class="m" text-anchor="middle">S = r×√2</text>
+
+  <!-- 表 -->
+  <text x="456" y="64">標準型ヘッド</text>
+  <text x="590" y="88" class="s" text-anchor="end">水平距離 r</text>
+  <text x="690" y="88" class="s" text-anchor="end">間隔 S</text>
+  <line x1="456" y1="96" x2="700" y2="96" class="h"/>
+  <text x="456" y="116">耐火建築物</text>
+  <text x="590" y="116" class="m a" text-anchor="end">2.3m</text>
+  <text x="690" y="116" class="m a" text-anchor="end">3.25m</text>
+  <text x="456" y="138">耐火建築物以外</text>
+  <text x="590" y="138" class="m" text-anchor="end">2.1m</text>
+  <text x="690" y="138" class="m" text-anchor="end">2.97m</text>
+  <text x="456" y="160">劇場等の舞台部</text>
+  <text x="590" y="160" class="m" text-anchor="end">1.7m</text>
+  <text x="690" y="160" class="m" text-anchor="end">2.40m</text>
+  <line x1="456" y1="170" x2="700" y2="170" class="h"/>
+  <text x="456" y="196" class="s">r は天井の各部分から一のヘッド</text>
+  <text x="456" y="212" class="s">までの水平距離(消防法施行令</text>
+  <text x="456" y="228" class="s">第12条)。S は正方形に並べたとき</text>
+  <text x="456" y="244" class="s">の最大間隔で、格子の中心が r に</text>
+  <text x="456" y="260" class="s">収まる値(計算値)。梁・照明など</text>
+  <text x="456" y="276" class="s">で間隔は狭くなる。</text>
+</svg>

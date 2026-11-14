@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 300" width="720" height="300" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>VVF ケーブル・CV ケーブルの断面と呼び方</title>
+  <defs>
+    <marker id="tk" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#141414" stroke-width="1"/></marker>
+    <marker id="tka" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#2E7D6B" stroke-width="1.2"/></marker>
+    <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#9a9a96" stroke-width="0.6"/></pattern>
+  </defs>
+  <text x="20" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">VVF — 平形ビニルシース</text>
+  <text x="380" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">CV — 架橋ポリエチレン 3 心</text>
+  <line x1="360" y1="16" x2="360" y2="236" stroke="#e6e6e2" stroke-width="1"/>
+  <rect x="96" y="80" width="100" height="64" rx="16" fill="#f5f5f2" stroke="#141414" stroke-width="1"/>
+  <circle cx="128" cy="112" r="18" fill="#ffffff" stroke="#141414" stroke-width="1"/>
+  <circle cx="164" cy="112" r="18" fill="#9a9a96" fill-opacity="0.35" stroke="#141414" stroke-width="1"/>
+  <circle cx="128" cy="112" r="10" fill="#eef6f3" stroke="#2E7D6B" stroke-width="1.5"/>
+  <circle cx="164" cy="112" r="10" fill="#eef6f3" stroke="#2E7D6B" stroke-width="1.5"/>
+  <line x1="124" y1="112" x2="52" y2="62" stroke="#141414" stroke-width="0.6"/>
+  <rect x="50" y="60" width="4" height="4" fill="#141414"/>
+  <text x="20" y="66" font-size="11" fill="#2E7D6B">導体</text>
+  <line x1="176" y1="102" x2="244" y2="80" stroke="#141414" stroke-width="0.6"/>
+  <rect x="242" y="78" width="4" height="4" fill="#141414"/>
+  <text x="250" y="84" font-size="11" fill="#141414">絶縁体(ビニル)</text>
+  <text x="250" y="99" font-size="10" fill="#5c5c5a">黒・白で色分け</text>
+  <line x1="194" y1="132" x2="244" y2="140" stroke="#141414" stroke-width="0.6"/>
+  <rect x="242" y="138" width="4" height="4" fill="#141414"/>
+  <text x="250" y="144" font-size="11" fill="#141414">シース(ビニル)</text>
+  <text x="20" y="84" font-size="10.5" fill="#5c5c5a">軟銅の単線</text>
+  <text x="20" y="206" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="13" fill="#141414">600V VVF <tspan fill="#2E7D6B">2.0</tspan>-<tspan>2C</tspan></text>
+  <text x="20" y="226" font-size="10.5" fill="#2E7D6B">2.0 = 導体の直径(mm)</text>
+  <text x="170" y="226" font-size="10.5" fill="#141414">2C = 2 心</text>
+  <circle cx="470" cy="112" r="58" fill="#f5f5f2" stroke="#141414" stroke-width="1"/>
+  <circle cx="470" cy="112" r="50" fill="#e6e6e2" stroke="#141414" stroke-width="0.8" stroke-dasharray="4 2"/>
+  <circle cx="470" cy="84.7" r="22" fill="#ffffff" stroke="#141414" stroke-width="1"/>
+  <circle cx="470" cy="84.7" r="13" fill="#eef6f3" stroke="#2E7D6B" stroke-width="1.5"/>
+  <circle cx="470" cy="84.7" r="4.3" fill="none" stroke="#2E7D6B" stroke-width="0.6"/>
+  <circle cx="478.6" cy="84.7" r="4.3" fill="none" stroke="#2E7D6B" stroke-width="0.6"/>
+  <circle cx="474.3" cy="92.1" r="4.3" fill="none" stroke="#2E7D6B" stroke-width="0.6"/>
+  <circle cx="465.7" cy="92.1" r="4.3" fill="none" stroke="#2E7D6B" stroke-width="0.6"/>
+  <circle cx="461.4" cy="84.7" r="4.3" fill="none" stroke="#2E7D6B" stroke-width="0.6"/>
+  <circle cx="465.7" cy="77.3" r="4.3" fill="none" stroke="#2E7D6B" stroke-width="0.6"/>
+  <circle cx="474.3" cy="77.3" r="4.3" fill="none" stroke="#2E7D6B" stroke-width="0.6"/>
+  <circle cx="493.6" cy="125.7" r="22" fill="#ffffff" stroke="#141414" stroke-width="1"/>
+  <circle cx="493.6" cy="125.7" r="13" fill="#eef6f3" stroke="#2E7D6B" stroke-width="1.5"/>
+  <circle cx="493.6" cy="125.7" r="4.3" fill="none" stroke="#2E7D6B" stroke-width="0.6"/>
+  <circle cx="502.2" cy="125.7" r="4.3" fill="none" stroke="#2E7D6B" stroke-width="0.6"/>
+  <circle cx="497.9" cy="133.1" r="4.3" fill="none" stroke="#2E7D6B" stroke-width="0.6"/>
+  <circle cx="489.3" cy="133.1" r="4.3" fill="none" stroke="#2E7D6B" stroke-width="0.6"/>
+  <circle cx="485" cy="125.7" r="4.3" fill="none" stroke="#2E7D6B" stroke-width="0.6"/>
+  <circle cx="489.3" cy="118.2" r="4.3" fill="none" stroke="#2E7D6B" stroke-width="0.6"/>
+  <circle cx="497.9" cy="118.2" r="4.3" fill="none" stroke="#2E7D6B" stroke-width="0.6"/>
+  <circle cx="446.4" cy="125.7" r="22" fill="#ffffff" stroke="#141414" stroke-width="1"/>
+  <circle cx="446.4" cy="125.7" r="13" fill="#eef6f3" stroke="#2E7D6B" stroke-width="1.5"/>
+  <circle cx="446.4" cy="125.7" r="4.3" fill="none" stroke="#2E7D6B" stroke-width="0.6"/>
+  <circle cx="455" cy="125.7" r="4.3" fill="none" stroke="#2E7D6B" stroke-width="0.6"/>
+  <circle cx="450.7" cy="133.1" r="4.3" fill="none" stroke="#2E7D6B" stroke-width="0.6"/>
+  <circle cx="442.1" cy="133.1" r="4.3" fill="none" stroke="#2E7D6B" stroke-width="0.6"/>
+  <circle cx="437.8" cy="125.7" r="4.3" fill="none" stroke="#2E7D6B" stroke-width="0.6"/>
+  <circle cx="442.1" cy="118.2" r="4.3" fill="none" stroke="#2E7D6B" stroke-width="0.6"/>
+  <circle cx="450.7" cy="118.2" r="4.3" fill="none" stroke="#2E7D6B" stroke-width="0.6"/>
+  <line x1="474" y1="80.7" x2="560" y2="52" stroke="#141414" stroke-width="0.6"/>
+  <rect x="558" y="50" width="4" height="4" fill="#141414"/>
+  <text x="566" y="56" font-size="11" fill="#2E7D6B">導体(より線)</text>
+  <line x1="509.6424935233152" y1="115.65" x2="560" y2="84" stroke="#141414" stroke-width="0.6"/>
+  <rect x="558" y="82" width="4" height="4" fill="#141414"/>
+  <text x="566" y="88" font-size="11" fill="#141414">絶縁体</text>
+  <text x="566" y="103" font-size="10" fill="#5c5c5a">架橋ポリエチレン</text>
+  <line x1="472" y1="118" x2="560" y2="124" stroke="#141414" stroke-width="0.6"/>
+  <rect x="558" y="122" width="4" height="4" fill="#141414"/>
+  <text x="566" y="128" font-size="11" fill="#141414">介在物</text>
+  <line x1="505" y1="147" x2="560" y2="150" stroke="#141414" stroke-width="0.6"/>
+  <rect x="558" y="148" width="4" height="4" fill="#141414"/>
+  <text x="566" y="154" font-size="11" fill="#141414">押えテープ</text>
+  <line x1="500" y1="161" x2="560" y2="176" stroke="#141414" stroke-width="0.6"/>
+  <rect x="558" y="174" width="4" height="4" fill="#141414"/>
+  <text x="566" y="180" font-size="11" fill="#141414">シース(ビニル)</text>
+  <text x="380" y="206" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="13" fill="#141414">600V CV <tspan fill="#2E7D6B">3.5sq</tspan>-<tspan>3C</tspan></text>
+  <text x="380" y="226" font-size="10.5" fill="#2E7D6B">3.5sq = 導体の公称断面積 3.5mm²</text>
+  <text x="600" y="226" font-size="10.5" fill="#141414">3C = 3 心</text>
+  <line x1="20" y1="246" x2="700" y2="246" stroke="#e6e6e2" stroke-width="1"/>
+  <text x="20" y="268" font-size="10.5" fill="#5c5c5a">最高許容温度は VVF 60℃・CV 90℃(表)。図は構成を示す模式図で、各部の厚さの比率は実物と違う</text>
+  <text x="20" y="286" font-size="10.5" fill="#5c5c5a">VVF の太さは単線の直径(1.6・2.0・2.6 など)、CV はより線の断面積(sq = mm²)で呼ぶ</text>
+</svg>

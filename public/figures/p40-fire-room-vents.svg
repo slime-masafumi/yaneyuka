@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 290" width="720" height="290" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>火気使用室の給気口・排気口の位置</title>
+  <defs>
+    <marker id="tk" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#141414" stroke-width="1"/></marker>
+    <marker id="tka" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#2E7D6B" stroke-width="1.2"/></marker>
+    <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#9a9a96" stroke-width="0.6"/></pattern>
+  </defs>
+
+  <text x="20" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">SECTION — 調理室など(天井高 2.4m の例)</text>
+  <line x1="530" y1="16" x2="530" y2="262" stroke="#e6e6e2" stroke-width="1"/>
+
+  <!-- 範囲 -->
+  <rect x="120" y="90" width="320" height="53" fill="#eef6f3"/>
+  <rect x="120" y="170" width="320" height="80" fill="#f5f5f2"/>
+
+  <!-- 躯体 -->
+  <rect x="104" y="82" width="352" height="8" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="104" y="250" width="352" height="8" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="112" y="90" width="8" height="12" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="112" y="128" width="8" height="122" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="440" y="90" width="8" height="114" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="440" y="222" width="8" height="28" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+
+  <!-- 排気口(換気扇) -->
+  <rect x="112" y="102" width="20" height="26" fill="none" stroke="#141414" stroke-width="1"/>
+  <line x1="112" y1="102" x2="132" y2="128" stroke="#141414" stroke-width="0.6"/>
+  <line x1="132" y1="102" x2="112" y2="128" stroke="#141414" stroke-width="0.6"/>
+  <path d="M140 115 H160" stroke="#141414" stroke-width="0.6"/>
+  <rect x="160" y="113" width="4" height="4" fill="#141414"/>
+  <text x="170" y="119" font-size="11" fill="#141414">排気口(換気扇)</text>
+
+  <!-- 給気口 -->
+  <line x1="444" y1="204" x2="444" y2="222" stroke="#141414" stroke-width="0.8"/>
+  <path d="M432 213 H404" stroke="#141414" stroke-width="0.6"/>
+  <rect x="400" y="211" width="4" height="4" fill="#141414"/>
+  <text x="396" y="217" font-size="11" fill="#141414" text-anchor="end">給気口</text>
+
+  <!-- こんろ -->
+  <rect x="124" y="190" width="96" height="60" fill="none" stroke="#141414" stroke-width="1"/>
+  <line x1="124" y1="196" x2="220" y2="196" stroke="#141414" stroke-width="0.6"/>
+  <text x="172" y="228" font-size="10.5" fill="#5c5c5a" text-anchor="middle">こんろ</text>
+
+  <!-- 1/2 の線 -->
+  <line x1="120" y1="170" x2="490" y2="170" stroke="#9a9a96" stroke-width="0.8" stroke-dasharray="3 3"/>
+
+  <!-- 寸法 -->
+  <line x1="448" y1="143" x2="476" y2="143" stroke="#2E7D6B" stroke-width="0.6"/>
+  <line x1="470" y1="90" x2="470" y2="143" stroke="#2E7D6B" stroke-width="1.2" marker-start="url(#tka)" marker-end="url(#tka)"/>
+  <text x="478" y="114" font-size="11" fill="#2E7D6B">80cm</text>
+  <text x="478" y="128" font-size="11" fill="#2E7D6B">以内</text>
+  <line x1="470" y1="250" x2="470" y2="170" stroke="#141414" stroke-width="0.6" marker-start="url(#tk)" marker-end="url(#tk)"/>
+  <text x="478" y="206" font-size="11" fill="#141414">CH/2</text>
+  <text x="478" y="220" font-size="11" fill="#141414">以下</text>
+  <line x1="40" y1="250" x2="40" y2="90" stroke="#141414" stroke-width="0.6" marker-start="url(#tk)" marker-end="url(#tk)"/>
+  <line x1="36" y1="90" x2="104" y2="90" stroke="#141414" stroke-width="0.4"/>
+  <text x="48" y="174" font-size="11" fill="#141414">天井高</text>
+  <text x="48" y="188" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" fill="#141414">CH</text>
+
+  <!-- 説明 -->
+  <text x="546" y="50" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="9.5" letter-spacing="1.2" fill="#9a9a96">RULE — 令20条の3</text>
+  <text x="546" y="74" font-size="11" fill="#2E7D6B">排気口</text>
+  <text x="546" y="90" font-size="10.5" fill="#141414">天井又は天井から</text>
+  <text x="546" y="104" font-size="10.5" fill="#141414">下方 80cm 以内</text>
+  <text x="546" y="118" font-size="10.5" fill="#5c5c5a">煙突・排気フード付き</text>
+  <text x="546" y="132" font-size="10.5" fill="#5c5c5a">排気筒は適当な位置</text>
+  <text x="546" y="160" font-size="11" fill="#141414">給気口</text>
+  <text x="546" y="176" font-size="10.5" fill="#141414">天井高の 1/2 以下</text>
+  <text x="546" y="190" font-size="10.5" fill="#5c5c5a">煙突や換気扇等を</text>
+  <text x="546" y="204" font-size="10.5" fill="#5c5c5a">設けるときは適当な位置</text>
+
+  <text x="20" y="282" font-size="10.5" fill="#5c5c5a">数値は昭和45年建設省告示第1826号。密閉式燃焼器具だけの室などは換気設備が不要(令20条の3第1項)</text>
+</svg>

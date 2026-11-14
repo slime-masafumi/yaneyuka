@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 320" width="720" height="320" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>建築基準法の法体系と単体規定・集団規定</title>
+
+  <!-- 見出し -->
+  <text x="20" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">DIAGRAM — 法令の階層</text>
+  <text x="384" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">DIAGRAM — 適用区域</text>
+  <line x1="362" y1="16" x2="362" y2="300" stroke="#e6e6e2" stroke-width="1"/>
+
+  <!-- 法令の階層(上ほど大枠、下ほど具体) -->
+  <g stroke="#141414" stroke-width="1" fill="none">
+    <rect x="130" y="44" width="120" height="40"/>
+    <rect x="95" y="90" width="190" height="40"/>
+    <rect x="60" y="136" width="260" height="40"/>
+    <rect x="30" y="182" width="320" height="40"/>
+  </g>
+  <g font-size="12" fill="#141414" text-anchor="middle">
+    <text x="190" y="61">法律</text>
+    <text x="190" y="107">政令</text>
+    <text x="190" y="153">省令・告示</text>
+    <text x="190" y="199">条例</text>
+  </g>
+  <g font-size="10.5" fill="#5c5c5a" text-anchor="middle">
+    <text x="190" y="76">建築基準法 / 国会</text>
+    <text x="190" y="122">建築基準法施行令 / 内閣</text>
+    <text x="190" y="168">施行規則・告示 / 国土交通大臣</text>
+    <text x="190" y="214">安全条例など / 地方公共団体</text>
+  </g>
+  <text x="30" y="248" font-size="10.5" fill="#5c5c5a">下位ほど具体的(寸法・計算方法・材料・地域の付加)</text>
+  <text x="30" y="266" font-size="10.5" fill="#5c5c5a">目的は最低限の基準を定めること(法1条)</text>
+
+  <!-- 全国(単体規定の範囲) -->
+  <rect x="384" y="40" width="316" height="206" fill="none" stroke="#9a9a96" stroke-width="0.8" stroke-dasharray="3 3"/>
+  <text x="396" y="60" font-size="12" fill="#141414">全国</text>
+  <!-- 都市計画区域等(集団規定の範囲) -->
+  <rect x="502" y="72" width="186" height="162" fill="#eef6f3" stroke="#2E7D6B" stroke-width="1.2"/>
+  <text x="514" y="92" font-size="11" fill="#2E7D6B">都市計画区域・</text>
+  <text x="514" y="107" font-size="11" fill="#2E7D6B">準都市計画区域(法41条の2)</text>
+
+  <!-- 建築物 -->
+  <rect x="424" y="148" width="36" height="26" fill="#f5f5f2" stroke="#141414" stroke-width="1"/>
+  <rect x="577" y="148" width="36" height="26" fill="#f5f5f2" stroke="#141414" stroke-width="1"/>
+  <text x="442" y="196" font-size="11" fill="#141414" text-anchor="middle">単体規定</text>
+  <text x="442" y="211" font-size="11" fill="#141414" text-anchor="middle">のみ</text>
+  <text x="595" y="196" font-size="11" fill="#141414" text-anchor="middle">単体規定</text>
+  <text x="595" y="211" font-size="11" fill="#2E7D6B" text-anchor="middle">+ 集団規定</text>
+
+  <!-- 凡例 -->
+  <line x1="384" y1="258" x2="700" y2="258" stroke="#e6e6e2" stroke-width="1"/>
+  <text x="384" y="278" font-size="10.5" fill="#5c5c5a"><tspan fill="#141414">単体規定</tspan>  構造強度・防火避難・採光換気・給排水</text>
+  <text x="384" y="296" font-size="10.5" fill="#5c5c5a"><tspan fill="#2E7D6B">集団規定</tspan>  用途地域・接道・建蔽率・容積率・高さ</text>
+</svg>

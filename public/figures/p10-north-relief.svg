@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 320" width="720" height="320" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>北側斜線の緩和(水面等・高低差)</title>
+  <defs>
+    <marker id="tk" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#141414" stroke-width="1"/></marker>
+    <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#9a9a96" stroke-width="0.6"/></pattern>
+  </defs>
+
+  <text x="20" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">SECTION — 道路の反対側に水面等</text>
+  <text x="380" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">SECTION — 北側隣地が高い</text>
+  <line x1="360" y1="16" x2="360" y2="304" stroke="#e6e6e2" stroke-width="1"/>
+
+  <!-- A: 地盤 -->
+  <line x1="20" y1="230" x2="240" y2="230" stroke="#9a9a96" stroke-width="1"/>
+  <rect x="20" y="230" width="220" height="8" fill="url(#hatch)"/>
+  <line x1="240" y1="230" x2="240" y2="240" stroke="#9a9a96" stroke-width="1"/>
+  <line x1="240" y1="240" x2="300" y2="240" stroke="#9a9a96" stroke-width="0.8"/>
+  <line x1="300" y1="230" x2="300" y2="240" stroke="#9a9a96" stroke-width="1"/>
+  <line x1="300" y1="230" x2="340" y2="230" stroke="#9a9a96" stroke-width="1"/>
+  <rect x="300" y="230" width="40" height="8" fill="url(#hatch)"/>
+  <!-- A: 境界線 -->
+  <line x1="180" y1="90" x2="180" y2="230" stroke="#9a9a96" stroke-width="0.8" stroke-dasharray="3 3"/>
+  <line x1="240" y1="150" x2="240" y2="230" stroke="#9a9a96" stroke-width="0.8" stroke-dasharray="3 3"/>
+  <line x1="270" y1="150" x2="270" y2="230" stroke="#141414" stroke-width="0.8" stroke-dasharray="3 3"/>
+  <text x="210" y="222" font-size="10.5" fill="#5c5c5a" text-anchor="middle">道路</text>
+  <text x="270" y="256" font-size="10.5" fill="#5c5c5a" text-anchor="middle">水面等(幅 W)</text>
+  <text x="276" y="146" font-size="10.5" fill="#141414">みなし境界線</text>
+  <!-- A: 建物・斜線 -->
+  <rect x="60" y="80" width="110" height="150" fill="#f5f5f2" stroke="#141414" stroke-width="1"/>
+  <line x1="270" y1="180" x2="166" y2="50" stroke="#2E7D6B" stroke-width="1.5"/>
+  <!-- A: 寸法 -->
+  <line x1="240" y1="200" x2="270" y2="200" stroke="#141414" stroke-width="0.6" marker-start="url(#tk)" marker-end="url(#tk)"/>
+  <text x="255" y="194" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="9.5" fill="#141414" text-anchor="middle">W/2</text>
+  <line x1="170" y1="276" x2="270" y2="276" stroke="#141414" stroke-width="0.6" marker-start="url(#tk)" marker-end="url(#tk)"/>
+  <line x1="170" y1="232" x2="170" y2="280" stroke="#141414" stroke-width="0.4"/>
+  <line x1="270" y1="262" x2="270" y2="280" stroke="#141414" stroke-width="0.4"/>
+  <text x="162" y="280" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" fill="#141414" text-anchor="end">d</text>
+  <text x="20" y="300" font-size="10.5" fill="#5c5c5a">境界線を水面等の幅の 1/2 外側とみなす</text>
+  <text x="20" y="314" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="9.5" fill="#9a9a96">令135条の4第1項第1号</text>
+
+  <!-- B: 地盤 -->
+  <line x1="380" y1="230" x2="600" y2="230" stroke="#9a9a96" stroke-width="1"/>
+  <rect x="380" y="230" width="220" height="8" fill="url(#hatch)"/>
+  <line x1="600" y1="190" x2="700" y2="190" stroke="#9a9a96" stroke-width="1"/>
+  <rect x="600" y="190" width="100" height="8" fill="url(#hatch)"/>
+  <rect x="600" y="190" width="6" height="40" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <line x1="600" y1="56" x2="600" y2="190" stroke="#9a9a96" stroke-width="0.8" stroke-dasharray="3 3"/>
+  <text x="600" y="48" font-size="10.5" fill="#5c5c5a" text-anchor="middle">北側隣地境界線</text>
+  <!-- B: みなし地盤面 -->
+  <line x1="380" y1="215" x2="600" y2="215" stroke="#141414" stroke-width="0.8" stroke-dasharray="3 3"/>
+  <!-- B: 建物・斜線 -->
+  <rect x="440" y="120" width="120" height="110" fill="#f5f5f2" stroke="#141414" stroke-width="1"/>
+  <line x1="600" y1="165" x2="508" y2="50" stroke="#2E7D6B" stroke-width="1.5"/>
+  <!-- B: 寸法 -->
+  <line x1="606" y1="230" x2="664" y2="230" stroke="#141414" stroke-width="0.4"/>
+  <line x1="660" y1="230" x2="660" y2="190" stroke="#141414" stroke-width="0.6" marker-start="url(#tk)" marker-end="url(#tk)"/>
+  <text x="668" y="222" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" fill="#141414">H</text>
+  <line x1="432" y1="230" x2="432" y2="215" stroke="#141414" stroke-width="0.6" marker-start="url(#tk)" marker-end="url(#tk)"/>
+  <text x="426" y="209" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="9.5" fill="#141414" text-anchor="end">(H−1)/2</text>
+  <line x1="600" y1="165" x2="620" y2="165" stroke="#141414" stroke-width="0.4"/>
+  <line x1="616" y1="215" x2="616" y2="165" stroke="#141414" stroke-width="0.6" marker-start="url(#tk)" marker-end="url(#tk)"/>
+  <text x="622" y="180" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" fill="#141414">5m</text>
+  <text x="440" y="254" font-size="10.5" fill="#5c5c5a">破線 = みなし地盤面</text>
+  <text x="380" y="286" font-size="10.5" fill="#5c5c5a">高低差 H が 1m 以上なら、地盤面を (H−1)/2 高いとみなす</text>
+  <text x="380" y="300" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="9.5" fill="#5c5c5a">例 H=4m → 1.5m 上げる</text>
+  <text x="380" y="314" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="9.5" fill="#9a9a96">令135条の4第1項第2号</text>
+</svg>

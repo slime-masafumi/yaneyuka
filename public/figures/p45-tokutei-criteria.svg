@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 310" width="720" height="310" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>特定天井に当たるかの判定</title>
+  <defs>
+    <marker id="tka" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#2E7D6B" stroke-width="1.2"/></marker>
+    <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#9a9a96" stroke-width="0.6"/></pattern>
+  </defs>
+
+  <text x="20" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">SECTION — 大空間の吊り天井</text>
+  <line x1="530" y1="16" x2="530" y2="272" stroke="#e6e6e2" stroke-width="1"/>
+
+  <!-- 躯体(20px = 1m、床 y=260) -->
+  <rect x="40" y="36" width="338" height="8" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="370" y="44" width="8" height="72" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="378" y="116" width="134" height="8" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="40" y="44" width="8" height="216" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="504" y="124" width="8" height="136" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="40" y="260" width="472" height="8" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+
+  <!-- 吊り材 -->
+  <g stroke="#141414" stroke-width="0.5">
+    <line x1="72" y1="44" x2="72" y2="90"/><line x1="112" y1="44" x2="112" y2="90"/><line x1="152" y1="44" x2="152" y2="90"/>
+    <line x1="192" y1="44" x2="192" y2="90"/><line x1="232" y1="44" x2="232" y2="90"/><line x1="272" y1="44" x2="272" y2="90"/>
+    <line x1="312" y1="44" x2="312" y2="90"/>
+    <line x1="402" y1="124" x2="402" y2="170"/><line x1="442" y1="124" x2="442" y2="170"/><line x1="482" y1="124" x2="482" y2="170"/>
+  </g>
+  <!-- 天井面:高い部分 8.5m・低い部分 4.5m -->
+  <line x1="48" y1="90" x2="346" y2="90" stroke="#2E7D6B" stroke-width="1.5"/>
+  <path d="M346 90 V170 H504" fill="none" stroke="#141414" stroke-width="1"/>
+
+  <!-- 6m の線 -->
+  <line x1="48" y1="140" x2="346" y2="140" stroke="#9a9a96" stroke-width="0.8" stroke-dasharray="3 3"/>
+  <text x="56" y="135" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" fill="#5c5c5a">FL+6m</text>
+
+  <!-- 6m 超の部分 -->
+  <line x1="48" y1="106" x2="346" y2="106" stroke="#2E7D6B" stroke-width="1.2" marker-start="url(#tka)" marker-end="url(#tka)"/>
+  <text x="170" y="124" font-size="11" fill="#2E7D6B" text-anchor="middle">6m 超の部分の水平投影面積 200m² 超</text>
+  <line x1="310" y1="260" x2="310" y2="90" stroke="#2E7D6B" stroke-width="1.2" marker-start="url(#tka)" marker-end="url(#tka)"/>
+  <text x="302" y="200" font-size="11" fill="#2E7D6B" text-anchor="end">高さ 6m 超</text>
+  <text x="302" y="215" font-size="10.5" fill="#5c5c5a" text-anchor="end">直下の床面から</text>
+
+  <text x="360" y="196" font-size="10.5" fill="#5c5c5a">一連の天井なら</text>
+  <text x="360" y="211" font-size="10.5" fill="#5c5c5a">6m 以下の部分も</text>
+  <text x="360" y="226" font-size="10.5" fill="#5c5c5a">含めて特定天井</text>
+
+  <!-- 判定 -->
+  <text x="546" y="52" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="9.5" letter-spacing="1.2" fill="#9a9a96">告示771号 第2</text>
+  <g font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" fill="#9a9a96">
+    <text x="546" y="78">01</text><text x="546" y="104">02</text><text x="546" y="130">03</text><text x="546" y="182">04</text>
+  </g>
+  <g font-size="11" fill="#141414">
+    <text x="568" y="78">吊り天井</text>
+    <text x="568" y="104">人が日常立ち入る場所</text>
+    <text x="568" y="130">高さ 6m 超の部分で</text>
+    <text x="568" y="146">水平投影面積 200m² 超</text>
+    <text x="568" y="160" font-size="10.5" fill="#5c5c5a">を含む</text>
+    <text x="568" y="182">天井面構成部材等の</text>
+    <text x="568" y="198">質量 2kg/m² 超</text>
+  </g>
+  <line x1="546" y1="210" x2="700" y2="210" stroke="#e6e6e2" stroke-width="1"/>
+  <text x="546" y="230" font-size="11" fill="#2E7D6B">すべて該当 → 特定天井</text>
+  <text x="546" y="248" font-size="10.5" fill="#5c5c5a">一つでも外れれば</text>
+  <text x="546" y="263" font-size="10.5" fill="#5c5c5a">特定天井ではない</text>
+
+  <line x1="20" y1="282" x2="700" y2="282" stroke="#e6e6e2" stroke-width="1"/>
+  <text x="20" y="300" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10.5" fill="#5c5c5a"><tspan fill="#9a9a96">令39条3項・H25国交告771号</tspan><tspan dx="10">照明など地震力を負担させる設備の質量も 2kg/m² に算入</tspan></text>
+</svg>

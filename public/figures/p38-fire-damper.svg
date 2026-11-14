@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 290" width="720" height="290" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>防火区画を貫通するダクトと防火ダンパー</title>
+  <defs>
+    <marker id="tk" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#141414" stroke-width="1"/></marker>
+    <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#9a9a96" stroke-width="0.6"/></pattern>
+  </defs>
+  <text x="20" y="20" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">SECTION — 断面</text>
+
+  <!-- 躯体 -->
+  <rect x="20" y="30" width="680" height="14" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="20" y="270" width="680" height="10" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="340" y="44" width="24" height="46" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="340" y="136" width="24" height="134" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+
+  <!-- 吊り -->
+  <g stroke="#141414" stroke-width="0.6">
+    <line x1="120" y1="44" x2="120" y2="90"/><line x1="220" y1="44" x2="220" y2="90"/>
+    <line x1="292" y1="44" x2="292" y2="86"/><line x1="318" y1="44" x2="318" y2="86"/>
+    <line x1="460" y1="44" x2="460" y2="90"/><line x1="580" y1="44" x2="580" y2="90"/>
+  </g>
+  <!-- ダクト -->
+  <path d="M40 90 H280 M330 90 H680 M40 136 H280 M330 136 H680" fill="none" stroke="#141414" stroke-width="1"/>
+  <!-- FD(主題) -->
+  <rect x="280" y="86" width="50" height="54" fill="#eef6f3" stroke="#2E7D6B" stroke-width="1.5"/>
+  <line x1="290" y1="132" x2="320" y2="94" stroke="#2E7D6B" stroke-width="1.5"/>
+  <circle cx="305" cy="113" r="2.5" fill="#2E7D6B"/>
+  <line x1="286" y1="88" x2="268" y2="70" stroke="#141414" stroke-width="0.6"/>
+  <rect x="264" y="66" width="4" height="4" fill="#141414"/>
+  <text x="258" y="72" font-size="11" fill="#2E7D6B" text-anchor="end">防火ダンパー(FD)</text>
+
+  <!-- 区画との間の風道 -->
+  <line x1="335" y1="138" x2="244" y2="160" stroke="#141414" stroke-width="0.6"/>
+  <rect x="240" y="158" width="4" height="4" fill="#141414"/>
+  <text x="40" y="150" font-size="10.5" fill="#141414">FD と区画の間の風道は</text>
+  <text x="40" y="166" font-size="10.5" fill="#141414">鉄板 1.5mm 以上 又は不燃材料で被覆</text>
+
+  <!-- 天井と点検口 -->
+  <path d="M20 190 H270 M330 190 H340 M364 190 H700" stroke="#9a9a96" stroke-width="1"/>
+  <path d="M270 186 V194 M330 186 V194" stroke="#141414" stroke-width="1"/>
+  <line x1="270" y1="206" x2="330" y2="206" stroke="#141414" stroke-width="0.8" marker-start="url(#tk)" marker-end="url(#tk)"/>
+  <text x="300" y="222" font-size="10.5" fill="#141414" text-anchor="middle">点検口</text>
+  <text x="300" y="236" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" fill="#141414" text-anchor="middle">一辺45cm以上</text>
+  <text x="24" y="184" font-size="10.5" fill="#5c5c5a">天井</text>
+  <text x="370" y="262" font-size="10.5" fill="#5c5c5a">防火区画(準耐火構造の壁・床)</text>
+
+  <!-- 注記 -->
+  <text x="384" y="160" font-size="11" fill="#141414">換気・冷暖房の風道が防火区画を貫通する部分</text>
+  <text x="384" y="176" font-size="10.5" fill="#5c5c5a">に防火設備(令112条21項・昭和48年建告第2565号)</text>
+  <text x="384" y="214" font-size="10.5" fill="#5c5c5a">主要構造部に堅固に取り付け、天井・壁に一辺</text>
+  <text x="384" y="230" font-size="10.5" fill="#5c5c5a">45cm 以上の点検口と作動を確認できる検査口</text>
+  <text x="384" y="246" font-size="10.5" fill="#5c5c5a">を設ける(平成12年建設省告示第1376号)</text>
+</svg>

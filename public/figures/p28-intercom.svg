@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" fill="#141414" viewBox="0 0 720 320" width="720" height="320" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>集合住宅のインターホン・オートロックの構成</title>
+  <style>
+    text{font-size:11px}
+    .s{font-size:10.5px;fill:#5c5c5a}
+    .m{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10px}
+    .n{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:9.5px;fill:#2E7D6B}
+    .t{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10px;letter-spacing:1.2px;fill:#9a9a96}
+    .a{fill:#2E7D6B}
+    .k{stroke:#141414;stroke-width:1;fill:none}
+    .b{stroke:#141414;stroke-width:1;fill:#f5f5f2}
+    .g{stroke:#9a9a96;stroke-width:.8;fill:none}
+    .d{stroke-dasharray:3 3}
+    .c{stroke:#2E7D6B;stroke-width:1.5;fill:none}
+    .h{stroke:#e6e6e2;stroke-width:1}
+  </style>
+
+  <text x="20" y="24" class="t">DIAGRAM — 系統</text>
+  <text x="30" y="52" class="m" fill="#9a9a96">共用玄関</text>
+  <text x="470" y="52" class="m" fill="#9a9a96">住戸</text>
+
+  <!-- 共用玄関 -->
+  <rect x="30" y="64" width="110" height="44" class="b"/>
+  <text x="42" y="83">集合玄関機</text>
+  <text x="42" y="98" class="s">カメラ・IC・暗証</text>
+  <rect x="30" y="150" width="110" height="44" class="b"/>
+  <text x="42" y="169">電気錠</text>
+  <text x="42" y="184" class="s">共用玄関の扉</text>
+
+  <!-- 制御盤・電源 -->
+  <rect x="230" y="100" width="110" height="80" class="b"/>
+  <text x="285" y="136" text-anchor="middle">制御盤</text>
+  <text x="285" y="152" class="s" text-anchor="middle">オートロック制御</text>
+  <rect x="230" y="222" width="110" height="40" class="b"/>
+  <text x="285" y="240" text-anchor="middle">電源装置</text>
+  <text x="285" y="255" class="m" fill="#5c5c5a" text-anchor="middle">DC12V / 24V</text>
+  <path class="g" d="M285 222 V180 M230 242 H85 V194"/>
+
+  <!-- 結線 -->
+  <path class="k" d="M140 86 H285 V100 M340 120 H420 M420 76 V270 M420 76 H470 M420 146 H470 M420 216 H470 M420 270 H470"/>
+  <path class="c" d="M230 170 H140"/>
+  <text x="166" y="80" class="n">01 呼出</text>
+  <text x="350" y="112" class="n">02 解錠操作</text>
+  <text x="150" y="163" class="n" font-size="10">03 解錠信号</text>
+
+  <!-- 住戸 -->
+  <rect x="470" y="60" width="90" height="32" class="b"/><text x="515" y="80" text-anchor="middle">住戸親機</text>
+  <rect x="600" y="60" width="90" height="32" class="b"/><text x="645" y="80" text-anchor="middle">玄関子機</text>
+  <line x1="560" y1="76" x2="600" y2="76" class="k"/>
+  <rect x="470" y="130" width="90" height="32" class="b"/><text x="515" y="150" text-anchor="middle">住戸親機</text>
+  <rect x="600" y="130" width="90" height="32" class="b"/><text x="645" y="150" text-anchor="middle">玄関子機</text>
+  <line x1="560" y1="146" x2="600" y2="146" class="k"/>
+  <rect x="470" y="200" width="90" height="32" class="b"/><text x="515" y="220" text-anchor="middle">住戸親機</text>
+  <rect x="600" y="200" width="90" height="32" class="b"/><text x="645" y="220" text-anchor="middle">玄関子機</text>
+  <line x1="560" y1="216" x2="600" y2="216" class="k"/>
+  <rect x="470" y="254" width="90" height="32" class="b"/><text x="515" y="274" text-anchor="middle">管理室親機</text>
+  <text x="600" y="274" class="s">録画・警報の確認</text>
+
+  <line x1="20" y1="298" x2="700" y2="298" class="h"/>
+  <text x="20" y="314" class="s">配線は 2 芯式(中小規模)・多芯 / LAN・IP 方式。電源と制御線のルートは分ける。親機は FL+1400〜1500mm が目安。</text>
+</svg>

@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 290" width="720" height="290" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>前面道路の幅員による容積率の制限</title>
+  <defs>
+    <marker id="tka" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#2E7D6B" stroke-width="1.2"/></marker>
+    <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#9a9a96" stroke-width="0.6"/></pattern>
+  </defs>
+
+  <text x="20" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">SECTION — 断面</text>
+  <text x="390" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">法52条2項 — 係数</text>
+  <line x1="370" y1="16" x2="370" y2="270" stroke="#e6e6e2" stroke-width="1"/>
+
+  <!-- 地盤 -->
+  <line x1="20" y1="190" x2="350" y2="190" stroke="#9a9a96" stroke-width="1"/>
+  <rect x="20" y="190" width="330" height="8" fill="url(#hatch)"/>
+  <!-- 道路境界 -->
+  <line x1="40" y1="70" x2="40" y2="190" stroke="#9a9a96" stroke-width="0.8" stroke-dasharray="3 3"/>
+  <line x1="150" y1="70" x2="150" y2="190" stroke="#9a9a96" stroke-width="0.8" stroke-dasharray="3 3"/>
+  <text x="95" y="180" font-size="10.5" fill="#5c5c5a" text-anchor="middle">前面道路</text>
+  <text x="250" y="64" font-size="10.5" fill="#5c5c5a" text-anchor="middle">敷地</text>
+  <!-- 建物 -->
+  <g fill="none" stroke="#141414" stroke-width="1">
+    <rect x="180" y="90" width="140" height="100"/>
+    <line x1="180" y1="115" x2="320" y2="115"/>
+    <line x1="180" y1="140" x2="320" y2="140"/>
+    <line x1="180" y1="165" x2="320" y2="165"/>
+  </g>
+  <!-- 幅員 W -->
+  <line x1="40" y1="212" x2="150" y2="212" stroke="#2E7D6B" stroke-width="1.2" marker-start="url(#tka)" marker-end="url(#tka)"/>
+  <text x="95" y="232" font-size="12" fill="#2E7D6B" text-anchor="middle">W 幅員</text>
+  <text x="95" y="248" font-size="10.5" fill="#5c5c5a" text-anchor="middle">12m 未満のとき</text>
+  <text x="180" y="232" font-size="10.5" fill="#5c5c5a">2以上の道路は最大の幅員</text>
+
+  <!-- 式 -->
+  <text x="390" y="54" font-size="12" fill="#141414">容積率の限度 = 指定容積率 と</text>
+  <text x="390" y="72" font-size="12" fill="#141414"><tspan fill="#2E7D6B">W × 係数</tspan> の小さい方</text>
+
+  <line x1="390" y1="86" x2="700" y2="86" stroke="#e6e6e2" stroke-width="1"/>
+  <text x="390" y="104" font-size="11" fill="#141414">低層住専・田園住居</text>
+  <text x="700" y="104" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10.5" fill="#141414" text-anchor="end">4/10</text>
+  <line x1="390" y1="114" x2="700" y2="114" stroke="#e6e6e2" stroke-width="1"/>
+  <text x="390" y="132" font-size="11" fill="#141414">中高層住専・住居・準住居</text>
+  <text x="700" y="132" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10.5" fill="#141414" text-anchor="end">4/10</text>
+  <text x="390" y="148" font-size="10.5" fill="#5c5c5a">特定行政庁の指定区域は 6/10</text>
+  <line x1="390" y1="158" x2="700" y2="158" stroke="#e6e6e2" stroke-width="1"/>
+  <text x="390" y="176" font-size="11" fill="#141414">その他(商業系・工業系 等)</text>
+  <text x="700" y="176" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10.5" fill="#141414" text-anchor="end">6/10</text>
+  <text x="390" y="192" font-size="10.5" fill="#5c5c5a">特定行政庁の指定区域は 4/10 又は 8/10</text>
+  <line x1="390" y1="202" x2="700" y2="202" stroke="#e6e6e2" stroke-width="1"/>
+
+  <text x="390" y="226" font-size="10.5" fill="#5c5c5a">例 第一種住居地域・指定容積率 300%・W = 6m</text>
+  <text x="390" y="244" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10.5" fill="#141414">6 × 4/10 = 240% &lt; 300%  → 240%</text>
+  <text x="20" y="276" font-size="10.5" fill="#5c5c5a">高層住居誘導地区・特定道路(法52条9項)などの特例は省略</text>
+</svg>

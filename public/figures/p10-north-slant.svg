@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 310" width="720" height="310" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>北側斜線の基本形と算例</title>
+  <defs>
+    <marker id="tk" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#141414" stroke-width="1"/></marker>
+    <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#9a9a96" stroke-width="0.6"/></pattern>
+  </defs>
+
+  <text x="20" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">SECTION — 断面(南 ← → 北)</text>
+  <line x1="536" y1="16" x2="536" y2="294" stroke="#e6e6e2" stroke-width="1"/>
+
+  <!-- 地盤 -->
+  <line x1="20" y1="260" x2="530" y2="260" stroke="#9a9a96" stroke-width="1"/>
+  <rect x="20" y="260" width="510" height="8" fill="url(#hatch)"/>
+  <!-- 北側隣地境界線 -->
+  <line x1="470" y1="54" x2="470" y2="260" stroke="#9a9a96" stroke-width="0.8" stroke-dasharray="3 3"/>
+  <text x="470" y="46" font-size="10.5" fill="#5c5c5a" text-anchor="middle">北側隣地境界線</text>
+
+  <!-- 中高層住専の斜線(参考) -->
+  <line x1="470" y1="100" x2="435" y2="56" stroke="#9a9a96" stroke-width="0.8" stroke-dasharray="3 3"/>
+  <line x1="466" y1="100" x2="474" y2="100" stroke="#9a9a96" stroke-width="0.8"/>
+  <text x="478" y="104" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="9.5" fill="#9a9a96">10m</text>
+
+  <!-- 建物(d=4m で斜線に接する) -->
+  <rect x="200" y="100" width="206" height="160" fill="#f5f5f2" stroke="#141414" stroke-width="1"/>
+  <!-- 1m 後退案 -->
+  <polyline points="200,80 390,80 390,260" fill="none" stroke="#9a9a96" stroke-width="0.8" stroke-dasharray="3 3"/>
+  <text x="204" y="72" font-size="10.5" fill="#5c5c5a">1m 後退すると h ≦ 11.25m</text>
+
+  <!-- 北側斜線(低層住専 5m + 1.25d) -->
+  <line x1="470" y1="180" x2="358" y2="40" stroke="#2E7D6B" stroke-width="1.5"/>
+  <text x="204" y="52" font-size="11" fill="#2E7D6B">北側斜線</text>
+
+  <!-- 寸法 h -->
+  <line x1="184" y1="260" x2="184" y2="100" stroke="#141414" stroke-width="0.6" marker-start="url(#tk)" marker-end="url(#tk)"/>
+  <line x1="180" y1="100" x2="200" y2="100" stroke="#141414" stroke-width="0.4"/>
+  <text x="176" y="176" font-size="11" fill="#141414" text-anchor="end">h</text>
+  <text x="176" y="192" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" fill="#141414" text-anchor="end">10.0m</text>
+  <!-- 寸法 α -->
+  <line x1="494" y1="260" x2="494" y2="180" stroke="#141414" stroke-width="0.6" marker-start="url(#tk)" marker-end="url(#tk)"/>
+  <line x1="470" y1="180" x2="498" y2="180" stroke="#141414" stroke-width="0.4"/>
+  <text x="502" y="216" font-size="11" fill="#141414">α</text>
+  <text x="502" y="232" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" fill="#141414">5m</text>
+  <!-- 寸法 d -->
+  <line x1="406" y1="262" x2="406" y2="284" stroke="#141414" stroke-width="0.4"/>
+  <line x1="470" y1="262" x2="470" y2="284" stroke="#141414" stroke-width="0.4"/>
+  <line x1="406" y1="280" x2="470" y2="280" stroke="#141414" stroke-width="0.6" marker-start="url(#tk)" marker-end="url(#tk)"/>
+  <text x="438" y="298" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" fill="#141414" text-anchor="middle">d = 4m</text>
+
+  <!-- 式 -->
+  <text x="552" y="56" font-size="12" fill="#141414">h ≦ α + 1.25 × d</text>
+  <text x="552" y="84" font-size="11" fill="#141414">低層住専・田園住居</text>
+  <text x="552" y="100" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" fill="#2E7D6B">α = 5m(実線)</text>
+  <text x="552" y="124" font-size="11" fill="#141414">中高層住専</text>
+  <text x="552" y="140" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" fill="#5c5c5a">α = 10m(破線)</text>
+  <line x1="552" y1="154" x2="700" y2="154" stroke="#e6e6e2" stroke-width="1"/>
+  <text x="552" y="174" font-size="11" fill="#141414">算例(低層住専)</text>
+  <text x="552" y="192" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" fill="#141414">d=4m  5+1.25×4 = 10.0m</text>
+  <text x="552" y="208" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" fill="#141414">d=5m  5+1.25×5 = 11.25m</text>
+  <line x1="552" y1="222" x2="700" y2="222" stroke="#e6e6e2" stroke-width="1"/>
+  <text x="552" y="242" font-size="10.5" fill="#5c5c5a">d は真北方向の水平距離</text>
+  <text x="552" y="258" font-size="10.5" fill="#5c5c5a">北側が道路なら反対側の</text>
+  <text x="552" y="274" font-size="10.5" fill="#5c5c5a">境界線まで</text>
+  <text x="552" y="294" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="9.5" fill="#9a9a96">法56条1項3号</text>
+</svg>

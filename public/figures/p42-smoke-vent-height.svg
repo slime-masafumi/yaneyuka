@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 310" width="720" height="310" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>排煙口を設ける壁の範囲と手動開放装置の高さ</title>
+  <defs>
+    <marker id="tk" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#141414" stroke-width="1"/></marker>
+    <marker id="tka" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#2E7D6B" stroke-width="1.2"/></marker>
+    <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#9a9a96" stroke-width="0.6"/></pattern>
+  </defs>
+
+  <text x="20" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">SECTION — 天井高 2.6m 以下</text>
+  <text x="380" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">SECTION — 天井高 2.6m 超</text>
+  <line x1="360" y1="16" x2="360" y2="272" stroke="#e6e6e2" stroke-width="1"/>
+
+  <!-- 左:天井高 2.5m(50px = 1m、床 y=260) -->
+  <rect x="48" y="135" width="226" height="40" fill="#eef6f3"/>
+  <rect x="40" y="127" width="300" height="8" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="40" y="260" width="300" height="8" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="40" y="135" width="8" height="5" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="40" y="170" width="8" height="90" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <line x1="42" y1="140" x2="42" y2="170" stroke="#141414" stroke-width="0.8"/>
+  <line x1="46" y1="140" x2="46" y2="170" stroke="#141414" stroke-width="0.8"/>
+  <!-- 垂れ壁 -->
+  <rect x="274" y="135" width="6" height="40" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <text x="68" y="153" font-size="11" fill="#2E7D6B">排煙口を設ける範囲</text>
+  <text x="68" y="168" font-size="10.5" fill="#2E7D6B">天井から 80cm 以内</text>
+  <text x="277" y="194" font-size="10.5" fill="#141414" text-anchor="middle">防煙壁(垂れ壁)</text>
+  <text x="277" y="208" font-size="10.5" fill="#5c5c5a" text-anchor="middle">たけ 50cm 以上</text>
+  <!-- 80cm 寸法 -->
+  <line x1="300" y1="175" x2="322" y2="175" stroke="#2E7D6B" stroke-width="0.6"/>
+  <line x1="316" y1="135" x2="316" y2="175" stroke="#2E7D6B" stroke-width="1.2" marker-start="url(#tka)" marker-end="url(#tka)"/>
+  <!-- 手動開放装置 -->
+  <rect x="48" y="200" width="6" height="10" fill="#141414"/>
+  <line x1="60" y1="205" x2="80" y2="230" stroke="#141414" stroke-width="0.6"/>
+  <rect x="78" y="228" width="4" height="4" fill="#141414"/>
+  <text x="88" y="234" font-size="10.5" fill="#141414">手動開放装置(壁付け)</text>
+  <text x="88" y="249" font-size="10.5" fill="#5c5c5a">床から 80cm〜1.5m</text>
+  <!-- 注 -->
+  <text x="40" y="60" font-size="10.5" fill="#5c5c5a">最も短い防煙壁のたけが 80cm 未満なら</text>
+  <text x="40" y="75" font-size="10.5" fill="#5c5c5a">そのたけ以内(防煙壁の下端より上)</text>
+  <text x="40" y="98" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" fill="#9a9a96">CH 2.5m の例</text>
+
+  <!-- 右:天井高 3.6m(床 y=260、天井 y=80) -->
+  <rect x="408" y="80" width="232" height="90" fill="#eef6f3"/>
+  <rect x="400" y="72" width="290" height="8" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="400" y="260" width="290" height="8" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="400" y="80" width="8" height="12" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="400" y="150" width="8" height="110" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <line x1="402" y1="92" x2="402" y2="150" stroke="#141414" stroke-width="0.8"/>
+  <line x1="406" y1="92" x2="406" y2="150" stroke="#141414" stroke-width="0.8"/>
+  <!-- 間仕切壁(防煙壁) -->
+  <rect x="640" y="80" width="6" height="180" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <text x="428" y="118" font-size="11" fill="#2E7D6B">排煙口を設ける範囲</text>
+  <text x="428" y="133" font-size="10.5" fill="#2E7D6B">床面から 1.8m 以上</text>
+  <line x1="408" y1="170" x2="676" y2="170" stroke="#2E7D6B" stroke-width="0.6" stroke-dasharray="3 3"/>
+  <line x1="670" y1="260" x2="670" y2="170" stroke="#141414" stroke-width="0.6" marker-start="url(#tk)" marker-end="url(#tk)"/>
+  <text x="676" y="219" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10.5" fill="#141414">1.8m</text>
+  <text x="643" y="66" font-size="10.5" fill="#5c5c5a" text-anchor="middle">防煙壁</text>
+  <text x="428" y="200" font-size="10.5" fill="#5c5c5a">防煙壁の下端が 1.8m より高いときは</text>
+  <text x="428" y="215" font-size="10.5" fill="#5c5c5a">その下端以上</text>
+  <text x="428" y="236" font-size="10.5" fill="#5c5c5a">天井吊りの手動開放装置は</text>
+  <text x="428" y="251" font-size="10.5" fill="#5c5c5a">床からおおむね 1.8m</text>
+  <text x="400" y="50" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" fill="#9a9a96">CH 3.6m の例</text>
+
+  <line x1="20" y1="280" x2="700" y2="280" stroke="#e6e6e2" stroke-width="1"/>
+  <text x="20" y="300" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10.5" fill="#5c5c5a"><tspan fill="#9a9a96">令126条の3第1項3号・5号</tspan><tspan dx="10">壁の範囲は令和7年国交省告示第995号(無窓居室の判定は第992号)</tspan></text>
+</svg>

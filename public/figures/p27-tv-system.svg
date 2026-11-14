@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" fill="#141414" viewBox="0 0 720 372" width="720" height="372" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>テレビ共聴設備の系統</title>
+  <style>
+    text{font-size:11px}
+    .s{font-size:10.5px;fill:#5c5c5a}
+    .m{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10px}
+    .t{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10px;letter-spacing:1.2px;fill:#9a9a96}
+    .a{fill:#2E7D6B}
+    .k{stroke:#141414;stroke-width:1;fill:none}
+    .b{stroke:#141414;stroke-width:1;fill:#f5f5f2}
+    .g{stroke:#9a9a96;stroke-width:.8;fill:none}
+    .d{stroke-dasharray:3 3}
+    .c{stroke:#2E7D6B;stroke-width:1.5;fill:none}
+    .h{stroke:#e6e6e2;stroke-width:1}
+  </style>
+  <defs>
+    <g id="tap"><rect x="-8" y="-8" width="16" height="16" fill="#f5f5f2" stroke="#141414"/><path d="M0 8 V34" stroke="#141414"/><circle cx="0" cy="40" r="6" fill="none" stroke="#141414"/><circle cx="0" cy="40" r="1.6"/></g>
+  </defs>
+
+  <text x="20" y="24" class="t">DIAGRAM — 系統(集中方式)</text>
+  <g transform="translate(0 12)">
+
+  <!-- アンテナ -->
+  <path class="k" d="M74 96 V58 M74 58 L64 44 M74 58 L84 44"/>
+  <text x="74" y="38" class="m" text-anchor="middle">UHF</text>
+  <path class="k" d="M128 44 A18 18 0 0 0 128 80 M128 62 H140 M128 62 V96"/>
+  <text x="134" y="38" class="m" text-anchor="middle">BS/CS</text>
+  <rect x="60" y="96" width="84" height="22" class="b"/>
+  <text x="102" y="111" text-anchor="middle">混合器</text>
+  <path class="k" d="M102 118 V170 H150"/>
+
+  <!-- ブースター・分配器 -->
+  <path class="b" d="M150 158 L178 170 L150 182 Z"/>
+  <text x="164" y="150" class="s" text-anchor="middle">ブースター</text>
+  <path class="c" d="M178 170 H210"/>
+  <rect x="210" y="156" width="32" height="28" class="b"/>
+  <text x="226" y="174" class="m" text-anchor="middle">2</text>
+  <text x="226" y="148" class="s" text-anchor="middle">分配器</text>
+
+  <!-- 幹線 A・B -->
+  <path class="c" d="M226 156 V110 H630 M226 184 V230 H630"/>
+  <use href="#tap" x="330" y="110"/><use href="#tap" x="450" y="110"/><use href="#tap" x="570" y="110"/>
+  <use href="#tap" x="330" y="230"/><use href="#tap" x="450" y="230"/><use href="#tap" x="570" y="230"/>
+  <rect x="630" y="102" width="20" height="16" class="b"/><rect x="630" y="222" width="20" height="16" class="b"/>
+  <text x="640" y="96" class="m" font-size="9" text-anchor="middle">75Ω</text>
+  <text x="640" y="216" class="m" font-size="9" text-anchor="middle">75Ω</text>
+  <text x="330" y="94" class="s" text-anchor="middle">分岐器</text>
+  <text x="342" y="154" class="s">テレビ端子</text>
+  <text x="640" y="256" class="s" text-anchor="middle">終端抵抗</text>
+  <text x="464" y="292" class="s">各住戸へ(階ごとに分岐)</text>
+
+  <!-- CATV -->
+  <text x="20" y="246">CATV 引込</text>
+  <rect x="40" y="262" width="50" height="22" class="b"/>
+  <text x="65" y="277" class="s" text-anchor="middle">保安器</text>
+  <path class="g d" d="M90 273 H130 V172"/>
+  <text x="138" y="280" class="s">アンテナの代わり</text>
+  <path class="k" d="M65 284 V300 M55 300 H75 M59 305 H71 M63 310 H67"/>
+  <text x="82" y="306" class="s">D種接地</text>
+
+  <line x1="20" y1="322" x2="700" y2="322" class="h"/>
+  <text x="20" y="340" class="s">分配器は信号を等分する(分配損失 4〜14dB)。分岐器は幹線の信号を通しつつ一部を取り出す(分岐損失 10〜30dB)。</text>
+  <text x="20" y="355" class="s">同軸ケーブルは特性インピーダンス 75Ω。幹線の末端は終端抵抗で終わらせる。</text>
+  </g>
+</svg>

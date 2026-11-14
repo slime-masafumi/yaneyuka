@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 280" width="720" height="280" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>受水槽の六面点検と離隔</title>
+  <defs>
+    <marker id="tka" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#2E7D6B" stroke-width="1.2"/></marker>
+    <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#9a9a96" stroke-width="0.6"/></pattern>
+  </defs>
+  <text x="20" y="20" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">SECTION — 断面</text>
+
+  <!-- 躯体 -->
+  <rect x="110" y="28" width="300" height="12" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="110" y="226" width="300" height="12" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="110" y="40" width="12" height="186" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+
+  <!-- 受水槽 -->
+  <rect x="158" y="100" width="180" height="90" fill="#f5f5f2" stroke="#141414" stroke-width="1"/>
+  <line x1="162" y1="118" x2="334" y2="118" stroke="#9a9a96" stroke-width="0.8" stroke-dasharray="3 3"/>
+  <text x="166" y="132" font-size="10" fill="#5c5c5a">満水位</text>
+  <text x="248" y="160" font-size="12" fill="#141414" text-anchor="middle">受水槽</text>
+  <!-- マンホール -->
+  <rect x="280" y="92" width="36" height="8" fill="#f5f5f2" stroke="#141414" stroke-width="1"/>
+  <line x1="298" y1="92" x2="298" y2="66" stroke="#141414" stroke-width="0.6"/>
+  <rect x="296" y="62" width="4" height="4" fill="#141414"/>
+  <text x="206" y="58" font-size="11" fill="#141414">マンホール 直径60cm以上</text>
+  <!-- 架台 -->
+  <rect x="172" y="190" width="10" height="36" fill="#f5f5f2" stroke="#141414" stroke-width="1"/>
+  <rect x="314" y="190" width="10" height="36" fill="#f5f5f2" stroke="#141414" stroke-width="1"/>
+  <!-- オーバーフロー管 -->
+  <path d="M338 112 H360 V200" fill="none" stroke="#141414" stroke-width="1.2"/>
+  <path d="M350 212 H370 L366 226 H354 Z" fill="none" stroke="#141414" stroke-width="1"/>
+  <line x1="364" y1="160" x2="436" y2="186" stroke="#141414" stroke-width="0.6"/>
+  <rect x="434" y="184" width="4" height="4" fill="#141414"/>
+
+  <!-- 離隔(主題) -->
+  <line x1="176" y1="40" x2="176" y2="100" stroke="#2E7D6B" stroke-width="1.2" marker-start="url(#tka)" marker-end="url(#tka)"/>
+  <text x="182" y="76" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10.5" fill="#2E7D6B">100</text>
+  <line x1="122" y1="150" x2="158" y2="150" stroke="#2E7D6B" stroke-width="1.2" marker-start="url(#tka)" marker-end="url(#tka)"/>
+  <text x="140" y="144" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10.5" fill="#2E7D6B" text-anchor="middle">60</text>
+  <line x1="250" y1="190" x2="250" y2="226" stroke="#2E7D6B" stroke-width="1.2" marker-start="url(#tka)" marker-end="url(#tka)"/>
+  <text x="256" y="212" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10.5" fill="#2E7D6B">60</text>
+
+  <!-- 注記 -->
+  <text x="440" y="60" font-size="12" fill="#141414">六面点検</text>
+  <text x="440" y="80" font-size="10.5" fill="#5c5c5a">天井・底・周壁を建築物の他の部分と</text>
+  <text x="440" y="96" font-size="10.5" fill="#5c5c5a">兼用せず、外部から保守点検できる</text>
+  <text x="440" y="112" font-size="10.5" fill="#5c5c5a">ように設ける(昭和50年建告第1597号)</text>
+  <text x="440" y="140" font-size="11" fill="#2E7D6B">上部 100cm・周囲と底 60cm 以上</text>
+  <text x="440" y="156" font-size="10.5" fill="#5c5c5a">は水道事業者・自治体の指針による目安</text>
+  <text x="444" y="190" font-size="11" fill="#141414">オーバーフロー管</text>
+  <text x="444" y="206" font-size="10.5" fill="#5c5c5a">排水口空間をとって間接排水</text>
+  <text x="20" y="266" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="9.5" fill="#9a9a96">単位 cm</text>
+</svg>

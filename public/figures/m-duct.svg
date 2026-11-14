@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 290" width="720" height="290" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>空調ダクトの形と寸法の呼び方</title>
+  <defs>
+    <marker id="tk" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#141414" stroke-width="1"/></marker>
+    <marker id="tka" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#2E7D6B" stroke-width="1.2"/></marker>
+    <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#9a9a96" stroke-width="0.6"/></pattern>
+  </defs>
+  <text x="20" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">RECT — 角ダクト</text>
+  <text x="200" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">SPIRAL — スパイラル</text>
+  <text x="380" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">FLEX — フレキシブル</text>
+  <text x="560" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">GW — グラスウール</text>
+  <line x1="186" y1="16" x2="186" y2="240" stroke="#e6e6e2" stroke-width="1"/>
+  <line x1="366" y1="16" x2="366" y2="240" stroke="#e6e6e2" stroke-width="1"/>
+  <line x1="546" y1="16" x2="546" y2="240" stroke="#e6e6e2" stroke-width="1"/>
+  <rect x="34" y="84" width="130" height="66" fill="none" stroke="#141414" stroke-width="1.6"/>
+  <rect x="31" y="81" width="6" height="6" fill="#141414"/>
+  <rect x="161" y="81" width="6" height="6" fill="#141414"/>
+  <rect x="31" y="147" width="6" height="6" fill="#141414"/>
+  <rect x="161" y="147" width="6" height="6" fill="#141414"/>
+  <line x1="34" y1="80" x2="34" y2="54" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="164" y1="80" x2="164" y2="54" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="34" y1="60" x2="164" y2="60" stroke="#2E7D6B" stroke-width="1.2" marker-start="url(#tka)" marker-end="url(#tka)"/>
+  <text x="99" y="54" font-size="12" fill="#2E7D6B" text-anchor="middle">a</text>
+  <line x1="168" y1="84" x2="184" y2="84" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="168" y1="150" x2="184" y2="150" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="178" y1="84" x2="178" y2="150" stroke="#2E7D6B" stroke-width="1.2" marker-start="url(#tka)" marker-end="url(#tka)"/>
+  <text x="172" y="121" font-size="12" fill="#2E7D6B">b</text>
+  <line x1="161" y1="147" x2="152" y2="186" stroke="#141414" stroke-width="0.6"/>
+  <rect x="150" y="184" width="4" height="4" fill="#141414"/>
+  <text x="146" y="190" font-size="11" fill="#141414" text-anchor="end">角のはぜ(継目)</text>
+  <text x="20" y="214" font-size="10.5" fill="#5c5c5a">寸法は a×b(長辺×短辺)</text>
+  <text x="20" y="230" font-size="10.5" fill="#5c5c5a">a/b は 4 以下が目安</text>
+  <rect x="206" y="76" width="140" height="70" fill="none" stroke="#141414" stroke-width="1.2"/>
+  <line x1="206" y1="129.5" x2="214" y2="146" stroke="#141414" stroke-width="0.8"/>
+  <line x1="206" y1="76" x2="240" y2="146" stroke="#141414" stroke-width="0.8"/>
+  <line x1="232" y1="76" x2="266" y2="146" stroke="#141414" stroke-width="0.8"/>
+  <line x1="258" y1="76" x2="292" y2="146" stroke="#141414" stroke-width="0.8"/>
+  <line x1="284" y1="76" x2="318" y2="146" stroke="#141414" stroke-width="0.8"/>
+  <line x1="310" y1="76" x2="344" y2="146" stroke="#141414" stroke-width="0.8"/>
+  <line x1="336" y1="76" x2="346" y2="96.6" stroke="#141414" stroke-width="0.8"/>
+  <line x1="350" y1="76" x2="362" y2="76" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="350" y1="146" x2="362" y2="146" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="358" y1="76" x2="358" y2="146" stroke="#141414" stroke-width="0.6" marker-start="url(#tk)" marker-end="url(#tk)"/>
+  <text x="350" y="164" font-size="12" fill="#141414" text-anchor="end">φD</text>
+  <line x1="258" y1="112" x2="210" y2="186" stroke="#141414" stroke-width="0.6"/>
+  <rect x="208" y="184" width="4" height="4" fill="#141414"/>
+  <text x="216" y="190" font-size="11" fill="#141414">らせん状のはぜ</text>
+  <text x="206" y="214" font-size="10.5" fill="#5c5c5a">帯状の鋼板をらせんに巻き、</text>
+  <text x="206" y="230" font-size="10.5" fill="#5c5c5a">はぜで接合した丸ダクト</text>
+  <path d="M388,80 Q393,74 398,80 Q403,74 408,80 Q413,74 418,80 Q423,74 428,80 Q433,74 438,80 Q443,74 448,80 Q453,74 458,80 Q463,74 468,80 Q473,74 478,80 Q483,74 488,80 Q493,74 498,80 Q503,74 508,80 Q513,74 518,80 Q523,74 528,80" fill="none" stroke="#141414" stroke-width="1.2"/>
+  <path d="M388,142 Q393,148 398,142 Q403,148 408,142 Q413,148 418,142 Q423,148 428,142 Q433,148 438,142 Q443,148 448,142 Q453,148 458,142 Q463,148 468,142 Q473,148 478,142 Q483,148 488,142 Q493,148 498,142 Q503,148 508,142 Q513,148 518,142 Q523,148 528,142" fill="none" stroke="#141414" stroke-width="1.2"/>
+  <line x1="388" y1="80" x2="388" y2="142" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="398" y1="80" x2="398" y2="142" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="408" y1="80" x2="408" y2="142" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="418" y1="80" x2="418" y2="142" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="428" y1="80" x2="428" y2="142" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="438" y1="80" x2="438" y2="142" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="448" y1="80" x2="448" y2="142" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="458" y1="80" x2="458" y2="142" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="468" y1="80" x2="468" y2="142" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="478" y1="80" x2="478" y2="142" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="488" y1="80" x2="488" y2="142" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="498" y1="80" x2="498" y2="142" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="508" y1="80" x2="508" y2="142" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="518" y1="80" x2="518" y2="142" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="528" y1="80" x2="528" y2="142" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="388" y1="80" x2="388" y2="142" stroke="#141414" stroke-width="1.2"/>
+  <line x1="528" y1="80" x2="528" y2="142" stroke="#141414" stroke-width="1.2"/>
+  <text x="388" y="190" font-size="11" fill="#141414">蛇腹状(φ100〜300)</text>
+  <text x="388" y="214" font-size="10.5" fill="#5c5c5a">曲げやすいが通風抵抗が</text>
+  <text x="388" y="230" font-size="10.5" fill="#5c5c5a">大きい。長さを抑える</text>
+  <path fill-rule="evenodd" d="M572,84 h124 v70 h-124 Z M584,96 h100 v46 h-100 Z" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <line x1="700" y1="84" x2="714" y2="84" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="700" y1="96" x2="714" y2="96" stroke="#9a9a96" stroke-width="0.6"/>
+  <line x1="708" y1="72" x2="708" y2="84" stroke="#141414" stroke-width="0.6" marker-start="url(#tk)" marker-end="url(#tk)"/>
+  <line x1="708" y1="96" x2="708" y2="108" stroke="#141414" stroke-width="0.6" marker-start="url(#tk)" marker-end="url(#tk)"/>
+  <text x="704" y="68" font-size="12" fill="#141414">t</text>
+  <text x="560" y="190" font-size="11" fill="#141414">断熱材と一体のパネル</text>
+  <text x="560" y="214" font-size="10.5" fill="#5c5c5a">t = 20〜25(表)</text>
+  <text x="560" y="230" font-size="10.5" fill="#5c5c5a">強度・清掃性は鋼板に劣る</text>
+  <line x1="20" y1="252" x2="700" y2="252" stroke="#e6e6e2" stroke-width="1"/>
+  <text x="20" y="274" font-size="10.5" fill="#5c5c5a">鋼板ダクト(亜鉛めっき・ステンレス)の板厚は表の目安。角ダクトは長辺 a が大きいほど板厚と補強を増す</text>
+</svg>

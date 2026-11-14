@@ -14,7 +14,7 @@ export default function FeedPic({
   className = '',
 }: {
   src?: string;
-  size?: 'row' | 'lead' | 'mini';
+  size?: 'row' | 'lead' | 'mini' | 'mk';
   className?: string;
 }) {
   const [failed, setFailed] = useState(false);

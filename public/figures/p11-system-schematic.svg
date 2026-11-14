@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 300" width="720" height="300" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>個別分散パッケージと外気導入の系統</title>
+  <defs>
+    <marker id="arg" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M1 1 L7 4 L1 7" fill="none" stroke="#9a9a96" stroke-width="1"/></marker>
+    <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#9a9a96" stroke-width="0.6"/></pattern>
+  </defs>
+
+  <text x="20" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">DIAGRAM — 系統</text>
+
+  <!-- 躯体 -->
+  <rect x="120" y="70" width="560" height="8" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="112" y="70" width="8" height="190" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="672" y="78" width="8" height="182" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <line x1="120" y1="150" x2="672" y2="150" stroke="#141414" stroke-width="1"/>
+  <line x1="120" y1="260" x2="672" y2="260" stroke="#9a9a96" stroke-width="1"/>
+  <text x="640" y="116" font-size="10.5" fill="#9a9a96" text-anchor="middle">天井懐</text>
+
+  <!-- 室外機 -->
+  <line x1="168" y1="70" x2="168" y2="62" stroke="#141414" stroke-width="1"/>
+  <line x1="236" y1="70" x2="236" y2="62" stroke="#141414" stroke-width="1"/>
+  <rect x="160" y="30" width="84" height="32" fill="#f5f5f2" stroke="#141414" stroke-width="1"/>
+  <text x="202" y="51" font-size="11" fill="#141414" text-anchor="middle">室外機</text>
+
+  <!-- 冷媒配管(液管・ガス管) -->
+  <g fill="none" stroke="#2E7D6B" stroke-width="1.5">
+    <path d="M244 40 H276 V100 H560 V122"/>
+    <path d="M244 48 H270 V106 H554 V122"/>
+    <path d="M374 100 V122 M368 106 V122"/>
+  </g>
+  <text x="300" y="92" font-size="11" fill="#2E7D6B">冷媒配管(液管・ガス管)</text>
+
+  <!-- 室内機 -->
+  <rect x="340" y="122" width="56" height="28" fill="#f5f5f2" stroke="#141414" stroke-width="1"/>
+  <rect x="526" y="122" width="56" height="28" fill="#f5f5f2" stroke="#141414" stroke-width="1"/>
+  <rect x="334" y="150" width="68" height="3" fill="#141414"/>
+  <rect x="520" y="150" width="68" height="3" fill="#141414"/>
+  <text x="368" y="172" font-size="11" fill="#141414" text-anchor="middle">室内機</text>
+  <text x="554" y="172" font-size="11" fill="#141414" text-anchor="middle">室内機</text>
+
+  <!-- ドレン -->
+  <path d="M396 140 L420 140 L526 143 M582 143 L660 146 V198" fill="none" stroke="#141414" stroke-width="0.8" stroke-dasharray="5 2"/>
+  <text x="660" y="214" font-size="10.5" fill="#5c5c5a" text-anchor="end">排水管へ</text>
+  <text x="590" y="136" font-size="10.5" fill="#5c5c5a">ドレン(勾配)</text>
+
+  <!-- 全熱交換器 -->
+  <rect x="146" y="114" width="72" height="30" fill="#f5f5f2" stroke="#141414" stroke-width="1"/>
+  <path d="M146 122 H90 M146 136 H90" fill="none" stroke="#141414" stroke-width="0.8"/>
+  <line x1="60" y1="122" x2="88" y2="122" stroke="#9a9a96" stroke-width="0.8" marker-end="url(#arg)"/>
+  <line x1="88" y1="136" x2="60" y2="136" stroke="#9a9a96" stroke-width="0.8" marker-end="url(#arg)"/>
+  <text x="56" y="126" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" fill="#5c5c5a" text-anchor="end">OA</text>
+  <text x="56" y="140" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" fill="#5c5c5a" text-anchor="end">EA</text>
+  <path d="M164 144 V150 M200 144 V150" fill="none" stroke="#141414" stroke-width="0.8"/>
+  <line x1="164" y1="156" x2="164" y2="180" stroke="#9a9a96" stroke-width="0.8" marker-end="url(#arg)"/>
+  <line x1="200" y1="180" x2="200" y2="156" stroke="#9a9a96" stroke-width="0.8" marker-end="url(#arg)"/>
+  <text x="156" y="196" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" fill="#5c5c5a" text-anchor="middle">SA</text>
+  <text x="208" y="196" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" fill="#5c5c5a" text-anchor="middle">RA</text>
+  <text x="182" y="216" font-size="11" fill="#141414" text-anchor="middle">全熱交換器</text>
+  <text x="182" y="232" font-size="10.5" fill="#5c5c5a" text-anchor="middle">外気の導入・排気</text>
+
+  <text x="300" y="214" font-size="10.5" fill="#5c5c5a">室外機 1 台に室内機を複数つなぐ(個別分散)</text>
+  <text x="300" y="230" font-size="10.5" fill="#5c5c5a">能力は負荷計算で決め、機種は APF / COP で比べる</text>
+
+  <line x1="20" y1="270" x2="700" y2="270" stroke="#e6e6e2" stroke-width="1"/>
+  <text x="20" y="290" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10.5" fill="#5c5c5a"><tspan fill="#9a9a96">外気量</tspan><tspan dx="10">建築基準法の必要換気量(令20条の2)と CO2 濃度の基準に合わせて決める</tspan></text>
+</svg>

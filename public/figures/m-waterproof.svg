@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 340" width="720" height="340" font-family="'Hiragino Sans','Noto Sans JP','Yu Gothic','Meiryo',sans-serif">
+  <title>防水工法ごとの層の構成(断面)</title>
+  <defs>
+    <marker id="tk" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#141414" stroke-width="1"/></marker>
+    <marker id="tka" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 7 L7 1" stroke="#2E7D6B" stroke-width="1.2"/></marker>
+    <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#9a9a96" stroke-width="0.6"/></pattern>
+  </defs>
+  <text x="20" y="24" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="10" letter-spacing="1.2" fill="#9a9a96">SECTION — 層の構成(厚さは誇張)</text>
+  <line x1="188" y1="40" x2="188" y2="300" stroke="#e6e6e2" stroke-width="1"/>
+  <line x1="366" y1="40" x2="366" y2="300" stroke="#e6e6e2" stroke-width="1"/>
+  <line x1="544" y1="40" x2="544" y2="300" stroke="#e6e6e2" stroke-width="1"/>
+  <text x="20" y="52" font-size="11.5" fill="#141414">アスファルト防水</text>
+  <text x="20" y="70" font-size="10" font-family="ui-monospace,Menlo,Consolas,monospace" fill="#5c5c5a">A-1 等(保護密着)</text>
+  <rect x="20" y="262" width="52" height="30" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="20" y="259" width="52" height="3" fill="none" stroke="#141414" stroke-width="0.8"/>
+  <line x1="72" y1="260" x2="86" y2="266" stroke="#141414" stroke-width="0.6"/>
+  <rect x="84" y="264" width="4" height="4" fill="#141414"/>
+  <text x="92" y="270" font-size="10.5" fill="#141414">プライマー</text>
+  <rect x="20" y="252" width="52" height="7" fill="#eef6f3" stroke="#2E7D6B" stroke-width="1.2"/>
+  <rect x="20" y="245" width="52" height="7" fill="#eef6f3" stroke="#2E7D6B" stroke-width="1.2"/>
+  <rect x="20" y="238" width="52" height="7" fill="#eef6f3" stroke="#2E7D6B" stroke-width="1.2"/>
+  <line x1="72" y1="248" x2="86" y2="228" stroke="#141414" stroke-width="0.6"/>
+  <rect x="84" y="226" width="4" height="4" fill="#141414"/>
+  <text x="92" y="232" font-size="10.5" fill="#141414">ルーフィング類を</text>
+  <text x="92" y="246" font-size="10" fill="#5c5c5a">アスファルトで積層</text>
+  <rect x="20" y="235" width="52" height="3" fill="none" stroke="#141414" stroke-width="0.8"/>
+  <line x1="72" y1="236" x2="86" y2="200" stroke="#141414" stroke-width="0.6"/>
+  <rect x="84" y="198" width="4" height="4" fill="#141414"/>
+  <text x="92" y="204" font-size="10.5" fill="#141414">絶縁用シート</text>
+  <rect x="20" y="191" width="52" height="44" fill="#f5f5f2" stroke="#141414" stroke-width="0.8"/>
+  <line x1="72" y1="211" x2="86" y2="172" stroke="#141414" stroke-width="0.6"/>
+  <rect x="84" y="170" width="4" height="4" fill="#141414"/>
+  <text x="92" y="176" font-size="10.5" fill="#141414">保護コンクリート</text>
+  <text x="198" y="52" font-size="11.5" fill="#141414">改質アスファルトシート</text>
+  <text x="198" y="70" font-size="10" font-family="ui-monospace,Menlo,Consolas,monospace" fill="#5c5c5a">AS-T1(トーチ)</text>
+  <rect x="198" y="262" width="52" height="30" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="198" y="259" width="52" height="3" fill="none" stroke="#141414" stroke-width="0.8"/>
+  <line x1="250" y1="260" x2="264" y2="250" stroke="#141414" stroke-width="0.6"/>
+  <rect x="262" y="248" width="4" height="4" fill="#141414"/>
+  <text x="270" y="254" font-size="10.5" fill="#141414">プライマー</text>
+  <rect x="198" y="249" width="52" height="10" fill="#eef6f3" stroke="#2E7D6B" stroke-width="1.2"/>
+  <line x1="250" y1="254" x2="264" y2="214" stroke="#141414" stroke-width="0.6"/>
+  <rect x="262" y="212" width="4" height="4" fill="#141414"/>
+  <text x="270" y="218" font-size="10.5" fill="#141414">非露出複層用</text>
+  <text x="270" y="232" font-size="10" fill="#5c5c5a">2.5mm 以上</text>
+  <rect x="198" y="237" width="52" height="12" fill="#eef6f3" stroke="#2E7D6B" stroke-width="1.2"/>
+  <line x1="250" y1="243" x2="264" y2="168" stroke="#141414" stroke-width="0.6"/>
+  <rect x="262" y="166" width="4" height="4" fill="#141414"/>
+  <text x="270" y="172" font-size="10.5" fill="#141414">露出複層用</text>
+  <text x="270" y="186" font-size="10" fill="#5c5c5a">3.0mm 以上</text>
+  <text x="198" y="120" font-size="10.5" fill="#5c5c5a">シートの裏面を</text>
+  <text x="198" y="136" font-size="10.5" fill="#5c5c5a">トーチで溶かして張る</text>
+  <text x="376" y="52" font-size="11.5" fill="#141414">合成高分子系シート</text>
+  <text x="376" y="70" font-size="10" font-family="ui-monospace,Menlo,Consolas,monospace" fill="#5c5c5a">S-M1・S-M2(機械的固定)</text>
+  <rect x="376" y="262" width="52" height="30" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="392" y="258" width="20" height="4" fill="#141414"/>
+  <line x1="402" y1="262" x2="402" y2="282" stroke="#141414" stroke-width="1.6"/>
+  <line x1="412" y1="260" x2="442" y2="250" stroke="#141414" stroke-width="0.6"/>
+  <rect x="440" y="248" width="4" height="4" fill="#141414"/>
+  <text x="448" y="254" font-size="10.5" fill="#141414">固定金具</text>
+  <text x="448" y="268" font-size="10" fill="#5c5c5a">(下地に留める)</text>
+  <rect x="376" y="252" width="52" height="6" fill="#eef6f3" stroke="#2E7D6B" stroke-width="1.2"/>
+  <line x1="428" y1="255" x2="442" y2="206" stroke="#141414" stroke-width="0.6"/>
+  <rect x="440" y="204" width="4" height="4" fill="#141414"/>
+  <text x="448" y="210" font-size="10.5" fill="#141414">シート 1.5mm</text>
+  <text x="448" y="224" font-size="10" fill="#5c5c5a">(加硫ゴム・塩ビ)</text>
+  <text x="376" y="120" font-size="10.5" fill="#5c5c5a">接着工法(S-F)は</text>
+  <text x="376" y="136" font-size="10.5" fill="#5c5c5a">接着剤で全面に張る</text>
+  <text x="554" y="52" font-size="11.5" fill="#141414">ウレタンゴム系塗膜</text>
+  <text x="554" y="70" font-size="10" font-family="ui-monospace,Menlo,Consolas,monospace" fill="#5c5c5a">X-1(絶縁)</text>
+  <rect x="554" y="262" width="52" height="30" fill="url(#hatch)" stroke="#141414" stroke-width="1"/>
+  <rect x="554" y="259" width="52" height="3" fill="none" stroke="#141414" stroke-width="0.8"/>
+  <line x1="606" y1="260" x2="620" y2="250" stroke="#141414" stroke-width="0.6"/>
+  <rect x="618" y="248" width="4" height="4" fill="#141414"/>
+  <text x="626" y="254" font-size="10.5" fill="#141414">プライマー</text>
+  <rect x="554" y="252" width="52" height="7" fill="url(#hatch)" stroke="#141414" stroke-width="0.8"/>
+  <line x1="606" y1="255" x2="620" y2="222" stroke="#141414" stroke-width="0.6"/>
+  <rect x="618" y="220" width="4" height="4" fill="#141414"/>
+  <text x="626" y="226" font-size="10.5" fill="#141414">通気緩衝シート</text>
+  <rect x="554" y="236" width="52" height="16" fill="#eef6f3" stroke="#2E7D6B" stroke-width="1.2"/>
+  <line x1="606" y1="244" x2="620" y2="186" stroke="#141414" stroke-width="0.6"/>
+  <rect x="618" y="184" width="4" height="4" fill="#141414"/>
+  <text x="626" y="190" font-size="10.5" fill="#141414">塗膜 3.0kg/㎡</text>
+  <rect x="554" y="233" width="52" height="3" fill="none" stroke="#141414" stroke-width="0.8"/>
+  <line x1="606" y1="234" x2="620" y2="150" stroke="#141414" stroke-width="0.6"/>
+  <rect x="618" y="148" width="4" height="4" fill="#141414"/>
+  <text x="626" y="154" font-size="10.5" fill="#141414">仕上塗料</text>
+  <text x="554" y="104" font-size="10.5" fill="#5c5c5a">下地の湿気を</text>
+  <text x="554" y="120" font-size="10.5" fill="#5c5c5a">脱気装置で逃がす</text>
+  <line x1="20" y1="308" x2="700" y2="308" stroke="#e6e6e2" stroke-width="1"/>
+  <text x="20" y="328" font-size="10.5" fill="#5c5c5a"><tspan fill="#2E7D6B">緑 = 防水層</tspan><tspan dx="12">下は RC スラブ(下地)。層の数・材料・使用量は種別ごとに公共建築工事標準仕様書 9章で決まる</tspan></text>
+</svg>
