@@ -26,6 +26,7 @@
     "makers:verify": "node scripts/verify-makers.mjs",
     "makers:images": "node --import ./scripts/lib/register-ts.mjs scripts/collect-maker-images.ts",
     "figures:check": "node --import ./scripts/lib/register-ts.mjs scripts/check-figures.mjs",
+    "chatbot:check": "node --import ./scripts/lib/register-ts.mjs scripts/check-chatbot.ts",
     "knowledge:build": "node scripts/build-knowledge.mjs",
     "knowledge:verify": "node scripts/build-knowledge.mjs --verify",
     "makers:find-cad": "node scripts/find-cad-links.mjs",
@@ -36,7 +37,6 @@
     "test:regulations": "node scripts/test-regulation-rules.mjs"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^1.8.0",
     "@heroicons/react": "^2.2.0",
     "@kenjiuno/msgreader": "^1.28.0",
     "@types/leaflet": "^1.9.19",
