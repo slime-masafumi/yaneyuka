@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { TOOL_PAGES } from '@/lib/designToolPages';
 import { usePathname } from 'next/navigation';
 import { SCREEN_LABEL } from '@/lib/siteScreens';
 
@@ -34,6 +35,8 @@ const Breadcrumbs: React.FC = () => {
       'calc': '計算ツール',
       'glass-thickness': '必要ガラス厚の計算',
       'karte': '物件カルテ',
+      // 設計ツールの単体ページ /calc/{id}/(2026-11-15)
+      ...Object.fromEntries(TOOL_PAGES.map((t) => [t.id, t.title])),
     };
 
     let currentPath = '';

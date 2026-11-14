@@ -1,6 +1,7 @@
 import { MetadataRoute } from 'next'
 import { allLegalPaths } from '@/lib/legalPages'
 import { FLOW_ARTICLES } from '@/lib/forceFlowArticles'
+import { TOOL_PAGES } from '@/lib/designToolPages'
 import { ROUTED_SCREENS, screenPath, type ChangeFreq } from '@/lib/siteScreens'
 import { CATEGORY_SUBCATEGORIES, materialSubPath } from '@/lib/materialCategories'
 
@@ -49,6 +50,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: '/calc/glass-thickness', changeFrequency: 'monthly', priority: 0.7 },
     { path: '/calc/force-flow', changeFrequency: 'monthly', priority: 0.7 },
     ...FLOW_ARTICLES.map((a) => ({ path: `/calc/force-flow/${a.slug}`, changeFrequency: 'monthly' as ChangeFreq, priority: 0.7 })),
+    // 設計ツールの単体ページ(2026-11-15)
+    ...TOOL_PAGES.map((t) => ({ path: `/calc/${t.id}`, changeFrequency: 'monthly' as ChangeFreq, priority: 0.6 })),
     { path: '/karte', changeFrequency: 'monthly', priority: 0.4 },
   ];
 

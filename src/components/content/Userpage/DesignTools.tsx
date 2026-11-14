@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { consumeDesignToolsTarget, onDesignToolsTarget, type DesignToolsTarget } from '@/lib/designToolsNav';
 import { DESIGN_TOOL_MENU, type DesignToolEntry } from '@/lib/designToolsMenu';
+import { toolHref } from '@/lib/designToolPages';
 import MultiLayerCondensation from '@/components/content/Userpage/design-tools/MultiLayerCondensation';
 import StructuralTools from '@/components/content/Userpage/design-tools/10_StructuralTools';
 import VentilationCalculation from '@/components/content/Userpage/design-tools/12_VentilationCalculation';
@@ -158,6 +159,13 @@ const DesignTools: React.FC = () => {
             en={`tool · ${currentCategory.label}`}
             title={currentSubTab?.title ?? ''}
             desc={currentSubTab?.description}
+            actions={
+              toolHref(activeSubTab) ? (
+                <a href={toolHref(activeSubTab)!} className="yy-dt-link" title="このツールだけのページ(URL を人に送れる)">
+                  単体ページ ↗
+                </a>
+              ) : undefined
+            }
           />
         </div>
       )}

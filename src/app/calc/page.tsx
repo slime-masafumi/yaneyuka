@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import PageHead, { Stat } from '@/components/ui/PageHead';
+import { TOOL_PAGES } from '@/lib/designToolPages';
 import '@/components/karte/karte-premium.css';
 
 export const metadata: Metadata = {
@@ -69,7 +70,7 @@ export default function CalcIndexPage() {
         desc="ログイン不要・物件登録不要 · 根拠条文と計算式を併記"
         right={
           <>
-            <Stat n={TOOLS.length} label="公開中" />
+            <Stat n={TOOLS.length + TOOL_PAGES.length} label="公開中" />
             <Stat n={IN_KARTE.length} label="カルテ内" />
           </>
         }
@@ -87,6 +88,17 @@ export default function CalcIndexPage() {
             </h2>
             <Rows rows={TOOLS} />
           </section>
+          {/* 設計ツールの単体ページ(/calc/{id}/。2026-11-15)。分野ごとに */}
+          {[...new Set(TOOL_PAGES.map((t) => t.category))].map((cat, ci) => (
+            <section key={cat}>
+              <h2 className="yy-sec yy-kt-h2">
+                <span className="yy-sec__no">{String.fromCharCode(65 + ci)}</span>
+                <span className="yy-sec__title">{cat}</span>
+                <span className="yy-sec__right">{TOOL_PAGES.filter((t) => t.category === cat).length} 本</span>
+              </h2>
+              <Rows rows={TOOL_PAGES.filter((t) => t.category === cat).map((t) => ({ href: `/calc/${t.id}/`, title: t.title, desc: t.basis || t.description, field: t.category }))} />
+            </section>
+          ))}
           <section>
             <h2 className="yy-sec yy-kt-h2">
               <span className="yy-sec__no">II</span>

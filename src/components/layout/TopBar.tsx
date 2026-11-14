@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { toolPage } from '@/lib/designToolPages';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { FiChevronLeft, FiSearch } from 'react-icons/fi';
@@ -88,7 +89,7 @@ function buildCrumbs(
       .filter(Boolean)
       .map((seg) => {
         acc += `/${seg}`;
-        return { label: PATH_LABEL[seg] ?? seg, href: `${acc}/` };
+        return { label: PATH_LABEL[seg] ?? toolPage(seg)?.title ?? seg, href: `${acc}/` };
       });
     return [home, ...rest];
   }
