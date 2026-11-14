@@ -2296,6 +2296,12 @@ nav {
   .yy-mk.is-nopic .yy-mk__row { grid-template-columns: 38px minmax(0, 1fr) repeat(6, 40px) 32px; }
   .yy-mk__pages, .yy-mk__row--head .yy-mk__pages { display: none; }
 }
+/* スマホ: 列の合計が画面幅を超えて横にはみ出していた(2026-11-15)。番号・写真・リンクの列を詰める */
+@media (max-width: 767px) {
+  .yy-mk__row { grid-template-columns: 30px 40px minmax(0, 1fr) repeat(6, 28px) 26px; }
+  .yy-mk.is-nopic .yy-mk__row { grid-template-columns: 30px minmax(0, 1fr) repeat(6, 28px) 26px; }
+  .yy-mk__row--head { font-size: 9.5px; }
+}
 
 /* 建材ページ（MainLayout の .yy-matpage。モック「高級感 3」Q9）：
    左 210px 掲載枠 / 中 メーカーの表（mak_*.tsx）/ 右 270px 案件・ツール・調べもの / 下 メーカーのお知らせ */
@@ -2517,7 +2523,8 @@ nav {
 
 /* 設計ツール一覧（モック Q5 / Q6）：一覧 + 右列 250px。状態は 済（緑の点）/ 未着手（黒の輪）/ 対象外・カルテ外・準備中（灰） */
 .yy-tix__wrap { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 28px; align-items: start; }
-@media (max-width: 1279px) { .yy-tix__wrap { grid-template-columns: 1fr; } }
+/* 1fr だと中の長い行に押されて幅が広がり、スマホで横にはみ出していた(2026-11-15) */
+@media (max-width: 1279px) { .yy-tix__wrap { grid-template-columns: minmax(0, 1fr); } }
 .yy-tix__side { display: flex; flex-direction: column; gap: 16px; margin-top: 14px; }
 .yy-tix__side section { display: flex; flex-direction: column; }
 .yy-st { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--yy-ink); white-space: nowrap; max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
