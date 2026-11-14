@@ -16,6 +16,7 @@ import { db } from '@/lib/firebaseClient';
 import { usePdfjs } from '@/lib/pdfjs';
 import { buildMinutes, encodePts } from '@/lib/drawingBoard';
 import BoardCanvas, { type Tool } from './BoardCanvas';
+import GuestNote from '../GuestNote';
 import type { DecisionDoc, Presence, RoomBackend, RoomDoc, Stroke } from './roomBackend';
 
 const PEN_COLORS = [
@@ -39,6 +40,7 @@ export default function Room({
   me,
   onLeave,
   handleRef,
+  local = false,
 }: {
   backend: RoomBackend;
   roomId: string;
@@ -46,6 +48,8 @@ export default function Room({
   onLeave: () => void;
   /** 見出し帯から機能を呼ぶための口（押された時に run が呼ばれる） */
   handleRef?: React.Ref<RoomHandle>;
+  /** ひとりで試す部屋（未ログイン）。招待・同期・メモへの保存は出さず、ログインを案内する */
+  local?: boolean;
 }) {
   const pdfjs = usePdfjs();
   const [room, setRoom] = useState<RoomDoc | null | undefined>(undefined);
@@ -64,6 +68,7 @@ export default function Room({
   const [copied, setCopied] = useState('');
   const [showSettings, setShowSettings] = useState(false);
   const [now, setNow] = useState(Date.now());
+  const [note, setNote] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
   const decisionsRef = useRef<HTMLDivElement>(null);
 
@@ -212,7 +217,8 @@ export default function Room({
 
 
   const saveMinutesToMemo = async () => {
-    if (!minutes) return;
+    if (!minutes || local) return;
+    try {
     await addDoc(collection(db, 'users', me.uid, 'memos'), {
       title: minutes.title,
       content: minutes.html,
@@ -225,18 +231,35 @@ export default function Room({
       order: -Date.now(),
     });
     setCopied('memo');
+    } catch (e) {
+      console.error('議事録をメモに保存できませんでした', e);
+      setCopied('memo-error');
+    }
+  };
+
+  const downloadMinutes = () => {
+    if (!minutes) return;
+    const url = URL.createObjectURL(new Blob([minutes.text], { type: 'text/plain;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${minutes.title}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
   };
 
   const upload = async (file: File | undefined) => {
     if (!file) return;
-    if (file.type !== 'application/pdf') return alert('PDF を選んでください');
-    if (file.size > 50 * 1024 * 1024) return alert('50MB までの PDF にしてください');
+    if (file.type !== 'application/pdf') return setNote('PDF を選んでください');
+    if (file.size > 50 * 1024 * 1024) return setNote('50MB までの PDF にしてください');
+    setNote('');
     setUploading(true);
     try {
       const pdfInfo = await backend.uploadPdf(file);
       await backend.updateRoom({ pdf: pdfInfo });
     } catch {
-      alert('アップロードに失敗しました');
+      setNote('図面を上げられませんでした。通信を確かめて、もう一度選んでください');
     } finally {
       setUploading(false);
     }
@@ -279,21 +302,25 @@ export default function Room({
             {room.meetingUrl ? '会議の設定' : '会議の URL を登録'}
           </button>
         )}
-        <button type="button" className={btn(false)} onClick={() => void copy(inviteUrl, 'invite')}>
-          <FiCopy /> {copied === 'invite' ? 'コピーしました' : '招待リンク'}
-        </button>
-        <button
-          type="button"
-          className={btn(false)}
-          title="会議の URL・パスコード・電話番号・図面ボードの招待リンクをまとめた文面"
-          onClick={() => void copy(inviteLetter(), 'letter')}
-        >
-          <FiCopy /> {copied === 'letter' ? 'コピーしました' : '招待文'}
-        </button>
+        {!local && (
+          <>
+            <button type="button" className={btn(false)} onClick={() => void copy(inviteUrl, 'invite')}>
+              <FiCopy /> {copied === 'invite' ? 'コピーしました' : '招待リンク'}
+            </button>
+            <button
+              type="button"
+              className={btn(false)}
+              title="会議の URL・パスコード・電話番号・図面ボードの招待リンクをまとめた文面"
+              onClick={() => void copy(inviteLetter(), 'letter')}
+            >
+              <FiCopy /> {copied === 'letter' ? 'コピーしました' : '招待文'}
+            </button>
+          </>
+        )}
         {isOwner && (
           <>
             <button type="button" className={btn(false)} onClick={() => fileRef.current?.click()} disabled={uploading}>
-              <FiUpload /> {uploading ? '上げています…' : room.pdf ? '図面を差し替え' : '図面 PDF を上げる'}
+              <FiUpload /> {uploading ? '上げています…' : room.pdf ? '図面を差し替え' : local ? '図面 PDF を開く' : '図面 PDF を上げる'}
             </button>
             <input ref={fileRef} type="file" accept="application/pdf" className="hidden" onChange={(e) => { void upload(e.target.files?.[0]); e.target.value = ''; }} />
             {current ? (
@@ -308,18 +335,43 @@ export default function Room({
           </>
         )}
         {!isOwner && current && <span className="text-[11px] text-gray-700"><span className="text-[#52AA96]">●</span> {current.label} 進行中</span>}
-        <span className="ml-auto text-[11px] text-gray-500">
-          <span className="yy-mono text-[10px] tracking-[0.08em]">{String(active.length).padStart(2, '0')}</span> 人参加中{active.length ? `：${active.map((p) => p.name).join('、')}` : ''}
-        </span>
+        {local ? (
+          <span className="ml-auto text-[11px] text-gray-500">このブラウザの中だけ（相手には見えません）</span>
+        ) : (
+          <span className="ml-auto text-[11px] text-gray-500">
+            <span className="yy-mono text-[10px] tracking-[0.08em]">{String(active.length).padStart(2, '0')}</span> 人参加中{active.length ? `：${active.map((p) => p.name).join('、')}` : ''}
+          </span>
+        )}
       </div>
+      {note && (
+        <p className="px-3 py-1 text-[11px] text-orange-700 border-b" role="alert">
+          {note} <button type="button" className="underline text-gray-500 ml-1" onClick={() => setNote('')}>閉じる</button>
+        </p>
+      )}
+      {local && (
+        <div className="px-3 pt-1.5 border-b">
+          <GuestNote action="ログインして招待">
+            ひとりで試しています。図面はサーバーに上げず、この画面で開くだけです。相手を招待して同じ図面を囲むにはログインが要ります。
+          </GuestNote>
+        </div>
+      )}
+      {local && !room.pdf && (
+        <p className="px-3 py-2 text-[12px] text-gray-600 border-b">
+          まず
+          <button type="button" className="underline mx-1" onClick={() => fileRef.current?.click()}>図面 PDF を開く</button>
+          → 左の「赤入れ」で線を引く → 右に決定事項・宿題を書く →「議事録にする」。
+          {strokes.length > 0 && ' 前に試したときの赤入れが残っています。同じ図面を開くと重なります。'}
+        </p>
+      )}
 
-      <div className="flex flex-1 min-h-0">
+      {/* 狭い画面（スマホ）では 道具 → 図面 → 決定事項 の縦並び。横に並べると図面の幅が無くなる */}
+      <div className="flex flex-col md:flex-row flex-1 min-h-0">
         {/* 道具 */}
-        <div className="w-[132px] shrink-0 border-r p-2 space-y-2 text-[11px] bg-white">
-          <button type="button" className={`${btn(tool === 'pointer')} w-full`} onClick={() => setTool('pointer')}>
+        <div className="w-full md:w-[132px] shrink-0 border-b md:border-b-0 md:border-r p-2 flex flex-wrap items-center gap-2 md:block md:space-y-2 text-[11px] bg-white">
+          <button type="button" className={`${btn(tool === 'pointer')} md:w-full`} onClick={() => setTool('pointer')}>
             <FiMousePointer /> 指す
           </button>
-          <button type="button" className={`${btn(tool === 'pen')} w-full`} onClick={() => setTool('pen')}>
+          <button type="button" className={`${btn(tool === 'pen')} md:w-full`} onClick={() => setTool('pen')}>
             <FiEdit3 /> 赤入れ
           </button>
           {tool === 'pen' && (
@@ -329,18 +381,18 @@ export default function Room({
               ))}
             </div>
           )}
-          <button type="button" className={`${btn(tool === 'eraser')} w-full`} onClick={() => setTool('eraser')}>
+          <button type="button" className={`${btn(tool === 'eraser')} md:w-full`} onClick={() => setTool('eraser')}>
             <FiTrash2 /> 消す
           </button>
-          <p className="text-[10px] text-gray-400">{isOwner ? '誰の線でも消せます' : '自分の線だけ消せます'}</p>
+          <p className="hidden md:block text-[10px] text-gray-400">{local ? '線を押すと消えます' : isOwner ? '誰の線でも消せます' : '自分の線だけ消せます'}</p>
 
-          <div className="border-t pt-2 space-y-1">
+          <div className="md:border-t md:pt-2 md:space-y-1 flex items-center gap-2 md:block">
             <div className="flex items-center justify-between">
               <button type="button" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className="p-1 disabled:opacity-30"><FiChevronLeft /></button>
               <span className="yy-mono text-[10px]">{page} / {pdf?.numPages ?? '-'}</span>
               <button type="button" disabled={!pdf || page >= pdf.numPages} onClick={() => setPage((p) => p + 1)} className="p-1 disabled:opacity-30"><FiChevronRight /></button>
             </div>
-            <select value={zoom} onChange={(e) => setZoom(Number(e.target.value))} className="w-full px-1 py-0.5 text-[11px]">
+            <select value={zoom} onChange={(e) => setZoom(Number(e.target.value))} className="md:w-full px-1 py-0.5 text-[11px]">
               <option value={100}>枠に合わせる</option>
               <option value={150}>150%</option>
               <option value={200}>200%</option>
@@ -349,7 +401,7 @@ export default function Room({
           </div>
 
           {ended.length > 0 && (
-            <div className="border-t pt-2">
+            <div className="md:border-t md:pt-2">
               <div className="text-gray-500 mb-1">薄く重ねる回</div>
               <select value={ghostSession} onChange={(e) => setGhostSession(e.target.value)} className="w-full px-1 py-0.5 text-[11px]">
                 <option value="">重ねない</option>
@@ -362,7 +414,7 @@ export default function Room({
         </div>
 
         {/* 図面 */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 min-h-[60vh] md:min-h-0">
           {pdfError ? (
             <p className="p-4 text-[12px] text-red-600">{pdfError}</p>
           ) : (
@@ -407,13 +459,24 @@ export default function Room({
                 <button type="button" onClick={() => setMinutes(null)} aria-label="閉じる"><FiX /></button>
               </div>
               <pre className="p-3 text-[12px] whitespace-pre-wrap max-h-[50vh] overflow-y-auto font-sans">{minutes.text}</pre>
-              <div className="flex justify-end gap-2 px-3 py-2 border-t text-[12px]">
+              {local && (
+                <div className="px-3 border-t pt-1.5">
+                  <GuestNote>メモ（議事録）への保存はログインが要ります。テキストのコピーとファイル保存はこのまま使えます。</GuestNote>
+                </div>
+              )}
+              {copied === 'memo-error' && <p className="px-3 text-[11px] text-orange-700">メモに保存できませんでした。テキストをコピーして残してください。</p>}
+              <div className="flex flex-wrap justify-end gap-2 px-3 py-2 border-t text-[12px]">
                 <button type="button" className="px-3 py-1 border" onClick={() => void copy(minutes.text, 'minutes')}>
                   {copied === 'minutes' ? 'コピーしました' : 'テキストをコピー'}
                 </button>
-                <button type="button" className="px-3 py-1 bg-[#17302A] text-white rounded-full" onClick={() => void saveMinutesToMemo()} disabled={copied === 'memo'}>
-                  {copied === 'memo' ? 'メモに保存しました' : 'メモ（議事録）に保存'}
+                <button type="button" className="px-3 py-1 border" onClick={downloadMinutes}>
+                  .txt で保存
                 </button>
+                {!local && (
+                  <button type="button" className="px-3 py-1 bg-[#17302A] text-white rounded-full" onClick={() => void saveMinutesToMemo()} disabled={copied === 'memo'}>
+                    {copied === 'memo' ? 'メモに保存しました' : 'メモ（議事録）に保存'}
+                  </button>
+                )}
               </div>
             </div>
           </div>,
@@ -469,7 +532,7 @@ function Decisions({
     );
   };
   return (
-    <div ref={boxRef} className="w-[240px] shrink-0 border-l p-2 space-y-3 overflow-y-auto bg-white">
+    <div ref={boxRef} className="w-full md:w-[240px] shrink-0 border-t md:border-t-0 md:border-l p-2 space-y-3 overflow-y-auto bg-white">
       <div className="yy-mono text-[10px] tracking-[0.08em] text-gray-500">{label}</div>
       {section('decision', '決定事項')}
       {section('todo', '宿題')}

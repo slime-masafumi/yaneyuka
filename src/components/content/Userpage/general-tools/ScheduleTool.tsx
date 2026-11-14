@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ToolHeader from '../ToolHeader';
+import GuestNote from './GuestNote';
 import {
   collection,
   doc,
@@ -70,6 +71,22 @@ const generateUniqueSlug = async (): Promise<string> => {
   throw new Error('共有URLの生成に失敗しました');
 };
 
+/** 作成フォームの下書き（このブラウザだけ）。ログインしに行って戻っても入力が残る */
+const DRAFT_KEY = 'yy-guest-schedule-draft';
+type TimeSel = { timeType: 'am' | 'pm' | 'custom'; startHour: string; startMinute: string; endHour: string; endMinute: string };
+type ScheduleDraft = {
+  title: string;
+  description: string;
+  mode: ScheduleMode;
+  kind: string;
+  createRoles: string[];
+  deadlineDate: string;
+  deadlineTime: { timeType: 'am' | 'pm' | 'custom'; startHour: string; startMinute: string };
+  optionLabels: string[];
+  optionDates: string[];
+  optionTimes: TimeSel[];
+};
+
 const ScheduleTool: React.FC = () => {
   const { currentUser } = useAuth();
   const [view, setView] = useState<'list' | 'create' | 'edit'>('list');
@@ -88,7 +105,6 @@ const ScheduleTool: React.FC = () => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [mode, setMode] = useState<ScheduleMode>('date');
-  const [isPublic, setIsPublic] = useState(true);
   const [deadline, setDeadline] = useState('');
   const [optionLabels, setOptionLabels] = useState<string[]>(['']);
   const [optionDates, setOptionDates] = useState<string[]>(['']);
@@ -128,10 +144,58 @@ const ScheduleTool: React.FC = () => {
   // 新規追加・編集時の一時的な回答保持用
   const [pendingResponses, setPendingResponses] = useState<Record<string, ResponseValue>>({});
 
-  // コンポーネントがマウントされたときに一覧表示に戻す
+  // 作成フォームの下書き。未ログインでも候補を作り込めるようにし、
+  // 「共有リンクを発行」でログインしに行って戻ってきても入力が消えないよう、このブラウザに残す。
+  const [draftReady, setDraftReady] = useState(false);
+  const [formMsg, setFormMsg] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [copied, setCopied] = useState(false);
   useEffect(() => {
-    setView('list');
+    let draft: ScheduleDraft | null = null;
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (raw) draft = JSON.parse(raw) as ScheduleDraft;
+    } catch {
+      /* 読めなければ空のフォームから */
+    }
+    if (draft && Array.isArray(draft.optionLabels)) {
+      setTitle(draft.title ?? '');
+      setDescription(draft.description ?? '');
+      setMode(draft.mode === 'question' ? 'question' : 'date');
+      setKind(draft.kind ?? '');
+      setCreateRoles(Array.isArray(draft.createRoles) ? draft.createRoles : []);
+      setDeadlineDate(draft.deadlineDate ?? '');
+      if (draft.deadlineTime) setDeadlineTime(draft.deadlineTime);
+      setOptionLabels(draft.optionLabels.length ? draft.optionLabels : ['']);
+      setOptionDates(Array.isArray(draft.optionDates) ? draft.optionDates : ['']);
+      if (Array.isArray(draft.optionTimes) && draft.optionTimes.length) setOptionTimes(draft.optionTimes);
+      setView('create');
+    } else {
+      setView('list');
+    }
+    setDraftReady(true);
   }, []);
+  // 未ログインで開いたら、いきなり作成フォームを見せる（一覧は空なので）
+  useEffect(() => {
+    if (draftReady && !currentUser) setView((v) => (v === 'list' && !currentSchedule ? 'create' : v));
+  }, [draftReady, currentUser, currentSchedule]);
+  // 何か入れたら下書きに残す（空のフォームは残さない）
+  useEffect(() => {
+    if (!draftReady || view !== 'create') return;
+    const touched = title.trim() || description.trim() || optionLabels.some((l) => l.trim()) || deadlineDate || kind || createRoles.length;
+    try {
+      if (!touched) localStorage.removeItem(DRAFT_KEY);
+      else {
+        const draft: ScheduleDraft = { title, description, mode, kind, createRoles, deadlineDate, deadlineTime, optionLabels, optionDates, optionTimes };
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+      }
+    } catch {
+      /* 保存できなくても入力は続けられる */
+    }
+  }, [draftReady, view, title, description, mode, kind, createRoles, deadlineDate, deadlineTime, optionLabels, optionDates, optionTimes]);
+  const clearDraft = () => {
+    try { localStorage.removeItem(DRAFT_KEY); } catch { /* 無視 */ }
+  };
 
   // スケジュールの統計情報を取得
   const loadScheduleStats = useCallback(async (scheduleId: string) => {
@@ -239,6 +303,11 @@ const ScheduleTool: React.FC = () => {
         if (!schedule.deadline) continue;
         if (schedule.deadline.toDate() >= oneWeekAgo) continue;
         try {
+          // 候補・回答者・回答も消す（親だけ消すと、誰も読めない回答が残り続けていた）
+          for (const sub of ['options', 'participants', 'responses']) {
+            const snap = await getDocs(collection(db, 'schedules', schedule.id, sub));
+            await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
+          }
           await deleteDoc(doc(db, 'schedules', schedule.id));
           removed.add(schedule.id);
         } catch (error) {
@@ -360,9 +429,13 @@ const ScheduleTool: React.FC = () => {
 
   // スケジュール作成
   const handleCreateSchedule = async () => {
-    if (!title.trim()) { alert('タイトルを入力してください'); return; }
-    if (optionLabels.filter((l) => l.trim()).length === 0) { alert('候補を1つ以上入力してください'); return; }
-    if (!currentUser || !currentUser.uid) { alert('スケジュールを作成するにはログインが必要です'); return; }
+    if (!title.trim()) { setFormMsg('タイトルを入れてください'); return; }
+    if (optionLabels.filter((l) => l.trim()).length === 0) { setFormMsg(mode === 'date' ? '候補の日付を 1 つ以上選んでください' : '選択肢を 1 つ以上入れてください'); return; }
+    // 未ログインはここで止める。入力は下書きに残っているので、ログインして戻れば続きから発行できる
+    if (!currentUser || !currentUser.uid) { setFormMsg('guest'); return; }
+    if (creating) return;
+    setFormMsg('');
+    setCreating(true);
 
     try {
       const slug = await generateUniqueSlug();
@@ -377,7 +450,8 @@ const ScheduleTool: React.FC = () => {
         // 共有URLを受け取った全員に作成者のメールアドレスが見えてしまっていた。
         // アプリ内でこの値を読んでいる箇所も無い。
         mode,
-        isPublic,
+        // 「会員限定」は規則上、主催者以外が誰も開けない（回答が集まらない）ので、新規は URL 公開に固定
+        isPublic: true,
         ...(kind ? { kind } : {}),
         ...(createRoles.length ? { requiredRoles: createRoles } : {}),
         deadline: deadlineDate
@@ -408,6 +482,8 @@ const ScheduleTool: React.FC = () => {
         }))
         .filter((opt) => opt.label);
 
+      // 候補は 1 バッチで書く（1 件ずつだと途中で失敗したとき候補が欠けたまま共有される）
+      const optBatch = writeBatch(db);
       for (let i = 0; i < validOptions.length; i++) {
         const opt = validOptions[i];
         let dateTime: Timestamp | undefined;
@@ -419,20 +495,24 @@ const ScheduleTool: React.FC = () => {
           dateTime = Timestamp.fromDate(new Date(dateTimeStr));
         }
 
-        await addDoc(collection(db, 'schedules', slug, 'options'), {
+        optBatch.set(doc(collection(db, 'schedules', slug, 'options')), {
           label: opt.label,
-          dateTime: dateTime,
+          ...(dateTime ? { dateTime } : {}),
           order: i,
         });
       }
+      await optBatch.commit();
 
       await refreshScheduleList();
       await loadSchedule(slug);
       resetForm();
+      clearDraft();
       setView('list');
     } catch (error: any) {
       console.error('作成エラー:', error);
-      alert('スケジュールの作成に失敗しました');
+      setFormMsg('共有リンクを発行できませんでした。通信を確かめて、もう一度押してください（入力は残っています）');
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -570,7 +650,13 @@ const ScheduleTool: React.FC = () => {
   const handleCopyUrl = async () => {
     if (!currentSchedule) return;
     const url = typeof window !== 'undefined' ? `${window.location.origin}/tool/schedule/${currentSchedule.slug}` : '';
-    try { await navigator.clipboard.writeText(url); alert('URLをコピーしました'); } catch { alert('コピー失敗'); }
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      prompt('コピーしてください', url);
+    }
   };
 
   const handleLineShare = () => {
@@ -580,7 +666,8 @@ const ScheduleTool: React.FC = () => {
   };
 
   const resetForm = () => {
-    setTitle(''); setDescription(''); setMode('date'); setIsPublic(true); setKind(''); setCreateRoles([]);
+    setFormMsg('');
+    setTitle(''); setDescription(''); setMode('date'); setKind(''); setCreateRoles([]);
     setDeadlineDate(''); setDeadlineTime({ timeType: 'am', startHour: '09', startMinute: '00' });
     setOptionLabels(['']); setOptionDates(['']); setOptionTimes([{ timeType: 'am', startHour: '09', startMinute: '00', endHour: '12', endMinute: '00' }]);
   };
@@ -628,7 +715,7 @@ const ScheduleTool: React.FC = () => {
   /** 期間・曜日・時間帯から候補をまとめて入れる（空の行は置き換える） */
   const applyBatch = () => {
     const list = generateCandidates(batchFrom, batchTo, batchDays, batchSlots);
-    if (!list.length) return alert('期間・曜日・時間帯を選んでください');
+    if (!list.length) return;
     const keep = optionLabels.map((l, i) => i).filter((i) => optionLabels[i].trim());
     const time = (slot: Slot) => (slot === 'am'
       ? { timeType: 'am' as const, startHour: '09', startMinute: '00', endHour: '12', endMinute: '00' }
@@ -719,7 +806,7 @@ const ScheduleTool: React.FC = () => {
   };
   const needLogin = () => {
     if (currentUser) return false;
-    setHeadNotice('スケジュール調整を作るにはログイン（無料の会員登録）が必要です。回答だけなら、共有URLからログインなしでできます');
+    setHeadNotice('確定・書き出しは、共有リンクを発行したスケジュールで使えます。候補づくりはログインなしで試せます。回答する人はログイン不要です');
     return true;
   };
   const inList = view === 'list' && !!currentSchedule;
@@ -735,17 +822,14 @@ const ScheduleTool: React.FC = () => {
         features={[
           {
             label: 'まとめて候補を作る',
-            login: true,
             active: view === 'create' && showBatch,
             hint: '期間・曜日・午前午後から候補を一度に並べます（例: 来週の平日の午後）',
-            onClick: () => { if (needLogin()) return; setMode('date'); setShowBatch(true); openCreateAt(batchRef); },
+            onClick: () => { setMode('date'); setShowBatch(true); openCreateAt(batchRef); },
           },
           {
             label: '締切',
-            login: true,
             hint: '回答の締切。締切の 24 時間前にベルでお知らせし、過ぎると回答を締め切ります',
             onClick: () => {
-              if (needLogin()) return;
               if (inList && isScheduleOwner) scrollToRef(deadlineRef);
               else openCreateAt(deadlineRef);
             },
@@ -772,10 +856,8 @@ const ScheduleTool: React.FC = () => {
           },
           {
             label: '役割',
-            login: true,
             hint: '施主・設計・施工など、必ず出てほしい役割が揃う日を探します',
             onClick: () => {
-              if (needLogin()) return;
               if (inList && isScheduleOwner) scrollToRef(rolesRef);
               else openCreateAt(createRolesRef);
             },
@@ -835,7 +917,7 @@ const ScheduleTool: React.FC = () => {
         <div className="flex items-center gap-2">
             <span className="yy-mono text-[10px] text-gray-400">{schedules.length}</span>
             <button
-                onClick={() => { if (needLogin()) return; resetForm(); setView('create'); }}
+                onClick={() => { if (view !== 'create') { resetForm(); setView('create'); } }}
                 className="yy-btn yy-btn--primary flex items-center gap-1 !px-2 !py-1 !text-[10px]"
                 title="新規作成"
             >
@@ -845,7 +927,9 @@ const ScheduleTool: React.FC = () => {
       </div>
       <div className="flex-1 overflow-y-auto">
         {schedules.length === 0 ? (
-          <p className="text-[11px] text-gray-500 px-3 py-4">スケジュールはありません。</p>
+          <p className="text-[11px] text-gray-500 px-3 py-4">
+            {currentUser ? 'スケジュールはありません。' : '共有リンクを発行したスケジュールがここに並びます（ログインが要ります）。'}
+          </p>
         ) : (
           schedules.map((schedule) => {
             const stats = scheduleStats.get(schedule.id);
@@ -955,7 +1039,7 @@ const ScheduleTool: React.FC = () => {
                         onClick={handleCopyUrl}
                         className="yy-btn whitespace-nowrap"
                       >
-                        コピー
+                        {copied ? 'コピーしました' : 'コピー'}
                       </button>
                       <button
                         onClick={handleLineShare}
@@ -1218,6 +1302,14 @@ const ScheduleTool: React.FC = () => {
                            <FiList className="w-3.5 h-3.5 text-gray-500" />
                            回答一覧 <span className="text-gray-400 font-normal">({participants.length}名)</span>
                         </h3>
+                        <span className="flex items-center gap-3">
+                        <button
+                            onClick={() => void loadSchedule(currentSchedule.id)}
+                            className="text-[10px] text-gray-600 hover:text-black underline flex items-center gap-1"
+                            title="届いた回答を読み直す"
+                        >
+                            <FiRefreshCw className="w-3 h-3" /> 最新にする
+                        </button>
                         <button
                             onClick={() => setShowAllAnswers(!showAllAnswers)}
                             className="text-[10px] text-gray-600 hover:text-black underline flex items-center gap-1"
@@ -1225,6 +1317,7 @@ const ScheduleTool: React.FC = () => {
                             <FiEye className="w-3 h-3" />
                             {showAllAnswers ? '詳細を隠す' : '全員の回答を見る'}
                         </button>
+                        </span>
                       </div>
 
                       <div className="overflow-hidden border border-gray-300">
@@ -1368,7 +1461,7 @@ const ScheduleTool: React.FC = () => {
                   <FiCalendar className="inline mr-1 text-gray-400" />
                   一覧からスケジュールを選ぶか、
                   <button
-                    onClick={() => { if (needLogin()) return; resetForm(); setView('create'); }}
+                    onClick={() => { resetForm(); setView('create'); }}
                     className="ml-1 underline text-gray-700 hover:text-black"
                   >
                     新しく作成
@@ -1405,10 +1498,10 @@ const ScheduleTool: React.FC = () => {
                         <p className="text-[11px] text-gray-500 mt-1">基本情報と候補日程を入力してください</p>
                     </div>
                     <button
-                        onClick={() => { setView('list'); resetForm(); }}
-                        className="text-xs text-gray-500 hover:text-gray-700 underline flex items-center gap-1"
+                        onClick={() => { setView('list'); resetForm(); clearDraft(); }}
+                        className="text-xs text-gray-500 hover:text-gray-700 underline flex items-center gap-1 shrink-0"
                     >
-                        キャンセルして戻る
+                        やめて戻る
                     </button>
                 </div>
 
@@ -1499,27 +1592,10 @@ const ScheduleTool: React.FC = () => {
                         </div>
 
                         <div className="p-4 bg-white border border-gray-300">
-                            <label className="block text-[11px] font-bold text-gray-700 mb-2">公開設定</label>
-                            <div className="flex gap-3">
-                                <label className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 cursor-pointer hover:border-[#3b3b3b] flex-1">
-                                    <input
-                                        type="radio"
-                                        checked={isPublic}
-                                        onChange={() => setIsPublic(true)}
-                                        className="accent-[#141414]"
-                                    />
-                                    <span className="text-[11px]">URL公開</span>
-                                </label>
-                                <label className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 cursor-pointer hover:border-[#3b3b3b] flex-1">
-                                    <input
-                                        type="radio"
-                                        checked={!isPublic}
-                                        onChange={() => setIsPublic(false)}
-                                        className="accent-[#141414]"
-                                    />
-                                    <span className="text-[11px]">会員限定</span>
-                                </label>
-                            </div>
+                            <label className="block text-[11px] font-bold text-gray-700 mb-2">回答する人</label>
+                            <p className="text-[11px] text-gray-600 leading-relaxed">
+                                共有リンクを知っている人が、ログインなしで名前を入れて回答できます。LINE やメールでリンクを送ってください。
+                            </p>
                         </div>
                     </div>
 
@@ -1572,10 +1648,10 @@ const ScheduleTool: React.FC = () => {
                                   ))}
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <button type="button" onClick={applyBatch} className="yy-btn yy-btn--primary !px-3 !py-1">
+                                  <button type="button" onClick={applyBatch} disabled={!generateCandidates(batchFrom, batchTo, batchDays, batchSlots).length} className="yy-btn yy-btn--primary !px-3 !py-1 disabled:opacity-40">
                                     候補に入れる（{generateCandidates(batchFrom, batchTo, batchDays, batchSlots).length} 件）
                                   </button>
-                                  <span className="text-gray-500">最大 40 件。回答する人の負担を考えて絞ってください</span>
+                                  <span className="text-gray-500">{batchFrom && batchTo ? '最大 40 件。回答する人の負担を考えて絞ってください' : '始まりと終わりの日を選ぶと件数が出ます'}</span>
                                 </div>
                               </div>
                             )}
@@ -1744,12 +1820,22 @@ const ScheduleTool: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="mt-8 flex justify-center pb-6">
+                <div className="mt-8 pb-6 flex flex-col items-center gap-2">
+                    {!currentUser && formMsg !== 'guest' && (
+                        <p className="text-[11px] text-gray-500 text-center">入力はこのブラウザに残ります。共有リンクの発行だけログインが要ります。</p>
+                    )}
+                    {formMsg === 'guest' && (
+                        <div className="w-full max-w-sm">
+                            <GuestNote action="ログインして共有">共有リンクの発行はログインが要ります。入力した内容はこのまま残ります。</GuestNote>
+                        </div>
+                    )}
+                    {formMsg && formMsg !== 'guest' && <p className="text-[11px] text-orange-700 text-center" role="alert">{formMsg}</p>}
                     <button
                         onClick={handleCreateSchedule}
-                        className="yy-btn yy-btn--primary w-full max-w-sm !py-3"
+                        disabled={creating}
+                        className="yy-btn yy-btn--primary w-full max-w-sm !py-3 disabled:opacity-50"
                     >
-                        スケジュールを作成する
+                        {creating ? '発行しています…' : '共有リンクを発行する'}
                     </button>
                 </div>
             </div>

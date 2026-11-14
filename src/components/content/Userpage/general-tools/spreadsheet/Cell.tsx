@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 
 interface CellFormat {
   bold?: boolean;
@@ -71,9 +71,14 @@ interface CellProps {
   onKeyDown: (e: React.KeyboardEvent) => void;
   onPaste?: (e: React.ClipboardEvent<HTMLInputElement>) => void;
   formatCellNumber: (val: number, fmt?: CellFormat) => string;
-  isLoggedIn: boolean;
+  /** 以前は未ログインだと編集させなかった。今は誰でも編集できる（互換のため受け取るだけ） */
+  isLoggedIn?: boolean;
   isFormulaEditing?: boolean; // 数式バーで編集中かどうか
   onContextMenu?: (e: React.MouseEvent) => void;
+  /** 編集中の下書き（数式バーと同じ値）。編集を始めた瞬間の中身と、数式バー側で打った内容の反映に使う */
+  draft?: string;
+  /** セル内で打った内容を数式バーへ写す */
+  onDraftChange?: (value: string) => void;
 }
 
 const Cell: React.FC<CellProps> = ({
@@ -104,27 +109,43 @@ const Cell: React.FC<CellProps> = ({
   isFillHandleVisible,
   onFillStart,
   formatCellNumber,
-  isLoggedIn,
   isFormulaEditing = false,
   onContextMenu,
+  draft,
+  onDraftChange,
 }) => {
   const [localValue, setLocalValue] = useState(raw);
   const inputRef = useRef<HTMLInputElement>(null);
+  /** 確定・取り消しを済ませたか。済んだあとのフォーカス移動（blur）で二重に確定しないため */
+  const doneRef = useRef(false);
 
-  // 編集モードに入ったら入力フィールドにフォーカス
-  useEffect(() => {
-    if (isEditing && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
-    }
+  /**
+   * 編集モードに入った瞬間に、下書き（打ち始めた 1 文字、または今の中身）を入れる。
+   * ★以前は select() で全選択していたため、文字を打って編集を始めると 1 文字目が 2 文字目で
+   *   上書きされて消えていた（「123」が「23」になる）。描画中に決めるので、入力欄は最初から正しい値で出る。
+   */
+  const [prevEditing, setPrevEditing] = useState(isEditing);
+  if (prevEditing !== isEditing) {
+    setPrevEditing(isEditing);
+    if (isEditing) setLocalValue(draft ?? raw);
+  }
+
+  // 入力欄にフォーカスし、キャレットを末尾へ。数式バーを押して編集を始めたときはフォーカスを奪わない
+  useLayoutEffect(() => {
+    if (!isEditing) return;
+    doneRef.current = false;
+    const el = inputRef.current;
+    if (!el) return;
+    if ((document.activeElement as HTMLElement | null)?.closest?.('.formula-bar')) return;
+    el.focus();
+    el.setSelectionRange(el.value.length, el.value.length);
   }, [isEditing]);
 
-  // rawが変更されたらlocalValueも更新（外部からの変更に対応）
+  // 編集していないときは中身に合わせる。数式バーで打っている間（入力欄にフォーカスが無い）は数式バーの下書きを映す
   useEffect(() => {
-    if (!isEditing) {
-      setLocalValue(raw);
-    }
-  }, [raw, isEditing]);
+    if (!isEditing) setLocalValue(raw);
+    else if (draft !== undefined && document.activeElement !== inputRef.current) setLocalValue(draft);
+  }, [raw, isEditing, draft]);
 
   const displayValue = isEditing
     ? localValue
@@ -133,40 +154,29 @@ const Cell: React.FC<CellProps> = ({
     : String(computed);
 
   const handleDoubleClick = () => {
-    if (!isLoggedIn) {
-      alert('入力するには会員登録（無料）が必要です。');
-      return;
-    }
     // ダブルクリックで編集モードに入る（数式セルも含む）
     onStartEdit();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement | HTMLTableCellElement>) => {
     if (isEditing) {
-      // 編集モード中のキー操作
-      if (e.key === 'Enter') {
+      // 編集モード中のキー操作。
+      // ★処理したキーは親へ伝えない。以前は入力欄と td の両方でこの関数が動き、
+      //   さらにグリッドにも伝わって、1 回の Enter で確定と移動が 2 回ずつ走っていた。
+      if (e.nativeEvent.isComposing) return; // 日本語変換中の Enter は確定に使わない
+      if (e.key === 'Enter' || e.key === 'Tab' || e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        // 確定して移動（Enter=下 / Shift+Enter=上 / Tab=右 / Shift+Tab=左 / ↑↓）
         e.preventDefault();
+        e.stopPropagation();
+        doneRef.current = true;
         onEndEdit(localValue);
-        // Enter押下後は下のセルに移動（Shift+Enterで上のセル）
-        const nextRow = e.shiftKey ? row - 1 : row + 1;
-        if (nextRow >= 0) {
-          // 次のセルへの移動は親コンポーネントで処理
-          onKeyDown(e);
-        }
+        onKeyDown(e);
       } else if (e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
         setLocalValue(raw);
+        doneRef.current = true;
         onCancelEdit();
-      } else if (e.key === 'Tab') {
-        e.preventDefault();
-        onEndEdit(localValue);
-        onKeyDown(e);
-      } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-        // 編集中の上下矢印キーは編集を確定して移動
-        e.preventDefault();
-        onEndEdit(localValue);
-        onKeyDown(e);
       }
     } else {
       // 非編集モード中のキー操作
@@ -183,17 +193,11 @@ const Cell: React.FC<CellProps> = ({
         onKeyDown(e);
         return;
       }
-      // Enterキーで編集開始（ただし、数式が入っているセルは編集モードに入らない）
-      if (e.key === 'Enter' || e.key === 'F2') {
+      // F2 で編集開始（Excel と同じ。Enter は下へ移動＝親が処理）
+      if (e.key === 'F2') {
         e.preventDefault();
-        // 数式が入っているセルは編集モードに入らない（ダブルクリックまたは数式バーからのみ編集可能）
-        const isFormula = raw.trim().startsWith('=');
-        if (isLoggedIn && !isFormula) {
-          onStartEdit();
-        } else {
-          // 数式の場合は親コンポーネントに処理を委譲（セル移動など）
-          onKeyDown(e);
-        }
+        e.stopPropagation();
+        onStartEdit();
       } else {
         onKeyDown(e);
       }
@@ -202,9 +206,14 @@ const Cell: React.FC<CellProps> = ({
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setLocalValue(e.target.value);
+    onDraftChange?.(e.target.value);
   };
 
   const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    // Enter・Tab・Esc で済ませたあとのフォーカス移動では何もしない（二重確定を防ぐ）
+    if (doneRef.current) return;
+    // 数式バーへ移ったときは、そこで続けて編集するので確定しない（中身は下書きとして共有している）
+    if ((e.relatedTarget as HTMLElement | null)?.closest?.('.formula-bar')) return;
     // 数式バーで編集中の場合は、セルクリックで参照を挿入するため、onBlurを無視
     if (isFormulaEditing) {
       // 数式バーの入力フィールドにフォーカスが移った場合は無視
@@ -216,6 +225,7 @@ const Cell: React.FC<CellProps> = ({
       return;
     }
     if (isEditing) {
+      doneRef.current = true;
       onEndEdit(localValue);
     }
   };
@@ -278,6 +288,7 @@ const Cell: React.FC<CellProps> = ({
   return (
     <td
       key={cellKey}
+      data-cell={cellKey}
       className={cellClassName}
       rowSpan={rowSpan}
       colSpan={colSpan}

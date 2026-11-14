@@ -42,7 +42,13 @@ export type MailRecord = {
   importedAt: number;
 };
 
-export type LedgerState = { projects: Project[]; mails: MailRecord[]; ready: boolean };
+export type LedgerState = {
+  projects: Project[];
+  mails: MailRecord[];
+  ready: boolean;
+  /** クラウドを読めなかった（ルール・通信）。空の台帳と区別する */
+  error?: boolean;
+};
 
 export interface LedgerStore {
   kind: 'cloud' | 'local';
@@ -54,6 +60,35 @@ export interface LedgerStore {
   deleteMail(m: MailRecord): Promise<void>;
   /** 添付を開くための URL（ローカルは blob:、クラウドはダウンロード URL） */
   fileUrl(path: string): Promise<string>;
+}
+
+/**
+ * ログインした端末で、クラウドの台帳が空なら、このブラウザの台帳（物件・メール・添付）を上げる。
+ * 手元の IndexedDB は消さない（ログアウトしたときにまた見える。黙って捨てない）。
+ * 添付の置き場はクラウドの決まり（userUploads/{uid}/mail-…）に付け替える。
+ * 戻り値は上げたメールの件数。
+ */
+export async function migrateLocalToCloud(uid: string, cloud: LedgerStore): Promise<number> {
+  if (typeof indexedDB === 'undefined') return 0;
+  const d = await openDb();
+  const projects = ((await tx(d, ['projects'], 'readonly', (t) => t.objectStore('projects').getAll())) ?? []) as Project[];
+  const mails = ((await tx(d, ['mails'], 'readonly', (t) => t.objectStore('mails').getAll())) ?? []) as MailRecord[];
+  if (!projects.length && !mails.length) return 0;
+  for (const p of projects) await cloud.putProject(p);
+  let moved = 0;
+  for (const m of mails) {
+    const files: { path: string; data: Uint8Array; mime: string }[] = [];
+    const attachments: AttachmentRecord[] = [];
+    for (const [i, a] of m.attachments.entries()) {
+      const blob = (await tx(d, ['files'], 'readonly', (t) => t.objectStore('files').get(a.path))) as Blob | undefined;
+      const path = `userUploads/${uid}/mail-${m.id}-${i}`;
+      if (blob) files.push({ path, data: new Uint8Array(await blob.arrayBuffer()), mime: a.mime || blob.type });
+      attachments.push({ ...a, path });
+    }
+    await cloud.putMail({ ...m, attachments }, files);
+    moved++;
+  }
+  return moved;
 }
 
 const clean = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
@@ -72,16 +107,32 @@ export function cloudStore(uid: string): LedgerStore {
       let projectsReady = false;
       let mailsReady = false;
       const emit = () => cb({ ...state, ready: projectsReady && mailsReady });
-      const u1 = onSnapshot(projectsCol, (s) => {
-        state.projects = s.docs.map((d) => ({ ...(d.data() as Project), id: d.id }));
+      // 読めないときも ready にする（「読み込み中」のまま止まらないように）。error で空の台帳と区別する
+      const fail = (e: unknown) => {
+        console.error('[yymail] 台帳を読めませんでした', e);
+        state.error = true;
         projectsReady = true;
-        emit();
-      });
-      const u2 = onSnapshot(mailsCol, (s) => {
-        state.mails = s.docs.map((d) => ({ ...(d.data() as MailRecord), id: d.id }));
         mailsReady = true;
         emit();
-      });
+      };
+      const u1 = onSnapshot(
+        projectsCol,
+        (s) => {
+          state.projects = s.docs.map((d) => ({ ...(d.data() as Project), id: d.id }));
+          projectsReady = true;
+          emit();
+        },
+        fail
+      );
+      const u2 = onSnapshot(
+        mailsCol,
+        (s) => {
+          state.mails = s.docs.map((d) => ({ ...(d.data() as MailRecord), id: d.id }));
+          mailsReady = true;
+          emit();
+        },
+        fail
+      );
       return () => {
         u1();
         u2();

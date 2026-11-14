@@ -14,11 +14,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import ToolHeader from './ToolHeader';
+import GuestNote from './general-tools/GuestNote';
 import { useAuth } from '@/lib/AuthContext';
 import { useTaskContext } from '@/components/providers/TaskProvider';
 import { mailIdOf, matchProject, normalizeSubject, parseDrawingName, pickTodoLines } from '@/lib/mailLedger';
 import { isMailFile, parseMailFile } from './yymail/parseMail';
-import { cloudStore, localStore, type LedgerState, type LedgerStore, type MailRecord, type Project } from './yymail/ledgerStore';
+import { cloudStore, localStore, migrateLocalToCloud, type LedgerState, type LedgerStore, type MailRecord, type Project } from './yymail/ledgerStore';
 import { collectDrawings, CompareModal, revLabel, shortDate, Transmittal, type DrawingGroup, type DrawingVersion } from './yymail/DrawingViews';
 import { FiCheckSquare, FiFileText, FiInbox, FiPaperclip, FiPlus, FiTrash2, FiUpload } from 'react-icons/fi';
 
@@ -34,8 +35,32 @@ export default function YyMail() {
   const { isLoggedIn, currentUser } = useAuth();
   const uid = isLoggedIn ? currentUser?.uid : undefined;
   const store = useMemo<LedgerStore | null>(() => (typeof window === 'undefined' ? null : uid ? cloudStore(uid) : localStore()), [uid]);
-  const [state, setState] = useState<LedgerState>({ projects: [], mails: [], ready: false });
-  useEffect(() => store?.subscribe(setState), [store]);
+  // kind: どの保存先から来た中身か（切り替わった直後の 1 回の描画では前の保存先の中身が残るため）
+  const [state, setState] = useState<LedgerState & { kind?: LedgerStore['kind'] }>({ projects: [], mails: [], ready: false });
+  useEffect(() => {
+    if (!store) return;
+    // 保存先が変わったら（ログイン・ログアウト）前の中身を引きずらない。
+    // 引きずると、下の移行の判定が前の保存先の中身で行われる
+    setState({ projects: [], mails: [], ready: false });
+    return store.subscribe((s) => setState({ ...s, kind: store.kind }));
+  }, [store]);
+
+  // ログインした端末で、クラウドの台帳が空なら、このブラウザで取り込んだ台帳を上げる（移行）
+  const [migrateMsg, setMigrateMsg] = useState('');
+  const migratedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!uid || !store || store.kind !== 'cloud' || state.kind !== 'cloud' || !state.ready || state.error) return;
+    if (migratedFor.current === uid) return;
+    migratedFor.current = uid;
+    if (state.mails.length || state.projects.length) return;
+    setMigrateMsg('このブラウザで取り込んだ台帳をアカウントへ移しています…');
+    migrateLocalToCloud(uid, store)
+      .then((n) => setMigrateMsg(n ? `このブラウザで取り込んだメール ${n} 件をアカウントへ移しました。ほかの端末でも見られます。` : ''))
+      .catch((e) => {
+        console.error('[yymail] 移行に失敗', e);
+        setMigrateMsg('このブラウザの台帳をアカウントへ移せませんでした。ログアウトすると手元の台帳はそのまま見られます。');
+      });
+  }, [uid, store, state.kind, state.ready, state.error, state.mails.length, state.projects.length]);
 
   const [projectId, setProjectId] = useState<string>(ALL);
   const [tab, setTab] = useState<'mail' | 'drawing'>('mail');
@@ -179,7 +204,7 @@ export default function YyMail() {
     try {
       window.open(await store.fileUrl(path), '_blank', 'noopener');
     } catch (e) {
-      alert(e instanceof Error ? e.message : '開けませんでした');
+      setHeadNotice(e instanceof Error ? `添付を開けませんでした（${e.message}）` : '添付を開けませんでした');
     }
   };
 
@@ -205,7 +230,7 @@ export default function YyMail() {
   return (
     <div className="pt-0 pb-4">
       <div
-        className="w-full h-[calc(100vh-100px)] flex flex-col [&>*:not(:first-child)]:mx-4"
+        className="w-full md:h-[calc(100vh-100px)] flex flex-col [&>*:not(:first-child)]:mx-4"
         onDragOver={(e) => {
           e.preventDefault();
           setDragging(true);
@@ -271,10 +296,13 @@ export default function YyMail() {
           ]}
         />
         {headNotice && <p className="mt-2 text-[11px] text-gray-600" role="status">{headNotice}</p>}
+        {store?.kind === 'local' && <GuestNote className="mt-2 !mb-0">このブラウザに保存しています（添付も端末の中だけ）。ログインすると端末間で同期します。</GuestNote>}
+        {migrateMsg && <p className="mt-2 text-[11px] text-gray-700" role="status">{migrateMsg}</p>}
+        {state.error && <p className="mt-2 text-[11px] text-red-600" role="alert">台帳を読み込めませんでした。通信状態を確かめて、開き直してください。</p>}
 
-        <div className={`mt-2 bg-white border overflow-hidden flex flex-1 min-h-0 ${dragging ? 'border-[#52AA96] outline outline-1 outline-[#52AA96]' : 'border-[#3b3b3b]'}`}>
+        <div className={`mt-2 bg-white border overflow-hidden flex flex-col md:flex-row md:flex-1 md:min-h-0 ${dragging ? 'border-[#52AA96] outline outline-1 outline-[#52AA96]' : 'border-[#3b3b3b]'}`}>
           {/* 左：取り込みと物件 */}
-          <div className="w-56 shrink-0 border-r border-[#3b3b3b] flex flex-col min-h-0">
+          <div className="w-full md:w-56 shrink-0 border-b md:border-b-0 md:border-r border-[#3b3b3b] flex flex-col min-h-0 max-h-[50vh] md:max-h-none">
             <div className="p-2 border-b bg-gray-50 space-y-1">
               <button
                 type="button"
@@ -351,7 +379,7 @@ export default function YyMail() {
           </div>
 
           {/* 中：メールと図面の一覧 */}
-          <div className="w-[340px] shrink-0 border-r border-[#3b3b3b] flex flex-col min-h-0">
+          <div className="w-full md:w-[340px] shrink-0 border-b md:border-b-0 md:border-r border-[#3b3b3b] flex flex-col min-h-0 max-h-[60vh] md:max-h-none">
             <div className="flex border-b text-[12px]">
               {(['mail', 'drawing'] as const).map((t) => (
                 <button
@@ -455,7 +483,7 @@ export default function YyMail() {
           </div>
 
           {/* 右：中身 */}
-          <div className="flex-1 min-w-0 overflow-y-auto">
+          <div className="flex-1 min-w-0 overflow-y-auto min-h-[160px]">
             {tab === 'mail' && mail && (
               <MailDetail
                 key={mail.id}
@@ -518,7 +546,7 @@ export default function YyMail() {
             )}
             {((tab === 'mail' && !mail) || (tab === 'drawing' && !drawing)) && (
               <div className="p-4 text-[11px] text-gray-500">
-                {tab === 'mail' ? '左からメールを選んでください' : '左から図面を選ぶと、版の履歴が出ます'}
+                {tab === 'mail' ? '一覧からメールを選んでください' : '一覧から図面を選ぶと、版の履歴が出ます'}
               </div>
             )}
           </div>
@@ -708,9 +736,9 @@ function ProjectEditor({ project, onSave, onCancel }: { project: Project | null;
   const [name, setName] = useState(project?.name ?? '');
   const [words, setWords] = useState(project ? project.keywords.join('\n') : '');
   return createPortal(
-    <div className="fixed inset-0 z-[10000] bg-black/40 flex items-start justify-center pt-[120px]" onClick={onCancel}>
+    <div className="fixed inset-0 z-[10000] bg-black/40 flex items-start justify-center pt-[120px] px-4" onClick={onCancel}>
       <form
-        className="bg-white border border-[#3b3b3b] w-[380px] p-4 space-y-2 text-[12px]"
+        className="bg-white border border-[#3b3b3b] w-full max-w-[380px] p-4 space-y-2 text-[12px]"
         onClick={(e) => e.stopPropagation()}
         onSubmit={(e) => {
           e.preventDefault();
@@ -743,7 +771,7 @@ function ProjectEditor({ project, onSave, onCancel }: { project: Project | null;
         </label>
         <div className="flex justify-end gap-2">
           <button type="button" className="px-3 py-1 border" onClick={onCancel}>やめる</button>
-          <button type="submit" className="px-3 py-1 bg-[#17302A] text-white rounded-full font-bold">保存して仕分け直す</button>
+          <button type="submit" className="yy-btn yy-btn--primary">保存して仕分け直す</button>
         </div>
       </form>
     </div>,

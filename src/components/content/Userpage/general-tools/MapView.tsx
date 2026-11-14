@@ -24,6 +24,7 @@ import { zoneInfoAt, ZONING_MIN_ZOOM, type ZoneInfo, type ZoningStatus } from '.
 import { useSites, type Site } from './map/useSites';
 import { BASES, type BaseId, type MapViewState } from './map/SiteMap';
 import ToolHeader from '../ToolHeader';
+import GuestNote from './GuestNote';
 
 const SiteMap = dynamic(() => import('./map/SiteMap'), {
   ssr: false,
@@ -128,7 +129,7 @@ const MapView: React.FC = () => {
   const sitesRef = useRef<HTMLDivElement>(null);
   const scrollToMapRef = (r: React.RefObject<HTMLElement | null>) =>
     r.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  const { sites, add, update, remove, synced } = useSites();
+  const { sites, add, update, remove, synced, syncError } = useSites();
 
   // 前回見ていた場所から始める
   useEffect(() => {
@@ -418,8 +419,11 @@ const MapView: React.FC = () => {
             <div ref={sitesRef} className="bg-gray-50 p-3 border border-[#3b3b3b] space-y-2 scroll-mt-3">
               <div className="flex items-center justify-between">
                 <div className="text-[11px] font-bold text-gray-600">保存した敷地 <span className="yy-mono font-normal text-gray-400">{String(sites.length).padStart(3, '0')}</span></div>
-                <span className="text-[10px] text-gray-400">{synced ? '端末間で同期' : 'このブラウザに保存・ログインで同期'}</span>
+                <span className={`text-[10px] ${syncError ? 'text-red-600' : 'text-gray-400'}`}>
+                  {syncError ? '同期できませんでした' : synced ? '端末間で同期' : 'このブラウザに保存'}
+                </span>
               </div>
+              {!synced && <GuestNote className="!mb-0" />}
               {sites.length === 0 && <p className="text-[11px] text-gray-500">地点や求積した敷地を保存すると、ここに並びます。</p>}
               {sites.map((s) => (
                 <div key={s.id} className="bg-white border p-2 space-y-1">
@@ -534,8 +538,8 @@ const PrintSheet: React.FC<{
       className="fixed inset-x-0 bottom-0 z-[10000] bg-black/60 flex flex-col items-center overflow-auto"
       style={{ top: 'var(--nav-height, 35px)' }}
     >
-      <div className="no-print flex items-center gap-2 bg-white px-3 py-2 mt-3 border border-[#3b3b3b]">
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="物件名（図面に入ります）" className="px-2 py-1 text-[12px] w-[240px]" />
+      <div className="no-print flex flex-wrap items-center gap-2 bg-white px-3 py-2 mt-3 mx-3 border border-[#3b3b3b] max-w-[calc(100%-24px)]">
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="物件名（図面に入ります）" className="px-2 py-1 text-[12px] w-[240px] max-w-full" />
         <button type="button" className="px-3 py-1 text-[12px] bg-[#17302A] text-white rounded-full flex items-center gap-1" onClick={() => window.print()}>
           <FiPrinter /> 印刷（A3 横）
         </button>

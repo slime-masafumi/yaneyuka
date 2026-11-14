@@ -1,7 +1,6 @@
 'use client';
 
 import React, { DragEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useAuth } from '@/lib/AuthContext';
 import { FiImage, FiCheckCircle, FiDownload, FiAlertCircle } from 'react-icons/fi';
 import ToolHeader from '../ToolHeader';
 import {
@@ -335,7 +334,9 @@ async function convertInBrowser(
     throw new Error('Blob生成に失敗しました');
   }
 
-  const newName = task.file.name.replace(/\.[^.]+$/, '') + `_conv.${options.targetFormat}`;
+  // 画面の選択肢どおり JPEG は .jpg で書き出す（.jpeg を受け付けない提出先がある）
+  const outExt = options.targetFormat === 'jpeg' ? 'jpg' : options.targetFormat;
+  const newName = task.file.name.replace(/\.[^.]+$/, '') + `_conv.${outExt}`;
   return new File([blob], newName, { type: blob.type });
 }
 
@@ -423,7 +424,6 @@ function estimateFileSize(
 }
 
 const ImageConverter: React.FC = () => {
-  const { isLoggedIn } = useAuth();
   const [tasks, setTasks] = useState<ConversionTask[]>([]);
   // 位置情報つきで取り込まれた枚数。0 でなければ画面で明示する。
   const [gpsCount, setGpsCount] = useState(0);
@@ -505,8 +505,10 @@ const ImageConverter: React.FC = () => {
           }
 
           updateTask(taskId, { orientation, message: 'ブラウザ変換中...' });
-          const longSide = resizeMode !== 'original' ? Number(resizeMode) || null : null;
-          const resizeModeForConvert: 'original' | 'longer' = resizeMode === 'original' ? 'original' : 'longer';
+          // 設定は optionsRef から読む。ここで resizeMode を直接見ると、
+          // useCallback が最初の値（原寸）を握ったままになり、リサイズが効かなかった。
+          const longSide = options.longSide;
+          const resizeModeForConvert: 'original' | 'longer' = longSide ? 'longer' : 'original';
           const resizeOptions = {
             mode: resizeModeForConvert,
             customWidth: null as number | null,
@@ -531,10 +533,15 @@ const ImageConverter: React.FC = () => {
           });
         } catch (error: any) {
           console.error('変換失敗', error);
+          // ブラウザの英語のエラー文はそのまま出しても直し方が分からないので、日本語の理由に置き換える
+          const raw = typeof error?.message === 'string' ? error.message : '';
+          const reason = /[ぁ-んァ-ン一-龥]/.test(raw)
+            ? raw
+            : '画像を読み込めませんでした。ファイルが壊れているか、このブラウザが読めない形式です。';
           updateTask(taskId, {
             status: 'error',
-            error: error?.message ?? '変換に失敗しました。',
-            message: error?.message ?? '変換に失敗しました。',
+            error: reason,
+            message: reason,
             progress: 0,
           });
         } finally {
@@ -583,27 +590,35 @@ const ImageConverter: React.FC = () => {
       setTimeout(() => setProcessingError(null), 3000);
       return;
     }
-    // すべてのpendingタスクをキューに追加
-    setTasks(prev => prev.map(task => 
-      task.status === 'pending' ? { ...task, status: 'queued' } : task
+    // 待機中のものだけ変換する。待機が無ければ（設定を変えてやり直すとき）済んだもの・失敗したものを今の設定で変換し直す
+    setImageNotice(
+      useTargetSize && !(typeof targetSizeMB === 'number' && targetSizeMB > 0)
+        ? '目標ファイルサイズが空なので、品質とリサイズの設定だけで変換します。'
+        : ''
+    );
+    const hasPending = tasks.some(task => task.status === 'pending');
+    setTasks(prev => prev.map(task =>
+      task.status === 'pending' || (!hasPending && (task.status === 'completed' || task.status === 'error'))
+        ? { ...task, status: 'queued', converted: undefined, convertedSize: undefined, error: undefined, progress: 0 }
+        : task
     ));
     // 変換を開始
     if (processingRef.current < MAX_CONCURRENT) {
       startNextRef.current();
     }
-  }, [tasks]);
+  }, [tasks, useTargetSize, targetSizeMB]);
 
   const enqueueFiles = useCallback(
     async (files: FileList | File[]) => {
-      if (!isLoggedIn) {
-        alert('入力するには会員登録（無料）が必要です。');
-        return;
-      }
       const list = Array.from(files);
       if (!list.length) return;
       const newTasks: ConversionTask[] = [];
       const warnings: string[] = [];
-      
+      const room = MAX_FILES - tasks.length;
+      if (list.length > room) {
+        warnings.push(`一度に扱えるのは ${MAX_FILES} 枚までです。${list.length - Math.max(0, room)} 枚は追加していません。`);
+      }
+
       // ループ処理
       for (const file of list.slice(0, MAX_FILES - tasks.length)) {
         const ext = getExtension(file);
@@ -652,16 +667,12 @@ const ImageConverter: React.FC = () => {
         });
       }
     },
-    [tasks.length, isLoggedIn],
+    [tasks.length],
   );
 
   const handleDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragging(false);
-    if (!isLoggedIn) {
-      alert('入力するには会員登録（無料）が必要です。');
-      return;
-    }
     if (tasks.length >= MAX_FILES) {
       setProcessingError(`これ以上追加できません（最大 ${MAX_FILES} 件）。`);
       return;
@@ -671,11 +682,6 @@ const ImageConverter: React.FC = () => {
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!isLoggedIn) {
-      alert('入力するには会員登録（無料）が必要です。');
-      if (e.target) e.target.value = '';
-      return;
-    }
     if (e.target.files) {
       enqueueFiles(e.target.files);
       e.target.value = '';
@@ -789,12 +795,8 @@ const ImageConverter: React.FC = () => {
         features={[
           {
             label: '一括変換（HEIC → JPEG ほか）',
-            login: true,
-            hint: `PNG / JPEG / WebP / GIF / SVG / HEIC を最大 ${MAX_FILES} 枚まとめて JPEG・PNG・WebP に`,
-            onClick: () => {
-              if (!isLoggedIn) { setImageNotice('ログイン（無料の会員登録）すると画像を取り込めます。変換はブラウザの中だけで行い、送信しません。'); return; }
-              fileInputRef.current?.click();
-            },
+            hint: `PNG / JPEG / WebP / GIF / SVG / HEIC を最大 ${MAX_FILES} 枚まとめて JPEG・PNG・WebP に。変換はブラウザの中だけで行い、送信しない`,
+            onClick: () => fileInputRef.current?.click(),
           },
           {
             label: '長辺リサイズ（1920px 等）',
@@ -850,12 +852,6 @@ const ImageConverter: React.FC = () => {
                       <p className="text-[12px] text-gray-600">画像ファイルをドラッグ＆ドロップ</p>
                       <label
                         htmlFor="image-converter-input"
-                        onClick={(e) => {
-                          if (!isLoggedIn) {
-                            alert('入力するには会員登録（無料）が必要です。');
-                            e.preventDefault();
-                          }
-                        }}
                         className="yy-btn mt-2 cursor-pointer"
                       >
                         ファイルを選択
@@ -873,12 +869,6 @@ const ImageConverter: React.FC = () => {
                       </p>
                       <label
                         htmlFor="image-converter-input"
-                        onClick={(e) => {
-                          if (!isLoggedIn) {
-                            alert('入力するには会員登録（無料）が必要です。');
-                            e.preventDefault();
-                          }
-                        }}
                         className="mt-2 text-[11px] text-gray-800 underline underline-offset-2 cursor-pointer"
                       >
                         さらに追加
@@ -896,6 +886,7 @@ const ImageConverter: React.FC = () => {
                   onChange={handleInputChange}
                 />
                 <p className="mt-4 text-[10px] text-gray-500">
+                  変換はこのブラウザの中だけで行い、画像はどこにも送りません。<br />
                   対応形式: PNG / JPEG / WebP / GIF / SVG / HEIC / HEIF（最大 {MAX_BROWSER_FILE_MB}MB、HEIC は {MAX_HEIC_FILE_MB}MB） | 最大 {MAX_FILES} 枚
                 </p>
               </div>
@@ -1045,10 +1036,14 @@ const ImageConverter: React.FC = () => {
             <button
               type="button"
               onClick={startConversion}
-              disabled={incompleteTasks.length === 0 || tasks.some(task => task.status === 'processing')}
+              disabled={tasks.length === 0 || tasks.some(task => task.status === 'processing' || task.status === 'queued')}
               className="yy-btn yy-btn--primary w-full !py-3 !text-[12px]"
             >
-              {tasks.some(task => task.status === 'processing') ? '処理中...' : '画像変換・圧縮を開始する'}
+              {tasks.some(task => task.status === 'processing' || task.status === 'queued')
+                ? '処理中...'
+                : tasks.length > 0 && pendingCount === 0
+                  ? '今の設定で変換し直す'
+                  : '画像変換・圧縮を開始する'}
             </button>
           </div>
 
@@ -1060,7 +1055,7 @@ const ImageConverter: React.FC = () => {
             {tasks.length === 0 ? (
               <p className="text-[11px] text-gray-500">
                 画像を追加すると、ここに変換後のサイズと保存ボタンが並びます。{' '}
-                <button type="button" onClick={() => { if (!isLoggedIn) { setImageNotice('ログイン（無料の会員登録）すると画像を取り込めます。'); return; } fileInputRef.current?.click(); }} className="underline underline-offset-2 text-gray-800">ファイルを選ぶ</button>
+                <button type="button" onClick={() => fileInputRef.current?.click()} className="underline underline-offset-2 text-gray-800">ファイルを選ぶ</button>
               </p>
             ) : (
               <div className="flex-1 flex flex-col space-y-2">
@@ -1072,7 +1067,7 @@ const ImageConverter: React.FC = () => {
                     // 完了時は実測値、未完了時は予測値を表示
                     const sizeDisplay = isCompleted 
                       ? formatBytes(finalSize) 
-                      : estimateFileSize(task, currentOptions, resizeMode);
+                      : task.status === 'error' ? '—' : estimateFileSize(task, currentOptions, resizeMode);
 
                     // 完了時の削減率
                     const compressionRate = isCompleted
@@ -1097,7 +1092,7 @@ const ImageConverter: React.FC = () => {
                               </span>
 
                               {/* 予測ラベル（未完了時のみ） */}
-                              {!isCompleted && (
+                              {!isCompleted && task.status !== 'error' && (
                                 <span className="text-[9px] text-gray-400 border border-gray-200 px-1">
                                   予測
                                 </span>

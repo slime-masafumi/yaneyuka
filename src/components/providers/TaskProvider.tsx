@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { db } from '@/lib/firebaseClient';
 import { collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, setDoc, getDocs } from 'firebase/firestore';
+import { useGuestTasks } from '@/components/content/Userpage/myTasks/guestTasks';
 
 export interface Task {
   id: string;
@@ -128,10 +129,8 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [currentUser])
 
   const addTask = async (categoryId: string, content: string, dueDate?: string | null) => {
-    if (!currentUser) {
-      alert('入力するには会員登録（無料）が必要です。');
-      return;
-    }
+    // 未ログインのときは下の guest（このブラウザに保存）が使われるので、ここには来ない
+    if (!currentUser) return;
     const tempId = `tmp-${Date.now()}`
     setCategories(prev => prev.map(cat =>
       cat.id === categoryId ? { ...cat, tasks: [...cat.tasks, { id: tempId, content, completed: false, dueDate: dueDate || null, categoryId }] } : cat
@@ -192,10 +191,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const addCategory = async (title?: string, color?: string): Promise<string> => {
-    if (!currentUser) {
-      alert('入力するには会員登録（無料）が必要です。');
-      return '';
-    }
+    if (!currentUser) return ''; // 未ログインは guest 側が受け持つ
     const tempId = `tmp-${Date.now()}`
     const nextTitle = (title && title.trim()) || `List ${(categories?.length || 0) + 1}`
     const nextColor = color || 'bg-gray-100'
@@ -222,8 +218,16 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try { await deleteDoc(doc(db, 'users', currentUser.uid, 'mytasks', categoryId)) } catch {}
   }
 
+  // 未ログインのときは「このブラウザに保存」版（Myタスクの画面と同じ保存先 yy-guest-mytasks）を渡す。
+  // 以前は addTask / addCategory が alert で止まり、メモの宿題→タスク・yychat・yymail からタスクにできなかった。
+  // ログインしたときの引っ越しは Myタスクの画面（useGuestTaskMigration）が受け持つ。
+  const guest = useGuestTasks();
+  const value: TaskContextType = currentUser
+    ? { categories, setCategories, addTask, toggleTaskComplete, changeCategoryColor, updateTask, addCategory, deleteCategory, deleteTask, clearTasks, renameCategory }
+    : guest;
+
   return (
-    <TaskContext.Provider value={{ categories, setCategories, addTask, toggleTaskComplete, changeCategoryColor, updateTask, addCategory, deleteCategory, deleteTask, clearTasks, renameCategory }}>
+    <TaskContext.Provider value={value}>
       {children}
     </TaskContext.Provider>
   );

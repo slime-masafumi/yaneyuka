@@ -6,7 +6,9 @@ import ToolHeader from '../ToolHeader';
 import { LockClosedIcon, LockOpenIcon } from '@heroicons/react/20/solid';
 import { useAuth } from '@/lib/AuthContext';
 import { db } from '@/lib/firebaseClient';
-import { collection, addDoc, doc, updateDoc, onSnapshot, getDocs, query, orderBy, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc, onSnapshot, getDocs, query, orderBy, serverTimestamp, writeBatch, Timestamp } from 'firebase/firestore';
+import GuestNote from './GuestNote';
+import { useCloudPref } from './useCloudPref';
 
 interface CalculationHistory {
   id: string;
@@ -104,13 +106,14 @@ const formatExpressionForDisplay = (expression: string): string => {
 // 表示用の式（sin( / nCr / π / ^ など）をJavaScriptで評価できる形に直す。
 // 置換は「1回のパスでまとめて」行う。個別に .replace を重ねると
 // asin( → Math.asin( を作った直後に sin( が再マッチして壊れるため。
+// 三角関数は角度の単位（DEG / RAD）で中身が変わるので、Math ではなく T.* に通す。
 const FUNC_MAP: Record<string, string> = {
-  asin: 'Math.asin',
-  acos: 'Math.acos',
-  atan: 'Math.atan',
-  sin: 'Math.sin',
-  cos: 'Math.cos',
-  tan: 'Math.tan',
+  asin: 'T.asin',
+  acos: 'T.acos',
+  atan: 'T.atan',
+  sin: 'T.sin',
+  cos: 'T.cos',
+  tan: 'T.tan',
   log: 'Math.log10',
   ln: 'Math.log',
   sqrt: 'Math.sqrt',
@@ -126,6 +129,91 @@ const nCr = (n: number, r: number): number => {
     result = (result * (n - r + i)) / i;
   }
   return Math.round(result);
+};
+
+/** 角度の単位ごとの三角関数。建築の勾配・角度は度で考えるので、既定は DEG。 */
+const makeTrig = (deg: boolean) => {
+  const k = deg ? Math.PI / 180 : 1;
+  return {
+    sin: (x: number) => Math.sin(x * k),
+    cos: (x: number) => Math.cos(x * k),
+    tan: (x: number) => {
+      // tan(90°) は定義されない。浮動小数で 1.6e16 のような値が出るのを止める
+      if (deg && Math.abs((((x % 180) + 180) % 180) - 90) < 1e-9) return NaN;
+      return Math.tan(x * k);
+    },
+    asin: (x: number) => Math.asin(x) / k,
+    acos: (x: number) => Math.acos(x) / k,
+    atan: (x: number) => Math.atan(x) / k,
+  };
+};
+
+/** 閉じ忘れた括弧を末尾で閉じる（実機の電卓と同じ）。 */
+const closeParens = (expr: string): string => {
+  let depth = 0;
+  for (const ch of expr) {
+    if (ch === '(') depth++;
+    else if (ch === ')') depth--;
+  }
+  return depth > 0 ? expr + ')'.repeat(depth) : expr;
+};
+
+/** 0.1+0.2 が 0.30000000000000004 にならないよう、有効 12 桁で丸める。 */
+const tidyNumber = (n: number): number => (n === 0 ? 0 : parseFloat(n.toPrecision(12)));
+
+/** 計算できなかった理由。「Error」だけでは何を直せばよいか分からない。 */
+const explainError = (raw: string, error: unknown): string => {
+  let depth = 0;
+  for (const ch of raw) {
+    if (ch === '(') depth++;
+    else if (ch === ')') depth--;
+    if (depth < 0) return '閉じ括弧「)」が多すぎます。';
+  }
+  if (!raw.trim()) return '式がありません。';
+  if (/[+\-*/^]$/.test(raw.trim())) return '式が演算子で終わっています。';
+  const msg = error instanceof Error ? error.message : '';
+  if (msg === 'Infinity') return '0 で割っているか、桁が大きすぎます。';
+  if (msg === 'NaN') return '計算できない値です（√ の中が負、tan 90° など）。';
+  return '式の書き方が正しくありません。';
+};
+
+const GUEST_HISTORY_KEY = 'yy-guest-calc-history';
+const GUEST_HISTORY_MAX = 500;
+const ANGLE_KEY = 'yy-calculator-angle';
+
+/** 未ログインのとき、計算履歴はこのブラウザに置く。 */
+const loadGuestHistory = (): CalculationHistory[] => {
+  try {
+    const raw = localStorage.getItem(GUEST_HISTORY_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map((h: any) => ({
+      id: String(h.id),
+      expression: String(h.expression ?? ''),
+      result: String(h.result ?? ''),
+      unit: h.unit ? String(h.unit) : '',
+      memo: String(h.memo ?? ''),
+      isLocked: Boolean(h.isLocked),
+      timestamp: new Date(typeof h.timestamp === 'number' ? h.timestamp : Date.now()),
+    }));
+  } catch {
+    return [];
+  }
+};
+
+const saveGuestHistory = (items: CalculationHistory[]) => {
+  try {
+    // ロックした行は残し、残りは新しい順に上限まで
+    const locked = items.filter((h) => h.isLocked);
+    const rest = items.filter((h) => !h.isLocked).slice(0, Math.max(0, GUEST_HISTORY_MAX - locked.length));
+    localStorage.setItem(
+      GUEST_HISTORY_KEY,
+      JSON.stringify([...locked, ...rest].map((h) => ({ ...h, timestamp: h.timestamp.getTime() })))
+    );
+  } catch {
+    /* 保存できなくても、このページを開いている間は使える */
+  }
 };
 
 const toEvaluableExpression = (raw: string): string =>
@@ -246,7 +334,13 @@ const Calculator: React.FC = () => {
   const [newConstant, setNewConstant] = useState({ label: '', value: '', note: '' });
   const [isExporting, setIsExporting] = useState(false);
   
-  const { currentUser, isLoggedIn } = useAuth();
+  const { currentUser } = useAuth();
+  // 履歴の書き込み先。state の更新関数の中から見るので ref で持つ
+  const uidRef = useRef<string | null>(null);
+  uidRef.current = currentUser?.uid ?? null;
+  // 角度の単位。建築では度で考えるので既定は DEG
+  const [angleDeg, setAngleDeg] = useState(true);
+  const [calcError, setCalcError] = useState('');
 
   // 見出し帯の「できること」から各機能へ飛ぶための足場。
   // 定数や計算書 PDF は履歴欄の右上に小さく置いてあり、気づかれていなかった。
@@ -256,15 +350,70 @@ const Calculator: React.FC = () => {
   const scrollToCalcRef = (r: React.RefObject<HTMLElement | null>) =>
     r.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
+  /** 履歴を変える。未ログインならこのブラウザにも書く。 */
+  const updateHistory = (fn: (prev: CalculationHistory[]) => CalculationHistory[]) => {
+    setCalculatorHistory((prev) => {
+      const next = fn(prev);
+      if (!uidRef.current) saveGuestHistory(next);
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(ANGLE_KEY) === 'rad') setAngleDeg(false);
+    } catch {
+      /* 既定の DEG で動く */
+    }
+  }, []);
+
+  const toggleAngle = () => {
+    const nextDeg = !angleDeg;
+    setAngleDeg(nextDeg);
+    try { localStorage.setItem(ANGLE_KEY, nextDeg ? 'deg' : 'rad'); } catch { /* 保存できなくても切り替えは効く */ }
+  };
+
   useEffect(() => {
     if (!currentUser) {
-      setCalculatorHistory([])
+      // 未ログイン: このブラウザに残した履歴を出す
+      setCalculatorHistory(loadGuestHistory())
       return
     }
 
     const colRef = collection(db, 'users', currentUser.uid, 'calculatorHistory')
     const historyQuery = query(colRef, orderBy('timestamp', 'desc'))
+    let first = true
     const unsubscribe = onSnapshot(historyQuery, (snap) => {
+      // 端末の控え（キャッシュ）だけで「空」と出たときは、サーバーの答えを待ってから移行を決める
+      if (first && snap.empty && snap.metadata.fromCache) return
+      if (first) {
+        first = false
+        // 初めてログインした: クラウドが空で、このブラウザに履歴があれば上げる（手元の履歴を捨てない）
+        const guest = loadGuestHistory()
+        if (snap.empty && guest.length > 0) {
+          const batch = writeBatch(db)
+          guest.slice(0, 450).forEach((h) => {
+            batch.set(doc(colRef), {
+              expression: h.expression,
+              result: h.result,
+              unit: h.unit ?? '',
+              memo: h.memo,
+              isLocked: h.isLocked,
+              isPinned: h.isLocked,
+              timestamp: Timestamp.fromDate(h.timestamp),
+            })
+          })
+          batch
+            .commit()
+            .then(() => {
+              try { localStorage.removeItem(GUEST_HISTORY_KEY) } catch { /* 次回も空のクラウドにしか上げない */ }
+            })
+            .catch((error) => console.error('関数電卓履歴の移行に失敗しました', error))
+          // 上げた分は次のスナップショットで届く。それまで手元の履歴を出しておく
+          setCalculatorHistory(guest)
+          return
+        }
+      }
       const histories: CalculationHistory[] = snap.docs.map((docSnap) => {
         const data = docSnap.data() as any
         const rawTimestamp = data.timestamp
@@ -297,10 +446,7 @@ const Calculator: React.FC = () => {
 
   // 関数電卓の機能を更新
   const calculatorInput = (input: string) => {
-    if (!isLoggedIn) {
-      alert('入力するには会員登録（無料）が必要です。');
-      return;
-    }
+    if (input !== 'SHIFT') setCalcError('');
     // 数字、小数点、演算子かどうかをチェック
     const isNumber = /[0-9.]/.test(input);
     const isOperator = ['+', '-', '×', '÷', '^'].includes(input);
@@ -415,22 +561,23 @@ const Calculator: React.FC = () => {
   };
 
   // 安全な数式評価（evalを使わない）
-  const safeEvaluate = (expr: string): number => {
+  const safeEvaluate = (expr: string, deg: boolean): number => {
     // 許可する文字: 数字, 演算子, 括弧, 小数点, スペース, 既知のMath関数, nCr
     const sanitized = expr.replace(/\s/g, '');
     const withoutKnownTokens = sanitized
       .replace(/Math\.(asin|acos|atan|sin|cos|tan|log10|log|sqrt|cbrt|exp|PI|E)\b/g, '')
+      .replace(/T\.(asin|acos|atan|sin|cos|tan)\b/g, '')
       .replace(/nCr/g, '');
     // 未知の識別子が残っていたら評価しない
     if (/[a-zA-Z]/.test(withoutKnownTokens)) {
       throw new Error('Invalid expression');
     }
     // Function constructorで評価（グローバルスコープにアクセスできない）
-    const fn = new Function('Math', 'nCr', `"use strict"; return (${expr});`);
-    const result = fn(Math, nCr);
-    if (typeof result !== 'number' || !isFinite(result)) {
-      throw new Error('Invalid result');
-    }
+    const fn = new Function('Math', 'nCr', 'T', `"use strict"; return (${expr});`);
+    const result = fn(Math, nCr, makeTrig(deg));
+    if (typeof result !== 'number') throw new Error('Invalid result');
+    if (Number.isNaN(result)) throw new Error('NaN');
+    if (!isFinite(result)) throw new Error('Infinity');
     return result;
   };
 
@@ -438,9 +585,10 @@ const Calculator: React.FC = () => {
   const calculateResult = async () => {
     try {
       // 単位を数値へ開いてから評価する。単位が一意なら結果に付ける。
-      const { expression: numeric, unit } = resolveUnits(calculatorExpression);
-      const result = safeEvaluate(toEvaluableExpression(numeric));
+      const { expression: numeric, unit } = resolveUnits(closeParens(calculatorExpression));
+      const result = tidyNumber(safeEvaluate(toEvaluableExpression(numeric), angleDeg));
       const resultString = result.toString();
+      setCalcError('');
 
       setCalculatorDisplay(resultString);
       setAnsValue(resultString);
@@ -457,6 +605,9 @@ const Calculator: React.FC = () => {
         unit: unit ?? ''
       };
 
+      // 先に式欄を結果へ置き換える（保存を待つ間に次の入力が来ても崩れない）
+      setCalculatorExpression(resultString);
+
       if (currentUser) {
         try {
           const colRef = collection(db, 'users', currentUser.uid, 'calculatorHistory')
@@ -469,18 +620,18 @@ const Calculator: React.FC = () => {
             isPinned: false,
             timestamp: serverTimestamp(),
           })
-          setCalculatorHistory(prev => [{ ...historyItem, id: docRef.id }, ...prev])
+          setCalculatorHistory(prev => prev.some(h => h.id === docRef.id) ? prev : [{ ...historyItem, id: docRef.id }, ...prev])
         } catch (error) {
           console.error('関数電卓履歴の保存に失敗しました', error)
           setCalculatorHistory(prev => [historyItem, ...prev])
+          setCalcNotice('計算履歴をアカウントに保存できませんでした。通信を確かめてください。')
         }
       } else {
-        setCalculatorHistory(prev => [historyItem, ...prev])
+        updateHistory(prev => [historyItem, ...prev])
       }
-      
-      setCalculatorExpression(resultString);
     } catch (error) {
       setCalculatorDisplay('Error');
+      setCalcError(explainError(calculatorExpression, error));
     }
   };
 
@@ -506,6 +657,11 @@ const Calculator: React.FC = () => {
     }
   };
 
+  // ログイン中は自分の定数を端末間で同じにする（users/{uid}/toolSettings/calculatorConstants）
+  useCloudPref<CustomConstant[]>(currentUser?.uid, 'calculatorConstants', customConstants, (items) => {
+    if (Array.isArray(items)) saveConstants(items);
+  });
+
   const addConstant = () => {
     const label = newConstant.label.trim();
     if (!label || !newConstant.value.trim()) return;
@@ -525,9 +681,10 @@ const Calculator: React.FC = () => {
     const rows = calculatorHistory.filter((item) => item.isLocked);
     const target = rows.length > 0 ? rows : calculatorHistory;
     if (target.length === 0) {
-      alert('書き出す計算がありません。');
+      setCalcNotice('書き出す計算がありません。「=」で計算すると履歴に残り、計算書に載せられます。');
       return;
     }
+    setCalcNotice('');
 
     setIsExporting(true);
     try {
@@ -582,7 +739,7 @@ const Calculator: React.FC = () => {
       document.body.removeChild(container);
     } catch (error) {
       console.error('計算書の書き出しに失敗しました', error);
-      alert('計算書の書き出しに失敗しました。');
+      setCalcNotice('計算書の書き出しに失敗しました。もう一度押すか、ページを再読み込みしてください。');
     } finally {
       setIsExporting(false);
     }
@@ -593,7 +750,7 @@ const Calculator: React.FC = () => {
     if (deletable.length === 0) return;
     if (!confirm(`ロックしていない履歴 ${deletable.length} 件を削除します。よろしいですか？`)) return;
 
-    setCalculatorHistory(prev => prev.filter(item => item.isLocked));
+    updateHistory(prev => prev.filter(item => item.isLocked));
     if (!currentUser) return;
 
     try {
@@ -624,8 +781,8 @@ const Calculator: React.FC = () => {
     const target = calculatorHistory.find(item => item.id === id)
     const nextLocked = target ? !target.isLocked : true
 
-    setCalculatorHistory(prev => 
-      prev.map(item => 
+    updateHistory(prev =>
+      prev.map(item =>
         item.id === id ? { ...item, isLocked: nextLocked } : item
       )
     );
@@ -646,8 +803,8 @@ const Calculator: React.FC = () => {
 
   const saveMemoToHistory = async (id: string) => {
     const memoToSave = tempMemo;
-    setCalculatorHistory(prev => 
-      prev.map(item => 
+    updateHistory(prev =>
+      prev.map(item =>
         item.id === id ? { ...item, memo: memoToSave } : item
       )
     );
@@ -660,6 +817,27 @@ const Calculator: React.FC = () => {
       await updateDoc(doc(db, 'users', currentUser.uid, 'calculatorHistory', id), { memo: memoToSave })
     } catch (error) {
       console.error('関数電卓履歴のメモ保存に失敗しました', error)
+    }
+  };
+
+  /** 履歴の結果を、いまの式に入れる（計算直後なら置き換える）。 */
+  const reuseResult = (value: string) => {
+    setCalcError('');
+    const next = lastCalculated || calculatorExpression === '' ? value : calculatorExpression + value;
+    setCalculatorExpression(next);
+    setCalculatorDisplay(next);
+    setLastCalculated(false);
+  };
+
+  /** 表示中の結果をクリップボードへ。 */
+  const copyResult = async () => {
+    const value = calculatorDisplay;
+    if (!value || value === 'Error') return;
+    try {
+      await navigator.clipboard.writeText(value);
+      setCalcNotice(`「${value}」をコピーしました。`);
+    } catch {
+      setCalcNotice('コピーできませんでした。結果の欄を選んでコピーしてください。');
     }
   };
 
@@ -747,12 +925,18 @@ const Calculator: React.FC = () => {
                   )}
 
                   {/* 計算式と結果 */}
-                  <div className="flex-1 text-xs" style={{ fontFamily: "'Roboto', sans-serif" }}>
+                  <button
+                    type="button"
+                    onClick={() => reuseResult(item.result)}
+                    title="押すと結果を式に入れる"
+                    className="flex-1 min-w-0 text-left text-xs break-all hover:bg-gray-50"
+                    style={{ fontFamily: "'Roboto', sans-serif" }}
+                  >
                     <span className="text-gray-600">{formatExpressionForDisplay(item.expression)}</span>
                     <span className="text-gray-400 mx-1">=</span>
                     <span className="text-gray-800 font-bold">{formattedResult}</span>
                     {item.unit && <span className="text-gray-800 font-bold ml-1">{item.unit}</span>}
-                  </div>
+                  </button>
                 </>
               )}
             </div>
@@ -768,12 +952,26 @@ const Calculator: React.FC = () => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // 入力フィールドでの入力時は無視
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        e.target instanceof HTMLSelectElement ||
+        (e.target instanceof HTMLElement && e.target.isContentEditable)
+      ) {
         return;
       }
 
+      // Ctrl+C（文字を選んでいないとき）は結果をコピーする
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c' && !window.getSelection()?.toString()) {
+        e.preventDefault();
+        copyResult();
+        return;
+      }
+      // Ctrl+- の縮小などブラウザの操作は奪わない
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+
       // 電卓が受け取るキーはブラウザ既定動作（Backspaceで前ページへ戻る等）を止める
-      const handledKeys = ['0','1','2','3','4','5','6','7','8','9','.','+','-','*','/','Enter','Backspace','Escape','(',')','^'];
+      const handledKeys = ['0','1','2','3','4','5','6','7','8','9','.','+','-','*','/','Enter','=','Backspace','Delete','Escape','(',')','^','%'];
       if (handledKeys.includes(e.key)) {
         e.preventDefault();
       }
@@ -788,9 +986,10 @@ const Calculator: React.FC = () => {
         case '-': calculatorInput('-'); break;
         case '*': calculatorInput('×'); break;
         case '/': calculatorInput('÷'); break;
-        case 'Enter': calculatorInput('='); break;
+        case 'Enter': case '=': calculatorInput('='); break;
         case 'Backspace': calculatorInput('DEL'); break;
-        case 'Escape': calculatorInput('AC'); break;
+        case 'Delete': case 'Escape': calculatorInput('AC'); break;
+        case '%': calculatorInput('%'); break;
         case '(': calculatorInput('('); break;
         case ')': calculatorInput(')'); break;
         case '^': calculatorInput('x^'); break;
@@ -799,7 +998,7 @@ const Calculator: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [calculatorInput]);
+  }, [calculatorInput, copyResult]);
 
   // SHIFT中は逆関数ラベルに差し替える
   const keyLabel = (key: string) => (shiftMode && SHIFT_ALIASES[key] ? SHIFT_ALIASES[key].label : key);
@@ -825,12 +1024,8 @@ const Calculator: React.FC = () => {
           },
           {
             label: '計算履歴・メモ・ロック',
-            login: true,
-            hint: 'ログインすると履歴が保存され、行ごとにメモとロックを付けられます',
-            onClick: () => {
-              if (!isLoggedIn) { setCalcNotice('ログイン（無料の会員登録）すると入力でき、計算履歴がアカウントに残ります。'); return; }
-              scrollToCalcRef(historyRef);
-            },
+            hint: '「=」で確定した式が残り、行ごとにメモとロックを付けられる。未ログインはこのブラウザに、ログインするとアカウントに保存',
+            onClick: () => scrollToCalcRef(historyRef),
           },
           {
             label: '計算書PDF',
@@ -847,7 +1042,25 @@ const Calculator: React.FC = () => {
       {/* 関数電卓本体 */}
       <div className="w-full max-w-[18rem] bg-gray-800 self-start border border-[#3b3b3b] flex-shrink-0 h-fit">
         <div className="px-2 py-1.5 border-b border-gray-700">
-          <p className="yy-mono text-[10px] tracking-[0.12em] uppercase text-gray-400">Scientific</p>
+          <div className="flex items-center gap-3">
+            <p className="yy-mono text-[10px] tracking-[0.12em] uppercase text-gray-400 mr-auto">Scientific</p>
+            <button
+              type="button"
+              onClick={toggleAngle}
+              title="三角関数の角度の単位（押すと切り替え）"
+              className="yy-mono text-[10px] tracking-[0.12em] uppercase text-gray-300 hover:text-[#52AA96]"
+            >
+              {angleDeg ? 'DEG' : 'RAD'}
+            </button>
+            <button
+              type="button"
+              onClick={copyResult}
+              title="結果をコピー（Ctrl+C）"
+              className="yy-mono text-[10px] tracking-[0.12em] uppercase text-gray-300 hover:text-[#52AA96]"
+            >
+              Copy
+            </button>
+          </div>
         </div>
         <div className="p-2 pb-3">
           <div className="space-y-3">
@@ -862,13 +1075,18 @@ const Calculator: React.FC = () => {
                 <input
                   type="text"
                   value={formatExpressionForDisplay(calculatorDisplay)}
-                  className="flex-1 bg-transparent text-right text-xl font-mono focus:outline-none text-gray-100 overflow-hidden"
+                  className="flex-1 min-w-0 bg-transparent text-right text-xl font-mono focus:outline-none text-gray-100 overflow-hidden"
                   readOnly
+                  aria-label="計算結果"
                 />
                 {/* 単位が一意に決まった計算だけ、結果の横に出す */}
                 {resultUnit && <span className="text-sm text-[#52AA96] font-bold shrink-0">{resultUnit}</span>}
               </div>
             </div>
+            {/* 計算できなかった理由。「Error」だけでは直し方が分からない */}
+            {calcError && (
+              <p className="text-[10px] text-gray-300 -mt-2" role="alert">{calcError}</p>
+            )}
 
             {/* 尺貫法・単位キー。数値のうしろに付けると単位つきの計算になる */}
             <div ref={unitKeysRef} className="grid grid-cols-8 gap-1 yy-keypad scroll-mt-4">
@@ -938,7 +1156,7 @@ const Calculator: React.FC = () => {
       </div>
 
       {/* 計算履歴 */}
-      <div ref={historyRef} className="flex-1 min-w-0 bg-white border border-[#3b3b3b] min-h-0 h-[600px] scroll-mt-4">
+      <div ref={historyRef} className="flex-1 min-w-0 bg-white border border-[#3b3b3b] min-h-0 h-[600px] scroll-mt-4 flex flex-col">
         <div className="px-3 py-2 border-b border-[#3b3b3b] flex flex-wrap justify-between items-center gap-2">
           <h3 className="yy-mono text-[10px] tracking-[0.12em] uppercase text-gray-500 shrink-0">計算履歴 <span className="ml-1">{String(calculatorHistory.length).padStart(3, '0')}</span></h3>
           <div className="flex items-center gap-1.5">
@@ -967,6 +1185,7 @@ const Calculator: React.FC = () => {
             </button>
           </div>
         </div>
+        {!currentUser && <GuestNote className="px-3 py-1.5 border-b border-gray-200" />}
 
         {/* 建築定数。押すと式に値が入る。組込みは単位体積重量の代表値だけ。 */}
         {showConstantForm && (
@@ -1036,7 +1255,7 @@ const Calculator: React.FC = () => {
             </p>
           </div>
         )}
-        <div className="p-3 h-[calc(min(600px,100vh-var(--nav-height)-130px)-80px)] overflow-y-auto">
+        <div className="p-3 flex-1 min-h-0 overflow-y-auto">
           {renderCalculatorHistory()}
                   </div>
           </div>

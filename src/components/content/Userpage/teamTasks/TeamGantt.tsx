@@ -26,6 +26,15 @@ export default function TeamGantt({
   pendingShifts?: number;
   onApplyShifts?: () => void;
 }) {
+  // 左のタスク名の欄。スマホ幅で 260px あると帯がほとんど見えないので細くする
+  const [labelW, setLabelW] = React.useState(260);
+  React.useEffect(() => {
+    const mq = window.matchMedia('(max-width: 639px)');
+    const apply = () => setLabelW(mq.matches ? 132 : 260);
+    apply();
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, []);
   const all = groups.flatMap((g) => g.tasks);
   const withDue = all.filter((t) => t.dueDate);
   if (!withDue.length) {
@@ -51,10 +60,10 @@ export default function TeamGantt({
         </div>
       )}
     <div className="overflow-x-auto">
-      <table className="text-[11px] border-collapse" style={{ minWidth: 260 + range.days * DAY_W }}>
+      <table className="text-[11px] border-collapse" style={{ minWidth: labelW + range.days * DAY_W }}>
         <thead>
           <tr>
-            <th className="sticky left-0 z-10 bg-white w-[260px] min-w-[260px] border-b border-r text-left px-2 py-1 font-normal text-gray-500">タスク</th>
+            <th className="sticky left-0 z-10 bg-white border-b border-r text-left px-2 py-1 font-normal text-gray-500" style={{ width: labelW, minWidth: labelW }}>タスク</th>
             {days.map((d, i) => (
               <th
                 key={i}
@@ -83,7 +92,7 @@ export default function TeamGantt({
                 const color = st === 'done' ? '#9ca3af' : st === 'overdue' ? '#dc2626' : st === 'soon' ? '#d97706' : '#3b3b3b';
                 return (
                   <tr key={t.id} className="border-t border-gray-100">
-                    <td className="sticky left-0 z-10 bg-white px-2 py-1 border-r">
+                    <td className="sticky left-0 z-10 bg-white px-2 py-1 border-r" style={{ maxWidth: labelW }}>
                       <div className={`truncate ${t.completed ? 'line-through text-gray-400' : ''}`} title={t.title}>{t.title}</div>
                       <div className="text-[9px] text-gray-400 truncate">
                         {[t.role, t.assigneeLabel, t.after && titleOf.get(t.after) ? `← ${titleOf.get(t.after)}` : ''].filter(Boolean).join('・')}

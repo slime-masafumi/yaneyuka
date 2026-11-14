@@ -65,6 +65,30 @@ async function readShotDate(file: File): Promise<Date> {
   return new Date(file.lastModified || Date.now());
 }
 
+const isHeicFile = (file: File) => /\.(heic|heif)$/i.test(file.name) || /image\/hei[cf]/i.test(file.type);
+
+/**
+ * HEIC/HEIF を JPEG に起こす。Chrome などは HEIC をそのまま描けず、
+ * 以前は iPhone の写真を入れると一覧が真っ白で、書き出しも丸ごと失敗していた。
+ * デコーダは数MBあるので HEIC を入れたときだけ読み込む（画像変換と同じ部品）。
+ */
+async function heicToJpeg(file: File): Promise<File> {
+  const { heicTo } = await import('heic-to');
+  const blob = await heicTo({ blob: file, type: 'image/jpeg', quality: 0.95 });
+  return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg', lastModified: file.lastModified });
+}
+
+/** 工事名・施工者・画像の設定はこのブラウザに覚えておく（毎回打ち直さないため） */
+const SETTINGS_KEY = 'yy-guest-construction-photos';
+type SavedSettings = {
+  projectName?: string;
+  defaultKind?: string;
+  contractor?: string;
+  longSide?: number;
+  quality?: number;
+  boardPosition?: BoardPosition;
+};
+
 /** 黒板。白地に黒文字の札を、写真の隅に焼き込む。 */
 function drawBoard(
   ctx: CanvasRenderingContext2D,
@@ -127,6 +151,36 @@ const ConstructionPhotos: React.FC = () => {
   const [busy, setBusy] = useState('');
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [isDragging, setIsDragging] = useState(false);
+  const [notice, setNotice] = useState('');
+
+  // 前回の工事名・施工者などを戻す
+  const settingsLoaded = useRef(false);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(SETTINGS_KEY);
+      if (raw) {
+        const s = JSON.parse(raw) as SavedSettings;
+        if (typeof s.projectName === 'string') setProjectName(s.projectName);
+        if (typeof s.defaultKind === 'string') setDefaultKind(s.defaultKind);
+        if (typeof s.contractor === 'string') setContractor(s.contractor);
+        if (typeof s.longSide === 'number' && LONG_SIDES.includes(s.longSide)) setLongSide(s.longSide);
+        if (typeof s.quality === 'number') setQuality(Math.min(100, Math.max(50, s.quality)));
+        if (s.boardPosition) setBoardPosition(s.boardPosition);
+      }
+    } catch {
+      /* 読めなければ既定値のまま */
+    }
+    settingsLoaded.current = true;
+  }, []);
+  useEffect(() => {
+    if (!settingsLoaded.current) return;
+    try {
+      const s: SavedSettings = { projectName, defaultKind, contractor, longSide, quality, boardPosition };
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+    } catch {
+      /* 保存できなくても、このページを開いている間は使える */
+    }
+  }, [projectName, defaultKind, contractor, longSide, quality, boardPosition]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   // プレビュー用の URL は、破棄しないとページを開いている間ずっと残る
@@ -141,26 +195,61 @@ const ConstructionPhotos: React.FC = () => {
   useEffect(() => () => { urlsRef.current.forEach((u) => URL.revokeObjectURL(u)); }, []);
 
   const addFiles = async (files: FileList | File[]) => {
-    const list = Array.from(files).filter((f) => f.type.startsWith('image/') || /\.(heic|heif)$/i.test(f.name));
-    if (list.length === 0) return;
+    const all = Array.from(files);
+    const list = all.filter((f) => f.type.startsWith('image/') || /\.(heic|heif)$/i.test(f.name));
+    const skipped = all.length - list.length;
+    if (list.length === 0) {
+      if (skipped > 0) setNotice('画像ではないファイルは取り込めません。JPEG / PNG / HEIC を選んでください。');
+      return;
+    }
 
     setBusy('読み込み中…');
+    setNotice('');
     const added: Photo[] = [];
-    for (const file of list) {
-      const url = URL.createObjectURL(file);
-      urlsRef.current.push(url);
-      added.push({
-        id: generateId(),
-        file,
-        shotAt: await readShotDate(file),
-        previewUrl: url,
-        orientation: await readOrientation(file),
-      });
+    const failed: string[] = [];
+    for (let i = 0; i < list.length; i++) {
+      const original = list[i];
+      if (list.length > 1) setProgress({ done: i, total: list.length });
+      try {
+        // 撮影日は元のファイル（HEIC なら HEIC）の Exif から読む
+        const shotAt = await readShotDate(original);
+        let file = original;
+        let orientation: number;
+        if (isHeicFile(original)) {
+          file = await heicToJpeg(original);
+          // libheif は回転（irot）を展開時に適用済み。Exif の向きを重ねると二重に回る
+          orientation = 1;
+        } else {
+          orientation = await readOrientation(original);
+        }
+        const url = URL.createObjectURL(file);
+        urlsRef.current.push(url);
+        added.push({ id: generateId(), file, shotAt, previewUrl: url, orientation });
+      } catch (error) {
+        console.error('写真の取り込みに失敗しました', original.name, error);
+        failed.push(original.name);
+      }
     }
     // 撮影順に並べる。連番が撮った順になっていないと写真帳として読めない。
-    const next = [...photos, ...added].sort((a, b) => a.shotAt.getTime() - b.shotAt.getTime());
-    setPhotos(next);
+    setPhotos((prev) => [...prev, ...added].sort((a, b) => a.shotAt.getTime() - b.shotAt.getTime()));
     setBusy('');
+    setProgress({ done: 0, total: 0 });
+    const notes: string[] = [];
+    if (failed.length) notes.push(`取り込めなかった写真: ${failed.join('、')}（壊れているか、読めない形式です）。`);
+    if (skipped > 0) notes.push(`画像ではない ${skipped} 件は外しました。`);
+    setNotice(notes.join(' '));
+  };
+
+  /** 保存させる。すぐ URL を解放すると保存が始まらないブラウザがあるので少し待つ。 */
+  const saveBlob = (blob: Blob, name: string) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
   };
 
   const removePhoto = (id: string) => setPhotos((prev) => prev.filter((p) => p.id !== id));
@@ -217,29 +306,38 @@ const ConstructionPhotos: React.FC = () => {
   const exportZip = async () => {
     if (photos.length === 0) return;
     setBusy('書き出し中…');
+    setNotice('');
     setProgress({ done: 0, total: photos.length });
     try {
       const JSZip = (await import('jszip')).default;
       const zip = new JSZip();
+      const failed: string[] = [];
 
+      // 1 枚失敗しても残りは書き出す（以前は 1 枚の失敗で全部止まっていた）
       for (let i = 0; i < photos.length; i++) {
-        const blob = await renderPhoto(photos[i]);
+        const blob = await renderPhoto(photos[i]).catch((error) => {
+          console.error('写真の書き出しに失敗しました', photos[i].file.name, error);
+          return null;
+        });
         if (blob) zip.file(fileNameFor(photos[i], i), blob);
+        else failed.push(photos[i].file.name);
         setProgress({ done: i + 1, total: photos.length });
+      }
+      if (failed.length === photos.length) {
+        setNotice('写真を書き出せませんでした。写真が壊れているか、このブラウザが読めない形式です。');
+        return;
       }
 
       const out = await zip.generateAsync({ type: 'blob' });
-      const url = URL.createObjectURL(out);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${safeForFilename(projectName) || '工事写真'}_${ymd(new Date())}.zip`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      saveBlob(out, `${safeForFilename(projectName) || '工事写真'}_${ymd(new Date())}.zip`);
+      setNotice(
+        failed.length
+          ? `${photos.length - failed.length} 枚を ZIP で保存しました。書き出せなかった写真: ${failed.join('、')}`
+          : `${photos.length} 枚を ZIP で保存しました。`
+      );
     } catch (error) {
       console.error('工事写真の書き出しに失敗しました', error);
-      alert('書き出しに失敗しました。');
+      setNotice('書き出しに失敗しました。写真の枚数を減らすか、ページを再読み込みしてやり直してください。');
     } finally {
       setBusy('');
       setProgress({ done: 0, total: 0 });
@@ -255,6 +353,8 @@ const ConstructionPhotos: React.FC = () => {
     const container = document.createElement('div');
     container.style.width = '210mm';
     container.style.fontFamily = "'Noto Sans JP', sans-serif";
+    setNotice('');
+    const failed: string[] = [];
 
     try {
       for (let i = 0; i < photos.length; i += 4) {
@@ -274,9 +374,15 @@ const ConstructionPhotos: React.FC = () => {
 
         for (const photo of photos.slice(i, i + 4)) {
           const index = photos.indexOf(photo);
-          const blob = await renderPhoto(photo);
+          const blob = await renderPhoto(photo).catch((error) => {
+            console.error('写真の書き出しに失敗しました', photo.file.name, error);
+            return null;
+          });
           setProgress({ done: index + 1, total: photos.length });
-          if (!blob) continue;
+          if (!blob) {
+            failed.push(photo.file.name);
+            continue;
+          }
 
           const dataUrl = await new Promise<string>((resolve) => {
             const reader = new FileReader();
@@ -312,11 +418,16 @@ const ConstructionPhotos: React.FC = () => {
         })
         .from(container)
         .save();
-      document.body.removeChild(container);
+      setNotice(
+        failed.length
+          ? `写真帳 PDF を保存しました。載せられなかった写真: ${failed.join('、')}`
+          : `写真帳 PDF（${Math.ceil(photos.length / 4)} ページ）を保存しました。`
+      );
     } catch (error) {
       console.error('写真帳の作成に失敗しました', error);
-      alert('写真帳の作成に失敗しました。');
+      setNotice('写真帳の作成に失敗しました。写真の枚数を減らすか、ページを再読み込みしてやり直してください。');
     } finally {
+      if (container.parentNode) container.parentNode.removeChild(container);
       setBusy('');
       setProgress({ done: 0, total: 0 });
     }
@@ -376,6 +487,9 @@ const ConstructionPhotos: React.FC = () => {
               <FiImage className="w-6 h-6 mx-auto text-gray-400" />
               <p className="text-[11px] mt-2 text-gray-600">現場写真をドラッグ＆ドロップ</p>
               <p className="text-[10px] mt-1 text-gray-400">JPEG / PNG / HEIC。撮影日順に自動で並びます</p>
+              <button type="button" className="mt-2 text-[11px] text-gray-700 underline underline-offset-2">
+                {photos.length > 0 ? '写真を追加' : '写真を選ぶ'}
+              </button>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -467,9 +581,12 @@ const ConstructionPhotos: React.FC = () => {
               </button>
             </div>
             {busy && (
-              <p className="yy-mono text-[10px] tracking-[0.08em] text-gray-600">
+              <p className="yy-mono text-[10px] tracking-[0.08em] text-gray-600" role="status">
                 {busy}{progress.total > 0 ? ` ${progress.done}/${progress.total}` : ''}
               </p>
+            )}
+            {notice && !busy && (
+              <p className="text-[11px] text-gray-600 border-l border-[#52aa96] pl-2" role="status">{notice}</p>
             )}
           </div>
 

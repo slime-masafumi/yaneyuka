@@ -21,6 +21,7 @@ import {
 } from '@/lib/userpageUrl';
 import { requestGeneralTool, type GeneralToolId } from '@/lib/generalToolsMenu';
 import { requestDesignToolsTarget } from '@/lib/designToolsNav';
+import { LOGIN_RETURN_KEY } from '@/lib/openLogin';
 const ReferenceResources = dynamic(() => import('../content/ReferenceResources'), { loading: () => <ToolLoading /> });
 const Settings = dynamic(() => import('../content/Userpage/Settings'), { loading: () => <ToolLoading /> });
 import Sidebar from './Sidebar';
@@ -1332,7 +1333,16 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
         console.log('Rendering LoginForm');
         return <LoginForm 
           onNavigateToRegister={() => handleMenuClick('register')}
-          onLoginSuccess={() => handleMenuClick('topix')}
+          onLoginSuccess={() => {
+            // ツールの「ログイン」から来たときは、そのツールへ戻す（src/lib/openLogin.ts）
+            let back: UserpageTarget | null = null;
+            try {
+              back = parseUserpageQuery(sessionStorage.getItem(LOGIN_RETURN_KEY) || '');
+              sessionStorage.removeItem(LOGIN_RETURN_KEY);
+            } catch { /* 読めなければホームへ */ }
+            if (back) openTargetRef.current(back);
+            else handleMenuClick('topix');
+          }}
         />;
       case 'welcome':
         console.log('Rendering WelcomePage');

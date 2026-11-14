@@ -4,7 +4,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { PDFDocument } from 'pdf-lib';
 import { FiFile, FiX, FiDownload } from 'react-icons/fi';
-import { useAuth } from '@/lib/AuthContext';
 import { usePdfjs } from '@/lib/pdfjs';
 import { requestGeneralTool } from '@/lib/generalToolsMenu';
 import ToolHeader from '../ToolHeader';
@@ -99,7 +98,6 @@ const changeText = (before: number, after: number) =>
 const looksLikeDrawing = (h?: DrawingHint) => !!h && (h.largePages > 0 || h.vectorHeavy);
 
 const PDFCompressor: React.FC = () => {
-  const { isLoggedIn } = useAuth();
   const pdfjsLib = usePdfjs();
 
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -146,13 +144,8 @@ const PDFCompressor: React.FC = () => {
     setQuality(PRESETS[level].quality);
   };
 
-  const loginNotice = '入力するには会員登録（無料）・ログインが必要です。';
-
+  // 処理はブラウザの中だけで行い、PDF はどこにも送らない。だからログインは要らない。
   const onDrop = (acceptedFiles: File[], rejected: unknown[]) => {
-    if (!isLoggedIn) {
-      setNotice(loginNotice);
-      return;
-    }
     const pdfs = acceptedFiles.filter((f) => f.type.includes('pdf') || /\.pdf$/i.test(f.name));
     const skipped = acceptedFiles.length - pdfs.length + rejected.length;
     setNotice(skipped > 0 ? `PDF以外の ${skipped} 件は外しました。` : '');
@@ -168,13 +161,7 @@ const PDFCompressor: React.FC = () => {
     disabled: running,
   });
 
-  const pickFiles = () => {
-    if (!isLoggedIn) {
-      setNotice(loginNotice);
-      return;
-    }
-    open();
-  };
+  const pickFiles = () => open();
 
   const update = (id: string, patch: Partial<Job>) =>
     setJobs((prev) => prev.map((j) => (j.id === id ? { ...j, ...patch } : j)));
@@ -329,11 +316,19 @@ const PDFCompressor: React.FC = () => {
         });
       } catch (err) {
         console.error('PDF処理エラー:', err);
-        const msg = err instanceof Error ? err.message : '処理に失敗しました';
+        const msg = err instanceof Error ? err.message : '';
+        // pdf-lib / pdf.js の英語のエラー文を、直し方の分かる日本語に置き換える
+        const reason = /encrypt|password/i.test(msg)
+          ? 'パスワード付きのPDFは扱えません。パスワードを外してから入れてください。'
+          : /[ぁ-んァ-ン一-龥]/.test(msg)
+            ? msg
+            : /memory|allocation|too large/i.test(msg)
+              ? 'ファイルが大きすぎてブラウザのメモリが足りませんでした。ページを分けてから試してください。'
+              : 'PDFとして読めませんでした。ファイルが壊れているか、PDFではない可能性があります。';
         update(id, {
           status: 'error',
           progress: 0,
-          error: /encrypt|password/i.test(msg) ? 'パスワード付きのPDFは扱えません。' : msg,
+          error: reason,
         });
       }
     }
@@ -351,24 +346,30 @@ const PDFCompressor: React.FC = () => {
   const totalAfter = done.reduce((s, j) => s + (j.blob?.size ?? 0), 0);
 
   const saveZip = async () => {
-    const JSZip = (await import('jszip')).default;
-    const zip = new JSZip();
-    const used = new Set<string>();
-    done.forEach((j) => {
-      let name = j.outName ?? j.file.name;
-      for (let n = 2; used.has(name); n++) name = name.replace(/(\.pdf)?$/i, ` (${n})$1`);
-      used.add(name);
-      zip.file(name, j.blob!);
-    });
-    const blob = await zip.generateAsync({ type: 'blob' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `compressed_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.zip`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    try {
+      const JSZip = (await import('jszip')).default;
+      const zip = new JSZip();
+      const used = new Set<string>();
+      done.forEach((j) => {
+        let name = j.outName ?? j.file.name;
+        for (let n = 2; used.has(name); n++) name = (j.outName ?? j.file.name).replace(/(\.pdf)?$/i, ` (${n})$1`);
+        used.add(name);
+        zip.file(name, j.blob!);
+      });
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `compressed_${new Date().toLocaleDateString('sv-SE').replace(/-/g, '')}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      // すぐ解放すると保存が始まらないブラウザがあるので、少し待ってから
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    } catch (error) {
+      console.error('ZIPの作成に失敗', error);
+      setNotice('ZIPを作れませんでした。1 本ずつ「ダウンロード」で保存してください。');
+    }
   };
 
   const monoLabel = 'yy-mono text-[10px] tracking-[0.12em] uppercase text-gray-500';
@@ -384,7 +385,7 @@ const PDFCompressor: React.FC = () => {
         features={[
           { label: '図面向け（線を残す）', onClick: () => { setMode('optimize'); scrollTo(modeRef); }, active: mode === 'optimize' },
           { label: '資料向け（画像を圧縮）', onClick: () => { setMode('rasterize'); scrollTo(modeRef); }, active: mode === 'rasterize' },
-          { label: '複数ファイルをまとめて', login: true, hint: 'ログインすると、PDFを何本でもまとめて圧縮し、ZIPで保存できます', onClick: pickFiles },
+          { label: '複数ファイルをまとめて', hint: 'PDFを何本でもまとめて圧縮し、ZIPで保存する', onClick: pickFiles },
           { label: '圧縮前後のサイズ比較', onClick: () => scrollTo(resultRef) },
           { label: 'ページの抜き出し・結合 → 図面PDF', onClick: () => requestGeneralTool({ toolId: 'drawing-pdf' }) },
         ]}
@@ -407,6 +408,7 @@ const PDFCompressor: React.FC = () => {
                 <input {...getInputProps()} />
                 <FiFile className="w-3.5 h-3.5 mx-auto text-gray-400" />
                 <p className="text-[11px] text-gray-600 mt-2">PDFをドラッグ＆ドロップ（何本でもまとめて）</p>
+                <p className="text-[10px] text-gray-500 mt-1">処理はこのブラウザの中だけで行い、PDFはどこにも送りません。</p>
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); pickFiles(); }}

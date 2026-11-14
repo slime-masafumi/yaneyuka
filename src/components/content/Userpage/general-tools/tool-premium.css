@@ -474,3 +474,39 @@
 .yy-tool.yy-tool .font-mono {
   font-variant-numeric: tabular-nums;
 }
+
+/* ── 未ログインの 1 行案内（GuestNote.tsx） ──────────────────────────
+   alert で止める代わりに、ツールの中へ 1 行だけ出す。罫線 1 本と小さな文字。 */
+.yy-guest {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin: 0 0 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--yy-line);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--yy-t2, #555);
+}
+.yy-guest__dot {
+  flex: none;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--yy-acc);
+  transform: translateY(-1px);
+}
+.yy-guest__text { flex: 1 1 200px; min-width: 0; }
+.yy-guest__btn {
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--yy-acc-ink, #2f7d6b);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.yy-guest__btn:hover { color: var(--yy-ink, #111); }

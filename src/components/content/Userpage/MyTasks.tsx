@@ -6,6 +6,8 @@ import { FiEdit2, FiTrash2, FiCheck, FiCalendar } from 'react-icons/fi';
 import { useTaskContext } from '../../providers/TaskProvider';
 import { useAuth } from '@/lib/AuthContext';
 import { ProjectView, DoneHistory } from './myTasks/MyTaskViews';
+import { useGuestTasks, useGuestTaskMigration } from './myTasks/guestTasks';
+import GuestNote from './general-tools/GuestNote';
 
 interface Task {
   id: string;
@@ -85,7 +87,24 @@ const DEFAULT_CATEGORIES: TaskCategory[] = [
 ];
 
 export default function MyTasks() {
-  const { categories, setCategories, addTask, toggleTaskComplete, changeCategoryColor, updateTask, addCategory, deleteCategory, deleteTask: removeTask, clearTasks, renameCategory } = useTaskContext();
+  const { isLoggedIn, currentUser, authReady } = useAuth();
+  // 未ログインはこのブラウザ（localStorage）に保存。ログインしたらクラウド（TaskProvider）
+  const guestMode = authReady && !currentUser;
+  const cloudTasks = useTaskContext();
+  const guestTasks = useGuestTasks();
+  const migration = useGuestTaskMigration(currentUser?.uid);
+  const { categories, setCategories, addTask, toggleTaskComplete, changeCategoryColor, updateTask, addCategory, deleteCategory, deleteTask: removeTask, clearTasks, renameCategory } = guestMode ? guestTasks : cloudTasks;
+  // スマホ幅では 5 列だと 1 列が 50px ほどになり読めない。幅に応じて列数の上限をかける
+  const [maxCols, setMaxCols] = useState<1 | 2 | 5>(5);
+  React.useEffect(() => {
+    const narrow = window.matchMedia('(max-width: 639px)');
+    const mid = window.matchMedia('(max-width: 1023px)');
+    const apply = () => setMaxCols(narrow.matches ? 1 : mid.matches ? 2 : 5);
+    apply();
+    narrow.addEventListener('change', apply);
+    mid.addEventListener('change', apply);
+    return () => { narrow.removeEventListener('change', apply); mid.removeEventListener('change', apply); };
+  }, []);
   // シート / 物件別 / 完了の履歴
   const [view, setView] = useState<'sheets' | 'projects' | 'done'>('sheets');
   const [hideCompleted, setHideCompleted] = useState(false);
@@ -104,7 +123,6 @@ export default function MyTasks() {
   const [tempTaskContent, setTempTaskContent] = useState<string>('');
   // 期日順に並べ替えるか。既定は登録順のまま（並びを覚えている人がいるので）。
   const [sortByDue, setSortByDue] = useState(false);
-  const { isLoggedIn } = useAuth();
   const [taskNotice, setTaskNotice] = useState('');
   const [tempTitle, setTempTitle] = useState<string>('');
   const [editingColor, setEditingColor] = useState<string | null>(null);
@@ -243,7 +261,23 @@ export default function MyTasks() {
         ]}
       />
       {taskNotice && <p className="text-[11px] text-gray-600" role="status">{taskNotice}</p>}
-      <div className="flex items-center gap-2 mb-3 flex-wrap">
+      {guestMode && <GuestNote>このブラウザに保存しています。ログインすると端末間で同期し、期日の前日・当日にベルで知らせます。</GuestNote>}
+      {migration.message && (
+        <p className="text-[11px] text-gray-600 border-l border-[#52AA96] pl-2" role="status">
+          {migration.message}{' '}
+          <button type="button" className="underline underline-offset-2" onClick={migration.dismiss}>閉じる</button>
+        </p>
+      )}
+      {migration.pending > 0 && (
+        <p className="text-[11px] text-gray-600 border-l border-[#52AA96] pl-2" role="status">
+          このブラウザに、ログイン前に入れたタスクが {migration.pending} 件あります。{' '}
+          <button type="button" className="underline underline-offset-2 font-bold text-gray-900" onClick={() => void migration.addNow()}>アカウントに追加</button>
+          {' / '}
+          <button type="button" className="underline underline-offset-2" onClick={migration.dismiss}>今はしない</button>
+        </p>
+      )}
+      {/* 列数はスマホ幅では 1 列に固定するので、切り替えはタブレット幅以上だけ出す */}
+      <div className="hidden sm:flex items-center gap-2 mb-3 flex-wrap">
         <span className="yy-mono text-[10px] tracking-[0.12em] uppercase text-gray-500">Columns</span>
         {[3, 4, 5].map(cols => (
           <button
@@ -272,7 +306,7 @@ export default function MyTasks() {
         >
           ＋ シート追加
         </button>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             type="button"
             className="px-2 py-1 text-xs border border-gray-300 bg-white hover:text-red-600 hover:border-red-600"
@@ -351,7 +385,8 @@ export default function MyTasks() {
       {view === 'sheets' && (
       <div className="my-task-grid border border-[#3b3b3b] p-3">
         {categories.map(category => {
-          const flexBasis = `calc((100% - ${(columnMode - 1)} * 0.75rem) / ${columnMode})`;
+          const cols = Math.min(columnMode, maxCols);
+          const flexBasis = `calc((100% - ${(cols - 1)} * 0.75rem) / ${cols})`;
           const cardStyle: React.CSSProperties = {
             flex: `0 0 ${flexBasis}`,
             maxWidth: flexBasis,
@@ -525,7 +560,7 @@ export default function MyTasks() {
                     />
                   ) : (
                     <div className="flex-1 flex items-start justify-between min-w-0 gap-1">
-                      <span className={`text-xs truncate ${task.completed ? (isDarkColor(category.color) ? 'line-through text-white/60' : 'line-through text-black/40') : (isDarkColor(category.color) ? 'text-white' : 'text-gray-800')}`}>
+                      <span className={`text-xs min-w-0 break-words ${task.completed ? (isDarkColor(category.color) ? 'line-through text-white/60' : 'line-through text-black/40') : (isDarkColor(category.color) ? 'text-white' : 'text-gray-800')}`}>
                         {task.content}
                       </span>
                       <div className="flex items-center gap-0.5 flex-shrink-0 ml-1">

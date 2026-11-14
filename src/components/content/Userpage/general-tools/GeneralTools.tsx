@@ -20,6 +20,7 @@ import Calculator from './Calculator';
 import Olmt from './olmt/Olmt';
 import './tool-premium.css';
 import { GENERAL_TOOL_GROUPS } from '@/lib/railMenu';
+import { buildUserpageQuery, parseUserpageQuery } from '@/lib/userpageUrl';
 
 import {
   GENERAL_TOOL_MENU,
@@ -50,15 +51,34 @@ const GeneralTools: React.FC = () => {
   
   // ★修正: シンプルなState管理に変更（初期値は'memo'）
   // 左カラムの Ⅲ からツールを指定して開かれた場合は、それで初期表示する。
+  // 頼みが無ければ URL の &t= を見る。頼みは読んだら消えるので、開発時の StrictMode で初期化が 2 回走ると
+  // 2 回目は空になり、?m=general-tools&t=pdf-compressor を再読み込みしてもメモが出ていた（2026-11-15）。
   const [activeTab, setActiveTab] = useState<TabType>(() => {
-    const requested = consumeGeneralTool();
-    return GENERAL_TOOL_MENU.some((t) => t.id === requested?.toolId) ? requested!.toolId : 'memo';
+    const isTool = (id?: string): id is TabType => GENERAL_TOOL_MENU.some((t) => t.id === id);
+    const requested = consumeGeneralTool()?.toolId;
+    if (isTool(requested)) return requested;
+    if (typeof window !== 'undefined') {
+      const fromUrl = parseUserpageQuery(window.location.search);
+      if (fromUrl?.menu === 'general-tools' && isTool(fromUrl.tool)) return fromUrl.tool;
+    }
+    return 'memo';
   });
 
   // すでに開いている状態で左カラムの別ツールが押されたとき用。
   useEffect(() => onGeneralTool(({ toolId }) => {
     if (GENERAL_TOOL_MENU.some((t) => t.id === toolId)) setActiveTab(toolId);
   }), []);
+
+  // 上のタブ（スマホ）で切り替えたときも URL の &t= を合わせる。合わせないと、再読み込み・共有で前のツールが開く。
+  // 履歴は積まない（タブの行き来で「戻る」が埋まらないように）。
+  useEffect(() => {
+    const cur = parseUserpageQuery(window.location.search);
+    if (cur?.menu !== 'general-tools' || cur.tool === activeTab) return;
+    const query = buildUserpageQuery({ menu: 'general-tools', tool: activeTab });
+    try {
+      window.history.replaceState(window.history.state, '', `${window.location.pathname}${query}`);
+    } catch { /* 失敗しても表示は変わらない */ }
+  }, [activeTab]);
 
 
 

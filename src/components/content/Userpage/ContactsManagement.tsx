@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FiLock, FiUnlock, FiTrash2, FiX, FiPlus, FiChevronDown, FiChevronRight } from 'react-icons/fi';
 import ToolHeader from './ToolHeader';
+import GuestNote from './general-tools/GuestNote';
 import { useAuth } from '@/lib/AuthContext';
 import { db } from '@/lib/firebaseClient';
-import { collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, updateDoc, deleteDoc, setDoc, getDocsFromServer, writeBatch } from 'firebase/firestore';
 import ContactLogPanel from './contacts/ContactLogPanel';
 import { SampleLedger, QuoteLedger, LogTimeline } from './contacts/ContactLedgers';
 import { summarize, sortLog, isChatNicknameOnly, logCsv, todayYmd, type ContactLogEntry, type SampleState } from '@/lib/contactLog';
@@ -27,7 +28,56 @@ interface Contact {
   createdAt: number;
   /** やり取りの履歴（問合せ・回答・見積・サンプル…） */
   log?: ContactLogEntry[];
+  /**
+   * 画面の中だけの印: 「新規追加」で出したまだ空のカード。何か入力した時点で保存する。
+   * id は先に振っておく（以前は id 無しで作り、打鍵のたびに addDoc が走って同じ人が何枚もできていた）
+   */
+  _draft?: boolean;
 }
+
+const TEXT_FIELDS = ['company', 'dept', 'role', 'name', 'phone', 'email', 'project', 'memo'] as const;
+const isCompletelyEmpty = (c: Contact) => TEXT_FIELDS.every((f) => String(c[f] ?? '').trim() === '');
+
+/**
+ * 未ログインのときは、このブラウザ（localStorage）に置く。
+ * ログインしたとき、クラウドに連絡先が無ければ手元の分をそのまま上げる（移行）。あれば「取り込む」を出す。
+ */
+const GUEST_KEY = 'yy-guest-contacts';
+const readGuestContacts = (): Contact[] => {
+  try {
+    const raw = JSON.parse(localStorage.getItem(GUEST_KEY) || '[]');
+    return Array.isArray(raw) ? raw.filter((c: Contact) => c && typeof c.id === 'string') : [];
+  } catch {
+    return [];
+  }
+};
+const writeGuestContacts = (list: Contact[]) => {
+  try {
+    const keep = list.filter((c) => !c._draft && !isCompletelyEmpty(c));
+    if (keep.length) localStorage.setItem(GUEST_KEY, JSON.stringify(keep));
+    else localStorage.removeItem(GUEST_KEY);
+  } catch {
+    /* 保存できない環境（プライベートウィンドウ等）では、開いている間だけ持つ */
+  }
+};
+const clearGuestContacts = () => {
+  try {
+    localStorage.removeItem(GUEST_KEY);
+  } catch {
+    /* 消せなくても、次に開いたときにまた取り込みを案内するだけ */
+  }
+};
+const guestId = () => `g-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+/** Firestore へ書く形（id と画面だけの印を外す。undefined は落とす） */
+const toCloud = (c: Contact) => {
+  const { id: _id, _draft, ...rest } = c;
+  void _id;
+  void _draft;
+  return JSON.parse(JSON.stringify(rest));
+};
+
+/** CSV の 1 セル */
+const csvCell = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
 
 const ContactsManagement: React.FC = () => {
   const { currentUser, isLoggedIn } = useAuth();
@@ -39,8 +89,32 @@ const ContactsManagement: React.FC = () => {
   const [view, setView] = useState<View>('cards');
   const [openLogId, setOpenLogId] = useState<string | null>(null);
   const [csvNotice, setCsvNotice] = useState('');
+  // ログインしたとき、クラウドにも連絡先があり、手元にも未ログインで保存した分が残っている件数
+  const [guestPending, setGuestPending] = useState(0);
+  const [importing, setImporting] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
   const today = todayYmd();
+  const isGuest = !currentUser;
+  const guestRef = useRef(isGuest);
+  guestRef.current = isGuest;
+  // 打鍵の途中でも最新の一覧を読む（同じカードを 2 回作らないため）
+  const contactsRef = useRef<Contact[]>([]);
+  contactsRef.current = contacts;
+
+  /** 一覧を書き換える。未ログインならこのブラウザにも書く */
+  const setList = useCallback((updater: (prev: Contact[]) => Contact[]) => {
+    setContacts((prev) => {
+      const next = updater(prev);
+      contactsRef.current = next;
+      if (guestRef.current) writeGuestContacts(next);
+      return next;
+    });
+  }, []);
+
+  const flash = (msg: string) => {
+    setCsvNotice(msg);
+    setTimeout(() => setCsvNotice(''), 5000);
+  };
 
   // 見出しの「できること」から切り替えたら、本文の頭へ寄せる（スマホで帯の下に隠れないように）
   const switchView = (v: View) => {
@@ -48,10 +122,13 @@ const ContactsManagement: React.FC = () => {
     setTimeout(() => bodyRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 30);
   };
 
-  // 初期データの読み込み（即時キャッシュ→Firestore購読）
+  // 初期データの読み込み（即時キャッシュ→Firestore購読）。未ログインはこのブラウザの分
   useEffect(() => {
-    // 一時的なuid未確定では消さない。明示ログアウト時のみクリア
-    if (!currentUser) { if (isLoggedIn === false) setContacts([]); return }
+    setGuestPending(0);
+    if (!currentUser) {
+      if (isLoggedIn === false) setContacts(readGuestContacts().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)));
+      return;
+    }
     try {
       const cached = localStorage.getItem(`contacts:${currentUser.uid}`)
       if (cached) setContacts(JSON.parse(cached))
@@ -67,87 +144,139 @@ const ContactsManagement: React.FC = () => {
       const list: Contact[] = snap.docs.filter(d => !isChatNicknameOnly(d.data())).map(d => ({ id: d.id, ...(d.data() as any) })) as any
       // 新しい順
       list.sort((a,b) => (b.createdAt||0) - (a.createdAt||0))
-      setContacts(list)
+      // まだ何も入れていない「新規追加」のカードは Firestore に無いので、消さずに先頭へ残す
+      const ids = new Set(list.map(c => c.id))
+      const drafts = contactsRef.current.filter(c => c._draft && c.id && !ids.has(c.id))
+      setContacts([...drafts, ...list])
       try { localStorage.setItem(`contacts:${currentUser.uid}`, JSON.stringify(list)) } catch {}
     })
     return () => unsub()
   }, [currentUser, isLoggedIn])
 
-  // 担当者連絡先の機能
-  const addContact = async () => {
-    // 追加制御：未保存（idが無い）で完全に空のカードがある場合のみ追加を禁止
-    const isCompletelyEmpty = (c: Contact) =>
-      [c.company, c.dept, c.role, c.name, c.phone, c.email, (c.project || ''), c.memo]
-        .every(v => (v || '').trim() === '');
-    const hasUnsavedEmpty = contacts.some(c => !c.id && isCompletelyEmpty(c));
-    if (hasUnsavedEmpty) {
-      alert('未入力のカードがあります。いずれかの項目を1文字以上入力してください。');
-      return;
+  const uploadContacts = async (uid: string, list: Contact[]) => {
+    const colRef = collection(db, 'users', uid, 'contacts');
+    for (let i = 0; i < list.length; i += 400) {
+      const batch = writeBatch(db);
+      list.slice(i, i + 400).forEach((c) => batch.set(doc(colRef), toCloud(c)));
+      await batch.commit();
     }
+  };
 
-    // まずはローカルに空カードを作成（idは付けない）
-    const newContact: Contact = {
-      company: '', dept: '', name: '', role: '', phone: '', email: '', project: '', memo: '',
-      locked: false, createdAt: Date.now()
+  // ログインしたとき、このブラウザに未ログインで保存した分があれば上げる。
+  // クラウドに連絡先が無ければそのまま移す。あれば黙って混ぜず、「取り込む」を出す
+  useEffect(() => {
+    if (!currentUser) return;
+    const guest = readGuestContacts();
+    if (!guest.length) return;
+    let alive = true;
+    const colRef = collection(db, 'users', currentUser.uid, 'contacts');
+    getDocsFromServer(colRef)
+      .then(async (snap) => {
+        if (!alive) return;
+        if (snap.docs.some((d) => !isChatNicknameOnly(d.data()))) {
+          setGuestPending(guest.length);
+          return;
+        }
+        await uploadContacts(currentUser.uid, guest);
+        clearGuestContacts();
+        if (alive) flash(`このブラウザに保存していた連絡先 ${guest.length} 件をアカウントへ移しました`);
+      })
+      .catch(() => {
+        /* オフライン等。次に開いたときにまた試す（手元の分は消さない） */
+      });
+    return () => {
+      alive = false;
     };
-    setContacts(prev => [newContact, ...prev]);
-    // Firestoreへの作成は、いずれかのフィールドが入力されたタイミングで行う（updateContactFieldで実施）
+  }, [currentUser]);
+
+
+  /** クラウドに既にあるときの取り込み。会社名と氏名が同じ人は足さない */
+  const importGuest = async () => {
+    if (!currentUser || importing) return;
+    const guest = readGuestContacts();
+    const key = (c: Contact) => `${(c.company || '').trim()}|${(c.name || '').trim()}`;
+    const have = new Set(contactsRef.current.filter((c) => !c._draft).map(key));
+    const fresh = guest.filter((c) => !have.has(key(c)));
+    setImporting(true);
+    try {
+      await uploadContacts(currentUser.uid, fresh);
+      clearGuestContacts();
+      setGuestPending(0);
+      flash(fresh.length === guest.length ? `${fresh.length} 件を取り込みました` : `${fresh.length} 件を取り込みました（会社名・氏名が同じ ${guest.length - fresh.length} 件は足していません）`);
+    } catch {
+      flash('取り込めませんでした。時間をおいてもう一度お試しください');
+    } finally {
+      setImporting(false);
+    }
   };
 
-  const deleteContact = async (index: number) => {
-    if (contacts[index] && contacts[index].locked) {
-      alert('ロックされた連絡先は削除できません。先にロックを解除してください。');
+  // 担当者連絡先の機能
+  const addContact = () => {
+    // 未入力の新規カードが残っていれば、増やさずにそれを使ってもらう
+    const empty = contactsRef.current.find((c) => c._draft && isCompletelyEmpty(c));
+    if (empty) {
+      setView('cards');
+      setSelectedCompany(null);
+      setContactSearchTerm('');
+      flash('未入力のカードがあります。会社名などを入れると保存されます');
+      setTimeout(() => (document.querySelector(`[data-contact="${empty.id}"] input`) as HTMLInputElement | null)?.focus(), 30);
       return;
     }
+    // 先に id を振った空のカード。保存はいずれかの項目に入力したとき（updateContactField）
+    const id = currentUser ? doc(collection(db, 'users', currentUser.uid, 'contacts')).id : guestId();
+    const newContact: Contact = {
+      id, company: '', dept: '', name: '', role: '', phone: '', email: '', project: '', memo: '',
+      locked: false, createdAt: Date.now(), _draft: true,
+    };
+    // 絞り込み中だと新しいカードが見えないので外す
+    setSelectedCompany(null);
+    setContactSearchTerm('');
+    setView('cards');
+    setList(prev => [newContact, ...prev]);
+    setTimeout(() => (document.querySelector(`[data-contact="${id}"] input`) as HTMLInputElement | null)?.focus(), 30);
+  };
 
-    if (confirm('この連絡先を削除してもよろしいですか？')) {
-      const target = contacts[index] as any
-      setContacts(prev => prev.filter((_, i) => i !== index));
-      if (currentUser && target?.id) { try { await deleteDoc(doc(db, 'users', currentUser.uid, 'contacts', target.id)) } catch {} }
-      console.log('🗑️ 連絡先を削除して保存');
+  const deleteContact = async (id: string) => {
+    const target = contactsRef.current.find(c => c.id === id);
+    if (!target) return;
+    if (target.locked) {
+      flash('ロックした連絡先は削除できません。先に鍵を外してください');
+      return;
     }
+    // まだ何も入れていないカードは確認なしで閉じる
+    if (!target._draft && !confirm(`「${target.company || target.name || 'この連絡先'}」を削除してもよろしいですか？`)) return;
+    setList(prev => prev.filter(c => c.id !== id));
+    if (currentUser && !target._draft) { try { await deleteDoc(doc(db, 'users', currentUser.uid, 'contacts', id)) } catch {} }
   };
 
-  const toggleLock = async (index: number) => {
-      const target = contacts[index] as any
-      const nextLocked = !target.locked
-      setContacts(prev => prev.map((c,i) => i===index ? { ...c, locked: nextLocked } : c));
-      if (currentUser && target?.id) { try { await updateDoc(doc(db, 'users', currentUser.uid, 'contacts', target.id), { locked: nextLocked } as any) } catch {} }
-      console.log('🔒 連絡先のロック状態を変更して保存');
+  const toggleLock = async (id: string) => {
+    const target = contactsRef.current.find(c => c.id === id);
+    if (!target) return;
+    const nextLocked = !target.locked
+    setList(prev => prev.map(c => c.id === id ? { ...c, locked: nextLocked } : c));
+    if (currentUser && !target._draft) { try { await updateDoc(doc(db, 'users', currentUser.uid, 'contacts', id), { locked: nextLocked } as any) } catch {} }
   };
 
-  const updateContactField = async (index: number, field: keyof Contact, value: string) => {
-    const target = contacts[index] as Contact | undefined;
+  const updateContactField = async (id: string, field: keyof Contact, value: string) => {
+    const target = contactsRef.current.find(c => c.id === id);
     if (!target) return;
     const newValue: any = field === 'createdAt' ? parseInt(value) : value;
-
-    // ローカル更新
     const updatedLocal = { ...target, [field]: newValue } as Contact;
-    setContacts(prev => prev.map((c,i) => i===index ? updatedLocal : c));
+    // 新規カードは、いずれかの項目に 1 文字でも入った時点で保存する
+    const becomesSaved = !!target._draft && !isCompletelyEmpty(updatedLocal);
+    if (becomesSaved) delete updatedLocal._draft;
+    setList(prev => prev.map(c => c.id === id ? updatedLocal : c));
 
-    // Firestore同期
-    if (!currentUser) return;
-    const colPath = collection(db, 'users', currentUser.uid, 'contacts');
-
-    // 新規（idなし）カードは、いずれかのフィールドに入力が入った時点で作成
-    const isEmptyAfter = [updatedLocal.company, updatedLocal.dept, updatedLocal.role, updatedLocal.name, updatedLocal.phone, updatedLocal.email, (updatedLocal.project||''), updatedLocal.memo]
-      .every(v => (v || '').trim() === '');
-    if (!updatedLocal.id) {
-      if (isEmptyAfter) return; // まだ全て空 → 何もしない
-      try {
-        const docRef = await addDoc(colPath, { ...updatedLocal } as any);
-        // 付与されたidをローカルに反映
-        setContacts(prev => prev.map((c,i) => i===index ? { ...updatedLocal, id: docRef.id } : c));
-      } catch {}
-      return;
-    }
-
-    // 既存ドキュメントの更新
-    try { await updateDoc(doc(db, 'users', currentUser.uid, 'contacts', updatedLocal.id), { [field]: newValue } as any) } catch {}
+    if (!currentUser || updatedLocal._draft) return;
+    try {
+      if (becomesSaved) await setDoc(doc(db, 'users', currentUser.uid, 'contacts', id), toCloud(updatedLocal));
+      else await updateDoc(doc(db, 'users', currentUser.uid, 'contacts', id), { [field]: newValue } as any);
+    } catch {}
   };
 
+
   const saveLog = async (contactId: string, next: ContactLogEntry[]) => {
-    setContacts(prev => prev.map(c => c.id === contactId ? { ...c, log: next } : c));
+    setList(prev => prev.map(c => c.id === contactId ? { ...c, log: next } : c));
     if (!currentUser) return;
     try { await updateDoc(doc(db, 'users', currentUser.uid, 'contacts', contactId), { log: next } as any) } catch (e) { console.error('履歴の保存に失敗', e) }
   };
@@ -168,15 +297,33 @@ const ContactsManagement: React.FC = () => {
 
   const downloadLogCsv = () => {
     if (!contacts.some(c => (c.log ?? []).length > 0)) {
-      setCsvNotice('まだ履歴がありません。記録すると CSV に書き出せます');
-      setTimeout(() => setCsvNotice(''), 5000);
+      flash('まだ履歴がありません。記録すると CSV に書き出せます');
       return;
     }
-    const blob = new Blob([logCsv(contacts)], { type: 'text/csv;charset=utf-8' });
+    saveCsv(logCsv(contacts), `yaneyuka_やり取り履歴_${today}.csv`);
+  };
+
+  /** 担当者の一覧を CSV で（Excel で開けるよう BOM 付き）。いま絞り込んでいればその分だけ */
+  const downloadContactsCsv = () => {
+    const rows = filteredContacts.filter(c => !isCompletelyEmpty(c));
+    if (!rows.length) {
+      flash('書き出す連絡先がありません');
+      return;
+    }
+    const head = ['会社名', '部署名', '役職', '氏名', '携帯番号', 'mail', '案件', 'memo', 'やり取り件数', '最終やり取り'];
+    const lines = rows.map(c => {
+      const sum = summarize(c.log, today);
+      return [c.company, c.dept, c.role, c.name, c.phone, c.email, c.project ?? '', c.memo, sum.count, sum.last ?? ''].map(csvCell).join(',');
+    });
+    saveCsv('﻿' + [head.map(csvCell).join(','), ...lines].join('\n') + '\n', `yaneyuka_担当連絡先_${today}.csv`);
+  };
+
+  const saveCsv = (text: string, name: string) => {
+    const blob = new Blob([text], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `yaneyuka_やり取り履歴_${today}.csv`;
+    a.download = name;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -185,7 +332,6 @@ const ContactsManagement: React.FC = () => {
 
   const setSortOrder = (sortType: string) => {
     setCurrentSortOrder(sortType);
-    console.log('担当連絡先を並び替え:', sortType);
   };
 
   const clearContactSearch = () => {
@@ -277,9 +423,19 @@ const ContactsManagement: React.FC = () => {
           { label: 'やり取りの履歴', active: view === 'log', hint: '全社のやり取りを新しい順に。建材ページ・Maker conect からの自動記録もここに', onClick: () => switchView('log') },
           { label: 'サンプル台帳', active: view === 'samples', hint: '依頼中・手元にあるサンプル。到着から30日で返却を促します', onClick: () => switchView('samples') },
           { label: '見積の履歴', active: view === 'quotes', hint: '見積を案件ごとに集計', onClick: () => switchView('quotes') },
-          { label: 'CSV', hint: 'やり取りの履歴を CSV で保存', onClick: downloadLogCsv },
+          { label: 'CSV', hint: '担当者の一覧（いま絞り込んでいればその分）を CSV で保存。やり取りの履歴の CSV は一覧の上から', onClick: downloadContactsCsv },
         ]}
       />
+      {isGuest && <GuestNote className="mt-2 !mb-0" />}
+      {!isGuest && guestPending > 0 && (
+        <p className="text-[11px] text-gray-600 py-1.5 border-b border-gray-200 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <span>このブラウザに、ログインせずに保存した連絡先が {guestPending} 件残っています。</span>
+          <button type="button" onClick={() => void importGuest()} disabled={importing} className="underline text-[#141414] disabled:opacity-50">
+            {importing ? '取り込み中…' : 'アカウントに取り込む'}
+          </button>
+          <button type="button" onClick={() => setGuestPending(0)} className="underline text-gray-500">あとで</button>
+        </p>
+      )}
       {csvNotice && <p className="text-[11px] text-gray-600 py-1.5 border-b border-gray-200">{csvNotice}</p>}
 
       <div ref={bodyRef} className="flex flex-col md:flex-row gap-2 mt-3 scroll-mt-2">
@@ -298,7 +454,10 @@ const ContactsManagement: React.FC = () => {
               </button>
             ))}
             <div className="flex-1" />
-            <button type="button" onClick={downloadLogCsv} className="text-[11px] text-gray-500 underline mb-1 hover:text-gray-800">履歴を CSV で保存</button>
+            <span className="flex flex-wrap gap-x-3 mb-1">
+              <button type="button" onClick={downloadContactsCsv} className="text-[11px] text-gray-500 underline hover:text-gray-800">担当者を CSV で保存</button>
+              <button type="button" onClick={downloadLogCsv} className="text-[11px] text-gray-500 underline hover:text-gray-800">履歴を CSV で保存</button>
+            </span>
           </div>
           {selectedCompany && (
             <p className="text-[11px] text-gray-600 mb-2 flex items-center gap-2">
@@ -320,7 +479,8 @@ const ContactsManagement: React.FC = () => {
             <select
               value={currentSortOrder}
               onChange={(e) => setSortOrder(e.target.value)}
-              className="px-2 py-1.5 text-[11px] border border-gray-300 focus:outline-none"
+              className="px-2 py-1.5 text-[11px] border border-gray-300 focus:outline-none max-w-full"
+              aria-label="並べ替え"
             >
               <option value="input-desc">入力順（新しい順）</option>
               <option value="input-asc">入力順（古い順）</option>
@@ -329,7 +489,7 @@ const ContactsManagement: React.FC = () => {
               <option value="name-asc">個人名（あいうえお順）</option>
               <option value="name-desc">個人名（逆順）</option>
             </select>
-            <div className="flex-1 min-w-[180px] relative">
+            <div className="flex-1 min-w-[160px] relative">
               <input
                 type="text"
                 value={contactSearchTerm}
@@ -361,31 +521,35 @@ const ContactsManagement: React.FC = () => {
             {view === 'cards' && (
             <div className="max-h-[calc(100vh-var(--nav-height)-200px)] min-h-[240px] overflow-y-auto md:pr-2">
               <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4">
-            {filteredContacts.map((contact, index) => {
-              const originalIndex = contacts.indexOf(contact);
+            {filteredContacts.map((contact) => {
+              const cid = contact.id!;
               const inputCls = `px-1 py-0.5 border-0 border-b border-gray-200 focus:border-[#3b3b3b] w-full text-[11px] ${contact.locked ? 'bg-gray-50 text-gray-500' : 'bg-white'}`;
+              const phoneHref = (contact.phone || '').replace(/[^\d+]/g, '');
+              const mail = (contact.email || '').trim();
               return (
-                <div key={originalIndex} className="overflow-hidden w-full text-xs border border-gray-300">
+                <div key={cid} data-contact={cid} className="overflow-hidden w-full text-xs border border-gray-300">
                   <div className="px-3 py-1.5 flex justify-between items-center border-b border-[#3b3b3b]">
                     <input
                       type="text"
                       value={contact.company}
                       placeholder="会社名"
-                      onChange={(e) => updateContactField(originalIndex, 'company', e.target.value)}
+                      onChange={(e) => updateContactField(cid, 'company', e.target.value)}
                       disabled={contact.locked}
                       className="!border-0 bg-transparent focus:outline-none w-full font-bold text-[12px] text-[#141414] placeholder-gray-400 disabled:!bg-transparent disabled:text-[#141414]"
                     />
                     <div className="flex gap-2 items-center ml-2">
                       <button
-                        onClick={() => toggleLock(originalIndex)}
-                        title={contact.locked ? 'ロック解除' : 'ロック'}
+                        onClick={() => toggleLock(cid)}
+                        title={contact.locked ? 'ロック解除' : 'ロック（書き換え・削除を防ぐ）'}
+                        aria-label={contact.locked ? 'ロック解除' : 'ロック'}
                         className={`flex-shrink-0 text-[13px] ${contact.locked ? 'text-[#141414]' : 'text-gray-300 hover:text-gray-700'}`}
                       >
                         {contact.locked ? <FiLock /> : <FiUnlock />}
                       </button>
                       <button
-                        onClick={() => deleteContact(originalIndex)}
+                        onClick={() => deleteContact(cid)}
                         title="削除"
+                        aria-label="削除"
                         className="text-gray-300 hover:text-red-600 flex-shrink-0 text-[13px]"
                       >
                         <FiTrash2 />
@@ -394,26 +558,33 @@ const ContactsManagement: React.FC = () => {
                   </div>
 
                   <div className="bg-white px-2 py-2 space-y-1">
-                    <input type="text" value={contact.dept} placeholder="部署名" onChange={(e) => updateContactField(originalIndex, 'dept', e.target.value)} disabled={contact.locked} className={inputCls} />
-                    <input type="text" value={contact.role} placeholder="役職" onChange={(e) => updateContactField(originalIndex, 'role', e.target.value)} disabled={contact.locked} className={inputCls} />
-                    <input type="text" value={contact.name} placeholder="氏名" onChange={(e) => updateContactField(originalIndex, 'name', e.target.value)} disabled={contact.locked} className={inputCls} />
-                    <input type="text" value={contact.phone} placeholder="携帯番号" onChange={(e) => updateContactField(originalIndex, 'phone', e.target.value)} disabled={contact.locked} className={inputCls} />
-                    <input type="email" value={contact.email} placeholder="mail" onChange={(e) => updateContactField(originalIndex, 'email', e.target.value)} disabled={contact.locked} className={inputCls} />
-                    <input type="text" value={contact.project || ''} placeholder="案件" onChange={(e) => updateContactField(originalIndex, 'project', e.target.value)} disabled={contact.locked} className={inputCls} />
-                    <textarea value={contact.memo} placeholder="memo" onChange={(e) => updateContactField(originalIndex, 'memo', e.target.value)} disabled={contact.locked} className={`${inputCls} h-14 resize-none`} />
+                    <input type="text" value={contact.dept} placeholder="部署名" onChange={(e) => updateContactField(cid, 'dept', e.target.value)} disabled={contact.locked} className={inputCls} />
+                    <input type="text" value={contact.role} placeholder="役職" onChange={(e) => updateContactField(cid, 'role', e.target.value)} disabled={contact.locked} className={inputCls} />
+                    <input type="text" value={contact.name} placeholder="氏名" onChange={(e) => updateContactField(cid, 'name', e.target.value)} disabled={contact.locked} className={inputCls} />
+                    {/* 番号・アドレスが入っていれば、その場で電話・メールを開ける */}
+                    <span className="flex items-end gap-2">
+                      <input type="tel" value={contact.phone} placeholder="携帯番号" onChange={(e) => updateContactField(cid, 'phone', e.target.value)} disabled={contact.locked} className={inputCls} />
+                      {phoneHref.length >= 3 && <a href={`tel:${phoneHref}`} className="shrink-0 text-[10px] text-gray-500 underline hover:text-[#141414]">発信</a>}
+                    </span>
+                    <span className="flex items-end gap-2">
+                      <input type="email" value={contact.email} placeholder="mail" onChange={(e) => updateContactField(cid, 'email', e.target.value)} disabled={contact.locked} className={inputCls} />
+                      {/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail) && <a href={`mailto:${mail}`} className="shrink-0 text-[10px] text-gray-500 underline hover:text-[#141414]">メール</a>}
+                    </span>
+                    <input type="text" value={contact.project || ''} placeholder="案件" onChange={(e) => updateContactField(cid, 'project', e.target.value)} disabled={contact.locked} className={inputCls} />
+                    <textarea value={contact.memo} placeholder="memo" onChange={(e) => updateContactField(cid, 'memo', e.target.value)} disabled={contact.locked} className={`${inputCls} h-14 resize-none`} />
                   </div>
                   {(() => {
                     const sum = summarize(contact.log, today);
-                    const open = !!contact.id && openLogId === contact.id;
+                    const open = !contact._draft && openLogId === cid;
                     const latest = sortLog(contact.log)[0];
                     return (
                       <>
                         <button
                           type="button"
-                          disabled={!contact.id}
-                          onClick={() => setOpenLogId(open ? null : contact.id!)}
+                          disabled={!!contact._draft}
+                          onClick={() => setOpenLogId(open ? null : cid)}
                           className="w-full px-2 py-1.5 border-t border-gray-300 text-[11px] text-left hover:bg-gray-50 disabled:text-gray-300"
-                          title={contact.id ? 'やり取りの履歴を開く' : '何か入力すると履歴を付けられます'}
+                          title={contact._draft ? '何か入力すると履歴を付けられます' : 'やり取りの履歴を開く'}
                         >
                           <span className="flex items-center gap-2">
                             {open ? <FiChevronDown className="text-gray-500" /> : <FiChevronRight className="text-gray-500" />}
@@ -429,7 +600,7 @@ const ContactsManagement: React.FC = () => {
                             </span>
                           )}
                         </button>
-                        {open && <ContactLogPanel log={contact.log ?? []} project={contact.project} disabled={contact.locked} onChange={(next) => void saveLog(contact.id!, next)} />}
+                        {open && <ContactLogPanel log={contact.log ?? []} project={contact.project} disabled={contact.locked} onChange={(next) => void saveLog(cid, next)} />}
                       </>
                     );
                   })()}
@@ -445,7 +616,7 @@ const ContactsManagement: React.FC = () => {
                 <button type="button" onClick={addContact} className="ml-1 underline text-gray-700 hover:text-black">担当者を追加する</button>
               )}
               {!contactSearchTerm && !selectedCompany && (
-                <span className="block mt-1 text-[11px] text-gray-400">建材ページでメーカーの「お問い合わせ」「カタログ」を開くと、会社のカードが自動でできます（ログイン中）。</span>
+                <span className="block mt-1 text-[11px] text-gray-400">ログイン中は、建材ページでメーカーの「お問い合わせ」「カタログ」を開くと会社のカードが自動でできます。</span>
               )}
             </p>
           )}

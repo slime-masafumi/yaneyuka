@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { doc, getDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebaseClient';
@@ -26,6 +26,11 @@ export default function SharePageClient({ code }: { code: string }) {
   // 合言葉つきのリンク。最初のダウンロードで「要る」と返ってきたら入力欄を出す
   const [needsPassword, setNeedsPassword] = useState(false);
   const [password, setPassword] = useState('');
+  const passwordRef = useRef<HTMLInputElement>(null);
+  // 合言葉の欄が出たら、そのまま打てるようにする
+  useEffect(() => {
+    if (needsPassword) passwordRef.current?.focus();
+  }, [needsPassword]);
 
   useEffect(() => {
     let cancelled = false;
@@ -48,7 +53,7 @@ export default function SharePageClient({ code }: { code: string }) {
         }
 
         if (!cancelled) {
-          setMessage('ファイルの準備ができました');
+          setMessage('ファイルの準備ができました。下のボタンで保存できます（ログイン不要）。');
           setFileName(data.fileName);
           setIsReady(true);
         }
@@ -87,11 +92,16 @@ export default function SharePageClient({ code }: { code: string }) {
           setMessage('このファイルには合言葉がかかっています。送り主から聞いた合言葉を入れてください。');
         } else if (result?.reason === 'wrong_password') {
           setNeedsPassword(true);
-          setMessage('合言葉が違います。');
+          setMessage('合言葉が違います。大文字・小文字も含めて、送り主から聞いたとおりに入れてください。');
+          setPassword('');
+          passwordRef.current?.focus();
         } else if (result?.reason === 'too_many_attempts') {
           setMessage('合言葉の入れ間違いが続いたため、しばらく受け付けません。1時間ほどおいてお試しください。');
         } else if (result?.reason === 'expired') {
           setMessage('この共有リンクは期限切れです。');
+          setIsReady(false);
+        } else if (result?.reason === 'not_found') {
+          setMessage('このファイルは送り主が削除したため、もうダウンロードできません。');
           setIsReady(false);
         } else if (result?.reason === 'site_bandwidth_exceeded') {
           setMessage('今月のダウンロード帯域の上限に達しているため、現在ダウンロードできません。時間をおいてお試しください。');
@@ -131,25 +141,30 @@ export default function SharePageClient({ code }: { code: string }) {
           <div className="space-y-3">
             {fileName && <p className="text-xs text-gray-500 break-all">ファイル名: {fileName}</p>}
             {needsPassword && (
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter' && password) void handleDownload(); }}
-                placeholder="合言葉"
-                autoComplete="off"
-                className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
-              />
+              <label className="block text-left">
+                <span className="block text-xs text-gray-600 mb-1">合言葉（リンクとは別に、電話やメールで伝えられたもの）</span>
+                <input
+                  ref={passwordRef}
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && password) void handleDownload(); }}
+                  placeholder="合言葉を入力"
+                  autoComplete="off"
+                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                />
+              </label>
             )}
             <button
               type="button"
               onClick={handleDownload}
               disabled={isDownloading || (needsPassword && !password)}
-              className="px-6 py-3 rounded text-white text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-wait"
+              className={`px-6 py-3 rounded text-white text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-60 ${isDownloading ? 'disabled:cursor-wait' : 'disabled:cursor-not-allowed'}`}
               style={{ backgroundColor: '#1DAD95' }}
             >
-              {isDownloading ? '準備中...' : '共有ファイルをダウンロード'}
+              {isDownloading ? '準備中...' : needsPassword ? '合言葉を確かめてダウンロード' : '共有ファイルをダウンロード'}
             </button>
+            {!needsPassword && <p className="text-[11px] text-gray-400">合言葉が掛かっているファイルは、押すと入力欄が出ます。</p>}
           </div>
         )}
         <div className="mt-6 pt-4 border-t border-gray-200">

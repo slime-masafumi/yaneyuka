@@ -78,7 +78,7 @@ export const CompareModal: React.FC<{
           <span className="yy-serif font-medium text-[14px]">
             {number} {revLabel(older.att.drawing!.rev)} → {revLabel(newer.att.drawing!.rev)}
           </span>
-          <span className="flex items-center gap-3">
+          <span className="flex flex-wrap items-center gap-3">
             <a
               href="https://pdfgap-yaneyuka.web.app/"
               target="_blank"
@@ -96,7 +96,7 @@ export const CompareModal: React.FC<{
         {error ? (
           <p className="p-4 text-red-600 text-[12px]">{error}</p>
         ) : (
-          <div className="flex-1 min-h-0 grid grid-cols-2 gap-2 p-2">
+          <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 gap-2 p-2">
             {pane(older, urls?.[0])}
             {pane(newer, urls?.[1])}
           </div>
@@ -132,14 +132,14 @@ export const Transmittal: React.FC<{
 
   const input = 'w-full px-2 py-1 text-[12px]';
   return createPortal(
-    <div className="fixed inset-x-0 bottom-0 z-[10000] bg-black/60 flex gap-3 p-4 overflow-auto" style={{ top: 'var(--nav-height, 35px)' }}>
+    <div className="fixed inset-x-0 bottom-0 z-[10000] bg-black/60 flex flex-col md:flex-row gap-3 p-4 overflow-auto" style={{ top: 'var(--nav-height, 35px)' }}>
       {/* 印刷は A4 縦。サイト共通の印刷設定（A3 横）をこの画面を開いている間だけ上書きする */}
       <style>{`@media print {
         @page { size: A4 portrait; margin: 0; }
         html, body { width: 210mm !important; height: 297mm !important; }
         #print-target-container { width: 210mm !important; height: 297mm !important; padding: 18mm 16mm !important; }
       }`}</style>
-      <div className="no-print bg-white w-[300px] shrink-0 p-3 space-y-2 self-start border border-[#3b3b3b]">
+      <div className="no-print bg-white w-full md:w-[300px] shrink-0 p-3 space-y-2 self-start border border-[#3b3b3b]">
         <div className="text-[12px] font-bold">送付状</div>
         <label className="block text-[11px] text-gray-600">宛先<input className={input} value={to} onChange={(e) => setTo(e.target.value)} placeholder="○○建設株式会社 ○○様" /></label>
         <label className="block text-[11px] text-gray-600">件名<input className={input} value={subject} onChange={(e) => setSubject(e.target.value)} /></label>

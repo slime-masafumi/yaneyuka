@@ -18,6 +18,7 @@ import { requestGeneralTool } from '@/lib/generalToolsMenu';
 import { FiTrash2, FiDownload, FiSmartphone, FiUploadCloud, FiX } from 'react-icons/fi';
 import ToolHeader from '../ToolHeader';
 import { QrImage, QrModal } from './QrCode';
+import GuestNote from './GuestNote';
 // JSZipは動的インポートで使用（SSR対応）
 
 interface TempFile {
@@ -35,6 +36,7 @@ interface TempFile {
 const MAX_FILE_SIZE_MB = 50; // 1ファイルあたりの最大サイズ（MB）
 const MAX_TOTAL_SIZE_MB = 200; // ユーザーごとの合計容量上限（MB）
 const MAX_FILES_COUNT = 10; // ユーザーごとのファイル数上限
+const LIMIT_COUNT_MSG = `ファイル数の上限（${MAX_FILES_COUNT}個）に達しています。一覧の古いファイルを消してから上げてください。`;
 
 type DirFile = File & { webkitRelativePath?: string };
 const relPath = (f: File) => (f as DirFile).webkitRelativePath || '';
@@ -83,6 +85,13 @@ const TempStorage: React.FC = () => {
   const [origin, setOrigin] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
   const [activeFeature, setActiveFeature] = useState<FeatureKey | null>(null);
+  // 未ログインで「上げる」を押したか（上の案内 1 行の文を切り替える。案内は 1 か所だけ）
+  const [loginAsked, setLoginAsked] = useState(false);
+  const guestRef = useRef<HTMLDivElement>(null);
+  const askLogin = () => {
+    setLoginAsked(true);
+    guestRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
   const phoneRef = useRef<HTMLDivElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -132,13 +141,13 @@ const TempStorage: React.FC = () => {
   // 複数のファイルを受け取り、必要なら圧縮してアップロードする
   const processAndUpload = async (inputFiles: File[]) => {
     if (!isLoggedIn || !currentUser?.uid) {
-      setNotice('ファイルを上げるにはログイン（無料の会員登録）が必要です。');
+      askLogin();
       return;
     }
     if (inputFiles.length === 0) return;
 
     if (typeof window === 'undefined' || !storage) {
-      alert('ストレージ機能が利用できません。ブラウザを更新してください。');
+      setNotice('ストレージ機能が利用できません。ブラウザを更新してください。');
       return;
     }
 
@@ -147,13 +156,13 @@ const TempStorage: React.FC = () => {
     // 上限判定に到達する前にタブが落ちる。生サイズの段階で先に弾く。
     const rawTotalMB = inputFiles.reduce((sum, f) => sum + f.size, 0) / (1024 * 1024);
     if (rawTotalMB > MAX_FILE_SIZE_MB) {
-      alert(`選択されたファイルの合計サイズが上限（${MAX_FILE_SIZE_MB}MB）を超えています。\n選択サイズ: ${rawTotalMB.toFixed(2)}MB\n\n相手先へ大きなファイルを送るときは「図面送付」を使ってください。`);
+      setNotice(`選んだファイルの合計（${rawTotalMB.toFixed(1)}MB）が上限 ${MAX_FILE_SIZE_MB}MB を超えています。相手先へ大きなファイルを送るときは「図面送付」（最大 2GB）を使ってください。`);
       return;
     }
 
     const alreadyUploaded = files.filter(f => f.userId === currentUser.uid);
     if (alreadyUploaded.length >= MAX_FILES_COUNT) {
-      alert(`ファイル数の上限（${MAX_FILES_COUNT}ファイル）に達しています。\n古いファイルを削除してから再度お試しください。`);
+      setNotice(LIMIT_COUNT_MSG);
       return;
     }
 
@@ -230,7 +239,7 @@ const TempStorage: React.FC = () => {
       // --- 2. 各種制限チェック（生成された fileToUpload に対して行う） ---
       const fileSizeMB = fileToUpload.size / (1024 * 1024);
       if (fileSizeMB > MAX_FILE_SIZE_MB) {
-        alert(`ファイルサイズが上限（${MAX_FILE_SIZE_MB}MB）を超えています。\n送信サイズ: ${fileSizeMB.toFixed(2)}MB`);
+        setNotice(`ZIP にまとめた大きさ（${fileSizeMB.toFixed(1)}MB）が上限 ${MAX_FILE_SIZE_MB}MB を超えています。`);
         setStatus('');
         setCompressionProgress(null);
         return;
@@ -239,7 +248,7 @@ const TempStorage: React.FC = () => {
       // ファイル数チェック (自分のアップロード済みファイル数)
       const userFiles = files.filter(f => f.userId === currentUser.uid);
       if (userFiles.length >= MAX_FILES_COUNT) {
-        alert(`ファイル数の上限（${MAX_FILES_COUNT}ファイル）に達しています。\n古いファイルを削除してから再度お試しください。`);
+        setNotice(LIMIT_COUNT_MSG);
         setStatus('');
         setCompressionProgress(null);
         return;
@@ -248,7 +257,7 @@ const TempStorage: React.FC = () => {
       // 合計容量チェック
       const currentTotalMB = userFiles.reduce((sum, f) => sum + (f.size || 0) / (1024 * 1024), 0);
       if (currentTotalMB + fileSizeMB > MAX_TOTAL_SIZE_MB) {
-        alert(`合計容量の上限（${MAX_TOTAL_SIZE_MB}MB）を超えます。\n現在の使用量: ${currentTotalMB.toFixed(2)}MB / ${MAX_TOTAL_SIZE_MB}MB`);
+        setNotice(`合計の上限 ${MAX_TOTAL_SIZE_MB}MB を超えます（今 ${currentTotalMB.toFixed(1)}MB 使用中）。一覧の古いファイルを消してから上げてください。`);
         setStatus('');
         setCompressionProgress(null);
         return;
@@ -304,7 +313,7 @@ const TempStorage: React.FC = () => {
       }, 2000);
     } catch (error) {
       console.error('処理エラー:', error);
-      alert('処理に失敗しました');
+      setNotice('上げられませんでした。通信状態を確かめて、もう一度お試しください。');
       setStatus('');
       setCompressionProgress(null);
       setUploadProgress(null);
@@ -371,7 +380,7 @@ const TempStorage: React.FC = () => {
     if (!confirm(`「${file.name}」を削除しますか？`)) return;
 
     if (!storage) {
-      alert('ストレージ機能が利用できません。');
+      setNotice('ストレージ機能が利用できません。ブラウザを更新してください。');
       return;
     }
 
@@ -384,7 +393,7 @@ const TempStorage: React.FC = () => {
       await deleteDoc(doc(db, 'tempFiles', file.id));
     } catch (err) {
       console.error('削除エラー:', err);
-      alert('削除に失敗しました');
+      setNotice('削除できませんでした。時間をおいてお試しください。');
     }
   };
 
@@ -410,14 +419,12 @@ const TempStorage: React.FC = () => {
 
   // --- 帯の「できること」 ---
   const jump = (el: HTMLElement | null) => el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  const needLogin = () => {
-    if (isLoggedIn) return false;
-    setNotice('端末間受け渡しはログイン（無料の会員登録）して使います。スマホと PC で同じアカウントにログインすると、片方で上げたファイルがもう片方の一覧にすぐ出ます。');
-    return true;
-  };
-  const pick = (key: FeatureKey, run: () => void, msg?: string) => {
+  const pick = (key: FeatureKey, run: () => void, msg?: string, guestOk = false) => {
     setActiveFeature(key);
-    if (needLogin()) return;
+    if (!isLoggedIn && !guestOk) {
+      askLogin();
+      return;
+    }
     setNotice(msg ?? null);
     run();
   };
@@ -425,10 +432,9 @@ const TempStorage: React.FC = () => {
   const features = [
     {
       label: 'スマホで開く QR',
-      login: true,
       hint: 'PC に出した QR をスマホのカメラで読むと、この画面がスマホで開きます',
       active: activeFeature === 'phone',
-      onClick: () => pick('phone', () => jump(phoneRef.current)),
+      onClick: () => pick('phone', () => jump(phoneRef.current), undefined, true),
     },
     {
       label: '写真を撮って上げる',
@@ -481,20 +487,31 @@ const TempStorage: React.FC = () => {
     </button>
   );
 
-  if (!isLoggedIn) {
-    return (
-      <div className="w-full bg-white border-b border-gray-100">
-        {header}
-        <div className="p-4">
-          {noticeLine}
-          <p className="text-[11px] text-gray-600 leading-relaxed">
-            この機能はログイン（無料の会員登録）して使います。スマホと PC で同じアカウントにログインすると、片方で上げたファイルがもう片方にすぐ出ます。
-          </p>
-          <p className="text-[11px] text-gray-500 mt-2">相手先へ図面を送るときは {toTransmittal}（送付状・送付台帳つき）。</p>
-        </div>
-      </div>
+  // 未ログインでも画面は同じ形で見せる（何ができるかが分かるように）。
+  // ファイルはサーバー（Storage）に置くのでログインは要る。案内はこの 1 行だけにし、
+  // 「上げる」を押したときもここへ戻して文を切り替える。
+  const guest = !isLoggedIn;
+  const guestLine = guest && (
+    <div ref={guestRef} className="scroll-mt-16">
+      <GuestNote action="ログインして使う">
+        {loginAsked
+          ? 'ファイルを上げるにはログイン（無料）が要ります。スマホと PC で同じアカウントにログインすると、片方で上げたものがもう片方の一覧にすぐ出ます。'
+          : 'ファイルをサーバーに 24 時間だけ置いて渡すので、ログインして使います。下の「受け取る」は見本です。'}
+      </GuestNote>
+    </div>
+  );
+
+  // 未ログインのときの「上げる」ボタン（ファイル選択を開かず、先にログインを案内する）
+  const pickBtn = (htmlFor: string, label: string, extra = '') =>
+    guest ? (
+      <button type="button" onClick={askLogin} className={`yy-btn ${extra}`}>
+        {label}
+      </button>
+    ) : (
+      <label htmlFor={htmlFor} className={`yy-btn cursor-pointer ${extra}`}>
+        {label}
+      </label>
     );
-  }
 
   const currentTotalMB = files.reduce((sum, f) => sum + (f.size || 0) / (1024 * 1024), 0);
 
@@ -503,6 +520,7 @@ const TempStorage: React.FC = () => {
       {header}
 
       <div className="p-4">
+        {guestLine}
         {noticeLine}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* --- 左：上げる --- */}
@@ -549,15 +567,9 @@ const TempStorage: React.FC = () => {
                     <FiUploadCloud className="mx-auto mb-2 text-gray-400" size={14} />
                     <p className="text-[11px] text-gray-600 mb-3">ここへドラッグ＆ドロップ（複数可・フォルダ可）</p>
                     <div className="flex flex-wrap gap-2 items-center justify-center">
-                      <label htmlFor="file-upload" className="yy-btn cursor-pointer">
-                        ファイルを選択
-                      </label>
-                      <label htmlFor="camera-upload" className="yy-btn cursor-pointer lg:hidden">
-                        写真を撮る
-                      </label>
-                      <label htmlFor="folder-upload" className="yy-btn cursor-pointer">
-                        フォルダを選択
-                      </label>
+                      {pickBtn('file-upload', 'ファイルを選択')}
+                      {pickBtn('camera-upload', '写真を撮る', 'lg:hidden')}
+                      {pickBtn('folder-upload', 'フォルダを選択')}
                     </div>
                     <p className={`mt-3 ${monoLabel}`}>複数・フォルダは ZIP にまとめて上げます</p>
                   </>
@@ -570,7 +582,7 @@ const TempStorage: React.FC = () => {
 
             {/* 003 使用量 */}
             <div>
-              <SectionHead no="003" title="使用量" />
+              <SectionHead no="003" title={guest ? '上限' : '使用量'} />
               <div className="space-y-3">
                 <div>
                   <div className="flex justify-between items-baseline mb-1">
@@ -599,8 +611,36 @@ const TempStorage: React.FC = () => {
 
           {/* --- 右：受け取る --- */}
           <div ref={listRef} className="scroll-mt-4 min-w-0">
-            <SectionHead no="004" title="受け取る" aside={<span className={monoLabel}>{files.length} FILES</span>} />
-            {files.length === 0 ? (
+            <SectionHead no="004" title="受け取る" aside={<span className={monoLabel}>{guest ? 'SAMPLE' : `${files.length} FILES`}</span>} />
+            {guest ? (
+              // 見本（押せない）。上げたファイルがどう並ぶかを見せる
+              <ol className="border-t border-[#3b3b3b] select-none" aria-label="見本">
+                {[
+                  { name: 'IMG_0412.jpg', size: '3.2 MB', left: '23H 41M LEFT', at: '現場 · スマホから' },
+                  { name: 'A-101_平面図_Rev2.pdf', size: '1.8 MB', left: '06H 05M LEFT', at: '事務所 · PC から' },
+                ].map((s, i) => (
+                  <li key={s.name} className="py-3 border-b border-gray-300 opacity-60">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className={monoLabel}>
+                        {String(2 - i).padStart(3, '0')} · {s.at}
+                      </span>
+                      <span className="yy-mono text-[10px] tracking-[0.08em] text-gray-500">{s.left}</span>
+                    </div>
+                    <p className="text-[12px] font-bold text-[#141414] truncate mt-1">{s.name}</p>
+                    <p className="yy-mono text-[10px] text-gray-500">{s.size}</p>
+                    <div className="flex items-center gap-4 mt-2 text-[11px] text-gray-600">
+                      <span className="inline-flex items-center gap-1 underline underline-offset-2">
+                        <FiSmartphone size={12} className="text-gray-500" /> QR
+                      </span>
+                      <span className="inline-flex items-center gap-1 underline underline-offset-2">
+                        <FiDownload size={12} className="text-gray-500" /> ダウンロード
+                      </span>
+                    </div>
+                  </li>
+                ))}
+                <li className={`pt-2 ${monoLabel}`}>見本 — 各行の QR をスマホで読むと、ログインせずにそのファイルを落とせます</li>
+              </ol>
+            ) : files.length === 0 ? (
               <p className="text-[11px] text-gray-500 py-2 leading-relaxed">
                 まだ何もありません。上げたファイルはここに出て、各行の QR をスマホで読むとそのまま落とせます。{' '}
                 <label htmlFor="file-upload" className="underline underline-offset-2 text-gray-700 hover:text-black cursor-pointer">

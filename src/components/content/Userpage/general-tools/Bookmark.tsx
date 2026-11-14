@@ -4,8 +4,9 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { FiStar, FiTrash2, FiExternalLink, FiSettings, FiGrid, FiList, FiSearch, FiPlus, FiX, FiRefreshCw } from 'react-icons/fi';
 import { useAuth } from '@/lib/AuthContext';
 import { db } from '@/lib/firebaseClient';
-import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, query, orderBy, getDocsFromServer, writeBatch } from 'firebase/firestore';
 import ToolHeader, { type ToolFeature } from '../ToolHeader';
+import GuestNote from './GuestNote';
 import MakerBox from './makerBox/MakerBox';
 import LinkThumb from './bookmark/LinkThumb';
 import { normalizeUrl, canonicalUrl, hostLabel, looksLikeUrl } from './bookmark/url';
@@ -59,6 +60,48 @@ const ymd = (ms?: number) => {
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
 };
 
+/**
+ * 未ログインのときは、このブラウザ（localStorage）に置く。
+ * ログインしたとき、クラウドが空なら手元の分をそのまま上げる（移行）。空でなければ「取り込む」を出す。
+ */
+const GUEST_KEY = 'yy-guest-bookmarks';
+const readGuestBookmarks = (): Bookmark[] => {
+  try {
+    const raw = JSON.parse(localStorage.getItem(GUEST_KEY) || '[]');
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .filter((m: any) => m && typeof m.id === 'string')
+      .map((m: any) => ({ ...m, tags: Array.isArray(m.tags) ? m.tags : [], createdAt: toDate(m.createdAt), updatedAt: toDate(m.updatedAt) }));
+  } catch {
+    return [];
+  }
+};
+const writeGuestBookmarks = (list: Bookmark[]) => {
+  try {
+    const plain = list
+      .filter((b) => b.id !== DRAFT_ID)
+      .map((b) => ({ ...b, createdAt: b.createdAt.getTime(), updatedAt: b.updatedAt.getTime() }));
+    if (plain.length) localStorage.setItem(GUEST_KEY, JSON.stringify(plain));
+    else localStorage.removeItem(GUEST_KEY);
+  } catch {
+    /* 保存できない環境（プライベートウィンドウ等）では、開いている間だけ持つ */
+  }
+};
+const clearGuestBookmarks = () => {
+  try {
+    localStorage.removeItem(GUEST_KEY);
+  } catch {
+    /* 消せなくても、次に開いたときにまた取り込みを案内するだけ */
+  }
+};
+const guestId = () => `g-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+/** Firestore へ書く形（id を外し、日時は数値。undefined は落とす） */
+const toCloud = (b: Bookmark) => {
+  const { id: _id, createdAt, updatedAt, ...rest } = b;
+  void _id;
+  return JSON.parse(JSON.stringify({ ...rest, createdAt: createdAt.getTime(), updatedAt: updatedAt.getTime() }));
+};
+
 /** 小さな等幅のラベル（番号・日付・状態） */
 const MONO = 'yy-mono text-[10px] tracking-[0.12em] uppercase';
 
@@ -96,6 +139,8 @@ const BookmarkTool: React.FC = () => {
   const [teamRequest, setTeamRequest] = useState(0);
   // 未ログインで押したときなどの、1 行の説明
   const [notice, setNotice] = useState('');
+  // 未ログインで、ログインが要る機能（資料箱）を押したときの 1 行
+  const [loginNotice, setLoginNotice] = useState('');
 
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -123,6 +168,9 @@ const BookmarkTool: React.FC = () => {
   const [brokenOnly, setBrokenOnly] = useState(false);
   const [dupOnly, setDupOnly] = useState(false);
   const [quickUrl, setQuickUrl] = useState('');
+  // 並び（お気に入りは常に先）
+  const [sortKey, setSortKey] = useState<'recent' | 'name'>('recent');
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   const [saveStatus, setSaveStatus] = useState('');
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -150,6 +198,21 @@ const BookmarkTool: React.FC = () => {
   const dupRef = useRef<HTMLDivElement>(null);
 
   const isDraft = currentBookmark?.id === DRAFT_ID;
+  // 未ログイン（このブラウザに保存）か。setList の中から読むので ref にも持つ
+  const isGuest = !currentUser;
+  const guestRef = useRef(isGuest);
+  guestRef.current = isGuest;
+  // ログインしたとき、クラウドに既にブックマークがあって、手元にも未ログインで保存した分が残っている件数
+  const [guestPending, setGuestPending] = useState(0);
+  const [importing, setImporting] = useState(false);
+  /** 一覧を書き換える。未ログインならこのブラウザにも書く */
+  const setList = useCallback((updater: (prev: Bookmark[]) => Bookmark[]) => {
+    setBookmarks((prev) => {
+      const next = updater(prev);
+      if (guestRef.current) writeGuestBookmarks(next);
+      return next;
+    });
+  }, []);
   const makerUpdates = useMakerBoxUpdates(currentUser?.uid);
 
   useEffect(() => {
@@ -184,9 +247,12 @@ const BookmarkTool: React.FC = () => {
   // Firestore購読
   useEffect(() => {
     setLoaded(false);
+    setGuestPending(0);
     if (!currentUser) {
-      setBookmarks([]);
+      // 未ログイン: このブラウザに置いた分を出す
+      setBookmarks(readGuestBookmarks());
       setCurrentBookmark(null);
+      setLoaded(true);
       return;
     }
     try {
@@ -243,6 +309,65 @@ const BookmarkTool: React.FC = () => {
     return () => unsub();
   }, [currentUser]);
 
+  // ログインしたとき、このブラウザに未ログインで保存した分があれば上げる。
+  // クラウドが空ならそのまま移す。空でなければ黙って混ぜず、「取り込む」を出す
+  useEffect(() => {
+    if (!currentUser) return;
+    const guest = readGuestBookmarks();
+    if (!guest.length) return;
+    let alive = true;
+    const colRef = collection(db, 'users', currentUser.uid, 'bookmarks');
+    getDocsFromServer(colRef)
+      .then(async (snap) => {
+        if (!alive) return;
+        if (!snap.empty) {
+          setGuestPending(guest.length);
+          return;
+        }
+        for (let i = 0; i < guest.length; i += 400) {
+          const batch = writeBatch(db);
+          guest.slice(i, i + 400).forEach((b) => batch.set(doc(colRef), toCloud(b)));
+          await batch.commit();
+        }
+        clearGuestBookmarks();
+        if (alive) setNotice(`このブラウザに保存していたブックマーク ${guest.length} 件をアカウントへ移しました。`);
+      })
+      .catch(() => {
+        /* オフライン等。次に開いたときにまた試す（手元の分は消さない） */
+      });
+    return () => {
+      alive = false;
+    };
+  }, [currentUser]);
+
+  /** クラウドに既にあるときの取り込み。同じページ（重複判定と同じ基準）は足さない */
+  const importGuest = async () => {
+    if (!currentUser || importing) return;
+    const guest = readGuestBookmarks();
+    const have = new Set(bookmarksRef.current.map((b) => canonicalUrl(b.url)));
+    const fresh = guest.filter((b) => !have.has(canonicalUrl(b.url)));
+    setImporting(true);
+    try {
+      const colRef = collection(db, 'users', currentUser.uid, 'bookmarks');
+      for (let i = 0; i < fresh.length; i += 400) {
+        const batch = writeBatch(db);
+        fresh.slice(i, i + 400).forEach((b) => batch.set(doc(colRef), toCloud(b)));
+        await batch.commit();
+      }
+      clearGuestBookmarks();
+      setGuestPending(0);
+      setNotice(
+        fresh.length === guest.length
+          ? `${fresh.length} 件を取り込みました。`
+          : `${fresh.length} 件を取り込みました（登録済みと同じページの ${guest.length - fresh.length} 件は足していません）。`,
+      );
+    } catch {
+      setNotice('取り込めませんでした。時間をおいてもう一度お試しください。');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   // --- 重複（utm_* や末尾の / の違いだけの、同じページ） ---
   const canonById = useMemo(() => new Map(bookmarks.map((b) => [b.id, canonicalUrl(b.url)])), [bookmarks]);
   const dupIds = useMemo(() => {
@@ -269,7 +394,9 @@ const BookmarkTool: React.FC = () => {
         !term ||
         bookmark.title.toLowerCase().includes(term) ||
         bookmark.url.toLowerCase().includes(term) ||
-        (bookmark.description && bookmark.description.toLowerCase().includes(term));
+        (bookmark.description && bookmark.description.toLowerCase().includes(term)) ||
+        bookmark.category.toLowerCase().includes(term) ||
+        bookmark.tags.some((tag) => tag.toLowerCase().includes(term));
       const matchesCategory = !categoryFilter || bookmark.category === categoryFilter;
       const matchesTag = !tagFilter || bookmark.tags.some((tag) => tag === tagFilter);
       const matchesBroken = !brokenOnly || bookmark.linkStatus === 'broken';
@@ -278,8 +405,111 @@ const BookmarkTool: React.FC = () => {
     });
     // 重複だけを見るときは、同じページ同士を隣に並べる
     if (dupOnly) list.sort((a, b) => (canonById.get(a.id) ?? '').localeCompare(canonById.get(b.id) ?? ''));
+    else {
+      // お気に入り（★）を先に。その中は選んだ並び（更新の新しい順 / 名前順）
+      const byKey =
+        sortKey === 'name'
+          ? (a: Bookmark, b: Bookmark) => (a.title || hostLabel(a.url)).localeCompare(b.title || hostLabel(b.url), 'ja')
+          : (a: Bookmark, b: Bookmark) => b.updatedAt.getTime() - a.updatedAt.getTime();
+      list.sort((a, b) => Number(!!b.isFavorite) - Number(!!a.isFavorite) || byKey(a, b));
+    }
     return list;
-  }, [bookmarks, searchTerm, categoryFilter, tagFilter, brokenOnly, dupOnly, dupIds, canonById]);
+  }, [bookmarks, searchTerm, categoryFilter, tagFilter, brokenOnly, dupOnly, dupIds, canonById, sortKey]);
+
+  /** 書き出し（ブラウザに取り込める HTML。Chrome / Edge / Safari / Firefox の「ブックマークをインポート」で読める） */
+  const exportHtml = () => {
+    const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const groups = new Map<string, Bookmark[]>();
+    bookmarks.forEach((b) => groups.set(b.category || '', [...(groups.get(b.category || '') ?? []), b]));
+    const item = (b: Bookmark) =>
+      `    <DT><A HREF="${esc(normalizeUrl(b.url))}" ADD_DATE="${Math.floor(b.createdAt.getTime() / 1000)}"${b.tags.length ? ` TAGS="${esc(b.tags.join(','))}"` : ''}>${esc(b.title || hostLabel(b.url))}</A>${b.description ? `\n    <DD>${esc(b.description)}` : ''}`;
+    const body = Array.from(groups.entries())
+      .map(([cat, list]) => (cat ? `  <DT><H3>${esc(cat)}</H3>\n  <DL><p>\n${list.map(item).join('\n')}\n  </DL><p>` : list.map(item).join('\n')))
+      .join('\n');
+    const html = `<!DOCTYPE NETSCAPE-Bookmark-file-1>\n<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">\n<TITLE>Bookmarks</TITLE>\n<H1>yaneyuka ブックマーク</H1>\n<DL><p>\n${body}\n</DL><p>\n`;
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const href = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = href;
+    a.download = `yaneyuka_bookmarks_${ymd(Date.now()).replace(/\./g, '')}.html`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(href);
+  };
+
+  /**
+   * 取り込み: ブラウザから書き出したブックマーク HTML（フォルダ名をカテゴリに）か、
+   * 1 行 1 URL のテキスト・CSV（URL を含む列を拾う）。登録済みと同じページは足さない。
+   */
+  const importFile = async (file: File) => {
+    const text = await file.text();
+    const found: { url: string; title: string; category: string; description: string }[] = [];
+    if (/<a\s[^>]*href=/i.test(text)) {
+      const docu = new DOMParser().parseFromString(text, 'text/html');
+      docu.querySelectorAll('a[href]').forEach((a) => {
+        const href = a.getAttribute('href') || '';
+        if (!/^https?:\/\//i.test(href)) return; // javascript: や place: は取り込まない
+        // いちばん近いフォルダ名（<DT><H3>名前</H3><DL>…）をカテゴリにする
+        // ブックマークバーそのもの（PERSONAL_TOOLBAR_FOLDER）はカテゴリにしない
+        const h3 = a.closest('dl')?.previousElementSibling;
+        const category = h3 && h3.tagName === 'H3' && !h3.hasAttribute('personal_toolbar_folder') ? (h3.textContent || '').trim() : '';
+        const dd = a.parentElement?.nextElementSibling;
+        found.push({ url: href, title: (a.textContent || '').trim(), category, description: dd?.tagName === 'DD' ? (dd.textContent || '').trim() : '' });
+      });
+    } else {
+      text.split(/\r?\n/).forEach((line) => {
+        const m = line.match(/https?:\/\/[^\s",]+/i);
+        if (!m) return;
+        const cells = line.split(',').map((c) => c.replace(/^"|"$/g, '').trim());
+        const title = cells.find((c) => c && !c.includes(m[0])) || '';
+        found.push({ url: m[0], title, category: '', description: '' });
+      });
+    }
+    const have = new Set(bookmarksRef.current.map((b) => canonicalUrl(b.url)));
+    const fresh: typeof found = [];
+    for (const f of found) {
+      const c = canonicalUrl(f.url);
+      if (!c || have.has(c)) continue;
+      have.add(c);
+      fresh.push(f);
+    }
+    const LIMIT = 2000;
+    const take = fresh.slice(0, LIMIT);
+    if (!take.length) {
+      setNotice(found.length ? `${found.length} 件ありましたが、すべて登録済みのページでした。` : '取り込める URL が見つかりませんでした（ブラウザから書き出したブックマークの HTML か、1 行 1 URL のテキスト・CSV を選んでください）。');
+      return;
+    }
+    const now = Date.now();
+    const items: Bookmark[] = take.map((f, i) => ({
+      id: guestId(),
+      title: f.title || hostLabel(f.url) || '無題',
+      url: f.url,
+      description: f.description,
+      category: f.category,
+      tags: [],
+      // 取り込んだ順に並ぶよう 1 ミリ秒ずつずらす
+      createdAt: new Date(now - i),
+      updatedAt: new Date(now - i),
+      isFavorite: false,
+    }));
+    try {
+      if (currentUser) {
+        const colRef = collection(db, 'users', currentUser.uid, 'bookmarks');
+        for (let i = 0; i < items.length; i += 400) {
+          const batch = writeBatch(db);
+          items.slice(i, i + 400).forEach((b) => batch.set(doc(colRef), toCloud(b)));
+          await batch.commit();
+        }
+      } else {
+        setList((prev) => [...items, ...prev]);
+      }
+      const skipped = found.length - take.length;
+      setNotice(`${take.length} 件を取り込みました${skipped ? `（登録済みと同じページなど ${skipped} 件は足していません）` : ''}。`);
+    } catch {
+      setNotice('取り込めませんでした。時間をおいてもう一度お試しください。');
+    }
+  };
 
   const allCategories = Array.from(new Set(bookmarks.map((b) => b.category).filter(Boolean))).sort();
   const allTags = Array.from(new Set(bookmarks.flatMap((b) => b.tags).filter(Boolean))).sort();
@@ -315,7 +545,7 @@ const BookmarkTool: React.FC = () => {
   /** 確かめた結果を画面と Firestore の両方に書く（書けなくても画面は進める。再試行しない） */
   const persistCheck = useCallback(
     async (id: string, result: LinkCheckResult) => {
-      setBookmarks((prev) => prev.map((b) => (b.id === id ? { ...b, ...result } : b)));
+      setList((prev) => prev.map((b) => (b.id === id ? { ...b, ...result } : b)));
       setCurrentBookmark((prev) => (prev && prev.id === id ? { ...prev, ...result } : prev));
       if (!currentUser || id === DRAFT_ID) return;
       try {
@@ -324,7 +554,7 @@ const BookmarkTool: React.FC = () => {
         /* 消された・オフライン。次に開いたときにまた確かめる */
       }
     },
-    [currentUser],
+    [currentUser, setList],
   );
 
   /**
@@ -447,9 +677,10 @@ const BookmarkTool: React.FC = () => {
 
   // 開いたとき、7 日以上確かめていないものを古い順に 20 件まで確かめる
   useEffect(() => {
-    if (!currentUser || !loaded) return;
-    if (autoCheckedUidRef.current === currentUser.uid) return;
-    autoCheckedUidRef.current = currentUser.uid;
+    if (!loaded) return;
+    const owner = currentUser?.uid ?? 'guest';
+    if (autoCheckedUidRef.current === owner) return;
+    autoCheckedUidRef.current = owner;
     const now = Date.now();
     const stale = bookmarksRef.current
       .filter((b) => b.id !== DRAFT_ID && b.url && (!b.linkCheckedAt || now - b.linkCheckedAt > RECHECK_MS))
@@ -462,16 +693,17 @@ const BookmarkTool: React.FC = () => {
 
   const requireLogin = (message: string, action: () => void) => {
     if (!isLoggedIn) {
-      setNotice(message);
+      setLoginNotice(message);
       return;
     }
-    setNotice('');
+    setLoginNotice('');
     action();
   };
 
   // 新規（下書き）。URL を渡されたら、そのまま取りに行く
-  const createNewBookmark = (initialUrl = '') =>
-    requireLogin('ブックマークを保存するにはログイン（無料の会員登録）が必要です。', () => {
+  // 未ログインでも作れる（このブラウザに保存）
+  const createNewBookmark = (initialUrl = '') => {
+      setLoginNotice('');
       setBoxMode(false);
       setIsEditMode(true);
       const now = new Date();
@@ -489,11 +721,11 @@ const BookmarkTool: React.FC = () => {
       loadIntoForm(draft);
       if (initialUrl) void fetchLinkMeta(initialUrl, false);
       setTimeout(() => urlInputRef.current?.focus(), 0);
-    });
+  };
 
   /** 下書きを追加する。同じページが登録済みなら、force しない限り止めて知らせる */
   const addBookmark = async (force = false) => {
-    if (!currentUser || !isDraft) return;
+    if (!isDraft) return;
     const url = normalizeUrl(bookmarkUrl);
     if (!url) {
       setSaveStatus('URL を入力してください');
@@ -520,9 +752,10 @@ const BookmarkTool: React.FC = () => {
     };
     setIsAdding(true);
     try {
-      const ref = await addDoc(collection(db, 'users', currentUser.uid, 'bookmarks'), payload as any);
-      const added: Bookmark = { ...payload, id: ref.id, createdAt: new Date(now), updatedAt: new Date(now) };
-      setBookmarks((prev) => (prev.some((b) => b.id === ref.id) ? prev : [added, ...prev]));
+      // 未ログインはこのブラウザに置く（id は手元で振る）
+      const id = currentUser ? (await addDoc(collection(db, 'users', currentUser.uid, 'bookmarks'), payload as any)).id : guestId();
+      const added: Bookmark = { ...payload, id, createdAt: new Date(now), updatedAt: new Date(now) };
+      setList((prev) => (prev.some((b) => b.id === id) ? prev : [added, ...prev]));
       loadIntoForm(added);
       setSaveStatus('追加しました');
       setTimeout(() => setSaveStatus(''), 2000);
@@ -550,7 +783,7 @@ const BookmarkTool: React.FC = () => {
     };
 
     // 楽観的UI更新
-    setBookmarks((prev) => prev.map((b) => (b.id === currentBookmark.id ? updatedBookmark : b)));
+    setList((prev) => prev.map((b) => (b.id === currentBookmark.id ? updatedBookmark : b)));
     setCurrentBookmark(updatedBookmark as Bookmark);
 
     try {
@@ -582,11 +815,11 @@ const BookmarkTool: React.FC = () => {
       loadIntoForm(nextList[0] ?? null);
       return;
     }
-    if (!currentUser) return;
     if (!confirm(`「${currentBookmark.title || '無題'}」を削除します。よろしいですか？`)) return;
     const id = currentBookmark.id;
-    setBookmarks((prev) => prev.filter((b) => b.id !== id));
+    setList((prev) => prev.filter((b) => b.id !== id));
     loadIntoForm(nextList[0] ?? null);
+    if (!currentUser) return;
     try {
       await deleteDoc(doc(db, 'users', currentUser.uid, 'bookmarks', id));
     } catch {}
@@ -596,11 +829,11 @@ const BookmarkTool: React.FC = () => {
   const toggleFavorite = async (id: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!currentUser) return;
     const b = bookmarks.find((x) => x.id === id);
     if (b) {
       const newVal = !b.isFavorite;
-      setBookmarks((prev) => prev.map((x) => (x.id === id ? { ...x, isFavorite: newVal } : x)));
+      setList((prev) => prev.map((x) => (x.id === id ? { ...x, isFavorite: newVal } : x)));
+      if (!currentUser) return;
       try {
         await updateDoc(doc(db, 'users', currentUser.uid, 'bookmarks', id), { isFavorite: newVal });
       } catch (error) {
@@ -684,6 +917,15 @@ const BookmarkTool: React.FC = () => {
         setBrokenOnly((v) => !v);
       },
       active: !boxMode && brokenOnly,
+    },
+    {
+      label: '取り込み・書き出し',
+      hint: 'ブラウザから書き出したブックマーク（HTML）を取り込みます（フォルダ名はカテゴリに）。書き出しはブラウザに戻せる HTML です',
+      onClick: () => {
+        openEditor();
+        setNotice('');
+        importInputRef.current?.click();
+      },
     },
     {
       label: 'メーカー資料箱',
@@ -792,6 +1034,22 @@ const BookmarkTool: React.FC = () => {
         features={features}
         aside={headerAside}
       />
+      {isGuest && !boxMode && (
+        <div className="shrink-0 px-4 pt-2">
+          <GuestNote className="!mb-0">{loginNotice || undefined}</GuestNote>
+        </div>
+      )}
+      {!isGuest && guestPending > 0 && (
+        <p className="shrink-0 px-4 py-2 border-b border-gray-200 text-[11px] text-gray-600 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <span>このブラウザに、ログインせずに保存したブックマークが {guestPending} 件残っています。</span>
+          <button type="button" onClick={() => void importGuest()} disabled={importing} className="underline underline-offset-2 text-[#141414] disabled:opacity-50">
+            {importing ? '取り込み中…' : 'アカウントに取り込む'}
+          </button>
+          <button type="button" onClick={() => setGuestPending(0)} className="underline underline-offset-2 text-gray-500">
+            あとで
+          </button>
+        </p>
+      )}
       {notice && (
         <p className="shrink-0 px-4 py-2 border-b border-gray-200 text-[11px] text-gray-600 flex items-start gap-2">
           <span className="flex-1">{notice}</span>
@@ -801,6 +1059,17 @@ const BookmarkTool: React.FC = () => {
         </p>
       )}
 
+      <input
+        ref={importInputRef}
+        type="file"
+        accept=".html,.htm,.txt,.csv,text/html,text/plain,text/csv"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          e.target.value = '';
+          if (f) void importFile(f);
+        }}
+      />
       {/* コンテンツエリア */}
       <div className="flex-1 min-h-0 overflow-y-auto p-4">
         {!boxMode && <div className="sm:hidden mb-4 flex flex-wrap items-center gap-3 text-[#141414]">{viewSwitch}</div>}
@@ -870,9 +1139,7 @@ const BookmarkTool: React.FC = () => {
 
             {filteredBookmarks.length === 0 ? (
               <p className="py-8 text-[11px] text-gray-400">
-                {!isLoggedIn ? (
-                  'ログインすると、よく使う URL を保存してここから開けます。'
-                ) : bookmarks.length === 0 ? (
+                {bookmarks.length === 0 ? (
                   <>
                     まだブックマークがありません。{' '}
                     <button type="button" className="underline underline-offset-2 text-gray-600" onClick={() => createNewBookmark()}>
@@ -976,6 +1243,9 @@ const BookmarkTool: React.FC = () => {
                   <button type="button" onClick={() => { setBrokenOnly(false); setDupOnly((v) => !v); }} className={segClass(dupOnly)}>
                     重複のみ <span className="yy-mono text-[10px]">{dupIds.size}</span>
                   </button>
+                  <button type="button" onClick={() => setSortKey(sortKey === 'recent' ? 'name' : 'recent')} className={segClass(false)} title="お気に入り（★）は常に先頭">
+                    {sortKey === 'recent' ? '新しい順' : '名前順'}
+                  </button>
                   <button
                     type="button"
                     onClick={checkAllLinks}
@@ -989,6 +1259,14 @@ const BookmarkTool: React.FC = () => {
                 </div>
               </div>
 
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-2 text-[10px] text-gray-500">
+                <button type="button" className="underline underline-offset-2 hover:text-[#141414]" onClick={() => importInputRef.current?.click()}>
+                  取り込む（ブラウザのブックマーク HTML）
+                </button>
+                <button type="button" className="underline underline-offset-2 hover:text-[#141414] disabled:opacity-40 disabled:no-underline" onClick={exportHtml} disabled={bookmarks.length === 0}>
+                  書き出す
+                </button>
+              </div>
               <div className="flex-1 overflow-y-auto max-h-72 lg:max-h-none border-t border-gray-200">
                 {isDraft && (
                   <div className="py-2 pl-2 border-b border-gray-200 border-l-2 border-l-[#52AA96] bg-[#fafaf8] text-[11px] font-bold">

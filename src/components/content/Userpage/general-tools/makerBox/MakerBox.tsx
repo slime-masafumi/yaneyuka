@@ -9,6 +9,7 @@ import { collection, onSnapshot } from 'firebase/firestore';
 import { FiX, FiSearch } from 'react-icons/fi';
 import { db } from '@/lib/firebaseClient';
 import { useAuth } from '@/lib/AuthContext';
+import GuestNote from '../GuestNote';
 import { BOX_SLOTS, boxId, mergeMaker, searchMakers, linkChanges, fallbackFor, relatedBookmarks, type MakerData, type MakerBoxItem } from '@/lib/makerBox';
 import { useMakerBox, saveBoxItem, removeBoxItem, watchTeamBox, type BoxScope, type TeamBoxItem } from '@/lib/useMakerBox';
 import { listBoardsForUser, type BoardDoc } from '@/lib/firebaseUserData';
@@ -140,7 +141,7 @@ export default function MakerBox({
   };
 
   if (!uid || !scope)
-    return <p className="text-[11px] text-gray-500">メーカー資料箱を使うにはログインしてください。建材ページの「＋資料箱」で控えたメーカーが、ここに 1 社 1 枚のカードで並びます。</p>;
+    return <GuestNote>メーカー資料箱はログインすると使えます。建材ページの「＋資料箱」で控えたメーカーが、ここに 1 社 1 枚のカードで並びます。</GuestNote>;
 
   return (
     <div className="space-y-4 text-[11px]">

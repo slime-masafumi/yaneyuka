@@ -69,8 +69,10 @@ export function transmittalHtml(t: TransmittalData): string {
             `<tr><td class="m">${String(i + 1).padStart(3, '0')}</td><td class="m">${esc(d.no)}</td><td>${esc(d.title)}</td><td class="m c">${esc(d.rev)}</td><td class="m c">${esc(d.scale)}</td><td class="m r">${d.sheets || ''}</td></tr>`,
         )
         .join('')
-    : `<tr><td class="m">001</td><td></td><td>${esc(t.fileName)}</td><td></td><td></td><td class="m r">1</td></tr>`;
-  const total = t.drawings.length ? totalSheets(t.drawings) : 1;
+    : t.fileName
+      ? `<tr><td class="m">001</td><td></td><td>${esc(t.fileName)}</td><td></td><td></td><td class="m r">1</td></tr>`
+      : `<tr><td class="m">001</td><td></td><td>　</td><td></td><td></td><td></td></tr>`;
+  const total = t.drawings.length ? totalSheets(t.drawings) : t.fileName ? 1 : '';
   const purposes = TRANSMITTAL_PURPOSES.map((p) => `<span class="${p === t.purpose ? 'on' : ''}">${p === t.purpose ? '■' : '□'} ${p}</span>`).join('');
 
   return `<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>${esc(t.number)} 送付状</title>
@@ -123,11 +125,16 @@ tfoot td { border-bottom: 1px solid #141414; border-top: 1px solid #141414; }
     <tbody>${rows}</tbody>
     <tfoot><tr><td></td><td class="lbl">Total</td><td></td><td></td><td></td><td class="m r">${total}</td></tr></tfoot>
   </table>
-  <div class="link">
-    <div class="lbl">Download</div>
-    <div class="m">${t.link ? esc(t.link) : '（リンク未発行）'}</div>
-    <div>${esc(t.fileName)}（${esc(t.fileSize)}）${t.expiresAt ? ` ／ 有効期限 ${ymd(t.expiresAt)} まで` : ''}${t.hasPassword ? ' ／ 合言葉は別途お知らせします' : ''}</div>
-  </div>
+  ${
+    // 送付状だけ作ったとき（リンクもファイルも無い）は、ダウンロード欄そのものを出さない
+    t.link || t.fileName
+      ? `<div class="link">
+    <div class="lbl">${t.link ? 'Download' : 'File'}</div>
+    ${t.link ? `<div class="m">${esc(t.link)}</div>` : ''}
+    <div>${esc(t.fileName)}${t.fileSize ? `（${esc(t.fileSize)}）` : ''}${t.expiresAt ? ` ／ 有効期限 ${ymd(t.expiresAt)} まで` : ''}${t.hasPassword ? ' ／ 合言葉は別途お知らせします' : ''}</div>
+  </div>`
+      : ''
+  }
   ${t.remarks ? `<div class="link"><div class="lbl">Remarks / 備考</div><div>${esc(t.remarks)}</div></div>` : ''}
   <div class="foot"><div class="lbl">yaneyuka.com</div><div class="stamp"></div></div>
 </div>

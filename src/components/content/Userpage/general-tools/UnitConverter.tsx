@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import ToolHeader from '../ToolHeader';
+import GuestNote from './GuestNote';
+import { useCloudPref } from './useCloudPref';
 import { FiSettings, FiDollarSign, FiCopy, FiCheck, FiCpu, FiRefreshCw, FiCrop, FiArrowRight, FiGrid, FiEdit2, FiTrash2, FiPlus, FiX } from 'react-icons/fi';
 
 // 単位変換の定義データ
@@ -177,7 +179,7 @@ const QTY_SEEDS: QtyItem[] = [
 ];
 
 const UnitConverter: React.FC = () => {
-  const { isLoggedIn } = useAuth();
+  const { currentUser } = useAuth();
   
   // State
   const [selectedCategory, setSelectedCategory] = useState<UnitCategory>('length');
@@ -245,6 +247,11 @@ const UnitConverter: React.FC = () => {
     }
   };
 
+  // ログイン中は登録した品目を端末間で同じにする（users/{uid}/toolSettings/unitConverterQty）
+  const qtySync = useCloudPref<QtyItem[]>(currentUser?.uid, 'unitConverterQty', qtyItems, (items) => {
+    if (Array.isArray(items) && items.length > 0) saveItems(items);
+  });
+
   // カテゴリ変更時の初期化
   useEffect(() => {
     if (selectedCategory) {
@@ -270,9 +277,16 @@ const UnitConverter: React.FC = () => {
   const evaluateInput = (input: string): number | null => {
     if (!input) return null;
     try {
-      if (!/^[0-9+\-*/().\s]+$/.test(input)) return null;
-      const result = new Function('return ' + input)();
-      return isFinite(result) ? result : null;
+      // 日本語入力の全角数字・記号、桁区切りのカンマ、×÷ をそのまま受ける
+      const normalized = input
+        .replace(/[０-９．＋－＊／（）]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0))
+        .replace(/[×✕]/g, '*')
+        .replace(/÷/g, '/')
+        .replace(/[−ー]/g, '-')
+        .replace(/[,，、]/g, '');
+      if (!/^[0-9+\-*/().\s]+$/.test(normalized)) return null;
+      const result = new Function('return (' + normalized + ')')();
+      return typeof result === 'number' && isFinite(result) ? result : null;
     } catch {
       return null;
     }
@@ -453,9 +467,13 @@ const UnitConverter: React.FC = () => {
   };
 
   const handleCopy = (text: string, key: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedKey(key);
-    setTimeout(() => setCopiedKey(null), 2000);
+    navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        setCopiedKey(key);
+        setTimeout(() => setCopiedKey(null), 2000);
+      })
+      .catch(() => setUnitNotice('コピーできませんでした。数値を選んでコピーしてください。'));
   };
 
   /** 品目の追加と編集で同じ入力欄を使う。 */
@@ -596,12 +614,8 @@ const UnitConverter: React.FC = () => {
           },
           {
             label: '式で入力（1.8*2）',
-            login: true,
-            hint: 'ログインすると、四則演算の式のまま入力して換算できます',
-            onClick: () => {
-              if (!isLoggedIn) { setUnitNotice('ログイン（無料の会員登録）すると入力できます。'); return; }
-              valueInputRef.current?.focus();
-            },
+            hint: '四則演算の式のまま入力して換算する（全角数字・カンマ区切りも可）',
+            onClick: () => valueInputRef.current?.focus(),
           },
         ]}
       />
@@ -658,14 +672,14 @@ const UnitConverter: React.FC = () => {
                     <div>
                         <label className="block text-[11px] font-bold text-gray-500 mb-1.5">値を入力 (計算式も可)</label>
                         <div className="relative">
-                            {/* 未ログイン時はキー入力ごとの alert ではなく入力自体を無効化する */}
                             <input
                                 type="text"
+                                inputMode="decimal"
                                 ref={valueInputRef}
                                 value={inputValue}
                                 onChange={handleInputChange}
-                                disabled={!isLoggedIn}
-                                placeholder={isLoggedIn ? '例: 100, 1.8*2' : '会員登録（無料）で利用できます'}
+                                placeholder="例: 100, 1.8*2"
+                                aria-invalid={inputValue.trim() !== '' && calculatedValue === null}
                                 className="w-full p-2.5 text-sm font-bold border border-gray-200 bg-white focus:border-gray-500 outline-none transition-all placeholder-gray-300 disabled:bg-gray-50 disabled:cursor-not-allowed"
                             />
                             {/* 計算結果プレビュー */}
@@ -675,6 +689,11 @@ const UnitConverter: React.FC = () => {
                                 </div>
                             )}
                         </div>
+                        {inputValue.trim() !== '' && calculatedValue === null && (
+                            <p className="text-[10px] text-red-600 mt-1" role="alert">
+                                数値として読めません。使える記号は + - * / ( ) です。
+                            </p>
+                        )}
                     </div>
 
                     <div>
@@ -719,7 +738,6 @@ const UnitConverter: React.FC = () => {
                                 type="number"
                                 value={inputPrice}
                                 onChange={(e) => setInputPrice(e.target.value)}
-                                disabled={!isLoggedIn}
                                 placeholder="0"
                                 className="w-full text-right font-bold text-sm p-1.5 border border-gray-200 bg-white outline-none text-gray-800 placeholder-gray-300 disabled:bg-gray-50 disabled:cursor-not-allowed"
                             />
@@ -772,7 +790,6 @@ const UnitConverter: React.FC = () => {
                                     type="number"
                                     value={drawingMm}
                                     onChange={(e) => handleDrawingChange(e.target.value)}
-                                    disabled={!isLoggedIn}
                                     placeholder="0"
                                     className="w-full text-right font-bold text-sm p-1.5 border border-gray-200 bg-white outline-none text-gray-800 placeholder-gray-300 disabled:bg-gray-50 disabled:cursor-not-allowed"
                                 />
@@ -784,7 +801,6 @@ const UnitConverter: React.FC = () => {
                                     type="number"
                                     value={actualMm}
                                     onChange={(e) => handleActualChange(e.target.value)}
-                                    disabled={!isLoggedIn}
                                     placeholder="0"
                                     className="w-full text-right font-bold text-sm p-1.5 border border-gray-200 bg-white outline-none text-gray-800 placeholder-gray-300 disabled:bg-gray-50 disabled:cursor-not-allowed"
                                 />
@@ -837,9 +853,7 @@ const UnitConverter: React.FC = () => {
                 <div className="flex items-start gap-2">
                     <FiRefreshCw className="w-3 h-3 text-gray-400 mt-0.5 shrink-0" />
                     <p className="text-[10px] text-gray-500 leading-relaxed">
-                        {isLoggedIn
-                          ? '数値を入力すると、同じカテゴリー内の全ての単位に自動変換されます。'
-                          : 'このツールを使うには会員登録（無料）が必要です。'}
+                        数値を入力すると、同じカテゴリー内の全ての単位に自動変換されます。
                     </p>
                 </div>
             </div>
@@ -917,7 +931,8 @@ const UnitConverter: React.FC = () => {
                                         )}
                                     </div>
 
-                                    <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    {/* タッチ端末ではホバーが無いので、常に出しておく */}
+                                    <div className="flex items-center gap-1 shrink-0">
                                         <button
                                             type="button"
                                             onClick={() => startEdit(item)}
@@ -938,6 +953,12 @@ const UnitConverter: React.FC = () => {
                                 </div>
                             );
                         })}
+
+                        {!currentUser ? (
+                            <GuestNote>登録した品目はこのブラウザに保存しています。ログインすると端末間で同期します。</GuestNote>
+                        ) : qtySync === 'error' ? (
+                            <p className="text-[10px] text-red-600" role="alert">品目をアカウントに保存できませんでした。このブラウザには残っています。</p>
+                        ) : null}
 
                         {editingId === 'new' && draft ? (
                             <div className="bg-white border border-[#3b3b3b] p-3">
@@ -1015,7 +1036,7 @@ const UnitConverter: React.FC = () => {
                                                 className={`p-2 transition-all flex items-center gap-1.5 text-[10px] font-bold ${
                                                     isCopied
                                                     ? 'text-gray-900'
-                                                    : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700 opacity-0 group-hover:opacity-100'
+                                                    : 'text-gray-400 hover:bg-gray-100 hover:text-gray-700'
                                                 }`}
                                                 title="値をコピー"
                                             >

@@ -13,7 +13,11 @@ import { BsMicrosoftTeams } from 'react-icons/bs';
 import { useAuth } from '@/lib/AuthContext';
 import Room, { type RoomCommand, type RoomHandle } from './Room';
 import ToolHeader, { type ToolFeature } from '../../ToolHeader';
-import { createRoom, firestoreRoom, forgetRoom, rememberRoom, roomExists, watchMyRooms, type MyRoom } from './roomBackend';
+import { clearLocalRoom, createRoom, firestoreRoom, forgetRoom, localRoom, LOCAL_ROOM_ID, rememberRoom, roomExists, watchMyRooms, type MyRoom } from './roomBackend';
+import GuestNote from '../GuestNote';
+
+/** 未ログインで「ひとりで試す」ときの自分 */
+const GUEST_ME = { uid: 'guest', name: 'あなた' };
 
 /** /olmt/?room=… の招待リンクから来たとき、部屋の ID をここで受け取る */
 export const JOIN_KEY = 'olmt-join';
@@ -38,6 +42,20 @@ export default function Olmt() {
   const [joinText, setJoinText] = useState('');
   const [msg, setMsg] = useState('');
   const backend = useMemo(() => (roomId ? firestoreRoom(roomId) : null), [roomId]);
+  // 未ログイン: このブラウザの中だけで図面ボードを試す
+  const [trial, setTrial] = useState(false);
+  const [trialKey, setTrialKey] = useState(0);
+  const localBackend = useMemo(() => (trial ? localRoom(GUEST_ME) : null), [trial, trialKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  // 招待リンク（/olmt/?room=…）から来たが未ログイン。ID はログインするまで残しておき、ログインしたらその部屋に入る
+  const [invited, setInvited] = useState(false);
+  useEffect(() => {
+    if (uid) return;
+    try {
+      setInvited(!!sessionStorage.getItem(JOIN_KEY));
+    } catch {
+      /* 読めなければ招待の案内は出さない */
+    }
+  }, [uid]);
   // 見出し帯の「できること」→ 開いている部屋の機能を呼ぶ口
   const roomRef = useRef<RoomHandle>(null);
   const [headNotice, setHeadNotice] = useState('');
@@ -80,11 +98,17 @@ export default function Olmt() {
   const create = async () => {
     if (!uid || !title.trim()) return;
     if (meetingUrl && !/^https:\/\//.test(meetingUrl.trim())) return setMsg('会議の URL は https:// から始まるものを入れてください');
-    const id = await createRoom(uid, title.trim(), meetingUrl.trim());
-    setTitle('');
-    setMeetingUrl('');
-    setHeadNotice('');
-    setRoomId(id);
+    try {
+      const id = await createRoom(uid, title.trim(), meetingUrl.trim());
+      setTitle('');
+      setMeetingUrl('');
+      setHeadNotice('');
+      setMsg('');
+      setRoomId(id);
+    } catch (e) {
+      console.error('部屋を作れませんでした', e);
+      setMsg('部屋を作れませんでした。通信を確かめて、もう一度押してください');
+    }
   };
 
   /**
@@ -92,7 +116,19 @@ export default function Olmt() {
    * 開いていなければ「どうすれば使えるか」を出して新しい部屋の欄へ移る。
    */
   const inRoom = (cmd: RoomCommand) => {
-    if (!me) return setHeadNotice('ログイン（無料の会員登録）すると使えます。会議の参加者も、招待リンクを開いてログインすれば入れます。');
+    if (!me) {
+      // 招待・会議の設定は相手が要るのでログインしてから。それ以外は「ひとりで試す」部屋で動かす
+      if (cmd === 'settings' || cmd === 'meeting') {
+        return setHeadNotice('会議の URL・招待文は、ログインして部屋を作ると使えます。参加者も招待リンクを開いてログインすれば入れます。');
+      }
+      setHeadNotice('');
+      if (!trial) {
+        setTrial(true);
+        return;
+      }
+      roomRef.current?.run(cmd);
+      return;
+    }
     if (!roomId) {
       setHeadNotice('部屋を作るか、一覧から部屋を開くと使えます。');
       createRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -102,14 +138,18 @@ export default function Olmt() {
     roomRef.current?.run(cmd);
   };
   const features: ToolFeature[] = [
-    { label: '図面ボード（指す・赤入れ）', login: true, hint: '図面 PDF を全員で開き、ポインタで指し、赤を入れる', onClick: () => inRoom('pen') },
-    { label: '決定事項・宿題', login: true, hint: '会議中に決まったこと・宿題（担当 / 期限）を書き足す', onClick: () => inRoom('decisions') },
-    { label: '議事録 → メモ', login: true, hint: '決定事項と参加者をまとめた議事録を作り、メモ（議事録）に保存する', onClick: () => inRoom('minutes') },
+    { label: '図面ボード（指す・赤入れ）', hint: '図面 PDF を全員で開き、ポインタで指し、赤を入れる（ログインなしでも、ひとりで試せます）', onClick: () => inRoom('pen') },
+    { label: '決定事項・宿題', hint: '会議中に決まったこと・宿題（担当 / 期限）を書き足す', onClick: () => inRoom('decisions') },
+    { label: '議事録 → メモ', hint: '決定事項と参加者をまとめた議事録を作る。メモ（議事録）への保存はログイン後', onClick: () => inRoom('minutes') },
     { label: '会議設定・招待文', login: true, hint: '会議 URL・パスコード・電話番号・定例日時を部屋に束ね、招待文にしてコピーする', onClick: () => inRoom('settings') },
     {
       label: '会議ソフトを開く',
       hint: 'Zoom・Teams・Meet など。部屋に会議 URL があればそれを開く',
-      onClick: () => (roomId && me ? inRoom('meeting') : linksRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })),
+      onClick: () => {
+        if (roomId && me) return inRoom('meeting');
+        if (linksRef.current) linksRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        else setHeadNotice('部屋の左上の ‹ で一覧に戻ると、Zoom・Teams・Meet などを開くボタンがあります。');
+      },
     },
   ];
   const header = (
@@ -138,14 +178,71 @@ export default function Olmt() {
     </div>
   );
 
+  if (!me && trial && localBackend) {
+    return (
+      <div className="w-full bg-white flex flex-col lg:h-[calc(100vh-var(--nav-height))] lg:overflow-hidden">
+        {header}
+        <div className="flex-1 min-h-0">
+          <Room
+            key={`local-${trialKey}`}
+            backend={localBackend}
+            roomId={LOCAL_ROOM_ID}
+            me={GUEST_ME}
+            local
+            onLeave={() => setTrial(false)}
+            handleRef={roomRef}
+          />
+        </div>
+      </div>
+    );
+  }
+
   if (!me) {
     return (
       <div className="w-full bg-white">
         {header}
-        <div className="p-4 space-y-3 text-[12px]">
-          <p>図面ボードを使うには、ログイン（無料の会員登録）が必要です。会議の参加者も、招待リンクを開いてログインすれば入れます。</p>
-          <div className="text-[11px] text-gray-500">会議ソフトを開く</div>
-          {quickLinks}
+        <div className="p-3 sm:p-4 space-y-4 text-[12px]">
+          {invited ? (
+            <GuestNote action="ログインして入る">招待された部屋があります。ログイン（無料の会員登録）すると、そのまま部屋に入れます。</GuestNote>
+          ) : (
+            <GuestNote>相手と同じ図面を囲む（招待・ポインタの同期）にはログインが要ります。ひとりで試すだけなら、このままどうぞ。</GuestNote>
+          )}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            <div className="bg-gray-50 p-3 border border-[#3b3b3b] space-y-2">
+              <div className="text-[11px] font-bold text-gray-600">ひとりで試す（このブラウザの中だけ）</div>
+              <p className="text-[11px] text-gray-600 leading-relaxed">
+                図面 PDF を開いて、赤入れ・決定事項・宿題・議事録までを試せます。図面はサーバーに上げません。
+                赤入れと決定事項はこのブラウザに残ります。
+              </p>
+              <div className="flex flex-wrap items-center gap-3">
+                <button type="button" onClick={() => setTrial(true)} className="yy-btn yy-btn--primary">図面ボードを開く</button>
+                <button
+                  type="button"
+                  className="text-[11px] underline text-gray-500"
+                  onClick={() => {
+                    if (!confirm('ひとりで試した赤入れ・決定事項を消しますか？')) return;
+                    clearLocalRoom();
+                    setTrialKey((k) => k + 1);
+                  }}
+                >
+                  試した内容を消す
+                </button>
+              </div>
+            </div>
+            <div className="p-3 border border-gray-300 space-y-1.5">
+              <div className="text-[11px] font-bold text-gray-600">ログインするとできること</div>
+              <ul className="text-[11px] text-gray-600 space-y-1 list-none">
+                <li><span className="yy-mono text-[10px] text-gray-400 mr-2">001</span>部屋を作り、招待リンクを会議の相手に送る（相手もログインして入る）</li>
+                <li><span className="yy-mono text-[10px] text-gray-400 mr-2">002</span>参加者のポインタが見え、同じ図面に全員で赤を入れる</li>
+                <li><span className="yy-mono text-[10px] text-gray-400 mr-2">003</span>会議の回ごとに赤入れを残し、前回の赤を薄く重ねる</li>
+                <li><span className="yy-mono text-[10px] text-gray-400 mr-2">004</span>会議 URL・パスコードを部屋に束ねて招待文にする / 議事録をメモに保存</li>
+              </ul>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <div className="text-[11px] text-gray-500">会議ソフトを開く</div>
+            {quickLinks}
+          </div>
         </div>
       </div>
     );
@@ -153,7 +250,7 @@ export default function Olmt() {
 
   if (roomId && backend) {
     return (
-      <div className="w-full bg-white flex flex-col h-full lg:h-[calc(100vh-var(--nav-height))] overflow-hidden">
+      <div className="w-full bg-white flex flex-col lg:h-[calc(100vh-var(--nav-height))] lg:overflow-hidden">
         {header}
         <div className="flex-1 min-h-0">
           <Room key={roomId} backend={backend} roomId={roomId} me={me} onLeave={() => setRoomId(null)} handleRef={roomRef} />
@@ -163,7 +260,7 @@ export default function Olmt() {
   }
 
   return (
-    <div className="w-full bg-white flex flex-col h-full lg:h-[calc(100vh-var(--nav-height))] overflow-hidden">
+    <div className="w-full bg-white flex flex-col lg:h-[calc(100vh-var(--nav-height))] lg:overflow-hidden">
       {header}
       <div className="p-3 flex-1 min-h-0 overflow-y-auto">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
@@ -199,7 +296,9 @@ export default function Olmt() {
                     title={r.owner ? '部屋を削除' : '一覧から外す'}
                     className="text-gray-400 hover:text-red-600"
                     onClick={() => {
-                      if (confirm(r.owner ? `部屋「${r.title}」を削除しますか？（参加者も入れなくなります）` : `「${r.title}」を一覧から外しますか？`)) void forgetRoom(uid!, r.id, !!r.owner);
+                      if (confirm(r.owner ? `部屋「${r.title}」を削除しますか？（参加者も入れなくなります）` : `「${r.title}」を一覧から外しますか？`)) {
+                        forgetRoom(uid!, r.id, !!r.owner).catch(() => setMsg('一覧から外せませんでした。もう一度試してください'));
+                      }
                     }}
                   >
                     <FiTrash2 />

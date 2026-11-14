@@ -11,10 +11,11 @@ import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage
 import { LockClosedIcon, LockOpenIcon } from '@heroicons/react/20/solid';
 import { useAuth } from '@/lib/AuthContext';
 import { db, storage } from '@/lib/firebaseClient';
-import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, setDoc, writeBatch } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, setDoc, writeBatch, arrayUnion } from 'firebase/firestore';
 import HtmlDocx from 'html-docx-js/dist/html-docx';
 import HomeworkToTasks from './memo/HomeworkToTasks';
 import ToolHeader from '../ToolHeader';
+import GuestNote from './GuestNote';
 
 interface Memo {
   id: string;
@@ -197,6 +198,74 @@ const stripHtml = (html: string) =>
     .replace(/&gt;/g, '>')
     .replace(/\s+/g, ' ');
 
+/**
+ * 未ログインのときの保存先（このブラウザの localStorage）。
+ *
+ * 以前は未ログインだと「新規メモ」も本文の入力も alert で止まり、メモとして使えなかった。
+ * 未ログインでもこのブラウザに保存して使えるようにし、ログインしたらアカウント
+ * （users/{uid}/memos）へ移す。画像は本文に埋め込み（dataURL）、移すときに保管場所へ上げ直す。
+ */
+const GUEST_MEMOS_KEY = 'yy-guest-memo';
+const GUEST_FOLDERS_KEY = 'yy-guest-memo-folders';
+
+const fromStored = (m: any): Memo => ({
+  id: String(m.id),
+  title: m.title || '',
+  content: m.content || '',
+  category: m.category || '',
+  tags: Array.isArray(m.tags) ? m.tags : [],
+  createdAt: new Date(m.createdAt || Date.now()),
+  updatedAt: new Date(m.updatedAt || Date.now()),
+  isFavorite: !!m.isFavorite,
+  isLocked: !!m.isLocked,
+  order: typeof m.order === 'number' ? m.order : 99999999,
+});
+const readGuestMemos = (): Memo[] => {
+  try {
+    const v = JSON.parse(localStorage.getItem(GUEST_MEMOS_KEY) || '[]');
+    return Array.isArray(v) ? v.filter((m) => m && m.id).map(fromStored) : [];
+  } catch {
+    return [];
+  }
+};
+/** 書けたら true。容量（約 5MB）を超えると false */
+const writeGuestMemos = (list: Memo[]): boolean => {
+  try {
+    localStorage.setItem(
+      GUEST_MEMOS_KEY,
+      JSON.stringify(list.map((m) => ({ ...m, createdAt: m.createdAt.getTime(), updatedAt: m.updatedAt.getTime() }))),
+    );
+    return true;
+  } catch {
+    return false;
+  }
+};
+const readGuestFolders = (): string[] => {
+  try {
+    const v = JSON.parse(localStorage.getItem(GUEST_FOLDERS_KEY) || '[]');
+    return Array.isArray(v) ? v.filter((n) => typeof n === 'string' && n) : [];
+  } catch {
+    return [];
+  }
+};
+const writeGuestFolders = (names: string[]) => {
+  try { localStorage.setItem(GUEST_FOLDERS_KEY, JSON.stringify(names)); } catch { /* 容量超過は諦める */ }
+};
+
+/** 本文に埋め込んだ画像（dataURL）を自分の保管場所へ上げ、URL に差し替える（ログイン時の移行用） */
+const uploadInlineImages = async (html: string, uid: string): Promise<string> => {
+  const found = Array.from(new Set(html.match(/data:image\/[a-z+]+;base64,[A-Za-z0-9+/=]+/g) || []));
+  let out = html;
+  for (const dataUrl of found) {
+    const blob = await (await fetch(dataUrl)).blob();
+    const path = `userUploads/${uid}/memo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+    await uploadBytes(storageRef(storage, path), blob, { contentType: blob.type || 'image/jpeg' });
+    const url = await getDownloadURL(storageRef(storage, path));
+    out = out.split(dataUrl).join(url);
+  }
+  return out;
+};
+
 const MemoTool: React.FC = () => {
   const [memos, setMemos] = useState<Memo[]>([]);
   const [currentMemo, setCurrentMemo] = useState<Memo | null>(null);
@@ -234,7 +303,7 @@ const MemoTool: React.FC = () => {
   // 常に最新の currentMemo を ref で参照できるようにしてジャンプを防ぐ。
   const currentMemoRef = useRef<Memo | null>(null);
 
-  const { currentUser, isLoggedIn } = useAuth();
+  const { currentUser } = useAuth();
 
   useEffect(() => {
     currentMemoRef.current = currentMemo;
@@ -250,8 +319,26 @@ const MemoTool: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // 今 memos に入っているのが誰のメモか（'guest' / uid）。ログイン・ログアウトの切り替わりの
+  // 一瞬に、アカウントのメモをこのブラウザの保存先へ書いてしまわないための目印。
+  const [memoOwner, setMemoOwner] = useState<string | null>(null);
+
   useEffect(() => {
-    if (!currentUser) { setMemos([]); setCurrentMemo(null); return }
+    if (!currentUser) {
+      // 未ログイン: このブラウザに保存したメモを開く
+      const list = readGuestMemos().sort((a, b) => compareMemos(a, b, 'manual'));
+      setMemos(list);
+      setMemoOwner('guest');
+      const first = list[0] ?? null;
+      setCurrentMemo(first);
+      setMemoTitle(first?.title ?? '');
+      setMemoCategory(first?.category ?? '');
+      setMemoTags(first ? first.tags.join(', ') : '');
+      if (editorRef.current) editorRef.current.innerHTML = first?.content ?? '';
+      updateCharCount();
+      return;
+    }
+    setMemoOwner(currentUser.uid);
     try {
       const cached = localStorage.getItem(`generalMemos:${currentUser.uid}`)
       if (cached) {
@@ -328,7 +415,7 @@ const MemoTool: React.FC = () => {
 
   // 保存済みのフォルダ名を読む。読めなくてもメモ側のカテゴリから復元できる。
   useEffect(() => {
-    if (!currentUser) { setSavedFolders([]); return; }
+    if (!currentUser) { setSavedFolders(readGuestFolders()); return; }
     const ref = doc(db, 'users', currentUser.uid, 'memoMeta', FOLDER_DOC);
     const unsub = onSnapshot(ref, (snap) => {
       const names = (snap.data() as any)?.names;
@@ -337,9 +424,61 @@ const MemoTool: React.FC = () => {
     return () => unsub();
   }, [currentUser]);
 
+  // 未ログインのとき、メモの変更（作成・本文・★・ロック・並べ替え・フォルダ移動・削除）を
+  // まとめてこのブラウザへ書く。書けなかった（容量超過）ことは必ず画面に出す。
+  const [guestSaveFailed, setGuestSaveFailed] = useState(false);
+  const migratedForRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (currentUser || memoOwner !== 'guest') return;
+    setGuestSaveFailed(!writeGuestMemos(memos));
+  }, [memos, memoOwner, currentUser]);
+
+  // 移行: ログインする前にこのブラウザで書いたメモをアカウントへ上げる。
+  // メモは 1 件 1 文書で id も重ならないので、アカウント側に既にメモがあってもそのまま足す。
+  // 上げられたものだけ手元から消す（失敗したものは残して、次のログインでまた試す）。
+  useEffect(() => {
+    if (!currentUser) return;
+    const guest = readGuestMemos();
+    const guestFolders = readGuestFolders();
+    if (!guest.length && !guestFolders.length) return;
+    // 同じ人の移行は 1 回だけ（開発時の effect 二重実行で、移し終えたものを書き戻さないように）
+    if (migratedForRef.current === currentUser.uid) return;
+    migratedForRef.current = currentUser.uid;
+    (async () => {
+      const left: Memo[] = [];
+      let moved = 0;
+      for (const m of guest) {
+        try {
+          const content = await uploadInlineImages(m.content, currentUser.uid);
+          await setDoc(doc(db, 'users', currentUser.uid, 'memos', m.id), {
+            title: m.title, content, category: m.category, tags: m.tags,
+            createdAt: m.createdAt.getTime(), updatedAt: m.updatedAt.getTime(),
+            isFavorite: !!m.isFavorite, isLocked: !!m.isLocked, order: m.order ?? 0,
+          });
+          moved++;
+        } catch (e) {
+          console.error('メモの移行に失敗しました', e);
+          left.push(m);
+        }
+      }
+      if (guestFolders.length) {
+        try {
+          await setDoc(doc(db, 'users', currentUser.uid, 'memoMeta', FOLDER_DOC), { names: arrayUnion(...guestFolders) }, { merge: true });
+          try { localStorage.removeItem(GUEST_FOLDERS_KEY); } catch { /* 無視 */ }
+        } catch (e) {
+          console.error('フォルダの移行に失敗しました', e);
+        }
+      }
+      if (left.length) writeGuestMemos(left);
+      else { try { localStorage.removeItem(GUEST_MEMOS_KEY); } catch { /* 無視 */ } }
+      if (moved) flashHeadNotice(`このブラウザのメモ ${moved} 件をアカウントに移しました。`);
+      if (left.length) flashHeadNotice(`このブラウザのメモ ${left.length} 件を移せませんでした。次にログインしたときにもう一度移します。`);
+    })();
+  }, [currentUser]);
+
   const persistFolders = async (names: string[]) => {
     setSavedFolders(names);
-    if (!currentUser) return;
+    if (!currentUser) { writeGuestFolders(names); return; }
     try {
       await setDoc(doc(db, 'users', currentUser.uid, 'memoMeta', FOLDER_DOC), { names }, { merge: true });
     } catch (error) {
@@ -491,7 +630,6 @@ const MemoTool: React.FC = () => {
     
     if (!isDragEnabled) return; // 並べ替えができない状態（絞り込み中・並び順指定中）
     if (!draggedMemoId || draggedMemoId === targetMemoId) return;
-    if (!currentUser) return;
 
     // 並べ替えは「画面に見えている順」(filteredMemos: ★優先ソート済み) を基準にする。
     // 元の memos 配列でインデックスを取ると、★付きメモがあるだけで
@@ -511,6 +649,8 @@ const MemoTool: React.FC = () => {
     setMemos(updatedMemos);
     setDraggedMemoId(null);
 
+    // 未ログインはこのブラウザへ（memos の変更をまとめて書く effect が拾う）
+    if (!currentUser) return;
     // Firestoreに一括保存
     try {
       const batch = writeBatch(db);
@@ -568,29 +708,42 @@ const MemoTool: React.FC = () => {
     }
   };
 
-  // --- 画像: 長辺 1600px に縮めて、自分の保管場所（userUploads/{uid}/）に置き、その画像を挿入
+  // --- 画像: 長辺 1600px に縮めて、自分の保管場所（userUploads/{uid}/）に置き、その画像を挿入。
+  // 未ログインは保管場所が無いので、長辺 1000px・やや強めの圧縮で本文に埋め込む（このブラウザの容量は約 5MB）。
+  // ログインしたときの移行で、埋め込んだ画像は保管場所へ上げ直す（uploadInlineImages）。
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [imageBusy, setImageBusy] = useState(false);
   const insertImage = async (file: File) => {
-    if (!currentUser || currentMemo?.isLocked) return;
+    if (currentMemo?.isLocked) return;
     setImageBusy(true);
     try {
       const bitmap = await createImageBitmap(file);
-      const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+      const longSide = currentUser ? 1600 : 1000;
+      const scale = Math.min(1, longSide / Math.max(bitmap.width, bitmap.height));
       const canvas = document.createElement('canvas');
       canvas.width = Math.round(bitmap.width * scale);
       canvas.height = Math.round(bitmap.height * scale);
       canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-      const blob: Blob = await new Promise((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error('変換できません'))), 'image/jpeg', 0.82));
-      const path = `userUploads/${currentUser.uid}/memo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
-      await uploadBytes(storageRef(storage, path), blob, { contentType: 'image/jpeg' });
-      const url = await getDownloadURL(storageRef(storage, path));
+      let url: string;
+      if (currentUser) {
+        const blob: Blob = await new Promise((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error('変換できません'))), 'image/jpeg', 0.82));
+        const path = `userUploads/${currentUser.uid}/memo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+        await uploadBytes(storageRef(storage, path), blob, { contentType: 'image/jpeg' });
+        url = await getDownloadURL(storageRef(storage, path));
+      } else {
+        url = canvas.toDataURL('image/jpeg', 0.7);
+        // 1 枚 400KB を超える画像は、このブラウザの容量をすぐ使い切るので断る
+        if (url.length > 400_000) {
+          flashHeadNotice('画像が大きすぎてこのブラウザには保存できません。ログインすると大きな画像も貼れます。');
+          return;
+        }
+      }
       editorRef.current?.focus();
       document.execCommand('insertHTML', false, `<img src="${url}" alt="" style="max-width:100%;height:auto;display:block;margin:4px 0" /><br>`);
       scheduleSave();
     } catch (e) {
       console.error('画像の挿入に失敗', e);
-      alert('画像を入れられませんでした（JPEG・PNG・HEIC 以外は読めないことがあります）');
+      flashHeadNotice('画像を入れられませんでした（JPEG・PNG・HEIC 以外は読めないことがあります）');
     } finally {
       setImageBusy(false);
     }
@@ -643,12 +796,19 @@ const MemoTool: React.FC = () => {
   useEffect(() => () => { if (headNoticeTimer.current) clearTimeout(headNoticeTimer.current); }, []);
   const scrollToRef = (r: React.RefObject<HTMLElement | null>) =>
     r.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  /** メモに書き込む機能は、ログインしてメモを開いているときだけ動く。足りなければ理由を出す。 */
+  /** メモに書き込む機能は、メモを開いているときだけ動く（未ログインでも可）。足りなければ理由を出す。 */
   const needMemo = () => {
-    if (!isLoggedIn || !currentUser) { flashHeadNotice('ログイン（無料の会員登録）すると使えます。メモは自分のアカウントに保存されます。'); return false; }
     if (!currentMemo) { flashHeadNotice('左の一覧からメモを開くか、「新規メモ」で作ってから使ってください。'); return false; }
     if (currentMemo.isLocked) { flashHeadNotice('このメモはロック中です。一覧の鍵を外すと書き込めます。'); return false; }
     return true;
+  };
+
+  /**
+   * 宿題→Myタスク。未ログインでも使える（Myタスクも未ログインはこのブラウザに入る）。
+   * 以前は未ログインだとボタンが押せず、「ログイン」札だけで何が要るのか分からなかった。
+   */
+  const openHomework = () => {
+    if (needMemo()) setHomeworkText(editorRef.current?.innerText ?? '');
   };
 
   const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
@@ -705,8 +865,17 @@ const MemoTool: React.FC = () => {
     }
   };
 
+  /**
+   * 新しいメモの id を先に決める。
+   * ★以前は仮の id（tmp-）で表示し addDoc の完了後に差し替えていたため、その間に打った文字の
+   *   自動保存がもう一度 addDoc を呼び、同じメモが 2 件できることがあった。
+   *   ログイン中は Firestore の自動 id を先に取り、未ログインは g- で始まる id にする。
+   */
+  const newMemoId = () =>
+    currentUser ? doc(collection(db, 'users', currentUser.uid, 'memos')).id : `g-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+
   const createNewMemo = async (template?: MemoTemplate) => {
-    if (!currentUser) { alert('入力するには会員登録（無料）が必要です。'); return; }
+    // 未ログインでも作れる（このブラウザに保存）。以前はここで alert を出して止めていた
     const now = new Date()
     const minOrder = memos.length > 0 ? Math.min(...memos.map(m => m.order ?? 0)) : 0;
     const newOrder = minOrder - 1;
@@ -716,18 +885,37 @@ const MemoTool: React.FC = () => {
     const content = template ? template.content : '';
     const category = template ? template.category : '';
 
-    const optimistic: Memo = { id: `tmp-${Date.now()}`, title, content, category, tags: [], createdAt: now, updatedAt: now, isFavorite: false, isLocked: false, order: newOrder }
-    setMemos(prev => [optimistic, ...prev])
-    setCurrentMemo(optimistic)
+    const created: Memo = { id: newMemoId(), title, content, category, tags: [], createdAt: now, updatedAt: now, isFavorite: false, isLocked: false, order: newOrder }
+    // 絞り込み中のフォルダに作ったメモが見えなくならないよう、フォルダの絞り込みを外す
+    if (selectedFolder !== ALL_FOLDERS && selectedFolder !== category) setSelectedFolder(ALL_FOLDERS)
+    setMemos(prev => [created, ...prev])
+    setCurrentMemo(created)
     setMemoTitle(title)
     setMemoCategory(category)
     setMemoTags('')
-    if (editorRef.current) editorRef.current.innerHTML = content
+    if (editorRef.current) {
+      editorRef.current.innerHTML = content
+      editorRef.current.focus()
+      // ひな形なら最初の空行（最初の見出しの下）にキャレットを置く。
+      // 以前は先頭に置かれ、打った文字が見出し「日時・場所」の前に入っていた
+      const blank = Array.from(editorRef.current.querySelectorAll('p')).find(p => p.innerHTML === '<br>')
+      const sel = window.getSelection()
+      if (blank && sel) {
+        const range = document.createRange()
+        range.setStart(blank, 0)
+        range.collapse(true)
+        sel.removeAllRanges()
+        sel.addRange(range)
+      }
+    }
     updateCharCount()
-    const colRef = collection(db, 'users', currentUser.uid, 'memos')
-    const ref = await addDoc(colRef, { title, content, category, tags: [], createdAt: now.getTime(), updatedAt: now.getTime(), isFavorite: false, isLocked: false, order: newOrder } as any)
-    setMemos(prev => prev.map(m => m.id === optimistic.id ? { ...m, id: ref.id } : m))
-    setCurrentMemo(prev => prev && prev.id === optimistic.id ? { ...prev, id: ref.id } : prev)
+    if (!currentUser) return
+    try {
+      await setDoc(doc(db, 'users', currentUser.uid, 'memos', created.id), { title, content, category, tags: [], createdAt: now.getTime(), updatedAt: now.getTime(), isFavorite: false, isLocked: false, order: newOrder } as any)
+    } catch (e) {
+      console.error('メモの作成に失敗しました', e)
+      setSaveStatus('保存に失敗しました。通信状態を確認してください')
+    }
   };
 
   const saveMemo = async (isAutoSave: boolean = false): Promise<void> => {
@@ -736,26 +924,21 @@ const MemoTool: React.FC = () => {
       const minOrder = memos.length > 0 ? Math.min(...memos.map(m => m.order ?? 0)) : 0;
       const newOrder = minOrder - 1;
 
-      const newMemo: Memo = { id: `tmp-${Date.now()}`, title: memoTitle || '新しいメモ', content: editorRef.current?.innerHTML || '', category: memoCategory, tags: memoTags.split(',').map(t=>t.trim()).filter(Boolean), createdAt: now, updatedAt: now, isFavorite: false, isLocked: false, order: newOrder }
+      // メモを開かずに本文・表題を書き始めたとき。その内容で新しいメモを作る
+      const newMemo: Memo = { id: newMemoId(), title: memoTitle || '新しいメモ', content: editorRef.current?.innerHTML || '', category: memoCategory, tags: memoTags.split(',').map(t=>t.trim()).filter(Boolean), createdAt: now, updatedAt: now, isFavorite: false, isLocked: false, order: newOrder }
       setMemos(prev => [newMemo, ...prev])
       setCurrentMemo(newMemo)
+      if (!memoTitle) setMemoTitle(newMemo.title)
       try {
         if (currentUser) {
-          const ref = await addDoc(collection(db, 'users', currentUser.uid, 'memos'), { title: newMemo.title, content: newMemo.content, category: newMemo.category, tags: newMemo.tags, createdAt: now.getTime(), updatedAt: now.getTime(), isFavorite: false, isLocked: false, order: newOrder } as any)
-          setMemos(prev => prev.map(m => m.id === newMemo.id ? { ...m, id: ref.id } : m))
-          setCurrentMemo(prev => prev && prev.id === newMemo.id ? { ...prev, id: ref.id } : prev)
-        } else {
-          try { localStorage.setItem('generalMemos:guest', JSON.stringify([newMemo])) } catch {}
+          await setDoc(doc(db, 'users', currentUser.uid, 'memos', newMemo.id), { title: newMemo.title, content: newMemo.content, category: newMemo.category, tags: newMemo.tags, createdAt: now.getTime(), updatedAt: now.getTime(), isFavorite: false, isLocked: false, order: newOrder } as any)
         }
-        if (!isAutoSave) {
-          setSaveStatus('保存しました')
-          setTimeout(() => setSaveStatus(''), 2000)
-        }
-      } catch { 
-        if (!isAutoSave) {
-          setSaveStatus('保存に失敗しました')
-          setTimeout(() => setSaveStatus(''), 2000)
-        }
+        // 未ログインは memos の変更を書く effect がこのブラウザへ保存する
+        setSaveStatus(currentUser ? '保存しました' : 'このブラウザに保存しました')
+        setTimeout(() => setSaveStatus(''), 2000)
+      } catch {
+        setSaveStatus('保存に失敗しました')
+        setTimeout(() => setSaveStatus(''), 3000)
       }
       return
     }
@@ -771,21 +954,21 @@ const MemoTool: React.FC = () => {
     const html = editorRef.current?.innerHTML || ''
     const updatedMemo: Memo = { ...currentMemo, title: memoTitle, content: html, category: memoCategory, tags: memoTags.split(',').map(tag => tag.trim()).filter(Boolean), updatedAt: now }
 
-    let nextList: Memo[] = []
-    setMemos(prev => { const next = prev.map(m => m.id === currentMemo.id ? updatedMemo : m); nextList = next; return next })
+    setMemos(prev => prev.map(m => m.id === currentMemo.id ? updatedMemo : m))
     setCurrentMemo(updatedMemo)
+    // ★更新関数の中で外の変数に代入しても、その時点で実行されている保証はない（空の一覧を控えに書いていた）
+    const nextList = memos.map(m => m.id === currentMemo.id ? updatedMemo : m)
     try {
       if (currentUser) {
         localStorage.setItem(`generalMemos:${currentUser.uid}`, JSON.stringify(nextList.map(m => ({ ...m, createdAt: m.createdAt.getTime(), updatedAt: m.updatedAt.getTime() }))))
       }
     } catch {}
 
-    if (!currentUser) { 
-      if (!isAutoSave) {
-        setSaveStatus('ログインが必要です')
-        setTimeout(() => setSaveStatus(''), 2000)
-      }
-      return 
+    if (!currentUser) {
+      // memos の変更を書く effect がこのブラウザへ保存する（失敗は guestSaveFailed で出す）
+      setSaveStatus(isAutoSave ? 'このブラウザに自動保存しました' : 'このブラウザに保存しました')
+      setTimeout(() => setSaveStatus(''), 2000)
+      return
     }
 
     try {
@@ -813,15 +996,22 @@ const MemoTool: React.FC = () => {
   saveMemoRef.current = saveMemo;
 
   const deleteCurrentMemo = async () => {
-    if (!currentMemo || !currentUser) return
+    if (!currentMemo) return
     if(!confirm('本当に削除しますか？')) return;
     const id = currentMemo.id
     setMemos(prev => prev.filter(m => m.id !== id))
-    setCurrentMemo(null)
-    setMemoTitle('');
-    setMemoCategory('');
-    setMemoTags('');
-    if (editorRef.current) editorRef.current.innerHTML = ''
+    // 一覧で次に並んでいるメモを開く（以前は空の画面になり、続けて打つと新しいメモができていた）
+    const next = filteredMemos.find(m => m.id !== id) ?? null
+    if (next) selectMemo(next)
+    else {
+      setCurrentMemo(null)
+      setMemoTitle('');
+      setMemoCategory('');
+      setMemoTags('');
+      if (editorRef.current) editorRef.current.innerHTML = ''
+      updateCharCount()
+    }
+    if (!currentUser) return
     try { await deleteDoc(doc(db, 'users', currentUser.uid, 'memos', id)) } catch {}
   };
 
@@ -837,7 +1027,8 @@ const MemoTool: React.FC = () => {
       a.href = url
       a.download = `${safeTitle}.docx`
       a.click()
-      URL.revokeObjectURL(url)
+      // ★すぐ revoke するとダウンロードが始まる前に URL が消え、保存されないことがある
+      setTimeout(() => URL.revokeObjectURL(url), 5000)
     } catch (e) {
       console.error('Failed to export docx', e)
       alert('Word書き出しに失敗しました。')
@@ -977,7 +1168,6 @@ const MemoTool: React.FC = () => {
 
   const toggleFavorite = async (memoId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!currentUser) return;
     const memo = memos.find(m => m.id === memoId);
     if (!memo) return;
     const newFavorite = !(memo.isFavorite || false);
@@ -985,6 +1175,7 @@ const MemoTool: React.FC = () => {
     if (currentMemo?.id === memoId) {
       setCurrentMemo(prev => prev ? { ...prev, isFavorite: newFavorite } : null);
     }
+    if (!currentUser) return;
     try {
       await updateDoc(doc(db, 'users', currentUser.uid, 'memos', memoId), { isFavorite: newFavorite });
     } catch (error) {
@@ -994,7 +1185,6 @@ const MemoTool: React.FC = () => {
 
   const toggleMemoLock = async (memoId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!currentUser) return;
     const memo = memos.find(m => m.id === memoId);
     if (!memo) return;
     const newLocked = !(memo.isLocked || false);
@@ -1002,6 +1192,7 @@ const MemoTool: React.FC = () => {
     if (currentMemo?.id === memoId) {
       setCurrentMemo(prev => prev ? { ...prev, isLocked: newLocked } : null);
     }
+    if (!currentUser) return;
     try {
       await updateDoc(doc(db, 'users', currentUser.uid, 'memos', memoId), { isLocked: newLocked });
     } catch (error) {
@@ -1058,8 +1249,7 @@ const MemoTool: React.FC = () => {
           },
           {
             label: '画像',
-            login: true,
-            hint: 'ログインすると、写真を縮めて保存しメモに貼れます',
+            hint: '写真を縮めてメモに貼る（ログイン中は写真の保管場所に置き、端末間でも見られる）',
             onClick: () => { if (needMemo()) imageInputRef.current?.click(); },
           },
           {
@@ -1073,10 +1263,9 @@ const MemoTool: React.FC = () => {
           },
           {
             label: '宿題→Myタスク',
-            login: true,
-            hint: 'ログインすると、宿題・指摘・☐ の行を担当・期限ごと Myタスクに入れられます',
+            hint: '宿題・指摘・☐ の行を担当・期限ごと Myタスクに入れる',
             active: homeworkText !== null,
-            onClick: () => { if (needMemo()) setHomeworkText(editorRef.current?.innerText ?? ''); },
+            onClick: () => openHomework(),
           },
           {
             label: 'PDF・Word書き出し',
@@ -1093,10 +1282,20 @@ const MemoTool: React.FC = () => {
       {headNotice && (
         <p className="px-4 py-1.5 text-[11px] text-gray-600 border-b border-gray-200 shrink-0" role="status">{headNotice}</p>
       )}
-      <div className="p-4 flex-1 min-h-0 overflow-hidden [&>*]:border [&>*]:border-[#3b3b3b] [&>*]:p-3">
-        <div className="flex gap-6 h-full">
+      {!currentUser && (
+        <div className="px-4 pt-3 shrink-0">
+          {guestSaveFailed ? (
+            <GuestNote>このブラウザの保存容量（約 5MB）を超えたため、最後の変更を保存できていません。画像を減らすか、ログインしてください。</GuestNote>
+          ) : (
+            <GuestNote />
+          )}
+        </div>
+      )}
+      {/* スマホ幅では一覧と本文を縦に積む（以前は 2 列のまま詰まり、書式ツールバーが縦 1 列に崩れていた） */}
+      <div className="p-4 flex-1 min-h-0 overflow-y-auto md:overflow-hidden [&>*]:border [&>*]:border-[#3b3b3b] [&>*]:p-3">
+        <div className="flex flex-col md:flex-row gap-4 md:gap-6 md:h-full">
           {/* 左サイド：メモ一覧 */}
-          <div className="w-1/5 flex flex-col min-w-[200px] border-r border-[#3b3b3b] pr-4">
+          <div className="w-full md:w-1/5 flex flex-col md:min-w-[200px] border-b md:border-b-0 md:border-r border-[#3b3b3b] pb-4 md:pb-0 md:pr-4">
             <div className="mb-3 shrink-0">
               <button
                 onClick={() => createNewMemo()}
@@ -1243,7 +1442,7 @@ const MemoTool: React.FC = () => {
                 ))}
               </select>
             </div>
-            <div className="space-y-2 overflow-y-auto pr-2 flex-1">
+            <div className="space-y-2 overflow-y-auto pr-2 flex-1 max-h-56 md:max-h-none">
               {filteredMemos.map((memo, index) => {
                 const isDragging = isDragEnabled && draggedMemoId === memo.id;
                 const isOver = isDragEnabled && dragOverMemoId === memo.id;
@@ -1313,10 +1512,10 @@ const MemoTool: React.FC = () => {
           </div>
 
           {/* 右サイド：エディタ */}
-          <div className="flex-1 min-w-0 flex flex-col relative h-full">
-            <div className="space-y-3 flex flex-col h-full">
+          <div className="flex-1 min-w-0 flex flex-col relative md:h-full">
+            <div className="space-y-3 flex flex-col md:h-full">
               {/* タイトル入力欄 */}
-              <div className="flex items-center gap-2 justify-between shrink-0">
+              <div className="flex flex-wrap items-center gap-2 justify-between shrink-0">
                 <input 
                   type="text" 
                   placeholder="memo title" 
@@ -1330,7 +1529,7 @@ const MemoTool: React.FC = () => {
                     setMemoTitle(e.currentTarget.value);
                     if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current);
                     autoSaveTimeoutRef.current = setTimeout(() => {
-                      if (currentMemo) {
+                      { // メモを開いていなくても保存する（無ければこの内容で新しいメモを作る）
                         saveMemoRef.current(true).then(() => setTimeout(() => { isEditingRef.current = false; }, 500));
                       }
                     }, 1000);
@@ -1342,15 +1541,15 @@ const MemoTool: React.FC = () => {
                     if (!isComposingRef.current) {
                       if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current);
                       autoSaveTimeoutRef.current = setTimeout(() => {
-                        if (currentMemo) {
+                        { // メモを開いていなくても保存する（無ければこの内容で新しいメモを作る）
                           saveMemoRef.current(true).then(() => setTimeout(() => { isEditingRef.current = false; }, 500));
                         }
                       }, 1000);
                     }
                   }}
-                  className={`flex-1 text-[12px] font-bold border-b border-gray-200 px-2 py-1.5 focus:outline-none focus:border-gray-400 ${currentMemo?.isLocked ? 'bg-gray-100 cursor-not-allowed opacity-60' : ''}`}
+                  className={`flex-1 min-w-[12rem] text-[12px] font-bold border-b border-gray-200 px-2 py-1.5 focus:outline-none focus:border-gray-400 ${currentMemo?.isLocked ? 'bg-gray-100 cursor-not-allowed opacity-60' : ''}`}
                 />
-                <div ref={exportRef} className="flex gap-2 scroll-mt-2">
+                <div ref={exportRef} className="flex flex-wrap gap-2 scroll-mt-2">
                   <button
                     onClick={exportMemoToPDF}
                     className="yy-btn flex items-center gap-1"
@@ -1377,8 +1576,8 @@ const MemoTool: React.FC = () => {
               </div>
 
               {/* カテゴリとタグ */}
-              <div className="flex gap-2 shrink-0">
-                <div className="relative flex-1">
+              <div className="flex flex-wrap gap-2 shrink-0">
+                <div className="relative flex-1 min-w-[10rem]">
                   <FolderPicker
                     value={memoCategory}
                     folders={folderNames}
@@ -1389,7 +1588,7 @@ const MemoTool: React.FC = () => {
                     }}
                   />
                 </div>
-                <div className={`flex-1 flex items-stretch border border-gray-200 bg-white ${currentMemo?.isLocked ? 'bg-gray-100 opacity-60' : ''}`}>
+                <div className={`flex-1 min-w-[10rem] flex items-stretch border border-gray-200 bg-white ${currentMemo?.isLocked ? 'bg-gray-100 opacity-60' : ''}`}>
                   <span className="flex items-center px-2 text-gray-400 shrink-0">
                     <FiTag className="w-3 h-3" />
                   </span>
@@ -1401,7 +1600,7 @@ const MemoTool: React.FC = () => {
                     onChange={(e) => {
                       if (currentMemo?.isLocked) return;
                       setMemoTags(e.target.value);
-                      if (currentMemo) {
+                      { // メモを開いていなくても保存する（無ければこの内容で新しいメモを作る）
                         if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current);
                         autoSaveTimeoutRef.current = setTimeout(() => saveMemoRef.current(true), 1000);
                       }
@@ -1412,7 +1611,7 @@ const MemoTool: React.FC = () => {
               </div>
 
               {/* エディタとステータスバー */}
-              <div className="border border-gray-200 flex-1 flex flex-col min-h-0 relative">
+              <div className="border border-gray-200 flex-1 flex flex-col min-h-[60vh] md:min-h-0 relative">
                 {/* ツールバー */}
                 <div className={`flex flex-wrap items-center gap-2 p-2 border-b border-gray-200 bg-gray-50 shrink-0 ${currentMemo?.isLocked ? 'opacity-50 pointer-events-none' : ''}`}>
                   
@@ -1429,6 +1628,7 @@ const MemoTool: React.FC = () => {
                   </select>
 
                   <select 
+                    defaultValue="3"
                     onChange={(e) => formatDoc('fontSize', e.target.value)}
                     disabled={currentMemo?.isLocked || false}
                     className="h-8 text-[11px] border border-gray-200 px-2 focus:outline-none focus:border-gray-400"
@@ -1468,7 +1668,7 @@ const MemoTool: React.FC = () => {
                   </div>
 
                   <div className="flex h-8 items-center bg-white border border-gray-200">
-                    <button onClick={() => imageInputRef.current?.click()} disabled={currentMemo?.isLocked || imageBusy || !currentUser} className="h-full px-2 flex items-center gap-1 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed text-[10px]" title="写真・画像を入れる">
+                    <button onClick={() => imageInputRef.current?.click()} disabled={currentMemo?.isLocked || imageBusy} className="h-full px-2 flex items-center gap-1 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed text-[10px]" title="写真・画像を入れる">
                       <FiImage /> {imageBusy ? '…' : '画像'}
                     </button>
                     <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void insertImage(f); e.target.value = ''; }} />
@@ -1484,8 +1684,8 @@ const MemoTool: React.FC = () => {
 
                   <div className="flex h-8 items-center bg-white border border-gray-200">
                     <button
-                      onClick={() => setHomeworkText(editorRef.current?.innerText ?? '')}
-                      disabled={!currentMemo || !currentUser}
+                      onClick={openHomework}
+                      disabled={!currentMemo}
                       className="h-full px-2 flex items-center gap-1 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed text-[10px]"
                       title="宿題・指摘・☐ の行を拾って Myタスクに入れる（担当・期限も読み取ります）"
                     >
@@ -1562,7 +1762,7 @@ const MemoTool: React.FC = () => {
                 {/* エディタ本体 */}
                 <div 
                   ref={editorRef}
-                  contentEditable={isLoggedIn && !(currentMemo?.isLocked)}
+                  contentEditable={!(currentMemo?.isLocked)}
                   onClick={() => { if (!currentMemo?.isLocked) toggleCheckAtCaret(); }}
                   onPaste={(e) => {
                     if (currentMemo?.isLocked) {
@@ -1579,17 +1779,12 @@ const MemoTool: React.FC = () => {
                     updateCharCount();
                     if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current);
                     autoSaveTimeoutRef.current = setTimeout(() => {
-                      if (currentMemo) {
+                      { // メモを開いていなくても保存する（無ければこの内容で新しいメモを作る）
                         saveMemoRef.current(true).then(() => setTimeout(() => { isEditingRef.current = false; }, 500));
                       }
                     }, 1000);
                   }}
                   onInput={(e) => {
-                    if (!isLoggedIn) {
-                      alert('入力するには会員登録（無料）が必要です。');
-                      if (editorRef.current) editorRef.current.innerHTML = '';
-                      return;
-                    }
                     if (currentMemo?.isLocked) {
                       // ロック状態の場合は元の内容に戻す
                       if (editorRef.current && currentMemo) {
@@ -1602,13 +1797,13 @@ const MemoTool: React.FC = () => {
                     if (!isComposingRef.current) {
                       if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current);
                       autoSaveTimeoutRef.current = setTimeout(() => {
-                        if (currentMemo) {
+                        { // メモを開いていなくても保存する（無ければこの内容で新しいメモを作る）
                           saveMemoRef.current(true).then(() => setTimeout(() => { isEditingRef.current = false; }, 500));
                         }
                       }, 1000);
                     }
                   }}
-                  className={`w-full h-full p-4 text-[12px] focus:outline-none overflow-y-auto whitespace-pre-wrap break-words leading-relaxed ${currentMemo?.isLocked ? 'bg-gray-50 cursor-not-allowed' : ''}`}
+                  className={`w-full flex-1 min-h-[40vh] md:min-h-0 md:h-full p-4 text-[12px] focus:outline-none overflow-y-auto whitespace-pre-wrap break-words leading-relaxed ${currentMemo?.isLocked ? 'bg-gray-50 cursor-not-allowed' : ''}`}
                   suppressContentEditableWarning={true}
                 />
 

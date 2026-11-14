@@ -10,6 +10,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { PHASES, NO_PHASE, periodPreset, projectStats, toCsv, yen, type WorkEntry, type WorkProject } from '@/lib/workLog';
 import { useWorkLogSync } from './useWorkLogSync';
 import ToolHeader from '../ToolHeader';
+import GuestNote from './GuestNote';
 
 // --- 型定義 ---
 type Mode = 'timer' | 'alarm' | 'tracker';
@@ -19,13 +20,25 @@ type TrackerTab = 'daily' | 'summary' | 'settings';
 type TimeEntry = WorkEntry;
 type Project = WorkProject;
 
-// --- 初期データ ---
-const INITIAL_PROJECTS: Project[] = [
+// --- 見本の案件 ---
+// 以前は初めて開くとこの 4 件が案件一覧に入り、localStorage とクラウドに保存されて
+// 実データに混ざっていた。今は空から始める。保存済みの一覧に残っている見本は、
+// 日報で一度も使っていなければ読み込み時に外す（使っていれば実データなので残す）。
+const SAMPLE_PROJECTS: Project[] = [
   { id: 'p1', name: 'A邸新築工事', code: '23-001' },
   { id: 'p2', name: 'Bビル改修工事', code: '23-045' },
   { id: 'p3', name: '社内ミーティング', code: 'INT-01' },
   { id: 'p4', name: '移動・その他', code: 'ETC' },
 ];
+
+const dropUnusedSamples = (list: Project[], records: Record<string, TimeEntry[]>): Project[] => {
+  const used = new Set(Object.values(records).flatMap((es) => (Array.isArray(es) ? es.map((e) => e.projectId) : [])));
+  return list.filter((p) => {
+    const sample = SAMPLE_PROJECTS.find((s) => s.id === p.id);
+    const untouched = sample && sample.name === p.name && sample.code === p.code && !p.fee;
+    return !untouched || used.has(p.id);
+  });
+};
 
 const INITIAL_ENTRY: TimeEntry = { id: '1', projectId: '', description: '', hours: '' };
 
@@ -112,11 +125,13 @@ const AlarmTool: React.FC = () => {
     };
   }, []);
 
-  useEffect(() => {
-    if (typeof window !== 'undefined' && 'AudioContext' in window) {
-      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-    }
-  }, []);
+  // 音は開始ボタンを押したときに用意する。開いた瞬間に作ると、ブラウザが
+  // 「操作の前に音を鳴らそうとした」と警告を出し、止まった状態で作られる
+  const ensureAudio = () => {
+    if (audioContextRef.current || typeof window === 'undefined') return;
+    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (Ctx) audioContextRef.current = new Ctx();
+  };
 
   const requestNotificationPermission = async () => {
     if (typeof window === 'undefined' || !('Notification' in window)) return;
@@ -169,10 +184,10 @@ const AlarmTool: React.FC = () => {
     let targetTimeMs = 0;
     if (mode === 'timer') {
       const totalSeconds = hours * 3600 + minutes * 60 + seconds;
-      if (totalSeconds <= 0) { alert('時間を設定してください。'); return; }
+      if (totalSeconds <= 0) { setWorkNotice('時間を設定してください。'); return; }
       targetTimeMs = Date.now() + totalSeconds * 1000;
     } else if (mode === 'alarm') {
-      if (!alarmTimeStr) { alert('時刻を設定してください。'); return; }
+      if (!alarmTimeStr) { setWorkNotice('時刻を設定してください。'); return; }
       const now = new Date();
       const [targetH, targetM] = alarmTimeStr.split(':').map(Number);
       const targetDate = new Date();
@@ -182,6 +197,8 @@ const AlarmTool: React.FC = () => {
       }
       targetTimeMs = targetDate.getTime();
     }
+    setWorkNotice('');
+    ensureAudio();
     if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
       audioContextRef.current.resume();
     }
@@ -220,19 +237,27 @@ const AlarmTool: React.FC = () => {
   
   // 日付ごとのデータを保持するState
   const [dailyRecords, setDailyRecords] = useState<Record<string, TimeEntry[]>>({});
-  const [projects, setProjects] = useState<Project[]>(INITIAL_PROJECTS);
+  const [projects, setProjects] = useState<Project[]>([]);
+  // localStorage を読み終えるまで書かない。読む前に書くと、初期値（空）で保存済みの日報を上書きしてしまう
+  // （開発時の StrictMode では効果が 2 回走り、実際に日報が消えていた）
+  const [hydrated, setHydrated] = useState(false);
   // 目標とする時間単価（円/h）。設計料 ÷ これ ＝ その物件にかけてよい時間
   const [targetRate, setTargetRate] = useState<number>(10000);
   const { isLoggedIn, currentUser } = useAuth();
   const [workNotice, setWorkNotice] = useState('');
   const trackerSettings = useMemo(() => ({ projects, targetRate }), [projects, targetRate]);
+  const dailyRecordsRef = useRef(dailyRecords);
+  useEffect(() => {
+    dailyRecordsRef.current = dailyRecords;
+  }, [dailyRecords]);
+  // 手元の記録を読み終えてから同期を始める（読む前に始めると、移行の判定が空の手元で行われる）
   const syncStatus = useWorkLogSync(
-    isLoggedIn ? currentUser?.uid : undefined,
+    hydrated && isLoggedIn ? currentUser?.uid : undefined,
     { records: dailyRecords, settings: trackerSettings },
     (next) => {
       if (next.records) setDailyRecords(next.records);
       if (next.settings) {
-        setProjects(next.settings.projects);
+        setProjects(dropUnusedSamples(next.settings.projects, next.records ?? dailyRecordsRef.current));
         if (next.settings.targetRate > 0) setTargetRate(next.settings.targetRate);
       }
     }
@@ -246,42 +271,64 @@ const AlarmTool: React.FC = () => {
   });
   const [summaryEndDate, setSummaryEndDate] = useState(() => toLocalDateString(new Date()));
 
-  // 初期ロード
+  // 初期ロード（キー名は既存のまま。変えると今までの記録が読めなくなる）
   useEffect(() => {
+    let records: Record<string, TimeEntry[]> = {};
     try {
       const savedRecords = localStorage.getItem('tracker_daily_records');
       if (savedRecords) {
-        setDailyRecords(JSON.parse(savedRecords));
+        const parsed = JSON.parse(savedRecords);
+        if (parsed && typeof parsed === 'object') records = parsed;
       }
+    } catch (e) {
+      console.error('Failed to load tracker records', e);
+    }
+    let saved: Project[] = [];
+    try {
       const savedProjects = localStorage.getItem('tracker_projects');
-      if (savedProjects) {
-        setProjects(JSON.parse(savedProjects));
-      }
+      const parsed = savedProjects ? JSON.parse(savedProjects) : [];
+      if (Array.isArray(parsed)) saved = parsed;
+    } catch (e) {
+      console.error('Failed to load tracker projects', e);
+    }
+    try {
       const savedRate = Number(localStorage.getItem('tracker_target_rate'));
       if (savedRate > 0) setTargetRate(savedRate);
-    } catch (e) {
-      console.error('Failed to load tracker data', e);
+    } catch {
+      /* 既定の単価のまま */
     }
+    setDailyRecords(records);
+    setProjects(dropUnusedSamples(saved, records));
+    setHydrated(true);
   }, []);
 
-  // 保存
+  // 保存（読み終えてから）
   useEffect(() => {
+    if (!hydrated) return;
     try {
       localStorage.setItem('tracker_daily_records', JSON.stringify(dailyRecords));
-    } catch (e) {}
-  }, [dailyRecords]);
+    } catch {
+      /* 保存できない環境では画面を開いている間だけ持つ */
+    }
+  }, [dailyRecords, hydrated]);
 
   useEffect(() => {
+    if (!hydrated) return;
     try {
       localStorage.setItem('tracker_projects', JSON.stringify(projects));
-    } catch (e) {}
-  }, [projects]);
+    } catch {
+      /* 同上 */
+    }
+  }, [projects, hydrated]);
 
   useEffect(() => {
+    if (!hydrated) return;
     try {
       localStorage.setItem('tracker_target_rate', String(targetRate));
-    } catch (e) {}
-  }, [targetRate]);
+    } catch {
+      /* 同上 */
+    }
+  }, [targetRate, hydrated]);
 
   const entries = useMemo(() => {
     return dailyRecords[trackerDate] || [{ ...INITIAL_ENTRY, id: crypto.randomUUID() }];
@@ -397,10 +444,11 @@ const AlarmTool: React.FC = () => {
 
   // --- Project Management Handlers ---
   const handleSaveProject = () => {
-    if (!editProjCode || !editProjName) {
-      alert('コードとプロジェクト名を入力してください');
+    if (!editProjCode.trim() || !editProjName.trim()) {
+      setWorkNotice('コード（工事番号など）と案件名を入れてください。');
       return;
     }
+    setWorkNotice('');
 
     if (editProjId) {
       setProjects(projects.map(p => 
@@ -424,7 +472,7 @@ const AlarmTool: React.FC = () => {
   };
 
   const handleDeleteProject = (id: string) => {
-    if (confirm('このプロジェクトを削除しますか？')) {
+    if (confirm('この案件を一覧から削除しますか？\n日報の記録は消えませんが、集計に案件名が出なくなります。')) {
       setProjects(projects.filter(p => p.id !== id));
       if (editProjId === id) {
         setEditProjId(null);
@@ -500,6 +548,7 @@ const AlarmTool: React.FC = () => {
           },
         ]}
       />
+      {!isLoggedIn && mode === 'tracker' && <GuestNote className="mx-4 mt-2 !mb-0 shrink-0" />}
       {workNotice && (
         <p className="px-4 py-1.5 text-[11px] text-gray-600 border-b border-gray-200 shrink-0" role="status">{workNotice}</p>
       )}
@@ -634,7 +683,7 @@ const AlarmTool: React.FC = () => {
               // --- 日報入力 UI ---
               <div className="space-y-4">
                 <div className="border border-gray-200 overflow-hidden">
-                  <div className="grid grid-cols-12 bg-gray-50 border-b border-gray-200 text-[10px] font-bold text-gray-500">
+                  <div className="hidden sm:grid grid-cols-12 bg-gray-50 border-b border-gray-200 text-[10px] font-bold text-gray-500">
                     <div className="col-span-3 p-2 border-r border-gray-200">プロジェクト名</div>
                     <div className="col-span-2 p-2 border-r border-gray-200">工種</div>
                     <div className="col-span-5 p-2 border-r border-gray-200">作業内容</div>
@@ -643,30 +692,39 @@ const AlarmTool: React.FC = () => {
                   <div className="divide-y divide-gray-100 bg-white">
                     {entries.map((entry) => (
                       <div key={entry.id} className="grid grid-cols-12 group hover:bg-gray-50 transition-colors relative">
-                        <div className="col-span-3 p-1 border-r border-gray-100">
-                          <select value={entry.projectId} onChange={(e) => updateEntry(entry.id, 'projectId', e.target.value)} className="w-full h-full p-1.5 bg-transparent outline-none text-[11px] text-gray-700 cursor-pointer focus:bg-white">
+                        <div className="col-span-7 sm:col-span-3 p-1 border-r border-gray-100">
+                          <select aria-label="プロジェクト" value={entry.projectId} onChange={(e) => updateEntry(entry.id, 'projectId', e.target.value)} className="w-full h-full p-1.5 bg-transparent outline-none text-[11px] text-gray-700 cursor-pointer focus:bg-white">
                             <option value="" className="text-gray-300">選択してください</option>
                             {projects.map(p => <option key={p.id} value={p.id}>{p.code} : {p.name}</option>)}
                           </select>
                         </div>
-                        <div className="col-span-2 p-1 border-r border-gray-100">
-                          <select value={entry.phase ?? ''} onChange={(e) => updateEntry(entry.id, 'phase', e.target.value)} className="w-full h-full p-1.5 bg-transparent outline-none text-[11px] text-gray-700 cursor-pointer focus:bg-white">
+                        <div className="col-span-5 sm:col-span-2 p-1 sm:border-r border-gray-100">
+                          <select aria-label="工種" value={entry.phase ?? ''} onChange={(e) => updateEntry(entry.id, 'phase', e.target.value)} className="w-full h-full p-1.5 bg-transparent outline-none text-[11px] text-gray-700 cursor-pointer focus:bg-white">
                             <option value="">{NO_PHASE}</option>
                             {PHASES.map((ph) => <option key={ph} value={ph}>{ph}</option>)}
                           </select>
                         </div>
-                        <div className="col-span-5 p-1 border-r border-gray-100 relative">
-                          <input type="text" value={entry.description} onChange={(e) => updateEntry(entry.id, 'description', e.target.value)} placeholder="具体的な内容を入力" className="w-full h-full p-1.5 bg-transparent outline-none text-[11px] text-gray-700 placeholder-gray-300 focus:bg-white"/>
-                          <button onClick={() => removeEntry(entry.id)} className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all z-10" title="行を削除"><FiTrash2 className="w-3 h-3" /></button>
+                        <div className="col-span-9 sm:col-span-5 p-1 border-r border-t sm:border-t-0 border-gray-100 relative">
+                          <input aria-label="作業内容" type="text" value={entry.description} onChange={(e) => updateEntry(entry.id, 'description', e.target.value)} placeholder="具体的な内容を入力" className="w-full h-full p-1.5 bg-transparent outline-none text-[11px] text-gray-700 placeholder-gray-300 focus:bg-white"/>
+                          <button onClick={() => removeEntry(entry.id)} className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 transition-all z-10" title="行を削除" aria-label="行を削除"><FiTrash2 className="w-3 h-3" /></button>
                         </div>
-                        <div className="col-span-2 p-1">
-                          <input type="number" min="0" step="0.5" value={entry.hours} onChange={(e) => updateEntry(entry.id, 'hours', e.target.value === '' ? '' : parseFloat(e.target.value))} className="w-full h-full p-1.5 bg-transparent outline-none text-[12px] text-center font-mono text-gray-700 focus:bg-white" placeholder="0.0"/>
+                        <div className="col-span-3 sm:col-span-2 p-1 border-t sm:border-t-0 border-gray-100">
+                          <input aria-label="時間" type="number" min="0" step="0.5" value={entry.hours} onChange={(e) => updateEntry(entry.id, 'hours', e.target.value === '' ? '' : parseFloat(e.target.value))} className="w-full h-full p-1.5 bg-transparent outline-none text-[12px] text-center font-mono text-gray-700 focus:bg-white" placeholder="0.0"/>
                         </div>
                       </div>
                     ))}
                   </div>
                 </div>
-                <div className="flex justify-between items-center pt-2">
+                {projects.length === 0 && (
+                  <p className="text-[11px] text-gray-600">
+                    案件がまだありません。{' '}
+                    <button type="button" onClick={() => setTrackerTab('settings')} className="underline underline-offset-2 text-gray-800 hover:text-black">
+                      設定で案件を足す
+                    </button>
+                    （工事番号・案件名・設計料）と、ここで選んで時間を付けられます。
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-2 justify-between items-center pt-2">
                   <button onClick={addEntry} className="flex items-center gap-1 text-[11px] text-gray-700 hover:bg-gray-50 px-3 py-1.5 transition-colors border border-dashed border-gray-400 hover:border-[#3b3b3b]"><FiPlus className="w-3 h-3" /> 行を追加</button>
                   <div className="flex items-center gap-4 bg-gray-50 px-4 py-2 border border-gray-200">
                     <span className="yy-mono text-[10px] text-gray-500 uppercase tracking-[0.12em]">Total</span>

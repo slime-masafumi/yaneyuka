@@ -55,7 +55,12 @@ export function firestoreRoom(roomId: string): RoomBackend {
   const roomRef = doc(db, 'drawingRooms', roomId);
   const sub = (name: string) => collection(db, 'drawingRooms', roomId, name);
   const list = <T,>(name: string, cb: (xs: T[]) => void) =>
-    onSnapshot(sub(name), (s) => cb(s.docs.map((d) => ({ ...(d.data() as T), id: d.id }))));
+    onSnapshot(
+      sub(name),
+      (s) => cb(s.docs.map((d) => ({ ...(d.data() as T), id: d.id }))),
+      // 部屋が消された・権限が無いときは空で返す（コンソールに未処理のエラーを出さない）
+      () => cb([])
+    );
   return {
     watchRoom: (cb) =>
       onSnapshot(
@@ -103,8 +108,10 @@ export async function rememberRoom(uid: string, roomId: string, title: string) {
 export type MyRoom = { id: string; title: string; owner?: boolean; at: number };
 
 export function watchMyRooms(uid: string, cb: (rooms: MyRoom[]) => void) {
-  return onSnapshot(collection(db, 'users', uid, 'drawingRooms'), (s) =>
-    cb(s.docs.map((d) => ({ ...(d.data() as MyRoom), id: d.id })).sort((a, b) => b.at - a.at))
+  return onSnapshot(
+    collection(db, 'users', uid, 'drawingRooms'),
+    (s) => cb(s.docs.map((d) => ({ ...(d.data() as MyRoom), id: d.id })).sort((a, b) => b.at - a.at)),
+    () => cb([])
   );
 }
 
@@ -117,3 +124,88 @@ export async function roomExists(roomId: string) {
   return (await getDoc(doc(db, 'drawingRooms', roomId))).exists();
 }
 
+
+/**
+ * ひとりで試す部屋（未ログイン用）。サーバーには何も送らず、このブラウザの中だけで動く。
+ * 図面 PDF はその場で開くだけ（object URL）。赤入れ・決定事項・会議の回はこのブラウザに残し、
+ * 開き直したら同じ図面 PDF をもう一度開けば赤入れが重なる。
+ * 招待・同期（相手のポインタ・相手の赤入れ）はログインして部屋を作ったときだけ。
+ */
+export const LOCAL_ROOM_ID = 'local';
+const LOCAL_KEY = 'yy-guest-olmt';
+type LocalState = { room: RoomDoc; strokes: Stroke[]; decisions: DecisionDoc[] };
+
+export function localRoom(me: { uid: string }, title = '試しの部屋'): RoomBackend {
+  const fresh = (): LocalState => ({
+    room: { id: LOCAL_ROOM_ID, ownerUid: me.uid, title, meetingUrl: '', sessions: [], currentSession: null, createdAt: Date.now() },
+    strokes: [],
+    decisions: [],
+  });
+  let st: LocalState = fresh();
+  try {
+    const raw = localStorage.getItem(LOCAL_KEY);
+    if (raw) {
+      const saved = JSON.parse(raw) as LocalState;
+      // 図面は保存していない（object URL はページを閉じると無効）
+      if (saved?.room) st = { room: { ...saved.room, pdf: undefined, ownerUid: me.uid }, strokes: saved.strokes ?? [], decisions: saved.decisions ?? [] };
+    }
+  } catch {
+    /* 読めなければ空の部屋 */
+  }
+  const subs = { room: new Set<(r: RoomDoc | null) => void>(), strokes: new Set<(s: Stroke[]) => void>(), decisions: new Set<(d: DecisionDoc[]) => void>() };
+  const save = () => {
+    try {
+      localStorage.setItem(LOCAL_KEY, JSON.stringify({ ...st, room: { ...st.room, pdf: undefined } }));
+    } catch {
+      /* 容量いっぱいなどで残せなくても、開いている間は使える */
+    }
+  };
+  const emit = () => {
+    subs.room.forEach((cb) => cb({ ...st.room }));
+    subs.strokes.forEach((cb) => cb([...st.strokes]));
+    subs.decisions.forEach((cb) => cb([...st.decisions]));
+  };
+  const change = (fn: () => void) => {
+    fn();
+    save();
+    emit();
+  };
+  const watch = <T,>(set: Set<T>, cb: T, first: () => void) => {
+    set.add(cb);
+    first();
+    return () => {
+      set.delete(cb);
+    };
+  };
+  const id = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+  return {
+    watchRoom: (cb) => watch(subs.room, cb, () => cb({ ...st.room })),
+    watchStrokes: (cb) => watch(subs.strokes, cb, () => cb([...st.strokes])),
+    // 自分のポインタは画面に出さないので、在席は持たない
+    watchPresence: (cb) => {
+      cb([]);
+      return () => undefined;
+    },
+    watchDecisions: (cb) => watch(subs.decisions, cb, () => cb([...st.decisions])),
+    updateRoom: async (patch) => change(() => { st.room = { ...st.room, ...clean(patch) }; }),
+    addStroke: async (s) => change(() => { st.strokes = [...st.strokes, { ...s, id: id(), at: Date.now() }]; }),
+    deleteStroke: async (sid) => change(() => { st.strokes = st.strokes.filter((x) => x.id !== sid); }),
+    setPresence: async () => undefined,
+    addDecision: async (d) => change(() => { st.decisions = [...st.decisions, { ...clean(d), id: id(), at: Date.now() }]; }),
+    updateDecision: async (did, patch) => change(() => { st.decisions = st.decisions.map((x) => (x.id === did ? { ...x, ...clean(patch) } : x)); }),
+    deleteDecision: async (did) => change(() => { st.decisions = st.decisions.filter((x) => x.id !== did); }),
+    async uploadPdf(file) {
+      return { path: URL.createObjectURL(file), name: file.name };
+    },
+    pdfUrl: async (path) => path,
+  };
+}
+
+/** ひとりで試した内容を消す */
+export function clearLocalRoom() {
+  try {
+    localStorage.removeItem(LOCAL_KEY);
+  } catch {
+    /* 無視 */
+  }
+}

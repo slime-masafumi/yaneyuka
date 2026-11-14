@@ -7,10 +7,15 @@ import { parseIcs, buildIcs, type IcsEvent } from '@/lib/ics';
 import DeadlineHelper, { type NewDeadline } from './calendar/DeadlineHelper';
 import IcsImport, { type ImportTarget } from './calendar/IcsImport';
 import { BUILDING_CATEGORIES, COLOR_PALETTE, DEADLINE_CATEGORY_NAMES, DEFAULT_CATEGORIES } from './calendar/categories';
+import WeekView from './calendar/WeekView';
+import { GUEST_FEEDS_KEY, GUEST_THEME_KEY, guestId, readGuestCalendar, useGuestCalendarMigration, writeGuestCalendar } from './calendar/guestCalendar';
+import { useGuestTasks } from './myTasks/guestTasks';
+import { readGuestBoard } from './teamTasks/guestBoard';
+import GuestNote from './general-tools/GuestNote';
 import { useAuth } from '@/lib/AuthContext';
 import { useTaskContext } from '../../providers/TaskProvider';
 import { db } from '@/lib/firebaseClient';
-import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, where, getDocs, writeBatch } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, where, writeBatch } from 'firebase/firestore';
 
 // --- Types ---
 
@@ -27,7 +32,7 @@ interface CalendarEvent {
   details: string;
   color: string;
   recurrenceId?: string;
-  recurrenceType?: 'daily' | 'weekly' | 'monthly' | 'none';
+  recurrenceType?: 'daily' | 'weekdays' | 'weekly' | 'monthly' | 'none';
   recurrenceUntil?: string;
   spanGroupId?: string;
   spanPart?: 'single' | 'start' | 'middle' | 'end';
@@ -108,12 +113,45 @@ const MONO = 'yy-mono text-[10px] tracking-[0.12em] uppercase';
 const isFeedEvent = (ev: { id: string }) => ev.id.startsWith('ics-');
 /** Firestore の 1 回の書き込みは 500 件まで。余裕を見て 400 件ずつ */
 const BATCH_LIMIT = 400;
+/** 繰り返しで作る回数の上限（毎日を 1 年分） */
+const RECUR_MAX = 366;
+
+type Recurrence = 'none' | 'daily' | 'weekdays' | 'weekly' | 'monthly';
+const RECURRENCE_LABELS: [Recurrence, string][] = [
+  ['none', 'しない'], ['daily', '毎日'], ['weekdays', '平日（月〜金）'], ['weekly', '毎週'], ['monthly', '毎月'],
+];
+
+/** 繰り返しの各回の日付。毎月で 31 日のように無い月は飛ばす */
+const expandRecurrence = (start: Date, type: Recurrence, untilStr: string): Date[] => {
+  const until = new Date(`${untilStr}T00:00:00`);
+  if (type === 'none' || isNaN(until.getTime())) return [start];
+  const out: Date[] = [];
+  for (let i = 0; out.length < RECUR_MAX && i < 3000; i++) {
+    const d = type === 'monthly'
+      ? new Date(start.getFullYear(), start.getMonth() + i, start.getDate())
+      : new Date(start.getFullYear(), start.getMonth(), start.getDate() + i * (type === 'weekly' ? 7 : 1));
+    if (d > until) break;
+    if (type === 'monthly' && d.getDate() !== start.getDate()) continue;
+    if (type === 'weekdays' && (d.getDay() === 0 || d.getDay() === 6)) continue;
+    out.push(d);
+  }
+  return out.length ? out : [start];
+};
+
+/** 日付の文字列（YYYY-MM-DD）をその日の 0 時（端末の時刻）として読む */
+const parseYmd = (s: string) => new Date(`${s}T00:00:00`);
 
 // --- Main Component ---
 
 const MyCalendar: React.FC = () => {
-  const { isLoggedIn, currentUser } = useAuth();
-  
+  const { isLoggedIn, currentUser, authReady } = useAuth();
+  // 未ログインはこのブラウザ（localStorage）に保存。ログインしたら Firestore
+  const guestMode = authReady && !currentUser;
+  const uid = currentUser?.uid;
+  const migration = useGuestCalendarMigration(uid);
+  // 月 / 週
+  const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
+
   // State
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string>(() => formatDateForStorage(new Date()));
@@ -148,8 +186,10 @@ const MyCalendar: React.FC = () => {
   const [endHour, setEndHour] = useState('10');
   const [endMinute, setEndMinute] = useState('00');
   const [allDay, setAllDay] = useState(false);
-  const [recurrenceType, setRecurrenceType] = useState<'none' | 'daily' | 'weekly' | 'monthly'>('none');
+  const [recurrenceType, setRecurrenceType] = useState<Recurrence>('none');
   const [recurrenceUntil, setRecurrenceUntil] = useState('');
+  // 繰り返しの 1 回を直すとき、以降の回にも同じ変更をかけるか
+  const [applySeries, setApplySeries] = useState(false);
   const [remind, setRemind] = useState(false);
   // 外部カレンダーの予定を開いたとき、その名前（読むだけ・保存すると自分の予定として複製）
   const [readonlySource, setReadonlySource] = useState<string | null>(null);
@@ -171,7 +211,10 @@ const MyCalendar: React.FC = () => {
   const [showMyTasksOnCalendar, setShowMyTasksOnCalendar] = useState(true);
   const [showTeamTasksOnCalendar, setShowTeamTasksOnCalendar] = useState(true);
   const [teamTasks, setTeamTasks] = useState<any[]>([]);
-  const { categories: taskCategories, toggleTaskComplete } = useTaskContext();
+  // Myタスクの期日。未ログインならこのブラウザの Myタスク（yy-guest-mytasks）を重ねる
+  const cloudTaskCtx = useTaskContext();
+  const guestTaskCtx = useGuestTasks();
+  const { categories: taskCategories, toggleTaskComplete } = guestMode ? guestTaskCtx : cloudTaskCtx;
 
   // External Calendar State
   const [icsFeeds, setIcsFeeds] = useState<IcsFeed[]>([]);
@@ -212,27 +255,47 @@ const MyCalendar: React.FC = () => {
     if (savedShowHolidays !== null) setShowHolidays(savedShowHolidays === 'true');
   }, []);
 
+  // 端末に覚える設定（色・外部カレンダーの URL）の置き場。未ログインは yy-guest-…
+  const themeKey = uid ? `calendarTheme:${uid}` : GUEST_THEME_KEY;
+  const feedsKey = uid ? `calendarIcs:${uid}` : GUEST_FEEDS_KEY;
+
   useEffect(() => {
-    if (!currentUser) return;
+    if (!authReady) return;
     try {
-      const theme = JSON.parse(localStorage.getItem(`calendarTheme:${currentUser.uid}`) || 'null');
+      const theme = JSON.parse(localStorage.getItem(themeKey) || 'null');
       if (theme) {
         if (theme.left) setLeftAreaBgColor(theme.left);
         if (theme.right) setRightAreaBgColor(theme.right);
         if (theme.font) setRightAreaFont(theme.font);
       }
     } catch {}
-  }, [currentUser]);
+  }, [authReady, themeKey]);
 
   /** 色を変えたら覚える（以前は読むだけで保存しておらず、開き直すと戻っていた） */
   const saveTheme = (left: string, right: string) => {
     setLeftAreaBgColor(left);
     setRightAreaBgColor(right);
-    if (!currentUser) return;
     try {
-      localStorage.setItem(`calendarTheme:${currentUser.uid}`, JSON.stringify({ left, right, font: rightAreaFont }));
+      localStorage.setItem(themeKey, JSON.stringify({ left, right, font: rightAreaFont }));
     } catch {}
   };
+
+  // 未ログイン: このブラウザの予定と種別を読み、書き換えたら保存する（読み終わってから）
+  const [guestLoaded, setGuestLoaded] = useState(false);
+  useEffect(() => {
+    if (!guestMode) return;
+    const saved = readGuestCalendar();
+    setEvents((saved?.events as unknown as CalendarEvent[]) ?? []);
+    setCategories(saved?.categories.length
+      ? (saved.categories as unknown as Category[])
+      : DEFAULT_CATEGORIES.map((c, i) => ({ id: String(i + 1), ...c })));
+    setGuestLoaded(true);
+    return () => setGuestLoaded(false);
+  }, [guestMode]);
+  useEffect(() => {
+    if (!guestMode || !guestLoaded) return;
+    writeGuestCalendar({ events: events as unknown as { id: string }[], categories: categories as unknown as { id: string }[] });
+  }, [guestMode, guestLoaded, events, categories]);
 
   useEffect(() => {
     if (!isLoggedIn || !currentUser) return;
@@ -256,7 +319,7 @@ const MyCalendar: React.FC = () => {
   }, [isLoggedIn, currentUser]);
 
   useEffect(() => {
-    if (!isLoggedIn || !currentUser) { setEvents([]); return; }
+    if (!isLoggedIn || !currentUser) return; // 未ログインは上の「このブラウザ」の読み込みが入れる
     const colRef = collection(db, 'users', currentUser.uid, 'calendarEvents');
     const unsub = onSnapshot(colRef, (snap) => {
       setEvents(snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })));
@@ -266,7 +329,17 @@ const MyCalendar: React.FC = () => {
 
   useEffect(() => {
     if (!isLoggedIn || !currentUser) {
-      setTeamTasks([]);
+      // 未ログインは、このブラウザの自分用ボード（Teamタスク）の期限を重ねる
+      const g = guestMode ? readGuestBoard() : null;
+      setTeamTasks(g ? g.projects.flatMap((p) => (g.tasks[p.id] || []).filter((t) => t.dueDate).map((t) => ({
+        id: t.id,
+        title: t.title,
+        date: t.dueDate,
+        completed: !!t.completed,
+        color: p.color?.startsWith('#') ? p.color : (convertTailwindToHex(p.color) ?? '#6B7280'),
+        isTeamTask: true,
+        categoryId: p.id,
+      }))) : []);
       return;
     }
 
@@ -399,13 +472,15 @@ const MyCalendar: React.FC = () => {
       teamTasksByBoardRef.current = {};
       boardsInfoRef.current = {};
     };
-  }, [isLoggedIn, currentUser]);
+  }, [isLoggedIn, currentUser, guestMode]);
 
   useEffect(() => {
-    if(!currentUser) return;
-    const saved = localStorage.getItem(`calendarIcs:${currentUser.uid}`);
-    if(saved) setIcsFeeds(JSON.parse(saved));
-  }, [currentUser]);
+    if (!authReady) return;
+    try {
+      const saved = localStorage.getItem(feedsKey);
+      setIcsFeeds(saved ? JSON.parse(saved) : []);
+    } catch { setIcsFeeds([]); }
+  }, [authReady, feedsKey]);
 
   // --- Logic ---
 
@@ -435,7 +510,8 @@ const MyCalendar: React.FC = () => {
       taskCategories.forEach(cat => {
         cat.tasks.forEach(t => { 
           const tDate = t.dueDate;
-          if (tDate === dateString) tasks.push({ ...t, categoryName: cat.title, color: '#5B6B73', isTeamTask: false, categoryId: cat.id }) 
+          // Myタスクは本文が content。以前は title しか見ておらず、升目に空の行が出ていた
+          if (tDate === dateString) tasks.push({ ...t, title: t.content, categoryName: cat.title, color: '#5B6B73', isTeamTask: false, categoryId: cat.id })
         });
       });
     }
@@ -517,13 +593,56 @@ const MyCalendar: React.FC = () => {
 
   // --- Actions ---
 
+  /** 新しい予定・取り込んだ予定の id。ログイン中は Firestore の自動 id、未ログインは g で始まる id */
+  const newEventId = () => (uid ? doc(collection(db, 'users', uid, 'calendarEvents')).id : guestId());
+  const eventRef = (id: string) => doc(db, 'users', uid!, 'calendarEvents', id);
+
+  /**
+   * 予定の書き込みをまとめて行う。画面（状態）を先に直し、ログイン中なら Firestore にも書く。
+   * 未ログインは状態の変化を上の effect がこのブラウザに保存する。
+   */
+  const commitEvents = async ({ set = [], del = [], update = [] }: {
+    set?: CalendarEvent[];
+    del?: string[];
+    update?: { id: string; patch: Partial<CalendarEvent> }[];
+  }) => {
+    const delSet = new Set(del);
+    const patches = new Map(update.map((u) => [u.id, u.patch]));
+    const setIds = new Set(set.map((e) => e.id));
+    setEvents((prev) => [
+      ...prev
+        .filter((e) => !delSet.has(e.id) && !setIds.has(e.id))
+        .map((e) => (patches.has(e.id) ? { ...e, ...patches.get(e.id) } : e)),
+      ...set,
+    ]);
+    if (!uid) return;
+    type Write = { kind: 'del'; id: string } | { kind: 'set'; ev: CalendarEvent } | { kind: 'upd'; id: string; patch: Partial<CalendarEvent> };
+    const writes: Write[] = [
+      ...del.map((id) => ({ kind: 'del' as const, id })),
+      ...set.map((ev) => ({ kind: 'set' as const, ev })),
+      ...update.map((u) => ({ kind: 'upd' as const, id: u.id, patch: u.patch })),
+    ];
+    for (let i = 0; i < writes.length; i += BATCH_LIMIT) {
+      const batch = writeBatch(db);
+      writes.slice(i, i + BATCH_LIMIT).forEach((w) => {
+        if (w.kind === 'del') batch.delete(eventRef(w.id));
+        else if (w.kind === 'set') { const { id, ...rest } = w.ev; batch.set(eventRef(id), stripUndefined(rest)); }
+        else batch.update(eventRef(w.id), stripUndefined(w.patch));
+      });
+      await batch.commit();
+    }
+  };
+
   const openModal = (clickedDate?: Date) => {
-    if (!isLoggedIn) { alert('会員登録が必要です'); return; }
     const base = clickedDate ? formatDateForStorage(clickedDate) : selectedDate;
     setStartDateInput(base); setEndDateInput(base);
     setEventTitle(''); setEventCategory(''); setEventDetails(''); setEditingEventId(null);
     setStartHour('09'); setStartMinute('00'); setEndHour('10'); setEndMinute('00'); setAllDay(false);
     setRemind(false); setReadonlySource(null);
+    // 繰り返しは既定で「しない」。終わりの日は 3 か月先を入れておく
+    const until = parseYmd(base);
+    until.setMonth(until.getMonth() + 3);
+    setRecurrenceType('none'); setRecurrenceUntil(formatDateForStorage(until)); setApplySeries(false);
     if(categories.length > 0) setEventCategory(categories[0].name);
     setShowModal(true);
   };
@@ -541,6 +660,7 @@ const MyCalendar: React.FC = () => {
     setRemind(event.remind ?? DEADLINE_CATEGORY_NAMES.includes(event.category));
     setStartHour(event.startHour); setStartMinute(event.startMinute);
     setEndHour(event.endHour); setEndMinute(event.endMinute);
+    setRecurrenceType('none'); setApplySeries(false);
     setStartDateInput(event.date);
       if (event.spanGroupId) {
         const group = events.filter(e => e.spanGroupId === event.spanGroupId).sort((a,b) => a.date.localeCompare(b.date));
@@ -571,209 +691,176 @@ const MyCalendar: React.FC = () => {
     ?? '#6B7280';
 
   const saveEvent = async () => {
-    if (!eventTitle || !currentUser) return;
+    if (!eventTitle.trim()) return;
     // 建築の種別を入力欄から選んだときは、ここで初めて種別を作る
     const building = BUILDING_CATEGORIES.find(c => c.name === eventCategory);
     if (building) await ensureCategories([building]);
     const color = colorOfCategory(eventCategory);
-    const start = new Date(startDateInput);
-    const end = new Date(endDateInput);
-    const diffTime = Math.abs(end.getTime() - start.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    // まとまりの id は Firestore の自動 id を借りる（重ならない）
-    const spanGroupId = diffDays > 0 ? `span-${doc(collection(db, 'users', currentUser.uid, 'calendarEvents')).id}` : undefined;
+    const start = parseYmd(startDateInput);
+    const end = parseYmd(endDateInput < startDateInput ? startDateInput : endDateInput);
+    const diffDays = Math.max(0, Math.round((end.getTime() - start.getTime()) / 86400000));
 
     // 編集は「消して作り直す」ので、.ics から入れた印（重複よけ・繰り返しのまとまり）を引き継ぐ
     const prev = editingEventId ? events.find(e => e.id === editingEventId) : undefined;
+    // 繰り返しは新しい 1 日の予定のときだけ展開する（複数日の帯とは組み合わせない）
+    const repeat: Recurrence = !prev && diffDays === 0 ? recurrenceType : 'none';
+    const starts = repeat === 'none' ? [start] : expandRecurrence(start, repeat, recurrenceUntil);
+    const recurrenceId = starts.length > 1 ? `rec-${newEventId()}` : prev?.recurrenceId;
+    const fields = {
+      title: eventTitle.trim(), allDay, startHour, startMinute, endHour, endMinute,
+      category: eventCategory, details: eventDetails, color, remind,
+    };
     const basePayload = {
-      title: eventTitle, allDay, startHour, startMinute, endHour, endMinute,
-      category: eventCategory, details: eventDetails, color, recurrenceType, recurrenceUntil, spanGroupId,
-      remind, icsKey: prev?.icsKey, recurrenceId: prev?.recurrenceId,
+      ...fields,
+      recurrenceType: prev ? (prev.recurrenceType ?? 'none') : (starts.length > 1 ? repeat : 'none'),
+      recurrenceUntil: prev ? prev.recurrenceUntil : (starts.length > 1 ? recurrenceUntil : undefined),
+      icsKey: prev?.icsKey, recurrenceId,
     };
 
-    if (editingEventId) {
-        const target = events.find(e => e.id === editingEventId);
-        if (target) {
-            let idsToDelete = [editingEventId];
-            if (target.spanGroupId) {
-                idsToDelete = events.filter(e => e.spanGroupId === target.spanGroupId).map(e => e.id);
-            }
-            setEvents(prev => prev.filter(e => !idsToDelete.includes(e.id)));
-            const batchDel = writeBatch(db);
-            idsToDelete.forEach(id => batchDel.delete(doc(db, 'users', currentUser.uid, 'calendarEvents', id)));
-            await batchDel.commit();
-        }
+    const del = !prev ? [] : prev.spanGroupId
+      ? events.filter(e => e.spanGroupId === prev.spanGroupId).map(e => e.id)
+      : [prev.id];
+
+    const set: CalendarEvent[] = [];
+    for (const s0 of starts) {
+      // まとまりの id は Firestore の自動 id を借りる（重ならない）
+      const spanGroupId = diffDays > 0 ? `span-${newEventId()}` : undefined;
+      for (let i = 0; i <= diffDays; i++) {
+        const d = new Date(s0);
+        d.setDate(s0.getDate() + i);
+        const spanPart = diffDays === 0 ? 'single' : (i === 0 ? 'start' : (i === diffDays ? 'end' : 'middle'));
+        set.push({ ...basePayload, id: newEventId(), date: formatDateForStorage(d), spanGroupId, spanPart } as CalendarEvent);
+      }
     }
 
-    const batch = writeBatch(db);
-    const newEvents: CalendarEvent[] = [];
-    for (let i = 0; i <= diffDays; i++) {
-        const currentDate = new Date(start);
-        currentDate.setDate(start.getDate() + i);
-        const dateStr = formatDateForStorage(currentDate);
-        const spanPart = diffDays === 0 ? 'single' : (i === 0 ? 'start' : (i === diffDays ? 'end' : 'middle'));
-        const payload = stripUndefined({ ...basePayload, date: dateStr, spanPart });
-        const ref = doc(collection(db, 'users', currentUser.uid, 'calendarEvents'));
-        batch.set(ref, payload);
-        newEvents.push({ id: ref.id, ...payload } as CalendarEvent);
-    }
-    await batch.commit();
-    setEvents(prev => [...prev, ...newEvents]);
+    // 繰り返しの 1 回を直したとき、以降の回にも同じ中身（題名・時刻・種別・詳細・通知）をかける
+    const update = prev?.recurrenceId && applySeries
+      ? events
+          .filter(e => e.recurrenceId === prev.recurrenceId && e.id !== prev.id && e.date > prev.date)
+          .map(e => ({ id: e.id, patch: fields }))
+      : [];
+
     setShowModal(false);
     setReadonlySource(null);
+    await commitEvents({ set, del, update });
   };
 
   /** カテゴリが無ければ作る（期限の書き込み・建築の種別の追加で使う） */
   const ensureCategories = async (wanted: { name: string; color: string }[]) => {
-    if (!currentUser) return;
     const missing = wanted.filter((w) => !categories.some((c) => c.name === w.name));
-    await Promise.all(missing.map((m) => addDoc(collection(db, 'users', currentUser.uid, 'calendarCategories'), m)));
+    if (!missing.length) return;
+    if (!uid) {
+      setCategories((prev) => [...prev, ...missing.filter((m) => !prev.some((c) => c.name === m.name)).map((m) => ({ id: guestId(), name: m.name, color: m.color }))]);
+      return;
+    }
+    await Promise.all(missing.map((m) => addDoc(collection(db, 'users', uid, 'calendarCategories'), m)));
   };
 
   /**
    * 期限を終日の予定としてまとめて入れる。
-   * remind: true を付けると、functions の定期処理が前日と当日にサイト内通知を送る。
+   * remind: true を付けると、functions の定期処理が前日と当日にサイト内通知を送る（ログイン中）。
    */
   const addDeadlines = async (items: NewDeadline[]) => {
-    if (!currentUser) {
-      alert('入力するには会員登録（無料）が必要です。');
-      return;
-    }
     await ensureCategories(items.map((i) => ({ name: i.category, color: i.color })).filter((c, i, arr) => arr.findIndex((x) => x.name === c.name) === i));
-    const batch = writeBatch(db);
-    const added: CalendarEvent[] = [];
-    for (const it of items) {
-      const ref = doc(collection(db, 'users', currentUser.uid, 'calendarEvents'));
-      const payload = {
-        title: it.title, date: it.date, allDay: true, startHour: '00', startMinute: '00', endHour: '00', endMinute: '00',
-        // 種別を自分で塗り替えていれば、その色に合わせる
-        category: it.category, details: it.details, color: categories.find((c) => c.name === it.category)?.color ?? it.color,
-        recurrenceType: 'none' as const, spanPart: 'single' as const,
-        remind: it.remind ?? true,
-      };
-      batch.set(ref, payload);
-      added.push({ id: ref.id, ...payload });
-    }
-    await batch.commit();
-    setEvents((prev) => [...prev, ...added]);
+    const set: CalendarEvent[] = items.map((it) => ({
+      id: newEventId(),
+      title: it.title, date: it.date, allDay: true, startHour: '00', startMinute: '00', endHour: '00', endMinute: '00',
+      // 種別を自分で塗り替えていれば、その色に合わせる
+      category: it.category, details: it.details, color: categories.find((c) => c.name === it.category)?.color ?? it.color,
+      recurrenceType: 'none' as const, spanPart: 'single' as const,
+      remind: it.remind ?? true,
+    }));
+    await commitEvents({ set });
   };
 
   /** 取り込み済みの .ics の鍵（同じファイルを読み直したときに飛ばす） */
   const importedKeys = useMemo(() => new Set(events.map(e => e.icsKey).filter((k): k is string => !!k)), [events]);
 
   /**
-   * .ics ファイルの予定を自分の予定として書き込む。
+   * .ics ファイルの予定を自分の予定として書き込む（未ログインはこのブラウザに保存）。
    * 複数日の終日予定（研修・休暇など）は、手で入れたときと同じ「連続した帯」にする。
    * 繰り返しは展開済みの 1 回ずつで届く。recurrenceId に UID を入れて、まとめて消せるようにする。
    */
   const importIcsEvents = async (items: IcsEvent[], target: ImportTarget, remindAll: boolean): Promise<number> => {
-    if (!currentUser) throw new Error('not logged in');
     await ensureCategories([target]);
     const color = categories.find(c => c.name === target.name)?.color ?? target.color;
-    const docs: Record<string, unknown>[] = [];
+    const set: CalendarEvent[] = [];
     items.forEach((it) => {
       if (importedKeys.has(it.key)) return;
       const details = [it.details, it.location ? `場所: ${it.location}` : ''].filter(Boolean).join('\n');
       const common = {
         title: it.title, allDay: it.allDay, startHour: it.startHour, startMinute: it.startMinute,
         endHour: it.endHour, endMinute: it.endMinute, category: target.name, details, color,
-        recurrenceType: 'none', icsKey: it.key,
+        recurrenceType: 'none' as const, icsKey: it.key,
         ...(it.recurring ? { recurrenceId: `ics:${it.uid}` } : {}),
         ...(remindAll ? { remind: true } : {}),
       };
-      const s = new Date(`${it.date}T00:00:00`);
-      const e = new Date(`${it.endDate}T00:00:00`);
+      const s = parseYmd(it.date);
+      const e = parseYmd(it.endDate);
       const days = Math.round((e.getTime() - s.getTime()) / 86400000);
       // 終日で 2〜62 日にまたがるものだけ帯にする（時刻つきは開始日に 1 件）
       if (it.allDay && days > 0 && days <= 61) {
-        const spanGroupId = `span-ics-${doc(collection(db, 'users', currentUser.uid, 'calendarEvents')).id}`;
+        const spanGroupId = `span-ics-${newEventId()}`;
         for (let i = 0; i <= days; i++) {
           const d = new Date(s);
           d.setDate(s.getDate() + i);
-          docs.push({ ...common, date: formatDateForStorage(d), spanGroupId, spanPart: i === 0 ? 'start' : i === days ? 'end' : 'middle' });
+          set.push({ ...common, id: newEventId(), date: formatDateForStorage(d), spanGroupId, spanPart: i === 0 ? 'start' : i === days ? 'end' : 'middle' });
         }
       } else {
-        docs.push({ ...common, date: it.date, spanPart: 'single' });
+        set.push({ ...common, id: newEventId(), date: it.date, spanPart: 'single' });
       }
     });
-
-    const added: CalendarEvent[] = [];
-    for (let i = 0; i < docs.length; i += BATCH_LIMIT) {
-      const batch = writeBatch(db);
-      for (const payload of docs.slice(i, i + BATCH_LIMIT)) {
-        const ref = doc(collection(db, 'users', currentUser.uid, 'calendarEvents'));
-        batch.set(ref, payload);
-        added.push({ id: ref.id, ...(payload as Omit<CalendarEvent, 'id'>) });
-      }
-      await batch.commit();
-    }
-    setEvents(prev => [...prev, ...added]);
+    await commitEvents({ set });
     return items.filter(it => !importedKeys.has(it.key)).length;
   };
 
   const deleteEvent = async () => {
-    if (!editingEventId || !currentUser) return;
+    if (!editingEventId) return;
     const target = events.find(e => e.id === editingEventId);
-    // .ics から入れた繰り返しは、同じ系列をまとめて消せるようにする（1 回ずつ消すのは数百回になりうる）
-    const series = target?.recurrenceId ? events.filter(e => e.recurrenceId === target.recurrenceId) : [];
-    if (target && series.length > 1 && confirm(`この繰り返しの予定（${series.length} 件）をまとめて削除しますか？\n「キャンセル」でこの回だけを削除します。`)) {
-        setEvents(prev => prev.filter(e => e.recurrenceId !== target.recurrenceId));
-        for (let i = 0; i < series.length; i += BATCH_LIMIT) {
-          const batch = writeBatch(db);
-          series.slice(i, i + BATCH_LIMIT).forEach(e => batch.delete(doc(db, 'users', currentUser.uid, 'calendarEvents', e.id)));
-          await batch.commit();
-        }
-        setShowModal(false);
-        return;
+    if (!target) return;
+    // 繰り返しは、同じ系列をまとめて消せるようにする（1 回ずつ消すのは数百回になりうる）
+    const series = target.recurrenceId ? events.filter(e => e.recurrenceId === target.recurrenceId) : [];
+    if (series.length > 1 && confirm(`この繰り返しの予定（${series.length} 件）をまとめて削除しますか？\n「キャンセル」でこの回だけを削除します。`)) {
+      setShowModal(false);
+      await commitEvents({ del: series.map(e => e.id) });
+      return;
     }
-    if (target?.spanGroupId) {
-        if(!confirm('これは連続したスケジュールの一部です。すべて削除しますか？')) return;
-        const groupEvents = events.filter(e => e.spanGroupId === target.spanGroupId);
-        setEvents(prev => prev.filter(e => e.spanGroupId !== target.spanGroupId));
-        const batch = writeBatch(db);
-        groupEvents.forEach(e => batch.delete(doc(db, 'users', currentUser.uid, 'calendarEvents', e.id)));
-        await batch.commit();
-    } else {
-        setEvents(prev => prev.filter(e => e.id !== editingEventId));
-        await deleteDoc(doc(db, 'users', currentUser.uid, 'calendarEvents', editingEventId));
+    if (target.spanGroupId) {
+      if (!confirm('これは連続したスケジュールの一部です。すべて削除しますか？')) return;
+      setShowModal(false);
+      await commitEvents({ del: events.filter(e => e.spanGroupId === target.spanGroupId).map(e => e.id) });
+      return;
     }
     setShowModal(false);
+    await commitEvents({ del: [target.id] });
   };
 
   const addCategory = async () => {
-    if (!categoryName.trim() || !currentUser) return;
-    const newCat = { name: categoryName, color: selectedColor };
+    const name = categoryName.trim();
+    if (!name) return;
+    const newCat = { name, color: selectedColor };
     setCategoryName('');
-    await addDoc(collection(db, 'users', currentUser.uid, 'calendarCategories'), newCat);
+    if (!uid) { setCategories(prev => [...prev, { id: guestId(), ...newCat }]); return; }
+    await addDoc(collection(db, 'users', uid, 'calendarCategories'), newCat);
   };
 
   // カテゴリーの色のみを更新（編集モードを維持）
   const updateCategoryColor = async (id: string, color: string) => {
-    if (!currentUser) return;
     const oldCat = categories.find(c => c.id === id);
     if(!oldCat || oldCat.color === color) return;
 
     // Ref更新 (onSnapshot対策)
     editingCategoryRef.current = { id: id, color: color };
-    
+
     // UI即時更新
     setEditingCategoryColor(color);
     setCategories(prev => prev.map(c => c.id === id ? { ...c, color } : c));
 
     try {
-      await updateDoc(doc(db, 'users', currentUser.uid, 'calendarCategories', id), { color });
-
+      if (uid) await updateDoc(doc(db, 'users', uid, 'calendarCategories', id), { color });
       // 関連イベントの色一括更新
       const targetEvents = events.filter(ev => ev.category === oldCat.name);
-      if (targetEvents.length > 0) {
-          setEvents(prev => prev.map(ev => ev.category === oldCat.name ? { ...ev, color: color } : ev));
-        const batch = writeBatch(db);
-          targetEvents.forEach(ev => {
-              const ref = doc(db, 'users', currentUser.uid, 'calendarEvents', ev.id);
-              batch.update(ref, { color: color });
-        });
-        await batch.commit();
-      }
+      if (targetEvents.length > 0) await commitEvents({ update: targetEvents.map(ev => ({ id: ev.id, patch: { color } })) });
     } catch (error) {
       console.error('Update Error:', error);
     }
@@ -781,31 +868,23 @@ const MyCalendar: React.FC = () => {
 
   // カテゴリー更新（名前変更等）
   const updateCategory = async (id: string, name: string, color: string) => {
-    if (!name.trim() || !currentUser) return;
+    if (!name.trim()) return;
     const oldCat = categories.find(c => c.id === id);
     if(!oldCat) return;
 
     setCategories(prev => prev.map(c => c.id === id ? { ...c, name, color } : c));
     setEditingCategoryId(null);
-    await updateDoc(doc(db, 'users', currentUser.uid, 'calendarCategories', id), { name, color });
+    if (uid) await updateDoc(doc(db, 'users', uid, 'calendarCategories', id), { name, color });
 
     if (oldCat.name !== name || oldCat.color !== color) {
-        const targetEvents = events.filter(ev => ev.category === oldCat.name);
-        if (targetEvents.length > 0) {
-            setEvents(prev => prev.map(ev => ev.category === oldCat.name ? { ...ev, category: name, color: color } : ev));
-        const batch = writeBatch(db);
-            targetEvents.forEach(ev => {
-                const ref = doc(db, 'users', currentUser.uid, 'calendarEvents', ev.id);
-                batch.update(ref, { category: name, color: color });
-        });
-        await batch.commit();
-      }
+      const targetEvents = events.filter(ev => ev.category === oldCat.name);
+      if (targetEvents.length > 0) await commitEvents({ update: targetEvents.map(ev => ({ id: ev.id, patch: { category: name, color } })) });
     }
   };
 
   const deleteCategory = async (id: string) => {
-    if (!currentUser) return;
-    await deleteDoc(doc(db, 'users', currentUser.uid, 'calendarCategories', id));
+    setCategories(prev => prev.filter(c => c.id !== id));
+    if (uid) await deleteDoc(doc(db, 'users', uid, 'calendarCategories', id));
   };
 
   /**
@@ -872,7 +951,7 @@ const MyCalendar: React.FC = () => {
   /** 自分の予定を .ics で書き出す。Google 等にそのまま取り込める。 */
   const exportCalendarToIcs = () => {
     if (events.length === 0) {
-      alert('書き出す予定がありません。');
+      setNotice('書き出す予定がまだありません。');
       return;
     }
     const text = buildIcs(
@@ -902,19 +981,22 @@ const MyCalendar: React.FC = () => {
   };
 
   const addIcsFeed = () => {
-    if (!newIcsName || !newIcsUrl || !currentUser) return;
-    const newFeed = { id: `ics-${Date.now()}`, name: newIcsName, url: newIcsUrl, color: '#6B7280' };
+    const url = newIcsUrl.trim();
+    if (!url) return;
+    // 名前は省略できる（URL の宛先名を使う）
+    let name = newIcsName.trim();
+    if (!name) { try { name = new URL(url).hostname; } catch { name = '外部カレンダー'; } }
+    const newFeed = { id: `ics-${Date.now()}`, name, url, color: '#6B7280' };
     const updated = [...icsFeeds, newFeed];
     setIcsFeeds(updated);
-    localStorage.setItem(`calendarIcs:${currentUser.uid}`, JSON.stringify(updated));
+    try { localStorage.setItem(feedsKey, JSON.stringify(updated)); } catch {}
     setNewIcsName(''); setNewIcsUrl('');
   };
 
   const removeIcsFeed = (id: string) => {
-    if(!currentUser) return;
     const updated = icsFeeds.filter(f => f.id !== id);
     setIcsFeeds(updated);
-    localStorage.setItem(`calendarIcs:${currentUser.uid}`, JSON.stringify(updated));
+    try { localStorage.setItem(feedsKey, JSON.stringify(updated)); } catch {}
   };
 
   const onDragStartEvent = (ev: React.DragEvent, event: CalendarEvent) => {
@@ -961,7 +1043,6 @@ const MyCalendar: React.FC = () => {
     setFileDragOver(false);
     const f = ev.dataTransfer.files?.[0];
     if (!f) return;
-    if (!isLoggedIn) { setNotice('.ics の読み込みはログインすると使えます（読み込んだ予定は自分の予定として保存されます）'); return; }
     setImportFile(f);
     setShowIcsImport(true);
   };
@@ -970,41 +1051,23 @@ const MyCalendar: React.FC = () => {
     ev.preventDefault();
     const id = draggingEventId;
     setDragOverDate(null); setDraggingEventId(null);
-    if (!id || !currentUser) return;
+    if (!id) return;
 
     const target = events.find(e => e.id === id);
     if(!target || target.date === dateStr) return;
 
-    const toDate = (s: string) => new Date(`${s}T00:00:00`);
-    const dateToStr = (d: Date) => formatDateForStorage(d);
-    const oldDate = toDate(target.date);
-    const newDate = toDate(dateStr);
-    const diffTime = newDate.getTime() - oldDate.getTime();
-    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-
+    const diffDays = Math.round((parseYmd(dateStr).getTime() - parseYmd(target.date).getTime()) / 86400000);
     if (diffDays === 0) return;
 
-    if (target.spanGroupId) {
-        const group = events.filter(e => e.spanGroupId === target.spanGroupId);
-        const updates = group.map(ev => {
-            const d = toDate(ev.date);
-            d.setDate(d.getDate() + diffDays);
-            return { id: ev.id, date: dateToStr(d) };
-        });
-        setEvents(prev => prev.map(ev => {
-            const update = updates.find(u => u.id === ev.id);
-            return update ? { ...ev, date: update.date } : ev;
-        }));
-        const batch = writeBatch(db);
-        updates.forEach(u => {
-            const ref = doc(db, 'users', currentUser.uid, 'calendarEvents', u.id);
-            batch.update(ref, { date: u.date });
-        });
-        await batch.commit();
-      } else {
-        setEvents(prev => prev.map(e => e.id === id ? { ...e, date: dateStr } : e));
-        await updateDoc(doc(db, 'users', currentUser.uid, 'calendarEvents', id), { date: dateStr });
-    }
+    // 連続した予定は帯ごと動かす
+    const group = target.spanGroupId ? events.filter(e => e.spanGroupId === target.spanGroupId) : [target];
+    await commitEvents({
+      update: group.map(ev => {
+        const d = parseYmd(ev.date);
+        d.setDate(d.getDate() + diffDays);
+        return { id: ev.id, patch: { date: formatDateForStorage(d) } };
+      }),
+    });
   };
 
   // --- Render ---
@@ -1019,40 +1082,31 @@ const MyCalendar: React.FC = () => {
   const monthPrefix = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-`;
   const monthCount = events.filter(e => e.date.startsWith(monthPrefix) && (!e.spanPart || e.spanPart === 'single' || e.spanPart === 'start')).length;
 
-  /** 帯の「できること」。ログインが要るものは、未ログインなら理由を 1 行出すだけにする */
-  const needLogin = (what: string, open: () => void) => () => {
-    if (!isLoggedIn) { setNotice(`${what}はログインすると使えます（予定は自分のアカウントに保存されます）`); return; }
-    setNotice('');
-    open();
-  };
+  // 帯の「できること」。期限・.ics はブラウザの中で完結するので未ログインでも使える（保存先がこのブラウザになるだけ）
   const features = [
     {
       label: '期限を入れる',
-      hint: '着工・特定工程・完了の予定から、確認申請の提出目安と検査の申請期限を逆算して入れる。前日と当日に通知',
-      login: true,
+      hint: '着工・特定工程・完了の予定から、確認申請の提出目安と検査の申請期限を逆算して入れる。ログイン中は前日と当日に通知',
       active: showDeadlines && deadlineTab === 'permit',
-      onClick: needLogin('期限の書き込み', () => { setDeadlineTab('permit'); setShowDeadlines(true); }),
+      onClick: () => { setNotice(''); setDeadlineTab('permit'); setShowDeadlines(true); },
     },
     {
       label: '資格試験',
       hint: '建築士・施工管理技士などの申込締切（目安）を選んで入れる',
-      login: true,
       active: showDeadlines && deadlineTab === 'exam',
-      onClick: needLogin('資格試験の締切の書き込み', () => { setDeadlineTab('exam'); setShowDeadlines(true); }),
+      onClick: () => { setNotice(''); setDeadlineTab('exam'); setShowDeadlines(true); },
     },
     {
       label: '外部カレンダー連携',
       hint: 'Google カレンダー等の .ics URL を購読して重ねて表示 / 自分の予定を .ics で書き出す',
-      login: true,
       active: showSettingsModal,
-      onClick: needLogin('外部カレンダー連携', () => setShowSettingsModal(true)),
+      onClick: () => { setNotice(''); setShowSettingsModal(true); },
     },
     {
       label: '.icsを読み込む',
       hint: '.ics ファイルの予定を自分の予定として取り込む（カレンダーの上にドロップしても開く）',
-      login: true,
       active: showIcsImport,
-      onClick: needLogin('.ics の読み込み', () => { setImportFile(null); setShowIcsImport(true); }),
+      onClick: () => { setNotice(''); setImportFile(null); setShowIcsImport(true); },
     },
     {
       label: '種別',
@@ -1066,17 +1120,48 @@ const MyCalendar: React.FC = () => {
   ];
 
   const selectDay = (delta: number) => {
-    const d = new Date(`${selectedDate}T00:00:00`);
+    const d = parseYmd(selectedDate);
     d.setDate(d.getDate() + delta);
     setSelectedDate(formatDateForStorage(d));
+    setCurrentDate(new Date(d.getFullYear(), d.getMonth(), 1));
   };
-  const selectedEvents = getEventsForDate(new Date(`${selectedDate}T00:00:00`));
-  const selectedTasks = getTasksForDate(new Date(`${selectedDate}T00:00:00`));
+  /**
+   * 前へ / 次へ。月は 1 日に寄せてから動かす（以前は 31 日に「次の月」を押すと 2 か月先へ飛んだ）。
+   * 週は選んだ日を 7 日ずらす。
+   */
+  const step = (dir: -1 | 1) => {
+    if (viewMode === 'week') { selectDay(dir * 7); return; }
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + dir, 1));
+  };
+  const goToday = () => {
+    const t = new Date();
+    setCurrentDate(new Date(t.getFullYear(), t.getMonth(), 1));
+    setSelectedDate(formatDateForStorage(t));
+  };
+  const todayStr = formatDateForStorage(new Date());
+  // 週表示の 7 日（選んだ日を含む日曜はじまり）
+  const weekDays = (() => {
+    const s = parseYmd(selectedDate);
+    s.setDate(s.getDate() - s.getDay());
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(s.getFullYear(), s.getMonth(), s.getDate() + i);
+      return { date: d, dateStr: formatDateForStorage(d) };
+    });
+  })();
+  const weekLabel = (() => {
+    const a = weekDays[0].date;
+    const b = weekDays[6].date;
+    const p2 = (n: number) => String(n).padStart(2, '0');
+    return `${a.getFullYear()}.${p2(a.getMonth() + 1)}.${p2(a.getDate())}–${p2(b.getMonth() + 1)}.${p2(b.getDate())}`;
+  })();
+  const selectedEvents = getEventsForDate(parseYmd(selectedDate));
+  const selectedTasks = getTasksForDate(parseYmd(selectedDate));
   const fieldCls = 'w-full bg-white px-2 py-1.5 text-[12px]';
 
   return (
     <div className="pt-0 pb-4">
-      <div className="w-full h-[calc(100vh-var(--nav-height)-1rem)] flex flex-col [&>*:not(:first-child)]:mx-4">
+      {/* PC は画面の高さに収める。スマホ幅は縦に積んで伸ばす（高さを固定すると月の表が数十 px に潰れた） */}
+      <div className="w-full md:h-[calc(100vh-var(--nav-height)-1rem)] flex flex-col [&>*:not(:first-child)]:mx-4">
 
         {/* Header */}
         <ToolHeader
@@ -1085,8 +1170,25 @@ const MyCalendar: React.FC = () => {
           title="Myカレンダー"
           description="現場定例・検査・申請の期限を月の表で。Myタスク・Teamタスクの期日も重ね、Google カレンダー等とは .ics でやりとりする"
           features={features}
-          aside={isLoggedIn ? <span className={`${MONO} text-[#aaa69d]`}>{String(monthCount).padStart(3, '0')} EVENTS / MONTH</span> : undefined}
+          aside={<span className={`${MONO} text-[#aaa69d]`}>{String(monthCount).padStart(3, '0')} EVENTS / MONTH</span>}
         />
+        {guestMode && (
+          <GuestNote className="mt-2">このブラウザに保存しています。ログインすると端末間で同期し、期限の前日・当日にベルで知らせます。</GuestNote>
+        )}
+        {migration.message && (
+          <div className="flex items-center justify-between gap-2 mt-2 text-[11px] text-gray-600 border-l border-[#52AA96] pl-2" role="status">
+            <span>{migration.message}</span>
+            <button type="button" onClick={migration.dismiss} aria-label="閉じる" className="text-gray-400 hover:text-gray-700"><FiX size={12} /></button>
+          </div>
+        )}
+        {migration.pending > 0 && (
+          <p className="mt-2 text-[11px] text-gray-600 border-l border-[#52AA96] pl-2" role="status">
+            このブラウザに、ログイン前に入れた予定が {migration.pending} 件あります。{' '}
+            <button type="button" className="underline underline-offset-2 font-bold text-gray-900" onClick={() => void migration.addNow()}>アカウントに追加</button>
+            {' / '}
+            <button type="button" className="underline underline-offset-2" onClick={migration.dismiss}>今はしない</button>
+          </p>
+        )}
         {notice && (
           <div className="flex items-center justify-between gap-2 mt-2 text-[11px] text-gray-600 border-l border-[#52AA96] pl-2">
             <span>{notice}</span>
@@ -1095,7 +1197,7 @@ const MyCalendar: React.FC = () => {
         )}
         {/* Main Card */}
         <div
-          className="relative bg-white border border-[#3b3b3b] overflow-hidden flex flex-col md:flex-row flex-1 mt-3"
+          className="relative bg-white border border-[#3b3b3b] overflow-hidden flex flex-col md:flex-row flex-1 min-h-0 mt-3"
           onDragOver={onFileDragOver}
           onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setFileDragOver(false); }}
           onDrop={onFileDrop}
@@ -1108,14 +1210,17 @@ const MyCalendar: React.FC = () => {
 
           {/* Left Sidebar */}
           <div
-            className={`w-full md:w-[200px] flex flex-col border-r transition-colors duration-300 flex-shrink-0 ${dark ? 'border-white/10' : 'border-black/10'}`}
+            className={`order-2 md:order-1 w-full md:w-[200px] flex flex-col border-t md:border-t-0 md:border-r transition-colors duration-300 flex-shrink-0 ${dark ? 'border-white/10' : 'border-black/10'}`}
             style={{ backgroundColor: leftAreaBgColor }}
           >
             {/* Today's Schedule */}
-            <div className={`p-4 border-b flex flex-col h-[300px] flex-shrink-0 ${dark ? 'border-white/10' : 'border-black/10'}`}>
+            <div className={`p-4 border-b flex flex-col max-h-[300px] md:h-[300px] flex-shrink-0 ${dark ? 'border-white/10' : 'border-black/10'}`}>
               <div className="flex items-center justify-between mb-3">
                 <h3 className={`${MONO} ${dark ? 'text-white/70' : 'text-gray-500'}`}>Schedule</h3>
-                <button onClick={() => { const today = new Date(); setSelectedDate(formatDateForStorage(today)); setCurrentDate(today); }} className={`${MONO} underline underline-offset-2 ${dark ? 'text-white/80' : 'text-[#141414]'}`}>Today</button>
+                <div className="flex items-center gap-3">
+                  <button type="button" onClick={() => openModal(parseYmd(selectedDate))} className={`${MONO} underline underline-offset-2 ${dark ? 'text-white/80' : 'text-[#141414]'}`}>+ Add</button>
+                  <button type="button" onClick={goToday} className={`${MONO} underline underline-offset-2 ${dark ? 'text-white/80' : 'text-[#141414]'}`}>Today</button>
+                </div>
               </div>
               <div className={`flex items-center justify-between border-b pb-1 mb-2 ${dark ? 'border-white/10' : 'border-black/10'}`}>
                 <button onClick={() => selectDay(-1)} aria-label="前の日" className={`w-6 h-6 flex items-center justify-center ${dark ? 'text-white/70' : 'text-gray-500'}`}><FiChevronLeft size={13} /></button>
@@ -1125,7 +1230,7 @@ const MyCalendar: React.FC = () => {
               <div className="overflow-y-auto flex-1 pr-1 custom-scrollbar">
                 {selectedEvents.length === 0 && selectedTasks.length === 0 ? (
                   <p className={`py-4 text-[11px] ${dark ? 'text-white/40' : 'text-gray-400'}`}>
-                    予定はありません。{isLoggedIn && <button type="button" onClick={() => openModal(new Date(`${selectedDate}T00:00:00`))} className="underline underline-offset-2">予定を入れる</button>}
+                    予定はありません。<button type="button" onClick={() => openModal(parseYmd(selectedDate))} className="underline underline-offset-2">予定を入れる</button>
                   </p>
                 ) : (
                   <>
@@ -1271,21 +1376,36 @@ const MyCalendar: React.FC = () => {
           </div>
 
           {/* Right Area: Calendar Grid */}
-          <div className="flex-1 min-w-0 flex flex-col bg-white relative h-full" style={{ backgroundColor: rightAreaBgColor, fontFamily: rightAreaFont }}>
+          <div className="order-1 md:order-2 flex-1 min-w-0 flex flex-col bg-white relative min-h-[560px] md:min-h-0 md:h-full" style={{ backgroundColor: rightAreaBgColor, fontFamily: rightAreaFont }}>
 
             {/* Toolbar */}
             <div className={`px-4 py-2 flex flex-wrap items-center justify-between gap-2 border-b flex-shrink-0 ${gridLine}`}>
-              <div className="flex items-center gap-2">
-                <button onClick={() => { const d = new Date(currentDate); d.setMonth(d.getMonth()-1); setCurrentDate(d); }} aria-label="前の月" className={`w-6 h-6 flex items-center justify-center ${rdark ? 'text-white/70 hover:text-white' : 'text-gray-500 hover:text-[#141414]'}`}>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button type="button" onClick={() => step(-1)} aria-label={viewMode === 'week' ? '前の週' : '前の月'} className={`w-6 h-6 flex items-center justify-center ${rdark ? 'text-white/70 hover:text-white' : 'text-gray-500 hover:text-[#141414]'}`}>
                   <FiChevronLeft size={14} />
                 </button>
                 <span className={`yy-mono text-[12px] font-bold tracking-[0.08em] ${rdark ? 'text-white' : 'text-[#141414]'}`}>
-                  {currentDate.getFullYear()}.{String(currentDate.getMonth() + 1).padStart(2, '0')}
+                  {viewMode === 'week' ? weekLabel : `${currentDate.getFullYear()}.${String(currentDate.getMonth() + 1).padStart(2, '0')}`}
                 </span>
-                <button onClick={() => { const d = new Date(currentDate); d.setMonth(d.getMonth()+1); setCurrentDate(d); }} aria-label="次の月" className={`w-6 h-6 flex items-center justify-center ${rdark ? 'text-white/70 hover:text-white' : 'text-gray-500 hover:text-[#141414]'}`}>
+                <button type="button" onClick={() => step(1)} aria-label={viewMode === 'week' ? '次の週' : '次の月'} className={`w-6 h-6 flex items-center justify-center ${rdark ? 'text-white/70 hover:text-white' : 'text-gray-500 hover:text-[#141414]'}`}>
                   <FiChevronRight size={14} />
                 </button>
-                <button onClick={() => { const t = new Date(); setCurrentDate(t); setSelectedDate(formatDateForStorage(t)); }} className={`${MONO} underline underline-offset-2 ml-1 ${rdark ? 'text-white/70' : 'text-gray-500 hover:text-[#141414]'}`}>Today</button>
+                <button type="button" onClick={goToday} className={`${MONO} underline underline-offset-2 ml-1 ${rdark ? 'text-white/70' : 'text-gray-500 hover:text-[#141414]'}`}>Today</button>
+                {/* 月 / 週 */}
+                <span className={`flex items-center gap-2 pl-2 ml-1 border-l ${gridLine}`}>
+                  {([['month', 'Month'], ['week', 'Week']] as const).map(([k, label]) => (
+                    <button
+                      key={k}
+                      type="button"
+                      onClick={() => setViewMode(k)}
+                      aria-pressed={viewMode === k}
+                      className={`${MONO} ${viewMode === k ? `underline underline-offset-2 ${rdark ? 'text-white' : 'text-[#141414]'}` : (rdark ? 'text-white/50' : 'text-gray-400 hover:text-[#141414]')}`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </span>
+                <button type="button" onClick={() => openModal(parseYmd(selectedDate))} className="yy-btn yy-btn--primary !px-2 !py-0.5 !text-[11px] ml-1">＋ 予定</button>
                 {icsLoading && <span className={`${MONO} ${rdark ? 'text-white/50' : 'text-gray-400'}`}>Loading feeds…</span>}
               </div>
 
@@ -1305,6 +1425,22 @@ const MyCalendar: React.FC = () => {
               </div>
             </div>
 
+            {viewMode === 'week' ? (
+              <WeekView
+                days={weekDays}
+                todayStr={todayStr}
+                selectedDate={selectedDate}
+                dark={rdark}
+                gridLine={gridLine}
+                eventsOf={(ds) => eventsByDate.get(ds) || []}
+                tasksOf={(d) => getTasksForDate(d).map((t) => ({ id: t.id, title: t.title || t.content || '', completed: t.completed, color: t.color, isTeamTask: t.isTeamTask, categoryId: t.categoryId }))}
+                holidayOf={(ds) => (showHolidays ? isHoliday(ds) : null)}
+                onSelect={setSelectedDate}
+                onAdd={(d) => openModal(d)}
+                onOpenEvent={(ev) => { const full = [...events, ...icsEvents].find((e) => e.id === ev.id); if (full) editEvent(full); }}
+                onToggleTask={(t) => { if (!t.isTeamTask && t.categoryId) toggleTaskComplete(t.categoryId, t.id); }}
+              />
+            ) : (<>
             {/* Header Days */}
             <div className={`grid grid-cols-7 border-b flex-shrink-0 ${gridLine}`}>
               {['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map((day, i) => (
@@ -1467,6 +1603,7 @@ const MyCalendar: React.FC = () => {
                 return days;
               })()}
             </div>
+            </>)}
           </div>
         </div>
 
@@ -1553,9 +1690,47 @@ const MyCalendar: React.FC = () => {
                   </label>
                   <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-gray-700" title="前日と当日に、サイト内の通知（ベル）でお知らせします">
                     <input type="checkbox" checked={remind} onChange={e => setRemind(e.target.checked)} className="w-3 h-3 accent-[#3b3b3b]" />
-                    前日と当日に通知
+                    前日と当日に通知{guestMode && <span className="text-gray-400">（ログインすると届きます）</span>}
                   </label>
                 </div>
+
+                {/* 繰り返し。新しい 1 日の予定のときだけ（複数日の帯とは組み合わせない） */}
+                {!editingEventId && !readonlySource && (
+                  startDateInput === endDateInput ? (
+                    <div className="flex items-end gap-3 flex-wrap">
+                      <div>
+                        <label className="yy-label">繰り返し</label>
+                        <select value={recurrenceType} onChange={e => setRecurrenceType(e.target.value as Recurrence)} className="bg-white px-2 py-1.5 text-[12px]">
+                          {RECURRENCE_LABELS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                        </select>
+                      </div>
+                      {recurrenceType !== 'none' && (
+                        <div>
+                          <label className="yy-label">いつまで</label>
+                          <input type="date" className="bg-white px-2 py-1.5 text-[12px]" value={recurrenceUntil} min={startDateInput} onChange={e => setRecurrenceUntil(e.target.value)} />
+                        </div>
+                      )}
+                      {recurrenceType !== 'none' && (
+                        <span className="yy-mono text-[10px] text-gray-500 pb-2">
+                          {expandRecurrence(parseYmd(startDateInput), recurrenceType, recurrenceUntil).length} 回
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-[10px] text-gray-400">複数日の予定は繰り返しにできません（1 日の予定で選べます）。</p>
+                  )
+                )}
+                {editingEventId && (() => {
+                  const ev = events.find(e => e.id === editingEventId);
+                  const later = ev?.recurrenceId ? events.filter(e => e.recurrenceId === ev.recurrenceId && e.date > ev.date).length : 0;
+                  if (!later) return null;
+                  return (
+                    <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-gray-700">
+                      <input type="checkbox" checked={applySeries} onChange={e => setApplySeries(e.target.checked)} className="w-3 h-3 accent-[#3b3b3b]" />
+                      繰り返しのこれより後の {later} 回にも同じ変更をかける（日付はそのまま）
+                    </label>
+                  );
+                })()}
 
                 <div>
                   <label className="yy-label">詳細</label>

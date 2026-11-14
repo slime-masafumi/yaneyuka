@@ -24,6 +24,7 @@ import HistoryManager, { HistorySnapshot } from './spreadsheet/HistoryManager';
 import FormulaEngine from './spreadsheet/FormulaEngine';
 import { PENDING_TEMPLATE_KEY, SHEET_TEMPLATES, type SheetTemplate } from './spreadsheet/templates';
 import ToolHeader from '../ToolHeader';
+import GuestNote from './GuestNote';
 
 type CellBorder = { top?: boolean; right?: boolean; bottom?: boolean; left?: boolean };
 type CellFormat = {
@@ -68,6 +69,48 @@ type SheetData = {
   condRules?: CondRule[];
 };
 
+/**
+ * 未ログインのときの保存先（このブラウザの localStorage）。
+ *
+ * 以前は未ログインだとセルに 1 文字打った瞬間に alert で止まり、表計算として使えなかった。
+ * 計算はブラウザ内で完結するので、未ログインでも使えるようにし、シートはこのブラウザに置く。
+ * ログインしたら、ここにあるシートをアカウント（users/{uid}/sheets）へ移す（移行）。
+ */
+type StoredSheet = SheetData & { colWidths?: number[] };
+const GUEST_LIST_KEY = 'yy-guest-sheet-list';
+const guestSheetKey = (id: string) => `yy-guest-sheet:${id}`;
+const readGuestList = (): { id: string; name: string }[] => {
+  try {
+    const v = JSON.parse(localStorage.getItem(GUEST_LIST_KEY) || '[]');
+    return Array.isArray(v) ? v.filter((s) => s && typeof s.id === 'string') : [];
+  } catch {
+    return [];
+  }
+};
+const writeGuestList = (list: { id: string; name: string }[]) => {
+  try { localStorage.setItem(GUEST_LIST_KEY, JSON.stringify(list)); } catch { /* 容量超過などは諦める */ }
+};
+const readGuestSheet = (id: string): StoredSheet | null => {
+  try {
+    const raw = localStorage.getItem(guestSheetKey(id));
+    return raw ? (JSON.parse(raw) as StoredSheet) : null;
+  } catch {
+    return null;
+  }
+};
+/** 書けたら true。容量（約 5MB）を超えると false */
+const writeGuestSheet = (s: StoredSheet): boolean => {
+  try {
+    localStorage.setItem(guestSheetKey(s.id), JSON.stringify(s));
+    return true;
+  } catch {
+    return false;
+  }
+};
+const removeGuestSheet = (id: string) => {
+  try { localStorage.removeItem(guestSheetKey(id)); } catch { /* 無視 */ }
+};
+
 const Spreadsheet: React.FC = () => {
   const { currentUser, isLoggedIn } = useAuth();
   const [sheet, setSheet] = useState<SheetData>({ id: 'default', name: 'シート1', rows: 20, cols: 10, cells: {}, formats: {} });
@@ -102,6 +145,8 @@ const Spreadsheet: React.FC = () => {
   const importInputRef = useRef<HTMLInputElement>(null);
   const [shareCode, setShareCode] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
+  /** 未ログインで共有を押したとき、案内の 1 行を「共有にはログイン」に切り替える */
+  const [guestShareAsk, setGuestShareAsk] = useState(false);
   /** 直近に Firestore へ書いた内容。次回の差分計算の基準になる */
   const lastSavedRef = useRef<(SheetData & { colWidths: number[] }) | null>(null);
   /** デバウンス待ちの保存内容 */
@@ -170,15 +215,24 @@ const Spreadsheet: React.FC = () => {
    *   ローカルには残るのでユーザーは保存できたと思い込んでいた。
    *   別端末で開くと消えている、という最悪の壊れ方をする。
    */
-  const persistSheet = (next: SheetData) => {
-    if (!currentUser) return;
+  const persistSheet = (next: SheetData, widths: number[] = colWidths) => {
+    if (!currentUser) {
+      // 未ログイン: このブラウザに保存する。失敗（容量超過）は必ず画面に出す
+      const ok = writeGuestSheet({ ...next, id: currentSheetId, colWidths: widths });
+      // 一覧にも載せる（最初の「シート1」は一覧に無いまま編集が始まるため。移行もこの一覧を見る）
+      const list = readGuestList();
+      if (!list.some(s => s.id === currentSheetId)) writeGuestList([...list, { id: currentSheetId, name: next.name }]);
+      setSaveState(ok ? 'saved' : 'error');
+      setSaveError(ok ? null : 'このブラウザの保存容量を超えたため保存できません。不要な行・列を消すか、ログインしてください。');
+      return;
+    }
     try {
       localStorage.setItem(`sheet:${currentUser.uid}:${currentSheetId}`, JSON.stringify(next));
     } catch {
       // localStorage の容量超過。Firestore には入る可能性があるので続行する
     }
     setSaveState('saving');
-    pendingSheetRef.current = { ...next, colWidths } as SheetData & { colWidths: number[] };
+    pendingSheetRef.current = { ...next, colWidths: widths } as SheetData & { colWidths: number[] };
     if (sheetSaveTimer.current) window.clearTimeout(sheetSaveTimer.current);
     sheetSaveTimer.current = window.setTimeout(() => { void flushSave(); }, 500);
   };
@@ -283,10 +337,15 @@ const Spreadsheet: React.FC = () => {
 
   // 表計算: シート管理（追加/名称変更/削除/エクスポート）
   const createNewSheet = async () => {
-    if (!currentUser) return
     const id = `s${Date.now()}`
     const name = `シート${(sheetList.length || 0) + 1}`
     const init: SheetData = { id, name, rows: 20, cols: 10, cells: {}, formats: {} }
+    if (!currentUser) {
+      writeGuestSheet({ ...init, colWidths: Array.from({ length: 10 }, () => 96) })
+      setSheetList(prev => { const next = [...prev, { id, name }]; writeGuestList(next); return next })
+      setCurrentSheetId(id)
+      return
+    }
     setSheetList(prev => { const next = [{ id, name }, ...prev]; try { localStorage.setItem(`sheets:${currentUser.uid}`, JSON.stringify(next)) } catch {}; return next })
     setCurrentSheetId(id)
     setSheet(init)
@@ -294,20 +353,23 @@ const Spreadsheet: React.FC = () => {
   }
 
   /**
-   * テンプレートから新しいシートを作る。ログインしていれば保存し、していなければ
-   * 画面の今のシートに展開する（保存はされない）。
+   * テンプレートから新しいシートを作る。ログインしていればアカウントに、
+   * していなければこのブラウザに新しいシートとして保存する（今のシートは上書きしない）。
    */
   const [showTemplates, setShowTemplates] = useState(false)
   const createFromTemplate = async (tpl: SheetTemplate) => {
     setShowTemplates(false)
     const base = { rows: tpl.rows, cols: tpl.cols, cells: { ...tpl.cells }, formats: { ...tpl.formats } as Record<string, CellFormat> }
-    setColWidths([...tpl.colWidths])
-    if (!currentUser) {
-      setSheet(prev => ({ ...prev, name: tpl.name, ...base }))
-      return
-    }
     const id = `s${Date.now()}`
     const init: SheetData = { id, name: tpl.name, ...base }
+    if (!currentUser) {
+      // 先に書いておく。シートの読み込み（下の effect）がこの id を開いたときに読むため
+      writeGuestSheet({ ...init, colWidths: [...tpl.colWidths] })
+      setSheetList(prev => { const next = [...prev.filter(s => s.id !== id), { id, name: tpl.name }]; writeGuestList(next); return next })
+      setCurrentSheetId(id)
+      return
+    }
+    setColWidths([...tpl.colWidths])
     setSheetList(prev => { const next = [{ id, name: tpl.name }, ...prev]; try { localStorage.setItem(`sheets:${currentUser.uid}`, JSON.stringify(next)) } catch {}; return next })
     setCurrentSheetId(id)
     setSheet(init)
@@ -328,17 +390,39 @@ const Spreadsheet: React.FC = () => {
   }
 
   const renameCurrentSheet = async () => {
-    if (!currentUser) return
     const nextName = prompt('シート名を入力', sheet.name || '')?.trim()
     if (!nextName) return
+    if (!currentUser) {
+      const renamed = { ...sheet, name: nextName }
+      setSheet(renamed)
+      persistSheet(renamed)
+      setSheetList(prev => { const next = prev.map(s => s.id === currentSheetId ? { ...s, name: nextName } : s); writeGuestList(next); return next })
+      return
+    }
     setSheet(prev => ({ ...prev, name: nextName }))
     setSheetList(prev => { const next = prev.map(s => s.id === currentSheetId ? { ...s, name: nextName } : s); try { localStorage.setItem(`sheets:${currentUser.uid}`, JSON.stringify(next)) } catch {}; return next })
     try { await setDoc(doc(db, 'users', currentUser.uid, 'sheets', currentSheetId), { name: nextName }, { merge: true }) } catch {}
   }
 
   const deleteCurrentSheet = async () => {
-    if (!currentUser) return
     if (!confirm('このシートを削除します。よろしいですか？')) return
+    if (!currentUser) {
+      removeGuestSheet(currentSheetId)
+      const rest = sheetList.filter(s => s.id !== currentSheetId)
+      // 最後の 1 枚を消したら、空のシート1 を作り直す
+      const next = rest.length ? rest : [{ id: 'default', name: 'シート1' }]
+      if (!rest.length) writeGuestSheet({ id: 'default', name: 'シート1', rows: 20, cols: 10, cells: {}, formats: {}, colWidths: Array.from({ length: 10 }, () => 96) })
+      writeGuestList(next)
+      setSheetList(next)
+      if (next[0].id === currentSheetId) {
+        // 同じ id のまま作り直したときは読み込みが走らないので、ここで空にする
+        historyManager.current.clear()
+        setSheet({ id: 'default', name: 'シート1', rows: 20, cols: 10, cells: {}, formats: {} })
+        setColWidths(Array.from({ length: 10 }, () => 96))
+      }
+      setCurrentSheetId(next[0].id)
+      return
+    }
     try { await deleteDoc(doc(db, 'users', currentUser.uid, 'sheets', currentSheetId)) } catch {}
     setSheetList(prev => { const next = prev.filter(s => s.id !== currentSheetId); try { localStorage.setItem(`sheets:${currentUser.uid}`, JSON.stringify(next)) } catch {}; return next })
     const nextId = (sheetList.find(s => s.id !== currentSheetId)?.id) || 'default'
@@ -433,10 +517,10 @@ const Spreadsheet: React.FC = () => {
       const buf = await file.arrayBuffer()
       const wb = XLSX.read(buf, { type: 'array' })
       const first = wb.SheetNames[0]
-      if (!first) { alert('シートが見つかりませんでした。'); return }
+      if (!first) { flashSheetNotice('シートが見つかりませんでした。'); return }
       const ws = wb.Sheets[first] as Record<string, any>
       const ref = ws['!ref']
-      if (!ref) { alert('データが空でした。'); return }
+      if (!ref) { flashSheetNotice('データが空でした。'); return }
       const range = XLSX.utils.decode_range(ref)
 
       const cells: Record<string, string> = {}
@@ -473,7 +557,7 @@ const Spreadsheet: React.FC = () => {
       })
     } catch (err) {
       console.error('取り込みに失敗しました', err)
-      alert('ファイルを読み込めませんでした。Excel（.xlsx / .xls）または CSV を選んでください。')
+      flashSheetNotice('ファイルを読み込めませんでした。Excel（.xlsx / .xls）または CSV を選んでください。')
     }
   }
 
@@ -505,8 +589,21 @@ const Spreadsheet: React.FC = () => {
   const otherSheetsRef = useRef<Record<string, Record<string, string>>>({});
   const [, setOtherSheetsVersion] = useState(0);
 
+  // 未ログイン: このブラウザにある他のシートを読む（今のシートは sheet から直接読む）
   useEffect(() => {
-    if (!currentUser) { otherSheetsRef.current = {}; return }
+    if (currentUser) return
+    const map: Record<string, Record<string, string>> = {}
+    sheetList.forEach(s => {
+      if (s.id === currentSheetId) return
+      const saved = readGuestSheet(s.id)
+      if (saved) map[saved.name || s.name] = saved.cells || {}
+    })
+    otherSheetsRef.current = map
+    setOtherSheetsVersion(v => v + 1)
+  }, [currentUser, sheetList, currentSheetId])
+
+  useEffect(() => {
+    if (!currentUser) return
     const colRef = collection(db, 'users', currentUser.uid, 'sheets')
     const unsub = onSnapshot(colRef, (snap) => {
       const map: Record<string, Record<string, string>> = {}
@@ -525,13 +622,49 @@ const Spreadsheet: React.FC = () => {
 
   // 表計算: シート一覧 + 選択シート購読
   useEffect(() => {
-    if (!currentUser) { setSheet({ id: 'default', name: 'シート1', rows: 20, cols: 10, cells: {}, formats: {} }); setSheetList([]); setCurrentSheetId('default'); applyPendingTemplate(); return }
+    if (!currentUser) {
+      // 未ログイン: このブラウザに保存したシートの一覧
+      const saved = readGuestList()
+      const list = saved.length ? saved : [{ id: 'default', name: 'シート1' }]
+      setSheetList(list)
+      setCurrentSheetId(list[0].id)
+      applyPendingTemplate()
+      return
+    }
     // 一覧を取得
     (async () => {
       try {
         const colRef = collection(db, 'users', currentUser.uid, 'sheets')
         const snaps = await getDocs(colRef)
-        const list = snaps.docs.map(d => ({ id: d.id, name: (d.data() as any)?.name || d.id }))
+        let list = snaps.docs.map(d => ({ id: d.id, name: (d.data() as any)?.name || d.id }))
+        // 移行: ログインする前にこのブラウザで作ったシートをアカウントへ上げる。
+        // クラウドが空なら同じ id で、既にあれば別の id で足す（どちらのシートも捨てない）。
+        const guest = readGuestList()
+          .map(s => readGuestSheet(s.id))
+          .filter((s): s is StoredSheet => !!s && Object.keys(s.cells || {}).length > 0)
+        if (guest.length) {
+          let moved = 0
+          for (const g of guest) {
+            const id = list.some(s => s.id === g.id) ? `s${Date.now()}${moved}` : g.id
+            const name = list.some(s => s.name === g.name) ? `${g.name}（このブラウザ）` : g.name
+            try {
+              await setDoc(doc(db, 'users', currentUser.uid, 'sheets', id), JSON.parse(JSON.stringify({
+                name, rows: g.rows || 20, cols: g.cols || 10, cells: g.cells || {}, formats: g.formats || {},
+                merges: g.merges || [], condRules: g.condRules || [], colWidths: g.colWidths || [],
+              })))
+              removeGuestSheet(g.id)
+              list = [...list, { id, name }]
+              moved++
+            } catch (e) {
+              // 上げられなかったシートはこのブラウザに残す（次にログインしたときにまた試す）
+              console.error('シートの移行に失敗しました', e)
+            }
+          }
+          const left = readGuestList().filter(s => readGuestSheet(s.id))
+          if (left.length) writeGuestList(left)
+          else { try { localStorage.removeItem(GUEST_LIST_KEY) } catch { /* 無視 */ } }
+          if (moved) flashSheetNotice(`このブラウザのシート ${moved} 枚をアカウントに移しました。`)
+        }
         if (list.length) {
           setSheetList(list)
           try { localStorage.setItem(`sheets:${currentUser.uid}`, JSON.stringify(list)) } catch {}
@@ -547,7 +680,20 @@ const Spreadsheet: React.FC = () => {
   }, [currentUser])
 
   useEffect(() => {
-    if (!currentUser) return
+    if (!currentUser) {
+      // 未ログイン: このブラウザに保存したシートを開く
+      historyManager.current.clear()
+      setSaveState('idle')
+      setSaveError(null)
+      setShareCode(null)
+      const saved = readGuestSheet(currentSheetId)
+      const name = sheetList.find(s => s.id === currentSheetId)?.name || 'シート1'
+      setSheet(saved
+        ? { id: currentSheetId, name: saved.name || name, rows: saved.rows || 20, cols: saved.cols || 10, cells: saved.cells || {}, formats: saved.formats || {}, merges: saved.merges || [], condRules: saved.condRules || [] }
+        : { id: currentSheetId, name, rows: 20, cols: 10, cells: {}, formats: {} })
+      setColWidths(saved?.colWidths?.length ? saved.colWidths : Array.from({ length: saved?.cols || 10 }, () => 96))
+      return
+    }
     // ★シートを切り替えたら Undo 履歴を捨てる。
     //   同じ HistoryManager を持ち回すと、シートAを編集 → シートBへ切替 → Ctrl+Z で
     //   シートAの内容がシートBに上書き保存され、復旧できなくなる。
@@ -615,16 +761,89 @@ const Spreadsheet: React.FC = () => {
   // 理由: onChangeでsheet.cellsを更新すると、このuseEffectが発火してformulaBarを上書きしてしまう
   // activeCellKeyが変わったときのみ、useEffectでformulaBarを更新する（上記のuseEffectで処理）
 
-  const updateCell = (r: number, c: number, value: string) => {
-    if (!isLoggedIn) {
-      alert('入力するには会員登録（無料）が必要です。');
-      return;
+  /**
+   * 編集を始めたときのセルの中身。確定時の Undo 履歴にはこれを積む。
+   * 数式バーでセル参照を足す操作などは編集途中の値をセルへ直接書くので、
+   * そのまま pushHistory すると Undo で「打ちかけの数式」に戻ってしまう。
+   */
+  const preEditRef = useRef<{ key: string; raw: string } | null>(null);
+  const beginEdit = (key: string, value: string) => {
+    preEditRef.current = { key, raw: sheet.cells[key] || '' };
+    const rc = keyToRC(key);
+    if (rc) { setSelStart(rc); setSelEnd(rc); }
+    setActiveCellKey(key);
+    setEditingCellKey(key);
+    setFormulaBar(value);
+  };
+
+  /** 数式の中のセル参照に色を割り当てる（入力中の数式で参照先を色枠で示す） */
+  const refCellsOf = (formula: string) => {
+    const palette = ['#3b82f6', '#ef4444', '#8b5cf6', '#10b981', '#1e40af', '#f97316', '#06b6d4', '#ec4899', '#059669', '#dc2626', '#7c3aed', '#34d399'];
+    const out = new Map<string, { r: number; c: number; color: string }>();
+    const re = /([A-Z]+)(\d+)(?![A-Z0-9])/g;
+    let m: RegExpExecArray | null;
+    let i = 0;
+    while ((m = re.exec(formula)) !== null) {
+      const rc = addressToRC(m[0]);
+      if (rc) out.set(`${rc.row}-${rc.col}`, { r: rc.row, c: rc.col, color: palette[i++ % palette.length] });
     }
-    // 履歴に積む（直前状態）
-    pushHistory();
+    return out;
+  };
+
+  /** 選んだセルが見えるようにスクロールする（大きな表を矢印キーで動くとき、以前は画面外へ出て行った） */
+  const scrollCellIntoView = (r: number, c: number) => {
+    setTimeout(() => {
+      gridRef.current?.querySelector(`[data-cell="R${r}C${c}"]`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }, 0);
+  };
+  /** アクティブセルを (r, c) に移し、選択もそこ 1 つにする */
+  const moveActive = (r: number, c: number) => {
+    const key = toCellKey(r, c);
+    setActiveCellKey(key);
+    setSelStart({ r, c });
+    setSelEnd({ r, c });
+    setFormulaBar(sheet.cells[key] || '');
+    gridRef.current?.focus();
+    scrollCellIntoView(r, c);
+  };
+
+  /** 編集の取り消し（Esc）。編集途中でセルへ書いた値（参照の挿入など）も始める前に戻す */
+  const cancelEdit = () => {
+    const pre = preEditRef.current;
+    preEditRef.current = null;
+    if (pre && (sheet.cells[pre.key] || '') !== pre.raw) {
+      setSheet(prev => {
+        const cells = { ...prev.cells };
+        if (pre.raw === '') delete cells[pre.key];
+        else cells[pre.key] = pre.raw;
+        return { ...prev, cells };
+      });
+    }
+    setFormulaBar(pre ? pre.raw : (activeCellKey ? sheet.cells[activeCellKey] || '' : ''));
+    setEditingCellKey(null);
+    setFormulaReferenceCells(new Map());
+    gridRef.current?.focus();
+  };
+
+  const updateCell = (r: number, c: number, value: string) => {
+    const key = `R${r}C${c}`;
+    // 履歴に積む（編集を始める前の状態）
+    const snap = currentSnapshot();
+    if (preEditRef.current?.key === key) {
+      const before = preEditRef.current.raw;
+      if (before === '') delete snap.cells[key];
+      else snap.cells[key] = before;
+    }
+    preEditRef.current = null;
+    // 何も変わっていなければ履歴も保存も要らない
+    if ((snap.cells[key] || '') === value && (sheet.cells[key] || '') === value) return;
+    historyManager.current.add(snap);
     setSheet(prev => {
-      const key = `R${r}C${c}`;
-      const next = { ...prev, cells: { ...prev.cells, [key]: value } };
+      const cells = { ...prev.cells };
+      // 空にしたセルは消す（空文字を残すと保存先が太る）
+      if (value === '') delete cells[key];
+      else cells[key] = value;
+      const next = { ...prev, cells };
       persistSheet(next);
       return next;
     });
@@ -858,7 +1077,7 @@ const Spreadsheet: React.FC = () => {
         return
       }
     }
-    alert(`「${needle}」は見つかりませんでした。`)
+    flashSheetNotice(`「${needle}」は見つかりませんでした。`)
   }
 
   /** シート全体を置換する。件数を出してから確定させる */
@@ -872,7 +1091,7 @@ const Spreadsheet: React.FC = () => {
         if ((sheet.cells[key] || '').includes(needle)) hits.push(key)
       }
     }
-    if (!hits.length) { alert(`「${needle}」は見つかりませんでした。`); return }
+    if (!hits.length) { flashSheetNotice(`「${needle}」は見つかりませんでした。`); return }
     if (!confirm(`${hits.length} 件を「${replaceText}」に置き換えます。よろしいですか？`)) return
     pushHistory()
     setSheet(prev => {
@@ -889,10 +1108,10 @@ const Spreadsheet: React.FC = () => {
    * 行ごと入れ替えるので、選択範囲は表全体（見出しを除く）を選んでおく必要がある。
    */
   const sortSelection = (desc: boolean) => {
-    if (!selStart || !selEnd) { alert('並べ替える範囲を選択してください。'); return }
+    if (!selStart || !selEnd) { flashSheetNotice('並べ替える範囲を選択してください。'); return }
     const minR = Math.min(selStart.r, selEnd.r), maxR = Math.max(selStart.r, selEnd.r)
     const minC = Math.min(selStart.c, selEnd.c), maxC = Math.max(selStart.c, selEnd.c)
-    if (maxR - minR < 1) { alert('2行以上を選択してください。'); return }
+    if (maxR - minR < 1) { flashSheetNotice('2行以上を選択してください。'); return }
 
     const rows: string[][] = []
     for (let r = minR; r <= maxR; r++) {
@@ -933,10 +1152,10 @@ const Spreadsheet: React.FC = () => {
    * Excel と同じく、残るのは左上のセルの内容だけ。他に文字が入っていたら確認する。
    */
   const mergeSelection = () => {
-    if (!selStart || !selEnd) { alert('結合する範囲を選択してください。'); return }
+    if (!selStart || !selEnd) { flashSheetNotice('結合する範囲を選択してください。'); return }
     const r = Math.min(selStart.r, selEnd.r), r2 = Math.max(selStart.r, selEnd.r)
     const c = Math.min(selStart.c, selEnd.c), c2 = Math.max(selStart.c, selEnd.c)
-    if (r === r2 && c === c2) { alert('2つ以上のセルを選択してください。'); return }
+    if (r === r2 && c === c2) { flashSheetNotice('2つ以上のセルを選択してください。'); return }
 
     // 既存の結合と重なるものは、まとめて解除してから作り直す
     const overlaps = (m: Merge) => !(m.r + m.rs - 1 < r || m.r > r2 || m.c + m.cs - 1 < c || m.c > c2)
@@ -975,7 +1194,7 @@ const Spreadsheet: React.FC = () => {
     const hit = (m: Merge) =>
       targets.some(t => t.r >= m.r && t.r < m.r + m.rs && t.c >= m.c && t.c < m.c + m.cs)
     const remaining = (sheet.merges || []).filter(m => !hit(m))
-    if (remaining.length === (sheet.merges || []).length) { alert('選択範囲に結合セルがありません。'); return }
+    if (remaining.length === (sheet.merges || []).length) { flashSheetNotice('選択範囲に結合セルがありません。'); return }
     pushHistory()
     setSheet(prev => {
       const next = { ...prev, merges: remaining }
@@ -1063,7 +1282,7 @@ const Spreadsheet: React.FC = () => {
   }
 
   const addCondRule = (op: CondOp, value: string, value2: string, style: CondRule['style']) => {
-    if (!selStart || !selEnd) { alert('条件付き書式を設定する範囲を選択してください。'); return }
+    if (!selStart || !selEnd) { flashSheetNotice('条件付き書式を設定する範囲を選択してください。'); return }
     pushHistory()
     setSheet(prev => {
       const rule: CondRule = {
@@ -1096,7 +1315,7 @@ const Spreadsheet: React.FC = () => {
    * 数式ではなく計算結果を書き出すので、計算式は相手に見えない。
    */
   const publishSheet = async () => {
-    if (!currentUser) { alert('共有するにはログインが必要です。'); return }
+    if (!currentUser) { setGuestShareAsk(true); return }
     if (!confirm('このシートを閲覧専用リンクとして公開します。\nリンクを知っている人は誰でも内容を見られます。よろしいですか？')) return
     setSharing(true)
     try {
@@ -1136,7 +1355,7 @@ const Spreadsheet: React.FC = () => {
       alert(`公開しました。リンクをコピーしました。\n\n${url}`)
     } catch (e) {
       console.error('シートの公開に失敗しました', e)
-      alert('公開できませんでした。時間をおいて再度お試しください。')
+      flashSheetNotice('公開できませんでした。時間をおいて再度お試しください。')
     } finally {
       setSharing(false)
     }
@@ -1166,7 +1385,7 @@ const Spreadsheet: React.FC = () => {
       try { localStorage.removeItem(`sheetShare:${currentUser.uid}:${currentSheetId}`) } catch {}
     } catch (e) {
       console.error('公開の取り消しに失敗しました', e)
-      alert('取り消せませんでした。')
+      flashSheetNotice('取り消せませんでした。')
     }
   }
 
@@ -1225,16 +1444,13 @@ const Spreadsheet: React.FC = () => {
 
   const insertTemplate = (tpl: string) => {
     if (!activeCellKey) return
-    const current = sheet.cells[activeCellKey] || ''
     const nextVal = tpl
+    // ★以前はここだけ独自に setDoc でシート全体を上書きしており、
+    //   結合・条件付き書式・列幅が保存先から消えていた。ほかの操作と同じ persistSheet を通す。
+    pushHistory()
     setSheet(prev => {
       const next = { ...prev, cells: { ...prev.cells, [activeCellKey]: nextVal } }
-      if (currentUser) { try { localStorage.setItem(`sheet:${currentUser.uid}:${currentSheetId}`, JSON.stringify(next)) } catch {} }
-      if (sheetSaveTimer.current) window.clearTimeout(sheetSaveTimer.current)
-      sheetSaveTimer.current = window.setTimeout(async () => {
-        if (!currentUser) return
-        try { await setDoc(doc(db, 'users', currentUser.uid, 'sheets', currentSheetId), { name: next.name, rows: next.rows, cols: next.cols, cells: next.cells, formats: next.formats || {} }) } catch {}
-      }, 500)
+      persistSheet(next)
       return next
     })
     const rc = keyToRC(activeCellKey)
@@ -1557,23 +1773,11 @@ const Spreadsheet: React.FC = () => {
 
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
         e.preventDefault();
-        // 現在のシートを保存（既に自動保存されているが、明示的な保存処理を実行）
-        if (currentUser && currentSheetId) {
-          const currentSheet = sheet;
-          try {
-            setDoc(doc(db, 'users', currentUser.uid, 'sheets', currentSheetId), {
-              name: currentSheet.name,
-              rows: currentSheet.rows,
-              cols: currentSheet.cols,
-              cells: currentSheet.cells,
-              formats: currentSheet.formats || {},
-            });
-            // 保存成功のフィードバック（オプション）
-            // toast.success('保存しました');
-          } catch (err) {
-            console.error('保存エラー:', err);
-          }
-        }
+        // 自動保存の待ちを今すぐ書く。
+        // ★以前はここで setDoc によりシート全体を上書きしており、結合・条件付き書式・列幅が消えていた
+        if (sheetSaveTimer.current) window.clearTimeout(sheetSaveTimer.current);
+        if (currentUser) { if (pendingSheetRef.current) void flushSave(); }
+        else persistSheet(sheet);
       }
       
       // Undo: Ctrl+Z
@@ -1594,6 +1798,52 @@ const Spreadsheet: React.FC = () => {
     // 「最後に sheet が変わった時点の列幅」を掴んだままになり、
     // 列幅だけ変えた直後の Undo→Redo で幅が巻き戻る。
   }, [currentUser, currentSheetId, sheet, colWidths]);
+
+  /**
+   * (r, c) を左上にして貼り付ける。Excel・スプレッドシートからの表（タブ区切り）にも、1 つの値にも使う。
+   * このツール内でコピーした内容をそのまま貼るときは、Excel と同じく相対参照を移動量ぶんずらす。
+   * 外部からのテキスト貼り付けでは書き換えない（Excel の text 貼り付けも同じ）。
+   */
+  const pasteAt = (r: number, c: number, text: string) => {
+    // 末尾の改行だけ落とす。途中の空行まで落とすと、空行のある表を貼ったときに行がずれる
+    const pastedRows = text.replace(/\r/g, '').replace(/\n+$/, '').split('\n');
+    const grid = pastedRows.map(row => row.split('\t'));
+    const width = Math.max(...grid.map(g => g.length));
+    // 貼り付けもUndo対象にする
+    pushHistory();
+    setSheet(prev => {
+      // 貼り付け先がグリッドをはみ出す場合は行・列を広げる（従来は黙って切り捨てていた）
+      const next: SheetData = {
+        ...prev,
+        rows: Math.max(prev.rows, r + grid.length),
+        cols: Math.max(prev.cols, c + width),
+        cells: { ...prev.cells },
+      };
+      const src = copySourceRef.current;
+      const isInternalCopy = src !== null && src.text === text;
+      const rowOffset = isInternalCopy ? r - src!.r : 0;
+      const colOffset = isInternalCopy ? c - src!.c : 0;
+      grid.forEach((rowVals, rr) => {
+        rowVals.forEach((val, cc) => {
+          const key = toCellKey(r + rr, c + cc);
+          const shifted =
+            isInternalCopy && val.startsWith('=') && (rowOffset !== 0 || colOffset !== 0)
+              ? formulaEngine.current.adjustFormula(val, rowOffset, colOffset)
+              : val;
+          if (shifted === '') delete next.cells[key];
+          else next.cells[key] = shifted;
+        });
+      });
+      persistSheet(next);
+      return next;
+    });
+    if (c + width > colWidths.length) {
+      setColWidths(prev => (prev.length >= c + width ? prev : prev.concat(Array.from({ length: c + width - prev.length }, () => 96))));
+    }
+    // 貼った範囲を選択状態にする（どこに入ったか分かるように）
+    setSelStart({ r, c });
+    setSelEnd({ r: r + grid.length - 1, c: c + width - 1 });
+  };
 
   // 右クリックメニューのハンドラー
   const handleContextMenu = (e: React.MouseEvent, type: 'row' | 'col' | 'cell', rowIndex?: number, colIndex?: number) => {
@@ -1715,6 +1965,12 @@ const Spreadsheet: React.FC = () => {
 
   return (
     <div className="bg-white border-b border-gray-100 flex flex-col h-full lg:h-[calc(100vh-var(--nav-height))]">
+      {/* 印刷は表だけを出す（以前は左の案内やツールバーごと印刷され、表がはみ出して切れていた） */}
+      <style>{`@media print {
+        body * { visibility: hidden !important; }
+        .yy-sheet-print, .yy-sheet-print * { visibility: visible !important; }
+        .yy-sheet-print { position: absolute; left: 0; top: 0; overflow: visible !important; border: 0 !important; }
+      }`}</style>
       <ToolHeader
         no="04"
         code="SHEET"
@@ -1742,7 +1998,7 @@ const Spreadsheet: React.FC = () => {
             login: true,
             hint: 'ログインすると、相手にアカウント不要の閲覧専用リンクを作れます',
             onClick: () => {
-              if (!currentUser) { flashSheetNotice('ログイン（無料の会員登録）すると、閲覧専用の共有リンクを作れます。'); return; }
+              if (!currentUser) { setGuestShareAsk(true); return; }
               scrollToSheetRef(ioRef);
             },
           },
@@ -1762,8 +2018,15 @@ const Spreadsheet: React.FC = () => {
       {sheetNotice && (
         <p className="px-4 py-1.5 text-[11px] text-gray-600 border-b border-gray-200 shrink-0" role="status">{sheetNotice}</p>
       )}
+      {!currentUser && (
+        <div className="px-4 pt-2 shrink-0">
+          {guestShareAsk
+            ? <GuestNote action="ログインして共有">共有リンク（閲覧専用）はログインすると作れます。シートはこのブラウザに保存しています。</GuestNote>
+            : <GuestNote />}
+        </div>
+      )}
       {/* 帯は左右いっぱい、その下の本文だけ他ツールと同じ左右余白を付ける。 */}
-      <div className="flex-1 min-h-0 overflow-hidden px-4 pt-3" onMouseUp={handleMouseUp} onClick={() => setContextMenu(null)}>
+      <div className="flex-1 min-h-0 overflow-auto px-4 pt-3 pb-4" onMouseUp={handleMouseUp} onClick={() => setContextMenu(null)}>
       {/* フォーミュラバー */}
       <FormulaBar
         cellAddress={activeCellKey ? (() => {
@@ -1817,29 +2080,15 @@ const Spreadsheet: React.FC = () => {
             setFormulaReferenceCells(new Map());
           }
           
-          // 数式バーの値が変更されたら、編集中のセルの値も即座に更新
-          // 重要: editingCellKeyまたはactiveCellKeyが設定されている場合のみ更新
-          if (targetKey) {
-            // 現在のsheet.cellsの値と異なる場合のみ更新（無限ループを防ぐ）
-            const currentCellValue = sheet.cells[targetKey] || '';
-            if (currentCellValue !== value) {
-              // 同期的にsheet.cellsを更新
-              setSheet(prev => {
-                const next = { ...prev, cells: { ...prev.cells, [targetKey]: value } };
-                if (currentUser) { 
-                  try { 
-                    localStorage.setItem(`sheet:${currentUser.uid}:${currentSheetId}`, JSON.stringify(next)) 
-                  } catch {} 
-                }
-                return next;
-              });
-            }
-          }
+          // 打っている途中の値はセルへ書かない（セル側は下書きとして数式バーの値を映す）。
+          // ★以前は 1 文字ごとにセルへ書いていたため、確定時の Undo 履歴が「打ちかけの値」になっていた
+          if (targetKey && !preEditRef.current) preEditRef.current = { key: targetKey, raw: sheet.cells[targetKey] || '' };
         }}
         inputRef={formulaBarInputRef}
         onFormulaBarFocus={() => {
           // 数式バーにフォーカスが当たったら、編集中のセルを設定
           if (activeCellKey && !editingCellKey) {
+            preEditRef.current = { key: activeCellKey, raw: sheet.cells[activeCellKey] || '' };
             setEditingCellKey(activeCellKey);
           }
         }}
@@ -2010,11 +2259,13 @@ const Spreadsheet: React.FC = () => {
             return;
           }
           
-          if (e.key === 'Enter') {
+          if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
             e.preventDefault();
             const rc = keyToRC(activeCellKey);
             if (!rc) return;
-            
+            // 確定後は表へフォーカスを戻す（続けて矢印キーで動けるように）
+            gridRef.current?.focus();
+
             // 開き括弧があれば閉じ括弧を自動補完
             let finalValue = formulaBar;
             if (finalValue.startsWith('=')) {
@@ -2035,18 +2286,13 @@ const Spreadsheet: React.FC = () => {
             setSelStart({ r: nextRow, c: rc.c });
             setSelEnd({ r: nextRow, c: rc.c });
           }
-          if (e.key === 'Escape') {
-            const raw = sheet.cells[activeCellKey] || '';
-            setFormulaBar(raw);
-            setEditingCellKey(null);
-            setFormulaReferenceCells(new Map()); // 編集キャンセル時に参照セルをクリア
-          }
+          if (e.key === 'Escape') cancelEdit();
         }}
       />
 
       <div ref={toolbarRef} className="mb-2 flex items-center gap-2 flex-wrap scroll-mt-2">
         {/* シートタブUI */}
-        <div className="flex items-center gap-1 border-b border-gray-300">
+        <div className="flex items-center gap-1 border-b border-gray-300 max-w-full overflow-x-auto">
           {sheetList.map(s => (
             <button
               key={s.id}
@@ -2087,7 +2333,7 @@ const Spreadsheet: React.FC = () => {
                   <span className="block text-[10px] text-gray-500">{t.description}</span>
                 </button>
               ))}
-              {!currentUser && <p className="px-3 py-2 text-[10px] text-gray-500 bg-gray-50">ログインしていないと保存されません（この画面でだけ使えます）</p>}
+              {!currentUser && <p className="px-3 py-2 text-[10px] text-gray-500 bg-gray-50">新しいシートとして、このブラウザに保存します</p>}
             </div>
           )}
         </div>
@@ -2143,7 +2389,7 @@ const Spreadsheet: React.FC = () => {
         >列を削除</button>
 
         {/* 書式ツールバー */}
-        <div className="ml-4 flex items-center gap-2">
+        <div className="lg:ml-4 flex flex-wrap items-center gap-2">
           <button 
             type="button" 
             className={`px-2 py-1 text-xs border flex items-center gap-1 ${
@@ -2230,11 +2476,14 @@ const Spreadsheet: React.FC = () => {
           {/* 列幅調整（アクティブセルの列） */}
           <button type="button" className="px-2 py-1 text-xs border bg-white hover:bg-gray-50" onClick={() => {
             if (!activeCellKey) return; const c = Number(activeCellKey.split('C')[1] || '0');
-            setColWidths(prev => prev.map((w, i) => i === c ? Math.max(48, w - 8) : w))
+            // 列幅も保存する（以前は画面だけ変わり、次にセルを変えるまで保存されなかった）
+            const next = colWidths.map((w, i) => i === c ? Math.max(48, w - 8) : w)
+            setColWidths(next); persistSheet(sheet, next)
           }}>列幅-</button>
           <button type="button" className="px-2 py-1 text-xs border bg-white hover:bg-gray-50" onClick={() => {
             if (!activeCellKey) return; const c = Number(activeCellKey.split('C')[1] || '0');
-            setColWidths(prev => prev.map((w, i) => i === c ? Math.min(320, w + 8) : w))
+            const next = colWidths.map((w, i) => i === c ? Math.min(320, w + 8) : w)
+            setColWidths(next); persistSheet(sheet, next)
           }}>列幅+</button>
 
           {/* Undo / Redo */}
@@ -2423,7 +2672,7 @@ const Spreadsheet: React.FC = () => {
       )}
 
       {findOpen && (
-        <div className="flex items-center gap-2 mb-2 text-xs bg-gray-50 border p-2">
+        <div className="flex flex-wrap items-center gap-2 mb-2 text-xs bg-gray-50 border p-2">
           <input value={findText} onChange={(e) => setFindText(e.target.value)} placeholder="検索する文字列"
             className="px-2 py-1 border" />
           <input value={replaceText} onChange={(e) => setReplaceText(e.target.value)} placeholder="置換後"
@@ -2433,11 +2682,22 @@ const Spreadsheet: React.FC = () => {
           <button type="button" className="px-2 py-1 border bg-white hover:bg-gray-50 ml-auto" onClick={() => setFindOpen(false)}>閉じる</button>
         </div>
       )}
-      <div className="grid grid-cols-[1fr_210px] gap-4 items-start">
+      <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_210px] gap-4 items-start">
         <div 
-          ref={gridRef} 
-          tabIndex={0} 
-          className="overflow-auto border border-[#3b3b3b]" 
+          ref={gridRef}
+          tabIndex={0}
+          className="yy-sheet-print overflow-auto border border-[#3b3b3b] min-w-0"
+          onPaste={(e) => {
+            // セルを選んだだけ（編集していない）状態の Ctrl+V。以前はここが無く、貼り付けが効かなかった
+            if (editingCellKey) return
+            const rc = selStart && selEnd
+              ? { r: Math.min(selStart.r, selEnd.r), c: Math.min(selStart.c, selEnd.c) }
+              : activeCellKey ? keyToRC(activeCellKey) : null
+            const text = e.clipboardData.getData('text')
+            if (!rc || !text) return
+            e.preventDefault()
+            pasteAt(rc.r, rc.c, text)
+          }}
           // ★ バグ修正: コンテナ自体のクリックでの解除ロジックを強化
           onMouseDown={(e) => {
             // クリックされたターゲットがまさにこの「背景コンテナ」である場合のみ解除する
@@ -2454,11 +2714,6 @@ const Spreadsheet: React.FC = () => {
             }
           }}
           onClick={(e) => {
-            if (!isLoggedIn) {
-              alert('入力するには会員登録（無料）が必要です。');
-              e.preventDefault();
-              return;
-            }
             // グリッドの空白部分をクリックした場合は、選択を解除してフォーカスを当てる
             // セルがクリックされた場合は、Cell側で stopPropagation しているのでここは呼ばれない
             const target = e.target as HTMLElement;
@@ -2476,104 +2731,67 @@ const Spreadsheet: React.FC = () => {
             }
           }} 
           onKeyDown={(e) => {
-            // 矢印キーは最初に処理して画面スクロールを防ぐ（必ずpreventDefaultを呼ぶ）
+            // 編集中の入力欄のキー（←→でのキャレット移動・文字入力）は入力欄に任せる
+            if ((e.target as HTMLElement).tagName === 'INPUT') return;
+            if (e.nativeEvent.isComposing) return;
+            const rcNow = activeCellKey ? keyToRC(activeCellKey) : null;
+            // 矢印キー: セル移動。Shift+矢印で範囲を広げる（Excel と同じ）
             if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
               e.preventDefault();
               e.stopPropagation();
-              // 編集モードでない場合のみセル移動
-              if (!editingCellKey) {
-                if (activeCellKey) {
-                  const rc = keyToRC(activeCellKey);
-                  if (rc) {
-                    let nr = rc.r, nc = rc.c;
-                    if (e.key === 'ArrowDown') nr = Math.min(sheet.rows - 1, rc.r + 1);
-                    if (e.key === 'ArrowUp') nr = Math.max(0, rc.r - 1);
-                    if (e.key === 'ArrowRight') nc = Math.min(sheet.cols - 1, rc.c + 1);
-                    if (e.key === 'ArrowLeft') nc = Math.max(0, rc.c - 1);
-                    const nk = `R${nr}C${nc}`;
-                    setActiveCellKey(nk);
-                    setSelStart({ r: nr, c: nc });
-                    setSelEnd({ r: nr, c: nc });
-                  }
-                } else {
-                  // activeCellKeyがnullの場合は、最初のセル（A1）を選択
-                  const nk = 'R0C0';
-                  setActiveCellKey(nk);
-                  setSelStart({ r: 0, c: 0 });
-                  setSelEnd({ r: 0, c: 0 });
-                }
-                // グリッドにフォーカスを維持（画面スクロールを防ぐ）
-                if (gridRef.current) {
-                  gridRef.current.focus();
-                }
+              if (editingCellKey) return;
+              if (!rcNow) { moveActive(0, 0); return; }
+              const from = e.shiftKey && selEnd ? selEnd : rcNow;
+              const step = e.ctrlKey || e.metaKey ? 1000 : 1; // Ctrl+矢印で端まで
+              let nr = from.r, nc = from.c;
+              if (e.key === 'ArrowDown') nr = Math.min(sheet.rows - 1, from.r + step);
+              if (e.key === 'ArrowUp') nr = Math.max(0, from.r - step);
+              if (e.key === 'ArrowRight') nc = Math.min(sheet.cols - 1, from.c + step);
+              if (e.key === 'ArrowLeft') nc = Math.max(0, from.c - step);
+              if (e.shiftKey) {
+                if (!selStart) setSelStart(rcNow);
+                setSelEnd({ r: nr, c: nc });
+                scrollCellIntoView(nr, nc);
+              } else {
+                moveActive(nr, nc);
               }
               return;
             }
-            // ESCキーで編集モードを解除または全選択を解除
+            // ESC: 編集の取り消し、または選択の解除
             if (e.key === 'Escape') {
               e.preventDefault();
               e.stopPropagation();
-              if (editingCellKey) {
-                // 編集中の場合は編集をキャンセル
-                const raw = sheet.cells[editingCellKey] || '';
-                setFormulaBar(raw);
-                setEditingCellKey(null);
-                setFormulaReferenceCells(new Map());
-              } else {
-                // 編集中でない場合は全選択を解除
-                setSelStart(null);
-                setSelEnd(null);
-                setIsSelecting(false);
-                setActiveCellKey(null);
-                setFormulaBar('');
-              }
-              // グリッドにフォーカスを戻す
-              if (gridRef.current) {
-                gridRef.current.focus();
-              }
+              if (editingCellKey) cancelEdit();
+              else if (rcNow) { setSelStart(rcNow); setSelEnd(rcNow); }
               return;
             }
-            // 矢印キーでセル移動（編集モードでないとき）/ Enterで編集開始 / Ctrl+Cでコピー
-            if (!editingCellKey && activeCellKey) {
-              const rc = keyToRC(activeCellKey)
-              if (rc) {
-                // 非編集時に文字/数字など1文字入力でその内容から編集開始
-                if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.length === 1) {
-                  e.preventDefault()
-                  const ch = e.key
-                  const nk = activeCellKey
-                  setEditingCellKey(nk)
-                  setFormulaBar(ch)
-                  setSheet(prev => {
-                    const next = { ...prev, cells: { ...prev.cells, [nk]: ch } }
-                    if (currentUser) { try { localStorage.setItem(`sheet:${currentUser.uid}:${currentSheetId}`, JSON.stringify(next)) } catch {} }
-                    return next
-                  })
-                  return
-                }
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              // 数式が入っているセルは編集モードに入らない（ダブルクリックまたは数式バーからのみ編集可能）
-              const cellValue = sheet.cells[activeCellKey] || '';
-              const isFormula = cellValue.trim().startsWith('=');
-              if (!isFormula) {
-                // 数式でない場合のみ編集モードに入る
-                setEditingCellKey(activeCellKey);
-                setFormulaBar(cellValue);
+            if (!editingCellKey && rcNow && activeCellKey) {
+              // 文字を打ったら、その文字から編集を始める（Excel と同じ。中身は置き換え）
+              if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.length === 1) {
+                e.preventDefault();
+                beginEdit(activeCellKey, e.key);
+                return;
               }
-              return
+              // F2: 今の中身のまま編集（数式セルも可）
+              if (e.key === 'F2') {
+                e.preventDefault();
+                beginEdit(activeCellKey, sheet.cells[activeCellKey] || '');
+                return;
+              }
+              // Enter: 下へ（Shift+Enter で上へ）。以前は Enter で編集に入り、数式セルでは何も起きなかった
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                moveActive(Math.max(0, Math.min(sheet.rows - 1, rcNow.r + (e.shiftKey ? -1 : 1))), rcNow.c);
+                return;
+              }
+              if (e.key === 'Tab') {
+                e.preventDefault();
+                moveActive(rcNow.r, Math.max(0, Math.min(sheet.cols - 1, rcNow.c + (e.shiftKey ? -1 : 1))));
+                return;
+              }
             }
-            if (e.key === 'Tab') {
-              e.preventDefault();
-              const nc = Math.max(0, Math.min(sheet.cols - 1, rc.c + (e.shiftKey ? -1 : 1)))
-              const nk = `R${rc.r}C${nc}`
-              setActiveCellKey(nk); setSelStart({ r: rc.r, c: nc }); setSelEnd({ r: rc.r, c: nc })
-              return
-            }
-          }
-        }
-        if (!editingCellKey && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
-          // 選択範囲のコピー（TSV）
+        if (!editingCellKey && (e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'c' || e.key.toLowerCase() === 'x')) {
+          // 選択範囲のコピー（TSV）。Ctrl+X は写してから消す（以前は切り取りが効かなかった）
           e.preventDefault()
           let minR: number, maxR: number, minC: number, maxC: number
           if (selStart && selEnd) {
@@ -2594,6 +2812,18 @@ const Spreadsheet: React.FC = () => {
           // Excel と同じく相対参照を移動量ぶんずらすために使う
           copySourceRef.current = { r: minR, c: minC, text }
           try { void navigator.clipboard.writeText(text) } catch {}
+          if (e.key.toLowerCase() === 'x') {
+            // 切り取りは参照をずらさない（Excel の切り取り貼り付けは参照先ごと動く別物なので、値として扱う）
+            copySourceRef.current = null
+            pushHistory()
+            setSheet(prev => {
+              const cells = { ...prev.cells }
+              for (let r = minR; r <= maxR; r++) for (let c = minC; c <= maxC; c++) delete cells[toCellKey(r, c)]
+              const next = { ...prev, cells }
+              persistSheet(next)
+              return next
+            })
+          }
           return
         }
         // Ctrl+Z / Ctrl+Y は window 側のリスナーで処理する。
@@ -2649,17 +2879,13 @@ const Spreadsheet: React.FC = () => {
           rcToAddress={rcToAddress}
           keyToRC={keyToRC}
           onStartEdit={(key, raw) => {
-            if (!isLoggedIn) {
-              alert('入力するには会員登録（無料）が必要です。');
-              return;
-            }
-            setEditingCellKey(key);
-            setActiveCellKey(key);
-            setFormulaBar(raw);
-            // 数式バーにフォーカスを移す
-            setTimeout(() => {
-              formulaBarInputRef.current?.focus();
-            }, 0);
+            // ダブルクリック・F2: セルの中でそのまま編集する（数式バーにも同じ値が出る）
+            beginEdit(key, raw);
+          }}
+          editDraft={formulaBar}
+          onDraftChange={(value) => {
+            setFormulaBar(value);
+            setFormulaReferenceCells(value.trim().startsWith('=') ? refCellsOf(value) : new Map());
           }}
           onEndEdit={(r, c, value) => {
             // 不足している閉じ括弧を自動補完
@@ -2676,11 +2902,7 @@ const Spreadsheet: React.FC = () => {
             setFormulaReferenceCells(new Map()); // 編集終了時に参照セルをクリア
             setFormulaBar(finalValue);
           }}
-          onCancelEdit={(raw) => {
-            setEditingCellKey(null);
-            setFormulaReferenceCells(new Map()); // 編集キャンセル時に参照セルをクリア
-            setFormulaBar(raw);
-          }}
+          onCancelEdit={() => cancelEdit()}
           onSelect={() => {
             if (didDragRef.current) {
               didDragRef.current = false;
@@ -2712,6 +2934,17 @@ const Spreadsheet: React.FC = () => {
               return;
             }
             
+            // Shift+クリック: 今のセルからそこまでを範囲選択
+            if (e?.shiftKey && activeCellKey) {
+              const a = keyToRC(activeCellKey);
+              if (a) { setSelStart(a); setSelEnd({ r, c }); if (gridRef.current) gridRef.current.focus(); return; }
+            }
+            // スマホ・タブレット: 選んであるセルをもう一度タップしたら編集する
+            // （キーボードが無いので「選んで打つ」ができず、ダブルタップも拡大に取られる）
+            if (key === activeCellKey && !editingCellKey && typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches) {
+              beginEdit(key, sheet.cells[key] || '');
+              return;
+            }
             // 通常時: セル選択を移動（単一セルのみ選択）
             setActiveCellKey(key);
             setSelStart({ r, c });
@@ -2747,7 +2980,7 @@ const Spreadsheet: React.FC = () => {
               didDragRef.current = true;
               // 数式編集中はドラッグで範囲拡張（A1:A5）
               if (editingCellKey) {
-                const rawActive = (sheet.cells[editingCellKey] || '').trim();
+                const rawActive = (formulaBar || sheet.cells[editingCellKey] || '').trim();
                 if (rawActive.startsWith('=')) {
                   const addr = rcToAddress(r, c);
                   setSheet(prev => {
@@ -2782,154 +3015,50 @@ const Spreadsheet: React.FC = () => {
           isFilling={isFilling}
           fillOrigin={fillOrigin}
           fillTarget={fillTarget}
-          isFormulaEditing={formulaBar.trim().startsWith('=') || (editingCellKey !== null && (sheet.cells[editingCellKey] || '').trim().startsWith('='))}
+          isFormulaEditing={editingCellKey !== null && formulaBar.trim().startsWith('=')}
           formulaReferenceCells={formulaReferenceCells}
           onContextMenu={handleContextMenu}
           onKeyDown={(r, c, key, e) => {
-            // セルがフォーカスされているときにキー入力を受け付ける
+            // セル（td・編集中の入力欄）から来たキー。
+            // 編集中の Enter / Tab / ↑↓ は、Cell 側で確定（onEndEdit）してからここに来る。移動だけする
+            if (editingCellKey === key) {
+              let nr = r, nc = c;
+              if (e.key === 'Enter') nr = r + (e.shiftKey ? -1 : 1);
+              if (e.key === 'ArrowDown') nr = r + 1;
+              if (e.key === 'ArrowUp') nr = r - 1;
+              if (e.key === 'Tab') nc = c + (e.shiftKey ? -1 : 1);
+              nr = Math.max(0, Math.min(sheet.rows - 1, nr));
+              nc = Math.max(0, Math.min(sheet.cols - 1, nc));
+              moveActive(nr, nc);
+              return;
+            }
+            // 編集していないセルに直接フォーカスがあるとき（Tab で来たなど）。グリッドと同じ動きにする
             if (!editingCellKey && activeCellKey === key) {
-              // 数値や文字を直接入力できるようにする（=を含む）
-              if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && isLoggedIn) {
+              if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
                 e.preventDefault();
-                // 編集モードを開始
-                setEditingCellKey(key);
-                setFormulaBar(e.key);
-                // 数式バーにフォーカスを移す
-                setTimeout(() => {
-                  if (formulaBarInputRef.current) {
-                    formulaBarInputRef.current.focus();
-                    formulaBarInputRef.current.setSelectionRange(1, 1);
-                  }
-                }, 0);
-                // セルの値を更新
-                setSheet(prev => {
-                  const next = { ...prev, cells: { ...prev.cells, [key]: e.key } };
-                  if (currentUser) { 
-                    try { 
-                      localStorage.setItem(`sheet:${currentUser.uid}:${currentSheetId}`, JSON.stringify(next)) 
-                    } catch {} 
-                  }
-                  return next;
-                });
+                e.stopPropagation();
+                beginEdit(key, e.key);
                 return;
               }
-              // 編集モードでない時のみ矢印キーでセル移動
-              if (!editingCellKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
+              if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
                 e.preventDefault();
                 let nr = r, nc = c;
                 if (e.key === 'ArrowDown') nr = Math.min(sheet.rows - 1, r + 1);
                 if (e.key === 'ArrowUp') nr = Math.max(0, r - 1);
                 if (e.key === 'ArrowRight') nc = Math.min(sheet.cols - 1, c + 1);
                 if (e.key === 'ArrowLeft') nc = Math.max(0, c - 1);
-                const nk = toCellKey(nr, nc);
-                setActiveCellKey(nk);
-                setSelStart({ r: nr, c: nc });
-                setSelEnd({ r: nr, c: nc });
-                // グリッドにフォーカスを維持
-                if (gridRef.current) {
-                  gridRef.current.focus();
-                }
-                return;
+                moveActive(nr, nc);
               }
-              if (e.key === 'Tab') {
-                e.preventDefault();
-                const nc = Math.max(0, Math.min(sheet.cols - 1, c + (e.shiftKey ? -1 : 1)));
-                const nk = toCellKey(r, nc);
-                setActiveCellKey(nk);
-                setSelStart({ r, c: nc });
-                setSelEnd({ r, c: nc });
-                return;
-              }
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                // 数式が入っているセルは編集モードに入らない（ダブルクリックまたは数式バーからのみ編集可能）
-                const cellValue = sheet.cells[key] || '';
-                const isFormula = cellValue.trim().startsWith('=');
-                if (!isFormula) {
-                  // 数式でない場合のみ編集モードに入る
-                  setEditingCellKey(key);
-                  setFormulaBar(cellValue);
-                  setTimeout(() => {
-                    if (formulaBarInputRef.current) {
-                      formulaBarInputRef.current.focus();
-                    }
-                  }, 0);
-                }
-                return;
-              }
-            }
-            // 編集中のEnter押下後のセル移動
-            if (editingCellKey === key && (e.key === 'Enter' || e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
-              const nr = e.key === 'ArrowUp' ? Math.max(0, r - 1) : e.key === 'ArrowDown' ? Math.min(sheet.rows - 1, r + 1) : Math.min(sheet.rows - 1, r + (e.shiftKey ? -1 : 1));
-              const nk = toCellKey(nr, c);
-              setActiveCellKey(nk);
-              setSelStart({ r: nr, c });
-              setSelEnd({ r: nr, c });
-              const nextRaw = sheet.cells[nk] || '';
-              setFormulaBar(nextRaw);
-              if (e.key === 'Enter') {
-                setEditingCellKey(nk);
-              }
-              return;
-            }
-            // 編集中のTab押下後のセル移動
-            if (editingCellKey === key && e.key === 'Tab') {
-              const nc = Math.max(0, Math.min(sheet.cols - 1, c + (e.shiftKey ? -1 : 1)));
-              const nk = toCellKey(r, nc);
-              setActiveCellKey(nk);
-              setSelStart({ r, c: nc });
-              setSelEnd({ r, c: nc });
-              const nextRaw = sheet.cells[nk] || '';
-              setFormulaBar(nextRaw);
-              setEditingCellKey(nk);
-              return;
             }
           }}
           onPaste={(r, c, e) => {
+            // 編集中のセルへの貼り付け。1 つの値ならそのまま入力欄へ、表（タブ・改行入り）なら範囲に展開する
             const text = e.clipboardData.getData('text');
             if (!text || (!text.includes('\t') && !text.includes('\n'))) return;
             e.preventDefault();
-            const pastedRows = text.replace(/\r/g, '').split('\n').filter(Boolean);
-            const grid = pastedRows.map(row => row.split('\t'));
-            // 貼り付けもUndo対象にする
-            pushHistory();
-            setSheet(prev => {
-              // 貼り付け先がグリッドをはみ出す場合は行・列を広げる（従来は黙って切り捨てていた）
-              const neededRows = Math.max(prev.rows, r + grid.length);
-              const neededCols = Math.max(prev.cols, c + Math.max(...grid.map(g => g.length)));
-              const next: SheetData = {
-                ...prev,
-                rows: neededRows,
-                cols: neededCols,
-                cells: { ...prev.cells },
-              };
-              // このツール内でコピーした内容をそのまま貼るときは、
-              // Excel と同じく相対参照を移動量ぶんずらす。
-              // 外部からのテキスト貼り付けでは書き換えない（Excel の text 貼り付けも同じ）。
-              const src = copySourceRef.current;
-              const isInternalCopy = src !== null && src.text === text;
-              const rowOffset = isInternalCopy ? r - src!.r : 0;
-              const colOffset = isInternalCopy ? c - src!.c : 0;
-
-              grid.forEach((rowVals, rr) => {
-                rowVals.forEach((val, cc) => {
-                  const shifted =
-                    isInternalCopy && val.startsWith('=') && (rowOffset !== 0 || colOffset !== 0)
-                      ? formulaEngine.current.adjustFormula(val, rowOffset, colOffset)
-                      : val;
-                  next.cells[toCellKey(r + rr, c + cc)] = shifted;
-                });
-              });
-              // ここで formats を渡し忘れると setDoc がドキュメントを置き換えて書式が全消しになる
-              persistSheet(next);
-              return next;
-            });
-            if (c + Math.max(...grid.map(g => g.length)) > colWidths.length) {
-              setColWidths(prev => {
-                const needed = c + Math.max(...grid.map(g => g.length));
-                return prev.length >= needed ? prev : prev.concat(Array.from({ length: needed - prev.length }, () => 96));
-              });
-            }
+            // 編集を閉じる。閉じないと、入力欄に残った古い値が離れた瞬間に 1 マス目を上書きする
+            setEditingCellKey(null);
+            pasteAt(r, c, text);
           }}
           isLoggedIn={isLoggedIn}
           gridRef={gridRef}
@@ -2961,7 +3090,7 @@ const Spreadsheet: React.FC = () => {
           </div>
         )}
         {/* 右サイド: よく使う関数（幅を約半分に縮小） */}
-        <div ref={funcsRef} className="sticky top-4 space-y-2 w-[210px] scroll-mt-2">
+        <div ref={funcsRef} className="lg:sticky lg:top-4 space-y-2 w-full lg:w-[210px] scroll-mt-2">
           <div className="yy-mono text-[10px] tracking-[0.12em] uppercase text-gray-500">よく使う関数 / 建築関数</div>
           <div className="space-y-1">
             {commonFuncs.map(fn => (

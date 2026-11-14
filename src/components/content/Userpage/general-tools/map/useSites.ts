@@ -41,14 +41,39 @@ export function useSites() {
   const uid = isLoggedIn ? currentUser?.uid : undefined;
   const [sites, setSites] = useState<Site[]>([]);
 
+  const [syncError, setSyncError] = useState(false);
+
   useEffect(() => {
+    setSyncError(false);
     if (!uid) {
       setSites(readLocal());
       return;
     }
-    return onSnapshot(doc(db, 'users', uid, 'mapMeta', 'sites'), (snap) => {
-      setSites(((snap.data()?.items as Site[]) ?? []).slice().sort((a, b) => b.createdAt - a.createdAt));
-    });
+    const ref = doc(db, 'users', uid, 'mapMeta', 'sites');
+    let first = true;
+    return onSnapshot(
+      ref,
+      (snap) => {
+        const cloud = (snap.data()?.items as Site[]) ?? [];
+        // 初めてログインした端末: クラウドが空で、このブラウザに保存した敷地があれば上げる（黙って見えなくしない）。
+        // 手元の控えは消さない（ログアウトしたときにまた見える）
+        if (first) {
+          first = false;
+          const local = readLocal();
+          if (!cloud.length && local.length) {
+            setSites(local.slice().sort((a, b) => b.createdAt - a.createdAt));
+            void setDoc(ref, { items: JSON.parse(JSON.stringify(local)) }).catch(() => setSyncError(true));
+            return;
+          }
+        }
+        setSites(cloud.slice().sort((a, b) => b.createdAt - a.createdAt));
+      },
+      () => {
+        // 読めないときは手元の控えを見せる（空の一覧にしない）
+        setSyncError(true);
+        setSites(readLocal());
+      }
+    );
   }, [uid]);
 
   const save = useCallback(
@@ -56,8 +81,14 @@ export function useSites() {
       setSites(next);
       // Firestore は undefined を受け付けない
       const clean = JSON.parse(JSON.stringify(next));
-      if (uid) await setDoc(doc(db, 'users', uid, 'mapMeta', 'sites'), { items: clean });
-      else
+      if (uid) {
+        try {
+          await setDoc(doc(db, 'users', uid, 'mapMeta', 'sites'), { items: clean });
+          setSyncError(false);
+        } catch {
+          setSyncError(true);
+        }
+      } else
         try {
           localStorage.setItem(LOCAL_KEY, JSON.stringify(clean));
         } catch {
@@ -72,5 +103,5 @@ export function useSites() {
   const update = (id: string, patch: Partial<Site>) => save(sites.map((s) => (s.id === id ? { ...s, ...patch } : s)));
   const remove = (id: string) => save(sites.filter((s) => s.id !== id));
 
-  return { sites, add, update, remove, synced: !!uid };
+  return { sites, add, update, remove, synced: !!uid, syncError };
 }

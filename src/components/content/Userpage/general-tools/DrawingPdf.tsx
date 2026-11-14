@@ -89,6 +89,21 @@ function textToPng(
   return { dataUrl: canvas.toDataURL('image/png'), width: width / scale, height: height / scale };
 }
 
+/**
+ * 見えている向きの座標（左下原点 u, v）を、ページの座標（回転前）に直す。
+ * /Rotate はページを時計回りに回して見せるので、その逆をたどる。
+ * 回転したページ（A3 横の図面に多い）に図番を入れると、以前は回転前の右下＝見た目では
+ * 別の角に、横倒しで入っていた。
+ */
+const viewToPage = (u: number, v: number, rot: number, w: number, h: number, ox: number, oy: number): [number, number] => {
+  switch (rot) {
+    case 90: return [ox + w - v, oy + u];
+    case 180: return [ox + w - u, oy + h - v];
+    case 270: return [ox + v, oy + h - u];
+    default: return [ox + u, oy + v];
+  }
+};
+
 /** 見たままの向きの幅・高さ（pt）。トリミングと回転を反映する。 */
 const seenSize = (page: PageItem) => {
   const w = page.crop ? page.crop.rect.width : page.width;
@@ -232,46 +247,67 @@ const DrawingPdf: React.FC = () => {
     ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   const addFiles = async (files: FileList | File[]) => {
-    const list = Array.from(files).filter((f) => /\.pdf$/i.test(f.name) || f.type === 'application/pdf');
-    if (list.length === 0) return;
+    const all = Array.from(files);
+    const list = all.filter((f) => /\.pdf$/i.test(f.name) || f.type === 'application/pdf');
+    const skipped = all.length - list.length;
+    if (list.length === 0) {
+      if (skipped > 0) setNotice('PDFではないファイルは読み込めません。PDFを選んでください。');
+      return;
+    }
 
     setBusy('読み込み中…');
     setNotice('');
+    const failed: string[] = [];
     try {
       const { PDFDocument } = await import('pdf-lib');
       const added: PageItem[] = [];
 
+      // 1 本読めなくても、残りは読み込む（以前は 1 本の失敗で全部止まっていた）
       for (const file of list) {
-        const buffer = await file.arrayBuffer();
-        sourcesRef.current.push(buffer.slice(0));
-        const sourceIndex = sourcesRef.current.length - 1;
-
-        const doc = await PDFDocument.load(buffer);
-        doc.getPages().forEach((page, i) => {
-          const { x, y, width, height } = page.getMediaBox();
-          added.push({
-            id: generateId(),
-            sourceIndex,
-            sourceName: file.name,
-            pageIndex: i,
-            rotation: 0,
-            baseRotation: ((page.getRotation().angle % 360) + 360) % 360,
-            width,
-            height,
-            originX: x,
-            originY: y,
-            selected: false,
+        // pdf-lib は壊れたファイルでも load は通り、ページを数える段で落ちることがあるので、ページの読み取りまで 1 つの try に入れる
+        try {
+          const buffer = await file.arrayBuffer();
+          const doc = await PDFDocument.load(buffer.slice(0));
+          const sourceIndex = sourcesRef.current.length;
+          const items: PageItem[] = doc.getPages().map((page, i) => {
+            const { x, y, width, height } = page.getMediaBox();
+            return {
+              id: generateId(),
+              sourceIndex,
+              sourceName: file.name,
+              pageIndex: i,
+              rotation: 0,
+              baseRotation: ((page.getRotation().angle % 360) + 360) % 360,
+              width,
+              height,
+              originX: x,
+              originY: y,
+              selected: false,
+            };
           });
-        });
+          if (items.length === 0) throw new Error('ページがありません');
+          sourcesRef.current.push(buffer);
+          added.push(...items);
+        } catch (error) {
+          console.error('PDFの読み込みに失敗しました', file.name, error);
+          const msg = error instanceof Error ? error.message : '';
+          failed.push(`${file.name}（${/encrypt|password/i.test(msg) ? 'パスワード付き' : 'PDFとして読めない'}）`);
+        }
       }
 
       setPages((prev) => [...prev, ...added]);
     } catch (error) {
       console.error('PDFの読み込みに失敗しました', error);
-      alert('PDFを読み込めませんでした。パスワード付きのPDFには対応していません。');
+      setNotice('PDFを読む部品を準備できませんでした。ページを再読み込みしてやり直してください。');
+      setBusy('');
+      return;
     } finally {
       setBusy('');
     }
+    const notes: string[] = [];
+    if (failed.length) notes.push(`読み込めなかったPDF: ${failed.join('、')}。パスワード付きのPDFはパスワードを外してから入れてください。`);
+    if (skipped > 0) notes.push(`PDFではない ${skipped} 件は外しました。`);
+    setNotice(notes.join(' '));
   };
 
   const toggleSelect = (id: string) =>
@@ -358,10 +394,15 @@ const DrawingPdf: React.FC = () => {
     setCropId((pages.find((p) => p.selected) ?? pages[0]).id);
   };
 
-  /** 並べた順どおりに組み立てる。分割が指定されていればページごとに分ける。 */
-  const exportPdf = async () => {
-    if (pages.length === 0) return;
+  /**
+   * 並べた順どおりに組み立てる。分割が指定されていればページごとに分ける。
+   * onlySelected のときは選んだページだけ（抜き出し）。
+   */
+  const exportPdf = async (onlySelected = false) => {
+    const targets = onlySelected ? pages.filter((p) => p.selected) : pages;
+    if (targets.length === 0) return;
     setBusy('書き出し中…');
+    setNotice('');
 
     try {
       const { PDFDocument, degrees } = await import('pdf-lib');
@@ -412,6 +453,14 @@ const DrawingPdf: React.FC = () => {
 
           // 注記は「見えている範囲」の原点から置く。トリミングすると原点が 0,0 でなくなるため。
           const { x: ox, y: oy, width, height } = page.getCropBox();
+          // 見えている向きで置く（回転したページでも、見た目の右下・中央に正立で入る）
+          const rot = ((page.getRotation().angle % 360) + 360) % 360;
+          const viewW = rot % 180 === 0 ? width : height;
+          const viewH = rot % 180 === 0 ? height : width;
+          const place = (u: number, v: number, angle: number) => {
+            const [x, y] = viewToPage(u, v, rot, width, height, ox, oy);
+            return { x, y, rotate: degrees(rot + angle) };
+          };
 
           if (watermark.trim()) {
             const png = textToPng(watermark.trim(), {
@@ -421,14 +470,16 @@ const DrawingPdf: React.FC = () => {
             });
             if (png) {
               const image = await out.embedPng(png.dataUrl);
-              // 斜めに1つ置く。並べて敷き詰めると図面が読めなくなる
+              // 斜めに1つ、中央に置く。並べて敷き詰めると図面が読めなくなる。
+              // 回転は左下の角を軸に掛かるので、中心が真ん中に来るよう角の位置を戻す
+              const a = (30 * Math.PI) / 180;
+              const u0 = viewW / 2 - ((png.width / 2) * Math.cos(a) - (png.height / 2) * Math.sin(a));
+              const v0 = viewH / 2 - ((png.width / 2) * Math.sin(a) + (png.height / 2) * Math.cos(a));
               page.drawImage(image, {
-                x: ox + (width - png.width) / 2,
-                y: oy + (height - png.height) / 2,
+                ...place(u0, v0, 30),
                 width: png.width,
                 height: png.height,
                 opacity: watermarkOpacity / 100,
-                rotate: degrees(30),
               });
             }
           }
@@ -440,8 +491,7 @@ const DrawingPdf: React.FC = () => {
               const image = await out.embedPng(png.dataUrl);
               // 右下。図面枠の外に出ないよう少し内側に入れる
               page.drawImage(image, {
-                x: ox + width - png.width - 24,
-                y: oy + 18,
+                ...place(viewW - png.width - 24, 18, 0),
                 width: png.width,
                 height: png.height,
               });
@@ -454,32 +504,44 @@ const DrawingPdf: React.FC = () => {
         return out.save();
       };
 
-      const download = (bytes: Uint8Array, name: string) => {
-        const blob = new Blob([bytes as unknown as BlobPart], { type: 'application/pdf' });
-        const url = URL.createObjectURL(blob);
+      const download = (data: Blob, name: string) => {
+        const url = URL.createObjectURL(data);
         const a = document.createElement('a');
         a.href = url;
         a.download = name;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        // すぐ解放すると保存が始まらないブラウザがあるので、少し待ってから
+        setTimeout(() => URL.revokeObjectURL(url), 10_000);
       };
+      const asPdf = (bytes: Uint8Array) => new Blob([bytes as unknown as BlobPart], { type: 'application/pdf' });
 
-      const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      const stamp = new Date().toLocaleDateString('sv-SE').replace(/-/g, ''); // 日本時間の日付（toISOString は UTC で朝 9 時まで前日になる）
 
-      if (splitPerPage) {
-        for (let i = 0; i < pages.length; i++) {
-          const bytes = await buildDoc([pages[i]]);
-          download(bytes, `図面_${String(i + 1).padStart(3, '0')}_${stamp}.pdf`);
+      if (splitPerPage && targets.length > 1) {
+        // 何十本も続けて保存させるとブラウザが「複数のダウンロード」を止めるので、ZIP 1 つにまとめる
+        const JSZip = (await import('jszip')).default;
+        const zip = new JSZip();
+        for (let i = 0; i < targets.length; i++) {
+          setBusy(`書き出し中… ${i + 1}/${targets.length}`);
+          zip.file(`図面_${String(i + 1).padStart(3, '0')}_${stamp}.pdf`, await buildDoc([targets[i]]));
         }
+        download(await zip.generateAsync({ type: 'blob' }), `図面_分割_${stamp}.zip`);
+        setNotice(`${targets.length} ファイルに分けて ZIP で保存しました。`);
       } else {
-        const bytes = await buildDoc(pages);
-        download(bytes, `図面_${stamp}.pdf`);
+        const bytes = await buildDoc(targets);
+        download(asPdf(bytes), `図面_${stamp}.pdf`);
+        setNotice(`${targets.length} ページの PDF を保存しました。`);
       }
     } catch (error) {
       console.error('PDFの書き出しに失敗しました', error);
-      alert('書き出しに失敗しました。');
+      const msg = error instanceof Error ? error.message : '';
+      setNotice(
+        /memory|allocation/i.test(msg)
+          ? '書き出しに失敗しました。ページが多くメモリが足りません。分けて書き出してください。'
+          : '書き出しに失敗しました。もう一度押すか、ページを再読み込みしてやり直してください。'
+      );
     } finally {
       setBusy('');
     }
@@ -523,8 +585,11 @@ const DrawingPdf: React.FC = () => {
               <FiFile className="w-3.5 h-3.5 mx-auto text-gray-400" />
               <p className="text-[11px] mt-2 text-gray-600">PDFをドラッグ＆ドロップ</p>
               <p className="text-[10px] mt-1 text-gray-400">
-                複数まとめて読み込めます
+                複数まとめて読み込めます。処理はこのブラウザの中だけで行い、PDFはどこにも送りません
               </p>
+              <button type="button" className="mt-2 text-[11px] text-gray-700 underline underline-offset-2">
+                {busy === '読み込み中…' ? '読み込み中…' : pages.length > 0 ? 'PDFを追加' : 'ファイルを選択'}
+              </button>
               <input ref={fileInputRef} type="file" accept="application/pdf,.pdf" multiple className="hidden"
                 onChange={(e) => { if (e.target.files) addFiles(e.target.files); e.target.value = ''; }} />
             </div>
@@ -609,10 +674,16 @@ const DrawingPdf: React.FC = () => {
                   <input type="checkbox" checked={splitPerPage} onChange={(e) => setSplitPerPage(e.target.checked)} />
                   ページごとに別ファイルで保存する（分割）
                 </label>
-                <button onClick={exportPdf} disabled={pages.length === 0 || !!busy}
+                <button onClick={() => exportPdf(false)} disabled={pages.length === 0 || !!busy}
                   className="yy-btn yy-btn--primary w-full flex items-center justify-center gap-1">
-                  <FiDownload className="w-3.5 h-3.5" /> {busy || (splitPerPage ? `${pages.length} ファイルに分けて書き出す` : 'PDFを書き出す（結合）')}
+                  <FiDownload className="w-3.5 h-3.5" /> {busy || (splitPerPage ? `${pages.length} ファイルに分けて書き出す（ZIP）` : 'PDFを書き出す（結合）')}
                 </button>
+                {selectedCount > 0 && (
+                  <button onClick={() => exportPdf(true)} disabled={!!busy}
+                    className="yy-btn w-full flex items-center justify-center gap-1">
+                    <FiDownload className="w-3.5 h-3.5" /> 選んだ {selectedCount} ページだけ書き出す（抜き出し）
+                  </button>
+                )}
                 <p className="text-[10px] text-gray-500 leading-relaxed">
                   中身の再圧縮はしません（図面の細線が飛ぶため）。
                 </p>

@@ -43,7 +43,10 @@ interface GridProps {
   fillOrigin?: { start: { r: number; c: number }; end: { r: number; c: number } } | null;
   fillTarget?: { start: { r: number; c: number }; end: { r: number; c: number } } | null;
   onFillStart?: (r: number, c: number, e: React.MouseEvent) => void;
-  isLoggedIn: boolean;
+  isLoggedIn?: boolean;
+  /** 編集中のセルの下書き（数式バーと同じ値） */
+  editDraft?: string;
+  onDraftChange?: (value: string) => void;
   gridRef: React.RefObject<HTMLDivElement | null>;
   isFormulaEditing?: boolean;
   formulaReferenceCells?: Map<string, { r: number; c: number; color: string }>;
@@ -82,6 +85,8 @@ const Grid: React.FC<GridProps> = ({
   fillTarget,
   onFillStart,
   isLoggedIn,
+  editDraft,
+  onDraftChange,
   gridRef,
   isFormulaEditing = false,
   formulaReferenceCells = new Map<string, { r: number; c: number; color: string }>(),
@@ -307,6 +312,8 @@ const Grid: React.FC<GridProps> = ({
                     onPaste={(e) => onPaste(r, c, e)}
                     formatCellNumber={formatCellNumber}
                     isLoggedIn={isLoggedIn}
+                    draft={editingCellKey === key ? editDraft : undefined}
+                    onDraftChange={onDraftChange}
                     isFormulaEditing={isFormulaEditing}
                     onContextMenu={onContextMenu ? (e) => onContextMenu(e, 'cell', r, c) : undefined}
                   />

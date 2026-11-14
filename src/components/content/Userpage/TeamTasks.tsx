@@ -9,6 +9,8 @@ import { db } from '@/lib/firebaseClient';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import TeamGantt from './teamTasks/TeamGantt';
 import { dueStatus, matchesFilter, ROLES, sortTasks, type TaskFilter, cascadeDelays } from '@/lib/teamTaskView';
+import GuestNote from './general-tools/GuestNote';
+import { clearGuestBoard, GUEST_BOARD_LIMIT, guestTaskId, readGuestBoard, uploadGuestBoard, writeGuestBoard } from './teamTasks/guestBoard';
 
 interface Project {
   id: string;
@@ -42,7 +44,9 @@ const COLORS = [
 const getColor = (idx: number) => COLORS[idx % COLORS.length];
 
 const TeamTasks: React.FC = () => {
-  const { isLoggedIn, currentUser } = useAuth();
+  const { isLoggedIn, currentUser, authReady } = useAuth();
+  // 未ログインは「自分用の 1 枚のボード」をこのブラウザに置く（共有・招待・通知はログイン後）
+  const guestMode = authReady && !currentUser;
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasksByProject, setTasksByProject] = useState<Record<string, Task[]>>({});
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
@@ -81,7 +85,7 @@ const TeamTasks: React.FC = () => {
       for (const t of moves) {
         const s = slips.get(t.id)!;
         const hadStart = !!t.startDate && !!t.dueDate && t.startDate <= t.dueDate;
-        try { await updateBoardTask(pid, t.id, { dueDate: s.due, ...(hadStart ? { startDate: s.start } : {}) }) } catch {}
+        if (!guestMode) { try { await updateBoardTask(pid, t.id, { dueDate: s.due, ...(hadStart ? { startDate: s.start } : {}) }) } catch {} }
       }
       setTasksByProject((prev) => ({
         ...prev,
@@ -108,6 +112,61 @@ const TeamTasks: React.FC = () => {
   const setColumnMode = (cols: 2 | 3 | 4) => {
     setColumnModeState(cols);
     try { window.localStorage.setItem('teamTasks:columnMode', String(cols)); } catch {}
+  };
+  // スマホ幅では 1 列（カードを画面幅いっぱいに）
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 639px)');
+    const apply = () => setNarrow(mq.matches);
+    apply();
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, []);
+
+  // 未ログイン: このブラウザのボードを読む。書き換えたら保存する（読み終わってから）
+  const [guestLoaded, setGuestLoaded] = useState(false);
+  useEffect(() => {
+    if (!guestMode) return;
+    const g = readGuestBoard();
+    setProjects(g?.projects ?? []);
+    setTasksByProject(g?.tasks ?? {});
+    setMembersByProject({});
+    setGuestLoaded(true);
+    return () => setGuestLoaded(false);
+  }, [guestMode]);
+  useEffect(() => {
+    if (!guestMode || !guestLoaded) return;
+    writeGuestBoard({ projects: projects.map(({ id, name, color }) => ({ id, name, color })), tasks: tasksByProject });
+  }, [guestMode, guestLoaded, projects, tasksByProject]);
+
+  // ログインしたら、このブラウザのボードをアカウントのボードとして作れるようにする（共有の場所なので押されたときだけ）
+  const [guestPending, setGuestPending] = useState<{ name: string; count: number } | null>(null);
+  useEffect(() => {
+    if (!currentUser) { setGuestPending(null); return; }
+    const g = readGuestBoard();
+    const p = g?.projects[0];
+    setGuestPending(p ? { name: p.name, count: (g!.tasks[p.id] || []).length } : null);
+  }, [currentUser]);
+  const uploadGuest = async () => {
+    const g = readGuestBoard();
+    if (!currentUser || !g) return;
+    const room = 4 - projects.length;
+    if (room <= 0) { setTeamNotice('ボードは 4 枚までです。1 枚消してから、もう一度押してください。'); return; }
+    try {
+      const r = await uploadGuestBoard(currentUser.uid, g, room);
+      clearGuestBoard();
+      setGuestPending(null);
+      setTeamNotice(`このブラウザのボードを、アカウントのボードとして作りました（タスク ${r.tasks} 件）。メンバーを招待できます。`);
+    } catch {
+      setTeamNotice('アカウントへの追加に失敗しました。通信を確かめてもう一度押してください。');
+    }
+  };
+
+  /** タスクの一部を書き換える。画面を先に直し、ログイン中ならクラウドへも書く */
+  const patchTask = async (projectId: string, taskId: string, patch: Partial<Task>, cloud?: Record<string, unknown>) => {
+    setTasksByProject(prev => ({ ...prev, [projectId]: (prev[projectId] || []).map(t => t.id === taskId ? { ...t, ...patch } : t) }));
+    if (guestMode || taskId.startsWith('tmp-')) return;
+    try { await updateBoardTask(projectId, taskId, (cloud ?? patch) as any) } catch {}
   };
 
   React.useEffect(() => {
@@ -251,18 +310,26 @@ const TeamTasks: React.FC = () => {
 
   // プロジェクト新規作成
   const handleCreateProject = async () => {
-    if (!isLoggedIn) {
-      alert('入力するには会員登録（無料）が必要です。');
-      return;
-    }
     if (!newProjectName.trim()) return;
     setError(null);
+    if (guestMode) {
+      if (projects.length >= GUEST_BOARD_LIMIT) {
+        setTeamNotice('ログインしていない間は、このブラウザに自分用のボードを 1 枚だけ作れます。ログインすると 4 枚まで作れ、メンバーと共有できます。');
+        return;
+      }
+      const id = `guest-${guestTaskId()}`;
+      setProjects(prev => [...prev, { id, name: newProjectName.trim(), color: getColor(prev.length) }]);
+      setTasksByProject(prev => ({ ...prev, [id]: [] }));
+      setNewProjectName('');
+      setTeamNotice('');
+      return;
+    }
     if (!currentUser) return;
-    if (projects.length >= 4) { alert('ボードは最大4つまでです'); return }
+    if (projects.length >= 4) { setTeamNotice('ボードは 4 枚までです。'); return }
     try {
       // 先にサーバで作成してID確定 → その後UIへ追加（同時多発による5枚目表示を防ぐ）
       const currentCount = projects.length
-      if (currentCount >= 4) { alert('ボードは最大4つまでです'); return }
+      if (currentCount >= 4) { setTeamNotice('ボードは 4 枚までです。'); return }
       const boardId = await createBoard(currentUser.uid, newProjectName)
       setProjects(prev => {
         const capped = prev.length >= 4 ? prev.slice(0, 4) : prev
@@ -288,6 +355,7 @@ const TeamTasks: React.FC = () => {
     // 先にUIを確定させてから永続化（体感を良くし、blur競合を避ける）
     setProjects(prev => prev.map(p => p.id === project.id ? { ...p, name: nameToSave } : p));
     setEditingProjectId(null);
+    if (guestMode) return;
     try { await updateBoard(project.id, { name: nameToSave }) } catch {}
   };
   const changeColor = async (projectId: string, color: string) => {
@@ -300,22 +368,38 @@ const TeamTasks: React.FC = () => {
       } catch {}
       return next;
     });
+    if (guestMode) return;
     try { await updateBoard(projectId, { color }) } catch {}
   };
+  /**
+   * AC = このボードのタスクをすべて消す（Myタスクの AC と同じ意味）。
+   * 以前はボードごと消していた（確認文も「シートを削除」）。ボードの削除は上の「－ ボード削除」で行う。
+   */
   const clearAllTasks = async (projectId: string) => {
-    const ok = window.confirm('このシートを削除します。よろしいですか？（元に戻せません）')
-    if (!ok) return
-    // 楽観的に除去
+    const list = tasksByProject[projectId] || []
+    if (!list.length) return
+    if (!window.confirm(`このボードのタスク ${list.length} 件をすべて消します。よろしいですか？\n（ボードとメンバーは残ります。元に戻せません）`)) return
+    setTasksByProject(prev => ({ ...prev, [projectId]: [] }))
+    if (guestMode) return
+    await Promise.all(list.filter(t => !t.id.startsWith('tmp-')).map(t => deleteBoardTask(projectId, t.id).catch(() => {})))
+  };
+  /** ボードを消す。画面から先に消す（以前は購読が届くまで残って見えた） */
+  const removeBoard = async (projectId: string) => {
     setProjects(prev => prev.filter(p => p.id !== projectId))
-    const { [projectId]: removed, ...rest } = tasksByProject as any
-    setTasksByProject(rest)
-    try { await deleteBoard(projectId) } catch {}
+    setTasksByProject(prev => { const { [projectId]: _removed, ...rest } = prev; return rest })
+    if (guestMode) return
+    try { await deleteBoard(projectId) } catch { setError('ボードの削除に失敗しました。再読み込みして確かめてください。') }
   };
 
   // タスク追加
   const handleAddTask = async (projectId: string) => {
-    if (!isLoggedIn) {
-      alert('入力するには会員登録（無料）が必要です。');
+    if (guestMode) {
+      const title = (newTaskContents[projectId]?.title || '').trim();
+      if (!title) return;
+      const dueDate = newTaskContents[projectId]?.dueDate || null;
+      const priority = ((newTaskContents as any)[projectId]?.priority as Task['priority']) || 'medium';
+      setTasksByProject(prev => ({ ...prev, [projectId]: [...(prev[projectId] || []), { id: guestTaskId(), title, completed: false, dueDate, priority }] }));
+      setNewTaskContents(prev => ({ ...prev, [projectId]: { title: '', dueDate: '', assigneeId: '', priority: 'medium' as any } }));
       return;
     }
     const content = newTaskContents[projectId]?.title || '';
@@ -334,15 +418,14 @@ const TeamTasks: React.FC = () => {
     } catch (e) {
       // ロールバック
       setTasksByProject(prev => ({ ...prev, [projectId]: (prev[projectId] || []).filter(t => t.id !== tempId) }))
-      alert('タスクの追加に失敗しました。ネットワーク状態を確認してください。')
+      setError('タスクの追加に失敗しました。ネットワーク状態を確認してください。')
     }
   };
 
   // タスク完了・編集・削除
   const toggleTaskComplete = async (projectId: string, taskId: string) => {
     const task = (tasksByProject[projectId] || []).find(t => t.id === taskId)
-    if (task) { try { await updateBoardTask(projectId, taskId, { completed: !task.completed }) } catch {} }
-    setTasksByProject(prev => ({ ...prev, [projectId]: prev[projectId].map(task => task.id === taskId ? { ...task, completed: !task.completed } : task) }));
+    if (task) await patchTask(projectId, taskId, { completed: !task.completed })
   };
   const startEditingTask = (taskId: string, currentTitle: string) => {
     setEditingTaskId(taskId);
@@ -350,16 +433,13 @@ const TeamTasks: React.FC = () => {
   };
   const saveTaskEdit = async (projectId: string, taskId: string) => {
     if (!tempTaskTitle.trim()) return;
-    try { await updateBoardTask(projectId, taskId, { title: tempTaskTitle }) } catch {}
-    setTasksByProject(prev => ({
-      ...prev,
-      [projectId]: prev[projectId].map(task => task.id === taskId ? { ...task, title: tempTaskTitle } : task)
-    }));
     setEditingTaskId(null);
+    await patchTask(projectId, taskId, { title: tempTaskTitle.trim() });
   };
   const deleteTask = async (projectId: string, taskId: string) => {
+    setTasksByProject(prev => ({ ...prev, [projectId]: (prev[projectId] || []).filter(task => task.id !== taskId) }));
+    if (guestMode || taskId.startsWith('tmp-')) return;
     try { await deleteBoardTask(projectId, taskId) } catch {}
-    setTasksByProject(prev => ({ ...prev, [projectId]: prev[projectId].filter(task => task.id !== taskId) }));
   };
 
   // 色が暗いかどうか
@@ -414,7 +494,7 @@ const TeamTasks: React.FC = () => {
             login: true,
             hint: 'ボードにメンバーをメールアドレスで追加する',
             onClick: () => {
-              if (!isLoggedIn) return setTeamNotice('ログイン（無料の会員登録）すると、ボードを作ってメンバーを招待できます。');
+              if (!isLoggedIn) return setTeamNotice('メンバー招待はログイン（無料の会員登録）すると使えます。今はこのブラウザの自分用ボードで、カード・工程表・遅れの波及を試せます。');
               if (!projects.length) { setTeamNotice('先にボード（プロジェクト）を作ると、メンバーをメールで追加できます。'); createInputRef.current?.focus(); return; }
               setTeamNotice('');
               setView('cards');
@@ -435,7 +515,20 @@ const TeamTasks: React.FC = () => {
         ]}
       />
       {teamNotice && <p className="text-[11px] text-gray-600" role="status">{teamNotice}</p>}
-      <div className="flex items-center gap-2 mb-3 flex-wrap">
+      {guestMode && (
+        <GuestNote action="ログインして共有">
+          自分用のボードを 1 枚、このブラウザに作って試せます。メンバー招待・担当の通知はログインすると使えます。
+        </GuestNote>
+      )}
+      {guestPending && (
+        <p className="text-[11px] text-gray-600 border-l border-[#52AA96] pl-2" role="status">
+          ログイン前にこのブラウザで作ったボード「{guestPending.name}」（タスク {guestPending.count} 件）があります。{' '}
+          <button type="button" className="underline underline-offset-2 font-bold text-gray-900" onClick={() => void uploadGuest()}>アカウントのボードとして作る</button>
+          {' / '}
+          <button type="button" className="underline underline-offset-2" onClick={() => setGuestPending(null)}>今はしない</button>
+        </p>
+      )}
+      <div className="hidden sm:flex items-center gap-2 mb-3 flex-wrap">
         <span className="yy-mono text-[10px] tracking-[0.12em] uppercase text-gray-500">Columns</span>
         {[2, 3, 4].map(cols => (
           <button
@@ -457,10 +550,11 @@ const TeamTasks: React.FC = () => {
         <label className="text-xs text-gray-700">プロジェクト名称</label>
         <input
           ref={createInputRef}
-          className="border px-2 py-1 h-7 text-[12px]"
+          className="border px-2 py-1 h-7 text-[12px] min-w-0 flex-1 sm:flex-none"
           placeholder="新規プロジェクト名"
           value={newProjectName}
           onChange={e => setNewProjectName(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) void handleCreateProject() }}
         />
         <button
           className="yy-btn yy-btn--primary !px-2 !py-1"
@@ -478,7 +572,7 @@ const TeamTasks: React.FC = () => {
                 const target = projects.find(p => p.id === deleteTargetId);
                 if (!target) return;
                 if (!window.confirm(`「${target.name}」ボードを削除します。よろしいですか？\n（このボード内のタスクも削除されます）`)) return;
-                try { await deleteBoard(target.id); } catch {}
+                await removeBoard(target.id);
               }}
             >
               － ボード削除
@@ -558,13 +652,15 @@ const TeamTasks: React.FC = () => {
         />
       )}
 
-      <div ref={gridRef} className={`team-task-grid border border-[#3b3b3b] p-3 scroll-mt-3 ${view === 'gantt' ? 'hidden' : ''}`}>
+      {/* .team-task-grid（globals.css）の display:flex が Tailwind の hidden に勝ち、工程表の下にカードも出ていた。style で隠す */}
+      <div ref={gridRef} className="team-task-grid border border-[#3b3b3b] p-3 scroll-mt-3" style={view === 'gantt' ? { display: 'none' } : undefined}>
         {projects.map((project, idx) => {
-          const flexBasis = `calc((100% - ${(columnMode - 1)} * 0.75rem) / ${columnMode})`;
+          const cols = narrow ? 1 : columnMode;
+          const flexBasis = `calc((100% - ${(cols - 1)} * 0.75rem) / ${cols})`;
           const cardStyle: React.CSSProperties = {
             flex: `0 0 ${flexBasis}`,
             maxWidth: flexBasis,
-            minWidth: '240px',
+            minWidth: narrow ? 0 : '240px',
           };
           if (project.color?.startsWith('#')) {
             cardStyle.backgroundColor = project.color;
@@ -632,6 +728,7 @@ const TeamTasks: React.FC = () => {
                   <span className={`text-xs ${isDarkColor(project.color || '') ? 'text-white/70' : 'text-black/40'}`}>{tasksByProject[project.id]?.length || 0}</span>
                   <button
                     onClick={() => clearAllTasks(project.id)}
+                    title="このボードのタスクをすべて消す（ボードは残る）"
                     className={`text-[10px] font-bold ${isDarkColor(project.color || '') ? 'text-white/70 hover:text-white' : 'text-black/40 hover:text-black/60'}`}
                   >
                     AC
@@ -642,6 +739,11 @@ const TeamTasks: React.FC = () => {
             
             {/* メンバー管理 */}
             <div className="px-3 py-2 border-b border-black/5" style={project.color?.startsWith('#') ? { backgroundColor: project.color } : {}}>
+              {guestMode ? (
+                <p className={`text-[10px] ${isDarkColor(project.color || '') ? 'text-white/80' : 'text-gray-600'}`}>
+                  自分用のボード（このブラウザに保存）。メンバー招待はログイン後に、このボードをアカウントへ上げてから。
+                </p>
+              ) : (<>
               <div className="flex items-center gap-2">
                 <input
                   data-member-input
@@ -657,7 +759,7 @@ const TeamTasks: React.FC = () => {
                     const email = (memberEmailInput[project.id] || '').trim()
                     if (!email) return
                     const user = await findUserByEmail(email)
-                    if (!user) { alert('該当ユーザーが見つかりません'); return }
+                    if (!user) { setTeamNotice(`${email} の会員が見つかりません。相手に yaneyuka の会員登録（無料）をお願いしてから追加してください。`); return }
                     const current = membersByProject[project.id] || []
                     if (current.some(m => m.uid === user.uid)) return
                     const next = [...current, { uid: user.uid, label: user.displayName || user.email || user.uid }]
@@ -690,9 +792,10 @@ const TeamTasks: React.FC = () => {
                   </span>
                 ))}
               </div>
+              </>)}
             </div>
 
-            
+
 
             {/* 新規タスク入力 */}
             <div className="px-3 pt-2 pb-2 border-t border-black/5"
@@ -734,8 +837,8 @@ const TeamTasks: React.FC = () => {
               
               {/* 2行目: 担当者選択欄、重要度、期限表示、追加ボタン */}
               <div className="flex items-center gap-2 flex-wrap">
-                {/* 担当者セレクト */}
-                <select
+                {/* 担当者セレクト（未ログインの自分用ボードでは出さない） */}
+                {!guestMode && <select
                   className={`text-xs px-1 py-0.5 w-[96px] ${isDarkColor(project.color || '') ? 'bg-white/90 text-gray-800' : 'bg-white text-gray-800'}`}
                   value={newTaskContents[project.id]?.assigneeId || ''}
                   onChange={e => setNewTaskContents(prev => ({ ...prev, [project.id]: { ...prev[project.id], assigneeId: e.target.value } }))}
@@ -745,7 +848,7 @@ const TeamTasks: React.FC = () => {
                   {(membersByProject[project.id] || []).map(m => (
                     <option key={m.uid} value={m.uid}>{m.label}</option>
                   ))}
-                </select>
+                </select>}
                 {/* 重要度 */}
                 <select
                   className={`text-xs px-1 py-0.5 w-[72px] ${isDarkColor(project.color || '') ? 'bg-white/90 text-gray-800' : 'bg-white text-gray-800'}`}
@@ -795,7 +898,7 @@ const TeamTasks: React.FC = () => {
                 .map(task => (
                 <div
                   key={task.id}
-                  className="px-3 py-2 flex items-center gap-2"
+                  className="px-3 py-2 flex items-center gap-x-2 gap-y-1 flex-wrap"
                 >
                   <input
                     type="checkbox"
@@ -811,13 +914,13 @@ const TeamTasks: React.FC = () => {
                       onChange={(e) => setTempTaskTitle(e.target.value)}
                       onBlur={() => saveTaskEdit(project.id, task.id)}
                       onKeyPress={(e) => e.key === 'Enter' && saveTaskEdit(project.id, task.id)}
-                      className="flex-1 text-[12px] bg-transparent border-b border-black/10 focus:outline-none"
+                      className="flex-1 min-w-[9rem] text-[12px] bg-transparent border-b border-black/10 focus:outline-none"
                       autoFocus
                     />
                   ) : (
                     <span
                       onClick={() => toggleTaskComplete(project.id, task.id)}
-                      className={`flex-1 text-xs select-none cursor-pointer ${task.completed ? (isDarkColor(project.color || '') ? 'line-through text-white/60' : 'line-through text-black/40') : (isDarkColor(project.color || '') ? 'text-white' : 'text-gray-800')}`}
+                      className={`flex-1 min-w-[9rem] break-words text-xs select-none cursor-pointer ${task.completed ? (isDarkColor(project.color || '') ? 'line-through text-white/60' : 'line-through text-black/40') : (isDarkColor(project.color || '') ? 'text-white' : 'text-gray-800')}`}
                     >{task.title}</span>
                   )}
 
@@ -829,8 +932,7 @@ const TeamTasks: React.FC = () => {
                         value={task.role || ''}
                         onChange={async (e) => {
                           const ro = e.target.value;
-                          try { await updateBoardTask(project.id, task.id, { role: ro || null }) } catch {}
-                          setTasksByProject(prev => ({ ...prev, [project.id]: prev[project.id].map(t => t.id === task.id ? { ...t, role: ro || undefined } : t) }))
+                          await patchTask(project.id, task.id, { role: ro || undefined }, { role: ro || null })
                         }}
                         title="役割"
                       >
@@ -843,9 +945,7 @@ const TeamTasks: React.FC = () => {
                         value={task.startDate || ''}
                         title="開始日（工程表に出す）"
                         onChange={async (e) => {
-                          const v = e.target.value || null;
-                          try { await updateBoardTask(project.id, task.id, { startDate: v }) } catch {}
-                          setTasksByProject(prev => ({ ...prev, [project.id]: prev[project.id].map(t => t.id === task.id ? { ...t, startDate: v } : t) }))
+                          await patchTask(project.id, task.id, { startDate: e.target.value || null })
                         }}
                       />
                       <select
@@ -853,9 +953,7 @@ const TeamTasks: React.FC = () => {
                         value={task.after || ''}
                         title="前のタスク（これが終わってから始める。遅れると後ろへ波及）"
                         onChange={async (e) => {
-                          const v = e.target.value || null;
-                          try { await updateBoardTask(project.id, task.id, { after: v }) } catch {}
-                          setTasksByProject(prev => ({ ...prev, [project.id]: prev[project.id].map(t => t.id === task.id ? { ...t, after: v } : t) }))
+                          await patchTask(project.id, task.id, { after: e.target.value || null })
                         }}
                       >
                         <option value="">前のタスク</option>
@@ -866,15 +964,14 @@ const TeamTasks: React.FC = () => {
                     <span className={`text-[9px] px-1 border ${isDarkColor(project.color || '') ? 'border-white/40 text-white/80' : 'border-black/20 text-gray-700'}`}>{task.role}</span>
                   ) : null}
 
-                  {/* 担当者名 or セレクト（編集時） */}
-                  {editingTaskId === task.id ? (
+                  {/* 担当者名 or セレクト（編集時）。未ログインの自分用ボードでは出さない */}
+                  {guestMode ? null : editingTaskId === task.id ? (
                     <select
                       className={`text-[10px] px-1 py-0.5 ${isDarkColor(project.color || '') ? 'bg-white/90 text-gray-800' : 'bg-white text-gray-800'}`}
                       value={task.assigneeId || ''}
                       onChange={async (e) => {
                         const uid = e.target.value
-                        try { await updateBoardTask(project.id, task.id, { assigneeUid: uid }) } catch {}
-                        setTasksByProject(prev => ({ ...prev, [project.id]: prev[project.id].map(t => t.id === task.id ? { ...t, assigneeId: uid } : t) }))
+                        await patchTask(project.id, task.id, { assigneeId: uid }, { assigneeUid: uid })
                       }}
                       style={{ minWidth: 88 }}
                     >
@@ -898,9 +995,7 @@ const TeamTasks: React.FC = () => {
                       className={`text-[10px] px-1 py-0.5 ${isDarkColor(project.color || '') ? 'bg-white/90 text-gray-800' : 'bg-white text-gray-800'}`}
                       value={task.priority || 'medium'}
                       onChange={async (e) => {
-                        const pr = e.target.value as any
-                        try { await updateBoardTask(project.id, task.id, { priority: pr }) } catch {}
-                        setTasksByProject(prev => ({ ...prev, [project.id]: prev[project.id].map(t => t.id === task.id ? { ...t, priority: pr } : t) }))
+                        await patchTask(project.id, task.id, { priority: e.target.value as Task['priority'] })
                       }}
                       style={{ minWidth: 64 }}
                     >
@@ -948,9 +1043,7 @@ const TeamTasks: React.FC = () => {
                       type="date"
                       value={task.dueDate || ''}
                       onChange={async e => {
-                        const v = e.target.value
-                        try { await updateBoardTask(project.id, task.id, { dueDate: v }) } catch {}
-                        setTasksByProject(prev => ({ ...prev, [project.id]: prev[project.id].map(t => t.id === task.id ? { ...t, dueDate: v } : t) }))
+                        await patchTask(project.id, task.id, { dueDate: e.target.value || null })
                       }}
                       style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }}
                       tabIndex={0}

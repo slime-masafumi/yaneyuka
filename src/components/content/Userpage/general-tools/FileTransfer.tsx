@@ -21,6 +21,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { hashSharePassword } from '@/lib/sharePassword';
 import { requestGeneralTool } from '@/lib/generalToolsMenu';
 import ToolHeader from '../ToolHeader';
+import GuestNote from './GuestNote';
 import DrawingListEditor from './transfer/DrawingListEditor';
 import { countPdfPages, fromStored, parseDrawingFileName, toStored, totalSheets, type DrawingRow, type StoredDrawing } from './transfer/drawingList';
 import { openTransmittal, transmittalNumber, transmittalText, TRANSMITTAL_PURPOSES, type TransmittalData } from './transfer/transmittal';
@@ -576,7 +577,7 @@ const FileTransferTool: React.FC = () => {
 
   const runUpload = async () => {
     if (!uid) {
-      setUploadStatus('ログインが必要です。');
+      setAskLogin(true);
       return;
     }
     if (!limits) {
@@ -1005,12 +1006,39 @@ const FileTransferTool: React.FC = () => {
     }
   };
 
+  // 未ログインでは config/limits を読まない（読めない）ので、ログインの有無を先に見る。
+  // 以前は !limits を先に見ていたため、未ログインだと「設定情報を読込中です」が出たままになっていた。
+  // 未ログインはボタンを止めず、押した瞬間に GuestNote で案内する（askLogin）。
   const uploadDisabledReason = useMemo(() => {
+    if (!uid) return null;
+    if (limitsError) return '設定情報を取得できないため、今は送れません。時間をおいて開き直してください';
     if (!limits) return '設定情報を読込中です';
     if (!limits.uploadsEnabled) return 'アップロード機能は一時停止中です';
-    if (!uid) return '送るにはログイン（無料の会員登録）が必要です';
     return null;
-  }, [limits, uid]);
+  }, [limits, limitsError, uid]);
+  const [askLogin, setAskLogin] = useState(false);
+
+  /** 送付状だけ作る（ファイルを上げない・リンクなし）。郵送・手渡しの図面に添える紙、メールに PDF で付ける用 */
+  const printDraftTransmittal = () => {
+    const now = new Date();
+    const names = selectedFiles.map((f) => f.name);
+    const ok = openTransmittal({
+      number: transmittalNumber(now),
+      date: now,
+      recipient: draftRecipient.trim(),
+      sender: sender.trim(),
+      subject: draftSubject.trim(),
+      purpose: draftPurpose,
+      drawings: toStored(drawings),
+      link: null,
+      expiresAt: null,
+      hasPassword: false,
+      fileName: names.length === 1 ? names[0] : names.length > 1 ? `${names.length} 個のファイル` : '',
+      fileSize: names.length ? formatBytes(selectedFiles.reduce((a, f) => a + f.size, 0)) : '',
+      remarks: draftRemarks.trim() || undefined,
+    });
+    if (!ok) setNotice('別窓を開けませんでした。ブラウザのポップアップを許可してください。');
+  };
 
   // --- 帯の「できること」 ---
   const jump = (el: HTMLElement | null) => el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1025,7 +1053,7 @@ const FileTransferTool: React.FC = () => {
       label: '送付状・図面リスト',
       hint: '図面番号・図面名・版・縮尺・枚数の一覧をファイル名から下書きし、送付状（印刷 / PDF）と送付文を出します',
       active: activeFeature === 'send',
-      onClick: () => pick('send', sendRef.current, undefined, 'ファイルを選ぶと、ファイル名（例: A-101_平面図_Rev2.pdf）から図面リストを下書きします。送った後は台帳の「送付状」で印刷・PDF 保存できます。'),
+      onClick: () => pick('send', sendRef.current, undefined, 'ファイルを選ぶと、ファイル名（例: A-101_平面図_Rev2.pdf）から図面リストを下書きします。送付状は「送付状だけ印刷 / PDF」でログインせずに作れます。送った後は台帳の「送付状」でリンク入りのものを出し直せます。'),
     },
     {
       label: `大容量 ${formatMB(effectiveMaxFileMB)}`,
@@ -1275,6 +1303,12 @@ const FileTransferTool: React.FC = () => {
                 <span className={fieldLabel}>備考</span>
                 <input type="text" value={draftRemarks} onChange={(e) => setDraftRemarks(e.target.value)} disabled={busy} placeholder="前回からの変更: 2階平面の階段位置" className={input} />
               </label>
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mt-3 text-[11px]">
+                <button type="button" onClick={printDraftTransmittal} disabled={busy} className="inline-flex items-center gap-1 underline underline-offset-2 text-[#141414] hover:text-black disabled:opacity-40">
+                  <FiPrinter size={12} className="text-gray-500" /> 送付状だけ印刷 / PDF
+                </button>
+                <span className="text-[10px] text-gray-500">ファイルを上げずに紙だけ作ります（郵送・手渡しの図面、メール添付に）。ログイン不要</span>
+              </div>
             </div>
 
             {/* 003 受け渡しの設定 */}
@@ -1322,12 +1356,17 @@ const FileTransferTool: React.FC = () => {
                 {selectedFiles.length > 1 ? 'ZIP にまとめて送付リンクを発行' : '送付リンクを発行'}
               </button>
               {uploadDisabledReason && <p className="text-[10px] text-center text-gray-500">{uploadDisabledReason}</p>}
+              {!uid && askLogin && (
+                <GuestNote action="ログインして送る">送付リンクの発行（ファイルをサーバーに置いて相手に渡す）はログインが要ります。送付状だけなら上の「送付状だけ印刷」で作れます。</GuestNote>
+              )}
             </div>
 
-            <div>
-              <SectionHead no="004" title="使用量" />
-              {renderUsage()}
-            </div>
+            {limits && (
+              <div>
+                <SectionHead no="004" title="使用量" />
+                {renderUsage()}
+              </div>
+            )}
           </div>
 
           {/* --- 右：送付台帳 --- */}
@@ -1546,7 +1585,11 @@ const FileTransferTool: React.FC = () => {
               <ul className="text-[10px] text-gray-500 space-y-0.5">
                 <li>1ファイル最大 {formatMB(effectiveMaxFileMB)}、月間アップロード上限 {formatMB(effectiveMonthlyLimitMB)}</li>
                 <li>保存期間を過ぎると自動で削除（最長 {retentionOptions[retentionOptions.length - 1] ?? limits?.retentionDays ?? '-'} 日）</li>
-                <li>サイト全体の帯域上限（{limits?.siteMonthlyDownloadGBCap ?? '-'} GB/月）に達すると新規リンク発行不可</li>
+                {limits ? (
+                  <li>サイト全体の帯域上限（{limits.siteMonthlyDownloadGBCap} GB/月）に達すると新規リンク発行不可</li>
+                ) : (
+                  <li>サイト全体のダウンロード帯域に月の上限があり、達すると新規リンクを発行できません</li>
+                )}
                 <li>
                   自分の端末どうしで一時的に渡すだけなら{' '}
                   <button type="button" onClick={() => requestGeneralTool({ toolId: 'temp-storage' })} className="underline underline-offset-2 text-gray-700 hover:text-black">

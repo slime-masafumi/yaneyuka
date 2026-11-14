@@ -7,6 +7,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import ToolHeader, { type ToolFeature } from './ToolHeader';
+import YyChatGuestDemo from './YyChatGuestDemo';
 import { FiCamera, FiX } from 'react-icons/fi';
 import { createPortal } from 'react-dom';
 import { useAuth } from '@/lib/AuthContext';
@@ -15,7 +16,7 @@ import { db } from '@/lib/firebaseClient';
 import { 
   collection, addDoc, serverTimestamp, orderBy, updateDoc, doc, getDocs, 
   setDoc, where, arrayUnion, arrayRemove, writeBatch, getDoc, deleteField, 
-  query, onSnapshot, deleteDoc
+  query, onSnapshot, deleteDoc, increment
 } from 'firebase/firestore';
 import { getUsersByUids, listBoardsForUser, addBoardTask, type BoardDoc } from '@/lib/firebaseUserData';
 import { useTaskContext } from '@/components/providers/TaskProvider';
@@ -93,11 +94,11 @@ const formatMessageDate = (date: Date) => {
   const isToday = date.getDate() === now.getDate() && 
                   date.getMonth() === now.getMonth() && 
                   date.getFullYear() === now.getFullYear();
-  
+
   const timeStr = date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-  
+
   if (isToday) return timeStr;
-  
+
   const year = date.getFullYear().toString().slice(-2);
   const month = date.getMonth() + 1;
   const day = date.getDate();
@@ -147,7 +148,7 @@ const YyChat: React.FC = () => {
   const [messages, setMessages] = useState<ExtendedChatMessage[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<ChatRoom | null>(null);
   const [rooms, setRooms] = useState<ChatRoom[]>([]);
-  
+
   const [inputValue, setInputValue] = useState('');
   const [inputImage, setInputImage] = useState<string | null>(null);
   const [roomsLoading, setRoomsLoading] = useState(true);
@@ -160,11 +161,11 @@ const YyChat: React.FC = () => {
   const [groupPicks, setGroupPicks] = useState<Set<string>>(new Set());
   const [groupName, setGroupName] = useState('');
   const [showRoomMenu, setShowRoomMenu] = useState(false);
-  
+
   const [userDisplayNames, setUserDisplayNames] = useState<Record<string, string>>({});
   const [userAvatars, setUserAvatars] = useState<Record<string, string>>({});
   const [customNicknames, setCustomNicknames] = useState<Record<string, string>>({});
-  
+
   const [isEditingName, setIsEditingName] = useState(false);
   const [editingNameValue, setEditingNameValue] = useState('');
 
@@ -174,7 +175,7 @@ const YyChat: React.FC = () => {
   const [iconScale, setIconScale] = useState(1); 
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -203,7 +204,7 @@ const YyChat: React.FC = () => {
   // 見出し帯の「できること」用。使い方が分からない機能を押したときの一言と、検索欄へのフォーカス
   const [chatNotice, setChatNotice] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
-    
+
   // --- Effects ---
 
   useEffect(() => {
@@ -238,13 +239,25 @@ const YyChat: React.FC = () => {
   const saveDraft = (roomId: string, text: string) => {
     if (!currentUser) return;
     const key = `yyChat_draft_${currentUser.uid}_${roomId}`;
-    text.trim() ? localStorage.setItem(key, text) : localStorage.removeItem(key);
+    try {
+      if (text.trim()) localStorage.setItem(key, text);
+      else localStorage.removeItem(key);
+    } catch {
+      /* 下書きを残せなくても送信はできる */
+    }
   };
-  
+
   const loadDraft = (roomId: string) => {
     if (!currentUser) return '';
-    return localStorage.getItem(`yyChat_draft_${currentUser.uid}_${roomId}`) || '';
+    try {
+      return localStorage.getItem(`yyChat_draft_${currentUser.uid}_${roomId}`) || '';
+    } catch {
+      return '';
+    }
   };
+  // 名前・アイコンを読んだ相手。発言が届くたびに全員ぶん users を読み直していたので、知らない人だけ読む
+  const fetchedUids = useRef<Set<string>>(new Set());
+  const [listenError, setListenError] = useState('');
 
   useEffect(() => {
     if (selectedRoom) {
@@ -278,8 +291,9 @@ const YyChat: React.FC = () => {
         };
       });
 
-      const uids = Array.from(new Set(newMessages.map(m => m.senderId)));
-      getUsersByUids(uids).then(users => {
+      const uids = Array.from(new Set(newMessages.map(m => m.senderId))).filter((u) => !fetchedUids.current.has(u));
+      uids.forEach((u) => fetchedUids.current.add(u));
+      if (uids.length) getUsersByUids(uids).then(users => {
         const names: any = {}, avts: any = {};
         users.forEach(u => {
           if (u.displayName) names[u.uid] = u.displayName;
@@ -287,9 +301,16 @@ const YyChat: React.FC = () => {
         });
         setUserDisplayNames(prev => ({ ...prev, ...names }));
         setUserAvatars(prev => ({ ...prev, ...avts }));
+      }).catch(() => {
+        // 読めなかった人は次の発言で読み直す
+        uids.forEach((u) => fetchedUids.current.delete(u));
       });
 
+      setListenError('');
       setMessages(newMessages);
+    }, (err) => {
+      console.error('発言の読み込みに失敗', err);
+      setListenError('この部屋の発言を読み込めませんでした。通信を確かめて、開き直してください');
     });
     return () => unsubscribe();
   }, [selectedRoom?.id, currentUser]);
@@ -355,8 +376,6 @@ const YyChat: React.FC = () => {
         return;
       }
 
-      console.log('既読リセット実行:', selectedRoom.id);
-
       const batch = writeBatch(db);
       let needsBatch = false;
 
@@ -381,7 +400,7 @@ const YyChat: React.FC = () => {
         batch.commit().catch(console.error);
       }
     }, 1500); // 1.5秒程度、実際に「見ている」時間を確保
-    
+
     return () => clearTimeout(timer);
   }, [messages.length, selectedRoom?.id, currentUser?.uid]); 
   // 依存関係を整理：メッセージの「数」が変わった時と、ルームが切り替わった時だけに限定
@@ -408,9 +427,10 @@ const YyChat: React.FC = () => {
         // 削除されていないルームのみを表示（deletedByに自分のUIDが含まれていない）
         .filter(room => !room.deletedBy?.includes(currentUser.uid))
         .sort((a, b) => b.lastActivityAt.getTime() - a.lastActivityAt.getTime());
-      
+
       setRooms(list);
       setRoomsLoading(false);
+      setListenError('');
       if (selectedRoom) {
         const current = list.find(r => r.id === selectedRoom.id);
         if (current) setSelectedRoom(current);
@@ -419,6 +439,10 @@ const YyChat: React.FC = () => {
           setSelectedRoom(null);
         }
       }
+    }, (err) => {
+      console.error('部屋の一覧の読み込みに失敗', err);
+      setRoomsLoading(false);
+      setListenError('部屋の一覧を読み込めませんでした。通信を確かめて、開き直してください');
     });
     return () => unsub();
   }, [currentUser]);
@@ -434,7 +458,7 @@ const YyChat: React.FC = () => {
 
   const handleSendMessage = async () => {
     if ((!inputValue.trim() && !inputImage) || !selectedRoom || !currentUser) return;
-    
+
     const content = inputValue.trim();
     const imageToSend = inputImage;
     const takenAt = imageToSend ? inputPhotoTaken : null;
@@ -443,7 +467,7 @@ const YyChat: React.FC = () => {
     setInputImage(null);
     setInputPhotoTaken(null);
     saveDraft(selectedRoom.id, '');
-    
+
     const tempId = `temp-${Date.now()}`;
     const newMsg: ExtendedChatMessage = {
       id: tempId, roomId: selectedRoom.id, senderId: currentUser.uid, 
@@ -452,6 +476,7 @@ const YyChat: React.FC = () => {
     };
     setMessages(prev => [...prev, newMsg]);
 
+    let posted = false;
     try {
       await addDoc(collection(db, 'chatRooms', selectedRoom.id, 'messages'), {
         senderId: currentUser.uid, senderUsername: currentUser.username, 
@@ -460,7 +485,8 @@ const YyChat: React.FC = () => {
         ...(takenAt ? { photoTakenAt: takenAt } : {}),
         createdAt: serverTimestamp(), readBy: [currentUser.uid]
       });
-      
+      posted = true;
+
       const updateData: any = {
         lastMessage: { 
           content: imageToSend ? (content ? content : '画像が送信されました') : content, 
@@ -470,15 +496,27 @@ const YyChat: React.FC = () => {
         },
         lastActivityAt: serverTimestamp()
       };
-      // 自分以外の全員（グループなら複数人）の未読を増やす
+      // 自分以外の全員（グループなら複数人）の未読を増やす。
+      // 手元の数 + 1 を書くと、相手が同時に既読にした・別の人が同時に送ったときに数がずれるので increment で足す
       for (const uid of selectedRoom.participants) {
-        if (uid !== currentUser.uid) updateData[`unreadCount.${uid}`] = (selectedRoom.unreadCount?.[uid] || 0) + 1;
+        if (uid !== currentUser.uid) updateData[`unreadCount.${uid}`] = increment(1);
       }
-      
+
       await updateDoc(doc(db, 'chatRooms', selectedRoom.id), updateData);
     } catch (e) {
       console.error(e);
-      alert('送信失敗');
+      if (posted) {
+        // 発言は届いている。部屋の一覧の「最後の発言」・相手の未読数だけ更新できなかった
+        setChatNotice('送りました（相手の一覧の未読表示は更新できませんでした）');
+        return;
+      }
+      // 送れなかった発言を「送れたように」残さない。入力欄に戻して送り直せるようにする
+      setMessages(prev => prev.filter(m => m.id !== tempId));
+      setInputValue(content);
+      setInputImage(imageToSend);
+      setInputPhotoTaken(takenAt);
+      saveDraft(selectedRoom.id, content);
+      setChatNotice('送れませんでした。通信を確かめて、もう一度送ってください（入力は戻しました）');
     }
   };
 
@@ -525,7 +563,7 @@ const YyChat: React.FC = () => {
     canvas.width = 200; canvas.height = 200;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    
+
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.src = iconImageSrc;
@@ -536,7 +574,7 @@ const YyChat: React.FC = () => {
 
     const previewSize = previewContainerRef.current?.clientWidth || 1;
     const scaleRatio = 200 / previewSize;
-    
+
     ctx.translate(100, 100);
     ctx.translate(iconPosition.x * scaleRatio, iconPosition.y * scaleRatio);
     ctx.scale(iconScale * scaleRatio, iconScale * scaleRatio);
@@ -789,29 +827,29 @@ const YyChat: React.FC = () => {
 
   const getAvatarUrl = (uid: string, roomId?: string) => {
     if (!roomId || !currentUser) return userAvatars[uid];
-    
+
     const room = rooms.find(r => r.id === roomId);
     if (!room) return userAvatars[uid];
-    
+
     // 自分のアイコンを表示しようとしている場合
     if (uid === currentUser.uid) {
       // 自分のアイコンは常に表示する（自分の設定に関わらず、相手側でも表示される）
       return userAvatars[uid];
     }
-    
+
     // 相手のアイコンを表示しようとしている場合
     // 自分が「この相手(uid)のアイコンを隠す」設定にしているならnullを返す
     if (room.hiddenAvatarUserIds?.includes(uid)) {
       return null;
     }
-    
+
     return userAvatars[uid];
   };
 
   // 見出し帯の「できること」。部屋の右上メニューや発言のホバーの奥にあって見つからなかった機能の入口。
   // 部屋を開いていないと使えないものは、押すと「どうすれば使えるか」を一言出す。
   const needRoom = (run: () => void, how: string) => {
-    if (!isLoggedIn || !currentUser) return setChatNotice('ログイン（無料の会員登録）すると使えます。');
+    if (!isLoggedIn || !currentUser) return setChatNotice('下の見本で動きを試せます。実際の部屋はログイン（無料の会員登録）すると作れます。');
     if (!selectedRoom) return setChatNotice(how);
     setChatNotice('');
     run();
@@ -829,7 +867,7 @@ const YyChat: React.FC = () => {
       hint: '全ルームの発言をまとめて検索する',
       active: !!searchHits,
       onClick: () => {
-        if (!isLoggedIn || !currentUser) return setChatNotice('ログイン（無料の会員登録）すると使えます。');
+        if (!isLoggedIn || !currentUser) return setChatNotice('下の見本の検索欄で試せます。実際の部屋はログインすると作れます。');
         setChatNotice('');
         setShowUserSelect(false);
         // 狭い画面では部屋を開いていると一覧（検索欄）が隠れるので、一覧へ戻す
@@ -860,7 +898,7 @@ const YyChat: React.FC = () => {
       hint: '3 人以上（20 人まで）の部屋を作る',
       active: showUserSelect && userSelectMode === 'group',
       onClick: () => {
-        if (!isLoggedIn || !currentUser) return setChatNotice('ログイン（無料の会員登録）すると使えます。');
+        if (!isLoggedIn || !currentUser) return setChatNotice('グループはログイン（無料の会員登録）すると作れます。下の見本の「定例メンバー」がグループの部屋です。');
         setChatNotice('');
         setUserSelectMode('group'); setGroupPicks(new Set()); setGroupName(''); setShowUserSelect(true); void loadUsers();
         if (typeof window !== 'undefined' && window.innerWidth < 768) setSelectedRoom(null);
@@ -882,16 +920,22 @@ const YyChat: React.FC = () => {
         description="現場チャット。物件ごとに部屋を分け、全ルームを横断して検索する。発言はそのままタスクや議事録（メモ）にできる。"
         features={chatFeatures}
       />
-      {chatNotice && <p className="mx-4 mt-2 text-[11px] text-gray-600" role="status">{chatNotice}</p>}
+      {chatNotice && (
+        <p className="mx-4 mt-2 text-[11px] text-gray-600" role="status">
+          {chatNotice}
+          <button type="button" className="ml-2 underline text-gray-500" onClick={() => setChatNotice('')}>閉じる</button>
+        </p>
+      )}
+      {listenError && <p className="mx-4 mt-2 text-[11px] text-orange-700" role="alert">{listenError}</p>}
     </>
   );
 
   // 未ログインでも帯は出す。帯が無いとツール名が画面から消えてしまう。
   if (!isLoggedIn || !currentUser) {
     return (
-      <div>
+      <div className="pb-4">
         {chatHeader}
-        <p className="p-4 text-[11px] text-gray-500">ログイン（無料の会員登録）すると使えます。</p>
+        <YyChatGuestDemo />
       </div>
     );
   }
@@ -1082,7 +1126,7 @@ const YyChat: React.FC = () => {
                 const isActive = selectedRoom?.id === room.id;
                 const unread = room.unreadCount?.[currentUser.uid] || 0;
                 const lastMsg = room.lastMessage?.content || '';
-                
+
                 return (
                   <div key={room.id}
                     onClick={() => { setHighlightId(null); setSelectedRoom(room); }}
@@ -1105,7 +1149,7 @@ const YyChat: React.FC = () => {
                       </div>
                       <div className="flex justify-between items-center mt-0.5">
                         <span className="text-xs text-gray-500 truncate max-w-[140px] h-4 leading-4 block">
-                            {lastMsg || <span className="text-gray-300 italic">No messages</span>}
+                            {lastMsg || <span className="text-gray-300">まだ発言はありません</span>}
                         </span>
                         {unread > 0 && <span className="yy-mono text-[#52AA96] text-[10px] font-bold min-w-[18px] text-right leading-none" title="未読">{unread}</span>}
                       </div>
@@ -1134,7 +1178,7 @@ const YyChat: React.FC = () => {
                       return url ? <img src={url} className="w-full h-full object-cover"/> : getOtherParticipantName(selectedRoom)[0];
                     })()}
                   </div>
-                  
+
                   {isEditingName ? (
                     <div className="flex items-center gap-1">
                         <input 
@@ -1525,7 +1569,7 @@ const YyChat: React.FC = () => {
                       </button>
                     )}
                   </div>
-                  
+
                   <label className="block w-full border border-dashed border-gray-400 p-6 text-center cursor-pointer hover:border-[#3b3b3b] hover:bg-gray-50 transition group">
                     <input type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && handleImageSelect(e.target.files[0])} />
                     <FiCamera className="w-4 h-4 mx-auto mb-1 text-gray-500" />
@@ -1553,7 +1597,7 @@ const YyChat: React.FC = () => {
                     <div className="absolute inset-0 pointer-events-none" 
                          style={{background: 'radial-gradient(circle at center, transparent 48%, rgba(0,0,0,0.5) 49%)'}}></div>
                   </div>
-                  
+
                   <div className="flex items-center gap-3 px-2">
                     <span className="text-xs text-gray-500">－</span>
                     <input type="range" min="0.5" max="3" step="0.1" value={iconScale} onChange={e => setIconScale(parseFloat(e.target.value))} className="flex-1 accent-[#3b3b3b] h-1 bg-gray-200 appearance-none" />
