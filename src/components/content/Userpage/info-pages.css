@@ -171,3 +171,47 @@
 .yy-di-edit__act { display: flex; justify-content: flex-end; gap: 8px; }
 
 .yy-di-none { padding: 40px 0; font-size: 12px; color: var(--yy-t3); text-align: center; }
+
+/* ── 読みやすさ(2026-11-14)──────────────────────────────
+   設計情報の本文:文字を 14px・行間 2 に上げ、段落・見出しの間をあける。
+   本文の書き方(## 見出し / ### 小見出し / - 箇条書き / 1. 番号 / | 表 | / > 注意書き)を、それぞれの組み方で出す。 */
+.yy-di-content { max-width: 44em; }
+.yy-di-p { margin: 12px 0 0; font-size: 14px; line-height: 2; letter-spacing: 0.02em; }
+.yy-di-p strong, .yy-di-ul strong, .yy-di-ol strong, .yy-di-note strong, .yy-di-tbl strong { font-weight: 700; color: var(--yy-ink); }
+.yy-di-ch { margin: 38px 0 6px; font-size: 16px; }
+.yy-di-sub {
+  display: flex; align-items: baseline; gap: 8px; margin: 22px 0 2px; padding: 0; border: 0;
+  font-family: var(--yy-serif); font-size: 14.5px; font-weight: 500; color: var(--yy-ink);
+}
+.yy-di-sub::before { content: ''; flex: 0 0 auto; width: 10px; height: 1px; background: var(--yy-acc); transform: translateY(-4px); }
+.yy-di-ul, .yy-di-ol { margin: 10px 0 0; padding: 0; list-style: none; font-size: 14px; line-height: 1.9; color: var(--yy-ink); }
+.yy-di-ul li, .yy-di-ol li { position: relative; padding: 2px 0 2px 1.6em; }
+.yy-di-ul li::before { content: ''; position: absolute; left: 0.45em; top: 0.95em; width: 5px; height: 5px; border-radius: 50%; background: var(--yy-acc); }
+.yy-di-ol { counter-reset: yy-di-ol; }
+.yy-di-ol li { counter-increment: yy-di-ol; }
+.yy-di-ol li::before {
+  content: counter(yy-di-ol); position: absolute; left: 0; top: 2px; width: 1.2em; text-align: right;
+  font-family: var(--yy-serif); color: var(--yy-acc-ink); font-variant-numeric: lining-nums tabular-nums;
+}
+.yy-di-li { font-size: 14px; line-height: 1.9; }
+.yy-di-tblwrap { margin: 14px 0 0; overflow-x: auto; }
+.yy-di-tbl { min-width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.7; font-variant-numeric: tabular-nums; }
+.yy-di-tbl th { padding: 4px 14px 5px 0; text-align: left; vertical-align: bottom; white-space: nowrap; font-weight: 400; font-size: 11.5px; color: var(--yy-t3); border-bottom: 1px solid var(--yy-ink); }
+.yy-di-tbl td { padding: 7px 14px 7px 0; vertical-align: top; color: var(--yy-ink); border-bottom: 1px solid var(--yy-line); }
+.yy-di-tbl td:first-child { white-space: nowrap; }
+.yy-di-note {
+  margin: 14px 0 0; padding: 10px 14px; border-left: 2px solid var(--yy-acc); background: var(--yy-acc-bg);
+  font-size: 13px; line-height: 1.85; color: var(--yy-t2);
+}
+@media (max-width: 767px) {
+  .yy-di-p, .yy-di-ul, .yy-di-ol { font-size: 14.5px; }
+}
+
+/* 材料情報の表:行を少し高く、文字を 12.5px に。1 列目(名前)は折り返さない。注記は読める濃さに */
+.yy-mi table.yy-mi-tbl { font-size: 12.5px; line-height: 1.7; }
+.yy-mi .yy-mi-tbl td { padding: 7px 14px 7px 0; }
+.yy-mi .yy-mi-tbl td:first-child { white-space: nowrap; }
+.yy-mi .yy-mi-tbl thead th { font-size: 11.5px; padding-right: 14px; }
+.yy-mi .yy-mi-note { font-size: 12px; line-height: 1.85; }
+.yy-mi .yy-mi-ch { font-size: 16px; }
+.yy-mi-main { gap: 34px; }

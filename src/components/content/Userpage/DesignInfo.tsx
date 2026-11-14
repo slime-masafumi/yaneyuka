@@ -244,68 +244,107 @@ const DesignInfo: React.FC<{ embedded?: boolean; initialPost?: string | null }> 
 
 
   // --- コンテンツ整形 ---
-  // 見出し(【…】/ 1. … / A:…)は章として番号を振り、右の目次にも出す
+  // 本文はプレーンテキスト。次の書き方を読みやすい形にして出す(2026-11-14):
+  //   ## 大見出し(番号を振り、右の目次に出す) / ### 小見出し
+  //   - 箇条書き(「・」も可) / 1. 番号付き / | 表 | (1 行目が見出し) / > 注意書き / **強調**
+  // 古い記事(## を使っていない)は従来どおり【…】・「1. 」の行を大見出しとして扱う。
   const formatContent = (content: string) => {
-    // （前回のロジックを維持：空行調整、見出し判定など）
-    const normalizedContent = content.replace(/\n{3,}/g, '\n\n');
-    const lines = normalizedContent.split('\n').map(l => l.trim());
+    const lines = content.replace(/\r/g, '').replace(/\n{3,}/g, '\n\n').split('\n').map((l) => l.trim());
+    const modern = lines.some((l) => l.startsWith('## '));
     const formatted: React.JSX.Element[] = [];
     const heads: { id: string; text: string }[] = [];
-    let currentParagraph: string[] = [];
+    let para: string[] = [];
+    let list: { ordered: boolean; items: string[] } | null = null;
+    let table: string[][] | null = null;
+    let note: string[] = [];
 
-    const flushParagraph = () => {
-      if (currentParagraph.length > 0) {
-        const text = currentParagraph.join(' ').trim();
-        if (text) {
-          formatted.push(
-            <p key={`p-${formatted.length}`} className="yy-di-p">
-              {text}
-            </p>
-          );
-        }
-        currentParagraph = [];
+    // **強調** を <strong> に
+    const inline = (text: string, key: string) => {
+      const parts = text.split(/(\*\*[^*]+\*\*)/g);
+      return parts.map((t, i) => (t.startsWith('**') && t.endsWith('**') && t.length > 4 ? <strong key={`${key}-${i}`}>{t.slice(2, -2)}</strong> : t));
+    };
+    // 日本語の行は空白なしでつなぐ(英数字どうしのときだけ空白)
+    const joinLines = (ls: string[]) => ls.reduce((acc, l) => (acc && /[A-Za-z0-9.,)]$/.test(acc) && /^[A-Za-z0-9(]/.test(l) ? `${acc} ${l}` : acc + l), '');
+
+    const flush = () => {
+      const k = formatted.length;
+      if (para.length) {
+        const text = joinLines(para).trim();
+        if (text) formatted.push(<p key={`p-${k}`} className="yy-di-p">{inline(text, `p${k}`)}</p>);
+        para = [];
       }
+      if (list) {
+        const Tag = list.ordered ? 'ol' : 'ul';
+        formatted.push(
+          <Tag key={`l-${k}`} className={list.ordered ? 'yy-di-ol' : 'yy-di-ul'}>
+            {list.items.map((it, i) => <li key={i}>{inline(it, `l${k}-${i}`)}</li>)}
+          </Tag>
+        );
+        list = null;
+      }
+      if (table) {
+        const [head, ...body] = table;
+        formatted.push(
+          <div key={`t-${k}`} className="yy-di-tblwrap">
+            <table className="yy-di-tbl">
+              <thead><tr>{head.map((c, i) => <th key={i}>{inline(c, `th${k}-${i}`)}</th>)}</tr></thead>
+              <tbody>{body.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}>{inline(c, `td${k}-${i}-${j}`)}</td>)}</tr>)}</tbody>
+            </table>
+          </div>
+        );
+        table = null;
+      }
+      if (note.length) {
+        formatted.push(<p key={`n-${k}`} className="yy-di-note">{inline(joinLines(note), `n${k}`)}</p>);
+        note = [];
+      }
+    };
+    const chapter = (text: string, index: number) => {
+      flush();
+      const id = `yy-di-h-${index}`;
+      heads.push({ id, text });
+      formatted.push(
+        <h5 key={`h-${index}`} id={id} className="yy-di-ch">
+          <span className="yy-di-chno">{String(heads.length).padStart(2, '0')}</span>
+          <span>{text}</span>
+        </h5>
+      );
+    };
+    const sub = (text: string, index: number) => {
+      flush();
+      formatted.push(<h6 key={`s-${index}`} className="yy-di-sub">{text}</h6>);
+    };
+    const addItem = (ordered: boolean, text: string) => {
+      if (para.length || table || note.length || (list && list.ordered !== ordered)) flush();
+      if (!list) list = { ordered, items: [] };
+      list.items.push(text);
     };
 
     lines.forEach((line, index) => {
-      if (!line) {
-        flushParagraph(); return;
+      if (!line) { flush(); return; }
+      if (line.startsWith('## ')) return chapter(line.slice(3).trim(), index);
+      if (line.startsWith('### ')) return sub(line.slice(4).trim(), index);
+      if (line.startsWith('|')) {
+        const cells = line.replace(/^\|/, '').replace(/\|$/, '').split('|').map((c) => c.trim());
+        if (cells.every((c) => /^:?-{2,}:?$/.test(c))) return; // 区切りの行
+        if (!table) { flush(); table = []; }
+        table.push(cells);
+        return;
       }
-      // 見出しパターン
-      if (line.match(/^【.+】/) || line.match(/^\d+\.\s+/) || line.match(/^[A-Z]：/)) {
-        flushParagraph();
-        const id = `yy-di-h-${index}`;
-        heads.push({ id, text: line });
-        formatted.push(
-          <h5 key={`h-${index}`} id={id} className="yy-di-ch">
-            <span className="yy-di-chno">{String(heads.length).padStart(2, '0')}</span>
-            <span>{line}</span>
-          </h5>
-        );
+      if (line.startsWith('> ')) {
+        if (!note.length) flush();
+        note.push(line.slice(2));
+        return;
       }
-      // サブ見出しパターン
-      else if (line.match(/^(種類と特徴|諸元例|一般的な寸法|建築側の必要条件|設置要件|選定基準|必須確認事項|敷設方法)/)) {
-        flushParagraph();
-        formatted.push(
-          <div key={`subh-${index}`} className="yy-di-sub">
-            {line}
-          </div>
-        );
-      }
-      // リストパターン
-      else if (line.match(/^・/)) {
-        flushParagraph();
-        formatted.push(
-          <div key={`li-${index}`} className="yy-di-li">
-            {line}
-          </div>
-        );
-      }
-      else {
-        currentParagraph.push(line);
-      }
+      if (/^[-・]\s*/.test(line) && (line.startsWith('- ') || line.startsWith('・'))) return addItem(false, line.replace(/^(- |・)\s*/, ''));
+      if (modern && /^\d+\.\s+/.test(line)) return addItem(true, line.replace(/^\d+\.\s+/, ''));
+      // 古い書き方の見出し
+      if (!modern && (/^【.+】/.test(line) || /^\d+\.\s+/.test(line) || /^[A-Z]：/.test(line))) return chapter(line, index);
+      if (!modern && /^(種類と特徴|諸元例|一般的な寸法|建築側の必要条件|設置要件|選定基準|必須確認事項|敷設方法)/.test(line)) return sub(line, index);
+      if (list || table || note.length) flush();
+      para.push(line);
     });
-    flushParagraph();
+    flush();
     return { nodes: formatted, heads };
   };
 
