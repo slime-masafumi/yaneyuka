@@ -17,6 +17,8 @@ import { recordContactLog } from '@/lib/contactLogStore'
 import { isChatNicknameOnly, newLogId, todayYmd, type ContactLogEntry } from '@/lib/contactLog'
 import { PRESET_EVENT, takePreset, type MakerConectPreset } from '@/lib/makerConectPreset'
 import PageHead, { Stat } from '@/components/ui/PageHead'
+import FeedPic from '@/components/ui/FeedPic'
+import { makerPhotoMap } from '@/lib/makerPhoto'
 import { SecHead } from '@/components/ui/Sheet'
 import './materials.css'
 
@@ -159,7 +161,8 @@ export default function MakerConect() {
                         disabled={makers.includes(h.name) || makers.length >= MAX_MAKERS}
                         onClick={() => { setMakers((p) => [...p, h.name]); setQ('') }}
                       >
-                        <span>{h.name}</span>
+                        <FeedPic src={data ? makerPhotoMap(data).get(h.name) : undefined} size="mk" />
+                        <span className="yy-mk2-mc__hn">{h.name}</span>
                         <small>{makers.includes(h.name) ? '追加済み' : h.categories.join('・')}</small>
                       </button>
                     </li>
@@ -172,6 +175,7 @@ export default function MakerConect() {
                 {makers.map((m, i) => (
                   <li key={m}>
                     <span className="yy-mk2-cb__no">{String(i + 1).padStart(2, '0')}</span>
+                    <FeedPic src={data ? makerPhotoMap(data).get(m) : undefined} size="mk" />
                     <span className="yy-mk2-cb__name">{m}</span>
                     <button type="button" onClick={() => setMakers((p) => p.filter((x) => x !== m))} aria-label="外す" className="yy-mk2-mc__x">✕</button>
                   </li>

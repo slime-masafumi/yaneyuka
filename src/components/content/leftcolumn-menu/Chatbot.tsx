@@ -53,7 +53,33 @@ type Answer = {
   tools: ToolEntry[];
   followUps: string[];
 };
-type Msg = { role: 'user' | 'bot'; text?: string; answer?: Answer; chips?: string[] };
+/** AI の回答(/api/chatbot)。資料はサイトの中身だけ。off = AI を使わない設定(検索結果だけ出す) */
+type AiSource = { n: number; kind: string; title: string; href: string };
+type Ai = { status: 'loading' | 'done' | 'off' | 'limit' | 'error'; text?: string; sources?: AiSource[] };
+type Msg = { role: 'user' | 'bot'; text?: string; answer?: Answer; chips?: string[]; ai?: Ai; q?: string };
+
+/** 回答の [1] を資料へのリンクに */
+function AiText({ text, sources }: { text: string; sources: AiSource[] }) {
+  return (
+    <>
+      {text.split('\n').map((line, li) => (
+        <p key={li} className="yy-mk2-ai__p">
+          {line.split(/(\[\d+\])/g).map((part, pi) => {
+            const n = part.match(/^\[(\d+)\]$/)?.[1];
+            const src = n ? sources.find((s) => s.n === Number(n)) : undefined;
+            return src ? (
+              <a key={pi} href={src.href} className="yy-mk2-ai__ref" title={`${src.kind}「${src.title}」`}>
+                {n}
+              </a>
+            ) : (
+              <React.Fragment key={pi}>{part}</React.Fragment>
+            );
+          })}
+        </p>
+      ))}
+    </>
+  );
+}
 
 const EXAMPLES = ['折板屋根の結露対策', '外壁をカバー工法で改修したい', '防火地域のサッシの選び方', 'フローリングの表面材の違い', 'ベランダの防水', 'タイルの剥落を防ぐには'];
 
@@ -154,11 +180,33 @@ const Chatbot: React.FC = () => {
     };
   };
 
+  // AI の回答を取りにいく。返ってきたら、その質問の答えの吹き出しに差し込む
+  const askAi = async (q: string, id: string, history: { q: string; a: string }[]) => {
+    const put = (ai: Ai) => setMessages((prev) => prev.map((m) => (m.q === id ? { ...m, ai } : m)));
+    try {
+      const res = await fetch('/api/chatbot/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question: q, history }) });
+      const j = await res.json().catch(() => ({}));
+      if (res.status === 429) return put({ status: 'limit' });
+      if (!res.ok) return put({ status: 'error' });
+      if (j.off) return put({ status: 'off' });
+      put({ status: 'done', text: j.answer || '', sources: j.sources || [] });
+    } catch {
+      put({ status: 'error' });
+    }
+  };
+
   const send = (text?: string) => {
     const q = (text ?? input).trim();
     if (!q) return;
     setInput('');
-    setMessages((prev) => [...prev, { role: 'user', text: q }, answer(q)]);
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    // 直前 2 往復の AI の答えを、続きの質問の手がかりとして渡す
+    const history = messages
+      .filter((m) => m.role === 'bot' && m.ai?.status === 'done' && m.ai.text)
+      .slice(-2)
+      .map((m) => ({ q: messages[messages.indexOf(m) - 1]?.text ?? '', a: m.ai!.text! }));
+    setMessages((prev) => [...prev, { role: 'user', text: q }, { ...answer(q), q: id, ai: { status: 'loading' } }]);
+    askAi(q, id, history);
   };
 
   const reset = () => {
@@ -219,7 +267,7 @@ const Chatbot: React.FC = () => {
       <PageHead
         en="materials"
         title="建材 Chatbot"
-        desc="建材ページの基本知識・メーカー一覧・設計ツールから答えます"
+        desc="建材の基本知識・設計情報・メーカー一覧から、根拠つきで答えます"
         right={
           <>
             <Stat n={knowledge ? knowledge.length : '—'} label="項目" />
@@ -254,6 +302,36 @@ const Chatbot: React.FC = () => {
               }
               return (
                 <div key={i} className="yy-mk2-cb__a">
+                  {m.ai && m.ai.status !== 'off' && (
+                    <div className={`yy-mk2-ai is-${m.ai.status}`}>
+                      <div className="yy-mk2-ai__head">
+                        <span className="yy-label">Answer — 回答</span>
+                        {m.ai.status === 'done' && <span className="yy-mk2-ai__by">サイトの資料から AI がまとめました</span>}
+                      </div>
+                      {m.ai.status === 'loading' && <p className="yy-mk2-ai__wait">資料を読んで回答を書いています…</p>}
+                      {m.ai.status === 'limit' && <p className="yy-mk2-ai__wait">今日の AI 回答の受付は上限に達しました。下の資料からお探しください。</p>}
+                      {m.ai.status === 'error' && <p className="yy-mk2-ai__wait">回答を作れませんでした。少し待ってから送り直すか、下の資料をご覧ください。</p>}
+                      {m.ai.status === 'done' && m.ai.text && (
+                        <>
+                          <div className="yy-mk2-ai__body">
+                            <AiText text={m.ai.text} sources={m.ai.sources ?? []} />
+                          </div>
+                          {(m.ai.sources ?? []).length > 0 && (
+                            <ol className="yy-mk2-ai__src">
+                              {(m.ai.sources ?? []).map((s) => (
+                                <li key={s.n}>
+                                  <span className="yy-mk2-ai__n">{s.n}</span>
+                                  <a href={s.href}>{s.title}</a>
+                                  <span className="yy-mk2-ai__kind">{s.kind}</span>
+                                </li>
+                              ))}
+                            </ol>
+                          )}
+                          <p className="yy-mk2-ai__note">AI の要約です。計画では元の資料と最新の法令・メーカー資料を確かめてください。</p>
+                        </>
+                      )}
+                    </div>
+                  )}
                   {m.text && <p className="yy-mk2-cb__text">{m.text}</p>}
 
                   {m.answer && (
@@ -365,7 +443,8 @@ const Chatbot: React.FC = () => {
             <div className="yy-mk2-kv"><span>建材ページの基本知識</span><span className="yy-leader" /><span>{knowledge ? `${knowledge.length} 項目` : '読み込み中'}</span></div>
             <div className="yy-mk2-kv"><span>メーカー一覧</span><span className="yy-leader" /><span>{makers ? `${makerTotal} 社` : '読み込み中'}</span></div>
             <div className="yy-mk2-kv"><span>設計ツール・一般ツール</span><span className="yy-leader" /><span>{tools.length} 本</span></div>
-            <p className="yy-mk2-note">サイトに載っている中身だけから探します。外部の AI には送りません。</p>
+            <div className="yy-mk2-kv"><span>設計情報の記事・物件カルテの検討項目</span><span className="yy-leader" /><span>47 本 · 54 件</span></div>
+            <p className="yy-mk2-note">回答はサイトに載っている資料だけを根拠に、AI(Anthropic の Claude)がまとめます。質問の文は回答を作るために Anthropic に送られます。個人情報は書かないでください。</p>
           </section>
           <section>
             <SecHead no="III" title="人に聞く" />

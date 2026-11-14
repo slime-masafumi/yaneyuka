@@ -279,7 +279,7 @@ textarea.yy-mk2-in { height: 56px; padding-top: 4px; line-height: 1.6; resize: v
   justify-content: space-between;
   gap: 8px;
   width: 100%;
-  height: 30px;
+  height: 40px;
   align-items: center;
   padding: 0 10px;
   border: 0;
@@ -294,7 +294,10 @@ textarea.yy-mk2-in { height: 56px; padding-top: 4px; line-height: 1.6; resize: v
 .yy-mk2-mc__hits button:disabled { color: var(--yy-t3); cursor: default; }
 .yy-mk2-mc__hits small { min-width: 0; font-size: 10.5px; color: var(--yy-t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .yy-mk2-mc__to { margin: 0; padding: 0; list-style: none; }
-.yy-mk2-mc__to li { display: flex; align-items: center; gap: 10px; height: 32px; border-bottom: 1px solid var(--yy-line); }
+.yy-mk2-mc__to li { display: flex; align-items: center; gap: 10px; height: 42px; border-bottom: 1px solid var(--yy-line); }
+/* 宛先の候補と選んだ社に、建材の表と同じ商品ページの写真(2026-11-14) */
+.yy-mk2-mc__hn { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.yy-mk2-mc__to .yy-mk2-cb__name { flex: 1 1 auto; }
 .yy-mk2-mc__x { margin-left: auto; padding: 0 2px; border: 0; background: none; font-size: 12px; color: var(--yy-t3); cursor: pointer; }
 .yy-mk2-mc__x:hover { color: #c8432f; }
 .yy-mk2-mc__hint { margin: 0; font-size: 11px; line-height: 1.7; color: var(--yy-t3); }
@@ -343,3 +346,24 @@ textarea.yy-mk2-in { height: 56px; padding-top: 4px; line-height: 1.6; resize: v
 .yy-mkf__btn[aria-pressed='true'] { color: var(--yy-acc-ink); border-bottom-color: var(--yy-acc); }
 .yy-mkf__btn[aria-pressed='true'] b { color: var(--yy-acc-ink); }
 .yy-mkf__btn:disabled { cursor: default; opacity: 0.45; }
+
+/* ── 建材Chatbot の AI 回答(/api/chatbot)2026-11-14 ── */
+.yy-mk2-ai { margin: 10px 0 12px; padding: 10px 12px 12px; border-left: 2px solid var(--yy-acc); background: var(--yy-acc-bg); }
+.yy-mk2-ai.is-loading, .yy-mk2-ai.is-limit, .yy-mk2-ai.is-error { border-left-color: var(--yy-line); background: var(--yy-surf); }
+.yy-mk2-ai__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.yy-mk2-ai__by { font-size: 10.5px; color: var(--yy-t3); }
+.yy-mk2-ai__wait { margin: 6px 0 0; font-size: 12px; color: var(--yy-t2); }
+.yy-mk2-ai.is-loading .yy-mk2-ai__wait::after { content: ''; display: inline-block; width: 18px; animation: yy-mk2-dots 1.2s steps(4, end) infinite; overflow: hidden; vertical-align: bottom; }
+@keyframes yy-mk2-dots { 0% { width: 0; } 100% { width: 18px; } }
+.yy-mk2-ai__body { margin-top: 6px; }
+.yy-mk2-ai__p { margin: 0 0 4px; font-size: 13px; line-height: 1.85; color: var(--yy-ink); }
+.yy-mk2-ai__p:empty { display: none; }
+.yy-mk2-ai__ref { display: inline-block; min-width: 15px; margin: 0 1px; padding: 0 3px; border: 1px solid var(--yy-acc); border-radius: 2px; font-family: var(--font-mono), ui-monospace, monospace; font-size: 9.5px; line-height: 14px; text-align: center; vertical-align: 2px; color: var(--yy-acc-ink); text-decoration: none; }
+.yy-mk2-ai__ref:hover { background: var(--yy-acc); color: #fff; }
+.yy-mk2-ai__src { margin: 8px 0 0; padding: 6px 0 0; border-top: 1px solid var(--yy-line); list-style: none; }
+.yy-mk2-ai__src li { display: flex; align-items: baseline; gap: 8px; padding: 2px 0; font-size: 11.5px; }
+.yy-mk2-ai__n { flex: 0 0 auto; width: 16px; font-family: var(--font-mono), ui-monospace, monospace; font-size: 10px; color: var(--yy-acc-ink); }
+.yy-mk2-ai__src a { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--yy-ink); text-decoration: none; }
+.yy-mk2-ai__src a:hover { color: var(--yy-acc-ink); text-decoration: underline; text-underline-offset: 3px; }
+.yy-mk2-ai__kind { flex: 0 0 auto; margin-left: auto; font-size: 10px; color: var(--yy-t3); }
+.yy-mk2-ai__note { margin: 6px 0 0; font-size: 10.5px; color: var(--yy-t3); }

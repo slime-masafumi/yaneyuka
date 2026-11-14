@@ -98,7 +98,7 @@ export function expandQuery(q: string): string {
   return q + extra;
 }
 
-const scoreText = (qg: Gram[], text: string) => {
+export const scoreText = (qg: Gram[], text: string) => {
   if (!qg.length) return 0;
   const t = norm(text);
   let hit = 0;
