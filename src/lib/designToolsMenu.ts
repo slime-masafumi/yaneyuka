@@ -97,7 +97,7 @@ export const DESIGN_TOOL_MENU: DesignToolCategory[] = [
     title: '電気設備',
     description: '',
     subTabs: [
-      { id: 'illumination', label: '照度計算', title: '照度計算', description: '室内照度の計算ツール（準備中）' },
+      { id: 'illumination', label: '照度計算', title: '照度計算', description: '光束法で必要台数と平均照度を出し、室指数と配置の目安を見せる(JIS Z 9110 の推奨照度つき)' },
       { id: 'elec-capacity', label: '電気容量計算', title: '電気容量計算', description: '電気設備容量の計算ツール（準備中）' },
       { id: 'trunk-size', label: '幹線サイズ', title: '幹線サイズ選定', description: '幹線ケーブルサイズの選定ツール（準備中）' },
     ],
