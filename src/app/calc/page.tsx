@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { FORCE_FLOW_PUBLIC } from '@/lib/forceFlowGate';
 import type { Metadata } from 'next';
 import PageHead, { Stat } from '@/components/ui/PageHead';
 import { TOOL_PAGES } from '@/lib/designToolPages';
@@ -12,7 +13,7 @@ export const metadata: Metadata = {
 };
 
 // ツールを 1 本公開するたびにここへ 1 行足す（/lookup/ 側は src/lib/lookup.ts の LOOKUP_TOOL_LINKS）。
-const TOOLS = [
+const ALL_TOOLS = [
   {
     href: '/calc/glass-thickness/',
     title: '必要ガラス厚の計算',
@@ -26,6 +27,8 @@ const TOOLS = [
     field: '構造',
   },
 ];
+/** 構造フローは公開前(src/lib/forceFlowGate.ts) */
+const TOOLS = ALL_TOOLS.filter((t) => FORCE_FLOW_PUBLIC || !t.href.startsWith('/calc/force-flow'));
 
 // 単体ページはまだ無いが、物件カルテの中では使える検討。
 const IN_KARTE = [
@@ -34,7 +37,7 @@ const IN_KARTE = [
 ];
 
 /** 一覧の 1 行：番号 / 名前 + 補足 / 分野 / → */
-function Rows({ rows }: { rows: typeof TOOLS }) {
+function Rows({ rows }: { rows: typeof ALL_TOOLS }) {
   return (
     <ul className="yy-kt-links">
       {rows.map((t, i) => (

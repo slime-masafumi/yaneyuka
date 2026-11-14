@@ -3,13 +3,15 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import ForceFlowLoader from '@/components/forceflow/ForceFlowLoader';
 import { FLOW_ARTICLES, flowArticle } from '@/lib/forceFlowArticles';
+import { FORCE_FLOW_PUBLIC } from '@/lib/forceFlowGate';
 import { FLOW_DISCLAIMER, FLOW_EXCLUSIONS } from '@/lib/forceFlowModel';
 import '@/components/karte/yk.css';
 
 export const dynamicParams = false;
 
 export function generateStaticParams() {
-  return FLOW_ARTICLES.map((a) => ({ example: a.slug }));
+  // 構造設計者のレビュー前は公開しない(src/lib/forceFlowGate.ts)
+  return FORCE_FLOW_PUBLIC ? FLOW_ARTICLES.map((a) => ({ example: a.slug })) : [];
 }
 
 type Params = { params: Promise<{ example: string }> };
@@ -27,7 +29,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
 export default async function ForceFlowExamplePage({ params }: Params) {
   const a = flowArticle((await params).example);
-  if (!a) notFound();
+  if (!a || !FORCE_FLOW_PUBLIC) notFound();
   return (
     <>
       <div className="yk yk-tool">

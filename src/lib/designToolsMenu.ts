@@ -1,3 +1,4 @@
+import { FORCE_FLOW_PUBLIC } from './forceFlowGate';
 /**
  * 設計ツールのメニュー定義（分野7 / ツール38）。
  *
@@ -18,7 +19,7 @@ export type DesignToolCategory = DesignToolEntry & {
   subTabs: DesignToolEntry[];
 };
 
-export const DESIGN_TOOL_MENU: DesignToolCategory[] = [
+const ALL_MENU: DesignToolCategory[] = [
   {
     id: 'design-planning',
     label: '設計計画',
@@ -115,3 +116,9 @@ export const DESIGN_TOOL_MENU: DesignToolCategory[] = [
     ],
   },
 ];
+
+/** 構造フローは構造設計者のレビューが済むまで出さない(src/lib/forceFlowGate.ts) */
+export const DESIGN_TOOL_MENU: DesignToolCategory[] = ALL_MENU.map((c) => ({
+  ...c,
+  subTabs: c.subTabs.filter((t) => t.id !== 'force-flow' || FORCE_FLOW_PUBLIC),
+}));

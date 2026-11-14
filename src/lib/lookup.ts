@@ -10,6 +10,7 @@
  * を再実行して JSON を更新すること。
  */
 import data from '@/data/lookup/items.json';
+import { FORCE_FLOW_PUBLIC } from '@/lib/forceFlowGate';
 
 export type LookupFormat = '計算' | '判定' | '早見' | '選定' | '解説';
 
@@ -63,7 +64,7 @@ export const FORMAT_HELP: Record<LookupFormat, string> = {
  * ツールを 1 本公開するたびにここへ 1 行足せば、索引ページのリンクが差し替わる。
  * key は items.json の item.id。
  */
-export const LOOKUP_TOOL_LINKS: Record<string, { href: string; label: string }> = {
+const ALL_LOOKUP_TOOL_LINKS: Record<string, { href: string; label: string }> = {
   '1-8-01': { href: '/calc/glass-thickness/', label: '計算ツール' },
   '1-8-02': { href: '/calc/glass-thickness/#wind', label: '簡易算定' },
   '1-8-04': { href: '/calc/glass-thickness/', label: '計算ツール' },
@@ -76,6 +77,11 @@ export const LOOKUP_TOOL_LINKS: Record<string, { href: string; label: string }> 
   '2-22-13': { href: '/calc/force-flow/wall-removal/', label: '構造フロー' },
   '2-28-11': { href: '/calc/force-flow/', label: '構造フロー' },
 };
+
+/** 構造フローは公開前はリンクしない(src/lib/forceFlowGate.ts) */
+export const LOOKUP_TOOL_LINKS: Record<string, { href: string; label: string }> = Object.fromEntries(
+  Object.entries(ALL_LOOKUP_TOOL_LINKS).filter(([, v]) => FORCE_FLOW_PUBLIC || !v.href.startsWith('/calc/force-flow')),
+);
 
 /** 索引ページの並び。カルテの分野タブと同じ順 */
 export const LOOKUP_ORDER = ['design', 'structure', 'mep', 'electrical'] as const;

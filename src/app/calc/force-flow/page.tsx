@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { FORCE_FLOW_PUBLIC } from '@/lib/forceFlowGate';
 import type { Metadata } from 'next';
 import ForceFlowLoader from '@/components/forceflow/ForceFlowLoader';
 import { FLOW_ARTICLES } from '@/lib/forceFlowArticles';
@@ -30,6 +32,8 @@ const jsonLd = {
 };
 
 export default function ForceFlowPage() {
+  // 構造設計者のレビュー前は公開しない(src/lib/forceFlowGate.ts)
+  if (!FORCE_FLOW_PUBLIC) notFound();
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />

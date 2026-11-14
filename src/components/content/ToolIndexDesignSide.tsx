@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { FORCE_FLOW_PUBLIC } from '@/lib/forceFlowGate';
 import { DESIGN_TOOL_MENU } from '@/lib/designToolsMenu';
 import { Store, itemStatus, type ItemStatus } from '@/lib/karte/engine';
 import { CATS, ITEMS, itemKey } from '@/lib/karte/masters';
@@ -23,7 +24,8 @@ export const TOOL_TO_ITEM: Record<string, string> = {
   'building-rainwater': '縦樋サイズの選定',
   section: '幅厚比・保有耐力接合',
   portal: '層間変形角・剛性率・偏心率',
-  'force-flow': '荷重・外力の設定',
+  // 構造フローは公開前は出さない(src/lib/forceFlowGate.ts)
+  ...(FORCE_FLOW_PUBLIC ? { 'force-flow': '荷重・外力の設定' } : {}),
   beam: '荷重・外力の設定',
   nvalue: 'N値計算と接合金物',
   'load-calc': '荷重・外力の設定',
@@ -176,7 +178,7 @@ export function DesignIndexSide({ onOpen }: { onOpen: (sub: string) => void }) {
           {[
             ['glass-thickness', 'condensation'],
             ['vent-24h', 'duct-sizing'],
-            ['force-flow', 'section'],
+            ['beam', 'section'],
             ['use-zone', 'building-regulations'],
           ].map(([a, b]) => (
             <li key={a}>

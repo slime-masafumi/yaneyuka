@@ -1,6 +1,7 @@
 // yaneyuka トップページ中央カラム(モック「高級感 3」Q4:ポータルとして密に)。2026-11-13 に作り直した。
 // 本文はサーバーで組み立てて配信 HTML に載せる(検索エンジン向け)。案件・NEWS・イベントだけブラウザで読む。
 import fs from 'node:fs';
+import { FORCE_FLOW_PUBLIC } from '@/lib/forceFlowGate';
 import path from 'node:path';
 import Link from 'next/link';
 import { screensInGroup, screenPath } from '@/lib/siteScreens';
@@ -35,7 +36,10 @@ const FAVORITES: Array<{ cat: string; sub: string; tag: string; art: string; des
   { cat: 'detail-design', sub: 'glass-thickness', tag: '意匠', art: 'glass', desc: '風圧力に対する板厚' },
   { cat: 'detail-design', sub: 'condensation', tag: '意匠', art: 'cond', desc: '温度分布と露点' },
   { cat: 'detail-design', sub: 'building-rainwater', tag: '意匠', art: 'rain', desc: '軒樋・ルーフドレン' },
-  { cat: 'structural-design', sub: 'force-flow', tag: '構造', art: 'force', desc: '力の流れを実寸で' },
+  // 構造フローは公開前(src/lib/forceFlowGate.ts)。それまでは荷重計算を出す
+  FORCE_FLOW_PUBLIC
+    ? { cat: 'structural-design', sub: 'force-flow', tag: '構造', art: 'force', desc: '力の流れを実寸で' }
+    : { cat: 'structural-design', sub: 'load-calc', tag: '構造', art: 'force', desc: '固定・積載・積雪' },
   { cat: 'structural-design', sub: 'section', tag: '構造', art: 'sect', desc: '断面二次モーメント等' },
   { cat: 'mechanical', sub: 'vent-24h', tag: '設備', art: 'vent', desc: 'シックハウス対策の換気量' },
   { cat: 'mechanical', sub: 'duct-sizing', tag: '設備', art: 'duct', desc: '風量・許容圧損から' },
