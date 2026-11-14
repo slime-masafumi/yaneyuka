@@ -201,12 +201,17 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
       () => import('../content/leftcolumn-menu/mak_7_内部床'),
       () => import('../content/leftcolumn-menu/mak_8_内装壁材'),
       () => import('../content/leftcolumn-menu/mak_9_内装天井材'),
+      // プロジェクトの最初の一覧(公共工事・東京)も先に取っておく
+      () => import('../PublicWorksList').then((m) => m.prefetchPublicWorks()),
     ];
+    // 4 本ずつ並べて読む(1 本ずつだと、開いた直後に押されたとき間に合わない)
     let i = 0;
     let stopped = false;
     const next = () => {
       if (stopped || i >= loaders.length) return;
-      loaders[i++]().catch(() => {}).finally(() => idle(next));
+      const batch = loaders.slice(i, i + 4);
+      i += 4;
+      Promise.all(batch.map((f) => f().catch(() => {}))).finally(() => idle(next));
     };
     const t = window.setTimeout(() => {
       prefetchApi(['/api/news/', '/api/events/', '/api/new-products/']);
@@ -283,7 +288,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
     // /lookup・/karte・/calc のような実ページへ移ったときは、ツールを閉じてそのページを出す。
     // 以前は無条件に保っていたため、一般ツールを開いたあと「建築の調べもの」を押しても
     // URL だけ /lookup/ に変わって中身は一般ツールのまま、左メニューも 2 つ選ばれていた(2026-11-14)。
-    if (userpageMenus.includes(activeContentRef.current) && normalizedPathname === '/') {
+    // 判定にはブラウザの今の URL も使う。ページの移動(例 /karte)が終わる前にツールを押すと、
+    // 移動が後から届いて pathname が /karte になるが、ブラウザの URL は /?m=… のまま。
+    // そのときにツールを閉じてしまい、URL はツールなのに中身は物件カルテ、という食い違いが起きていた。
+    if (userpageMenus.includes(activeContentRef.current) && (normalizedPathname === '/' || window.location.pathname === '/')) {
       return;
     }
 

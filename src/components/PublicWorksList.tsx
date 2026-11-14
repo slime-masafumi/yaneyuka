@@ -62,20 +62,50 @@ const CATEGORY_STYLES: Record<string, string> = {
   '業務・その他': 'bg-slate-50 text-slate-700 border-slate-100',
 }
 
+// 一覧の結果を、ページを開いている間だけ覚えておく(条件ごと)。2 回目からは取りに行かずに出す(2026-11-14)。
+// 以前は開くたびに 20 件 + 件数のために最大 1,000 件を Firestore から読み、表示まで 1 秒以上かかっていた。
+type ListCache = { works: PublicWork[]; last: QueryDocumentSnapshot<DocumentData> | null; hasMore: boolean; total: number | null }
+const LIST_CACHE = new Map<string, ListCache>()
+const keyOf = (areas: Set<string>, category: string, sort: string) => `${[...areas].sort().join(',')}|${category}|${sort}`
+const DEFAULT_KEY = keyOf(new Set(['東京']), 'all', 'newest')
+const within45 = (dateStr: string) => {
+  if (!dateStr) return false
+  const d = (Date.now() - new Date(dateStr).getTime()) / 86_400_000
+  return d <= 45 && d >= 0
+}
+
+/** 最初に出す条件(東京・全カテゴリ・新しい順)の一覧を先に取っておく(MainLayout が手の空いたときに呼ぶ) */
+export async function prefetchPublicWorks() {
+  if (LIST_CACHE.has(DEFAULT_KEY)) return
+  try {
+    const snap = await getDocs(query(collection(db, 'public_works'), where('area', 'in', ['東京']), orderBy('date', 'desc'), limit(ITEMS_PER_PAGE)))
+    if (LIST_CACHE.has(DEFAULT_KEY)) return
+    const works: PublicWork[] = []
+    snap.forEach((doc) => {
+      const data = doc.data() as PublicWork
+      if (within45(data.date)) works.push({ ...data, id: doc.id } as PublicWork)
+    })
+    LIST_CACHE.set(DEFAULT_KEY, { works, last: snap.docs[snap.docs.length - 1] ?? null, hasMore: snap.docs.length === ITEMS_PER_PAGE, total: null })
+  } catch {
+    // 先取りなので失敗しても何もしない(開いたときに普通に取る)
+  }
+}
+
 export default function PublicWorksList() {
-  const [works, setWorks] = useState<PublicWork[]>([])
+  const first = LIST_CACHE.get(DEFAULT_KEY)
+  const [works, setWorks] = useState<PublicWork[]>(first?.works ?? [])
   const [selectedAreas, setSelectedAreas] = useState<Set<string>>(new Set(['東京'])) // 初期状態は東京のみ表示
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest')
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!first)
   const [loadingMore, setLoadingMore] = useState(false)
-  const [hasMore, setHasMore] = useState(true)
-  const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null)
-  const [activeList, setActiveList] = useState<boolean[]>([])
+  const [hasMore, setHasMore] = useState(first?.hasMore ?? true)
+  const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(first?.last ?? null)
+  const [activeList, setActiveList] = useState<boolean[]>(first ? new Array(first.works.length).fill(true) : [])
   const [availableAreas, setAvailableAreas] = useState<string[]>(PREFECTURE_ORDER)
   const [indexError, setIndexError] = useState<string | null>(null)
   const [useClientSideFilter, setUseClientSideFilter] = useState(false)
-  const [totalCount, setTotalCount] = useState<number | null>(null)
+  const [totalCount, setTotalCount] = useState<number | null>(first?.total ?? null)
   const [loadingCount, setLoadingCount] = useState(false)
   const [isAreaModalOpen, setIsAreaModalOpen] = useState(false)
 
@@ -163,6 +193,9 @@ export default function PublicWorksList() {
       })
       
       setTotalCount(filteredCount)
+      const ck = keyOf(selectedAreas, selectedCategory, sortOrder)
+      const cached = LIST_CACHE.get(ck)
+      if (cached) cached.total = filteredCount
     } catch (error: any) {
       console.error('総件数の取得に失敗しました:', error)
       // エラー時はnullのまま（件数非表示）
@@ -170,7 +203,7 @@ export default function PublicWorksList() {
     } finally {
       setLoadingCount(false)
     }
-  }, [selectedAreas, selectedCategory])
+  }, [selectedAreas, selectedCategory, sortOrder])
 
   // データ取得関数
   const fetchWorks = useCallback(async (reset: boolean = false) => {
@@ -354,6 +387,11 @@ export default function PublicWorksList() {
         setWorks(prev => [...prev, ...filteredWorks])
       }
 
+      if (reset) {
+        const ck = keyOf(selectedAreas, selectedCategory, sortOrder)
+        LIST_CACHE.set(ck, { works: filteredWorks, last: snapshot.docs[snapshot.docs.length - 1] ?? null, hasMore: snapshot.docs.length === ITEMS_PER_PAGE, total: LIST_CACHE.get(ck)?.total ?? null })
+      }
+
       // ページネーション用の状態を更新
       if (snapshot.docs.length > 0) {
         setLastVisible(snapshot.docs[snapshot.docs.length - 1])
@@ -391,6 +429,17 @@ export default function PublicWorksList() {
 
   // エリア、カテゴリ、ソート順が変更されたときに再取得
   useEffect(() => {
+    const c = LIST_CACHE.get(keyOf(selectedAreas, selectedCategory, sortOrder))
+    if (c) {
+      setWorks(c.works)
+      setLastVisible(c.last)
+      setHasMore(c.hasMore)
+      setActiveList(new Array(c.works.length).fill(true))
+      setLoading(false)
+      if (c.total != null) setTotalCount(c.total)
+      else fetchTotalCount()
+      return
+    }
     fetchWorks(true)
     fetchTotalCount() // 総件数も更新
     // eslint-disable-next-line react-hooks/exhaustive-deps
