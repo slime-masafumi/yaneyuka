@@ -1,0 +1,161 @@
+{
+  "checked": "2026-11-15",
+  "note": "主催者の公式ページ(または公式 PDF)で日付を確かめた事実だけ。説明文・画像は写さない。summary は自分の言葉で 40 字以内",
+  "items": [
+    {
+      "id": "toshima-shochu-2026",
+      "title": "朋有小学校・西巣鴨中学校 小中連携校及び総合体育場複合施設 基本設計業務委託 プロポーザル",
+      "organizer": "豊島区・豊島区教育委員会",
+      "category": "public",
+      "register": "2026-11-25",
+      "deadline": "2027-01-29",
+      "target": "豊島区の建築設計の競争入札参加資格を持つ者(JV 不可)",
+      "summary": "小中連携校と体育場の複合施設の設計者選定",
+      "url": "https://www.city.toshima.lg.jp/documents/57402/20261110171404.pdf"
+    },
+    {
+      "id": "ishikawa-ono-2026",
+      "title": "金沢港・大野緑地 みなと拠点 アイデアコンテスト",
+      "organizer": "石川県",
+      "category": "public",
+      "register": "2026-11-29",
+      "deadline": "2026-12-06",
+      "target": "空間デザイン部門は年齢・資格不問(個人・グループ可)",
+      "summary": "港の拠点の空間案・事業案を 2 部門で募集",
+      "url": "https://yadokari.net/ishikawa-ono/"
+    },
+    {
+      "id": "hokkaido-hs-2026",
+      "title": "令和 8 年度 高校生建築デザインコンクール",
+      "organizer": "北海道 建設部建築局",
+      "category": "student",
+      "deadline": "2026-11-30",
+      "target": "道内の高校生(個人または 3 名以下・学校経由)",
+      "summary": "北方型住宅を設計する課題",
+      "url": "https://www.pref.hokkaido.lg.jp/kn/kkr/261441.html"
+    },
+    {
+      "id": "lumion-2026",
+      "title": "Lumion 学生コンペティション 2026",
+      "organizer": "有限会社リビングCG",
+      "category": "student",
+      "deadline": "2026-12-21",
+      "target": "国内の学校に在籍する学生(高校〜大学院・専門)",
+      "summary": "Lumion を使った建築表現のコンペ",
+      "url": "https://competition2026.lumion3d.jp/"
+    },
+    {
+      "id": "architect-sheep-2027",
+      "title": "全国学生対抗建築ハッカソン「Architect Sheep」",
+      "organizer": "メ〜テレ・グランハウス一級建築士事務所",
+      "category": "student",
+      "deadline": "2026-11-30",
+      "target": "18 歳以上の建築関連学科の学生(本番 2027-02-12〜14)",
+      "summary": "3 日間のチーム設計ハッカソン",
+      "url": "https://www.nagoyatv.com/architect_sheep/"
+    },
+    {
+      "id": "kinoie-2027",
+      "title": "木の家設計グランプリ 2027",
+      "organizer": "エクスナレッジ・キャリア・ナビゲーション",
+      "category": "student",
+      "deadline": "2027-01-15",
+      "target": "国内の高校〜大学院で建築を学ぶ学生",
+      "summary": "テーマ「澄む家」の木造住宅案",
+      "url": "https://www.dentoumirai.jp/"
+    },
+    {
+      "id": "rui-chuko-2027",
+      "title": "中高生建築コンペ 2027「ひらく住宅」",
+      "organizer": "類設計室 × a.school",
+      "category": "student",
+      "register": "2027-01-04",
+      "deadline": "2027-02-28",
+      "target": "新中 1・中学生・高校生・高専生",
+      "summary": "身近な人のための住宅を設計",
+      "url": "https://shigoto.rui.ne.jp/ruisekkei_competition2027/"
+    },
+    {
+      "id": "yj-housing-2027",
+      "title": "YJ HOUSING COMPETITION 2026/2027",
+      "organizer": "YJ COMPE 事務局(ヤマト住建)",
+      "category": "private",
+      "register": "2026-11-30",
+      "deadline": "2027-01-10",
+      "target": "建築を学ぶ学生〜設計実務者",
+      "summary": "木造住宅の設計案。特選に実施設計権",
+      "url": "https://www.yamatojk.co.jp/yj-compe-lp/"
+    },
+    {
+      "id": "and-award-2026",
+      "title": "第 7 回 アーキニアリング・デザイン・アワード 2026(AND 賞)",
+      "organizer": "A-Forum・AND 賞実行委員会",
+      "category": "private",
+      "deadline": "2026-12-10",
+      "target": "2021〜2026 年 9 月に完成した国内作品の関係者",
+      "summary": "構造と意匠が協働した完成作品の顕彰",
+      "url": "https://a-forum.info/anda/anda.html"
+    },
+    {
+      "id": "sangetsu-2026",
+      "title": "サンゲツデザインアワード 2026",
+      "organizer": "株式会社サンゲツ",
+      "category": "private",
+      "deadline": "2026-12-03",
+      "target": "不問(企業・団体・個人・グループ)",
+      "summary": "壁面デザインの公募",
+      "url": "https://www.sangetsu-award.jp/2026/index.html"
+    },
+    {
+      "id": "adf-2027",
+      "title": "ADF デザインアワード 2027",
+      "organizer": "NPO 青山デザインフォーラム",
+      "category": "private",
+      "deadline": "2026-12-18",
+      "target": "個人・グループ(国籍不問・ADF 会員(無料))",
+      "summary": "用途別カテゴリの建築作品を国際公募",
+      "url": "https://www.adfwebmagazine.jp/design/call-for-entries-adf-design-award-2027/"
+    },
+    {
+      "id": "clt-2026",
+      "title": "CLT DESIGN AWARD 2026 設計コンテスト",
+      "organizer": "一般社団法人 日本CLT協会",
+      "category": "idea",
+      "deadline": "2026-11-16",
+      "target": "設計実務者・建築を学ぶ学生",
+      "summary": "CLT を活かした設計アイデア",
+      "url": "https://clt-design-award.com/"
+    },
+    {
+      "id": "niigata-2026",
+      "title": "令和 8 年度 新潟建築賞設計コンペ(第 47 回 新潟県建築士会競技設計)",
+      "organizer": "公益社団法人 新潟県建築士会",
+      "category": "idea",
+      "deadline": "2027-01-08",
+      "target": "どなたでも(高校生〜実務者)",
+      "summary": "糸魚川駅北の復興のその先を描く",
+      "url": "https://www.025arc.net/activity/compe.html"
+    },
+    {
+      "id": "udc-29",
+      "title": "第 29 回 まちづくり・都市デザイン競技",
+      "organizer": "公益財団法人 都市づくりパブリックデザインセンター",
+      "category": "idea",
+      "register": "2027-03-04",
+      "deadline": "2027-03-11",
+      "target": "資格の記載なし(登録料 5,000 円)",
+      "summary": "生駒市 宝山寺参道地区の再生提案",
+      "url": "https://www.udc.or.jp/publics/index/335/"
+    },
+    {
+      "id": "shibuya-youth-2027",
+      "title": "渋谷まちづくり Youth コンペ 2027",
+      "organizer": "渋谷まちづくり Youth コンペ実行委員会",
+      "category": "idea",
+      "deadline": "2026-12-25",
+      "target": "渋谷に関わる 16〜25 歳",
+      "summary": "渋谷を面白くするアイデアの募集",
+      "url": "https://shibuya-youth.com/"
+    }
+  ]
+}

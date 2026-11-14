@@ -74,6 +74,14 @@ const Projects: React.FC<ProjectsProps> = ({ onNavigateToRegistration, initialCa
           {current.key === 'public' ? (
             <section className="yy-pj-public">
               <Sec no="I" title="公共工事 · 入札情報" right="各発注機関の公告から" />
+              {/* 官公需情報ポータルサイトの利用規約 第 3 条(API を用いている旨の明記とリンク)。2026-11-15 */}
+              <p className="yy-cn-note" style={{ margin: '0 0 8px' }}>
+                この一覧は
+                <a href="https://www.kkj.go.jp/s/" target="_blank" rel="noopener noreferrer" className="yy-dt-link">
+                  官公需情報ポータルサイト
+                </a>
+                の API を利用しています。公告の本文は各発注機関のページでご確認ください。
+              </p>
               <PublicWorksList />
             </section>
           ) : (

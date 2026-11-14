@@ -2,141 +2,67 @@
 
 import React, { useState } from 'react';
 import PageHead, { Stat } from '../ui/PageHead';
-import { CountList, RequestPanel, SampleLine, Sec, todayJST } from './ConnectParts';
+import { CountList, RequestPanel, Sec, todayJST } from './ConnectParts';
 import BrickWall from '../ui/BrickWall';
 import FeedPic from '../ui/FeedPic';
+import { useReadLinks } from '@/lib/readLinks';
+import COMPS from '@/data/competitions.json';
 import './connect-pages.css';
 
-interface CompetitionItem {
+/**
+ * コンペ。2026-11-14 に架空の見本を外し、主催者・自治体の公式ページから「事実 + リンク」だけを載せる形にした。
+ * 名称・主催・締切・対象は src/data/competitions.json(公式ページで確かめた値。説明文・画像は写さない)。
+ * 一覧は馬目地のレンガ(1 枚 1 件。締切を大きく)、右に締切が近いもの。
+ */
+type Comp = {
   id: string;
   title: string;
   organizer: string;
-  outline: string;
-  schedule: string;
   category: 'public' | 'private' | 'student' | 'idea';
-  image: string;
-}
+  /** 応募(提出)の締切 YYYY-MM-DD */
+  deadline: string;
+  /** 参加表明・登録の締切(あれば) */
+  register?: string;
+  target: string;
+  summary?: string;
+  url: string;
+};
+
+const DATA = COMPS as { checked: string; items: Comp[] };
+
+const TABS: { key: Comp['category'] | 'all'; label: string }[] = [
+  { key: 'all', label: 'すべて' },
+  { key: 'public', label: '公共' },
+  { key: 'private', label: '民間' },
+  { key: 'student', label: '学生' },
+  { key: 'idea', label: 'アイデア' },
+];
+const LABEL: Record<Comp['category'], string> = { public: '公共', private: '民間', student: '学生', idea: 'アイデア' };
 
 interface CompetitionsProps {
   onNavigateToRegistration?: () => void;
 }
 
 const Competitions: React.FC<CompetitionsProps> = ({ onNavigateToRegistration }) => {
-  const [activeCategory, setActiveCategory] = useState<string>('public');
-  const [isTransitioning, setIsTransitioning] = useState<boolean>(false);
-
-  const data: Record<string, CompetitionItem[]> = {
-    public: [
-      {
-        id: 'comp-public-1',
-        title: '市民ホール設計プロポーザル',
-        organizer: '某市役所',
-        outline: '1,000席規模の多目的ホールの基本設計案募集',
-        schedule: '募集: 2025/11/01〜12/15',
-        category: 'public',
-        image: '/image/demo project.webp?v=1'
-      },
-      {
-        id: 'comp-public-2',
-        title: '駅前広場基本計画コンペ',
-        organizer: '某自治体',
-        outline: '交通結節点となる広場の再整備構想',
-        schedule: '募集: 2025/11/10〜12/25',
-        category: 'public',
-        image: '/image/demo project.webp?v=1'
-      }
-    ],
-    private: [
-      {
-        id: 'comp-private-1',
-        title: 'ワークプレイス内装提案コンペ',
-        organizer: '某デベロッパー',
-        outline: '2,000㎡規模のオフィス内装デザイン案募集',
-        schedule: '募集: 2025/10/20〜11/30',
-        category: 'private',
-        image: '/image/demo project.webp?v=1'
-      },
-      {
-        id: 'comp-private-2',
-        title: '商業施設ファサード刷新提案',
-        organizer: '某小売グループ',
-        outline: '郊外型モールの外装デザイン刷新',
-        schedule: '募集: 2025/11/05〜12/20',
-        category: 'private',
-        image: '/image/demo project.webp?v=1'
-      }
-    ],
-    student: [
-      {
-        id: 'comp-student-1',
-        title: '学生建築アイデアコンテスト',
-        organizer: '某学会',
-        outline: '次世代キャンパスの学習空間デザイン',
-        schedule: '募集: 2025/10/15〜12/10',
-        category: 'student',
-        image: '/image/demo project.webp?v=1'
-      }
-    ],
-    idea: [
-      {
-        id: 'comp-idea-1',
-        title: '街角ベンチデザインコンペ',
-        organizer: '公共デザイン推進協議会',
-        outline: 'メンテ性と防犯性を両立した街角ベンチ案',
-        schedule: '募集: 2025/11/01〜12/31',
-        category: 'idea',
-        image: '/image/demo project.webp?v=1'
-      }
-    ]
-  };
-
-  const getCurrentItems = (): CompetitionItem[] => data[activeCategory] || [];
-
-  const onClickCategory = (category: string) => {
-    if (category === activeCategory) return;
-    setIsTransitioning(true);
-    setTimeout(() => {
-      setActiveCategory(category);
-      setIsTransitioning(false);
-    }, 250);
-  };
-
-  const showContactForm = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onNavigateToRegistration ? onNavigateToRegistration() : alert('掲載希望フォームを表示します（実装予定）');
-  };
-
-  // ---- 分類は下線タブ、一覧は馬目地のレンガ(1 枚 1 件。締切を大きく。2026-11-14)、右に締切が近いもの ----
-  const TABS: { key: string; label: string }[] = [
-    { key: 'public', label: '公共' },
-    { key: 'private', label: '民間' },
-    { key: 'student', label: '学生' },
-    { key: 'idea', label: 'アイデア' },
-  ];
+  const [tab, setTab] = useState<(typeof TABS)[number]['key']>('all');
+  const { isRead, readProps } = useReadLinks();
   const today = todayJST();
-  // schedule「募集: 2025/11/01〜12/15」から始まりと締切を読む(締切の月が前なら翌年)
-  const term = (s: string) => {
-    const m = s.match(/(\d{4})\/(\d{1,2})\/(\d{1,2})\s*〜\s*(?:(\d{4})\/)?(\d{1,2})\/(\d{1,2})/);
-    if (!m) return null;
-    const p2 = (v: string) => v.padStart(2, '0');
-    const y1 = Number(m[1]);
-    const y2 = m[4] ? Number(m[4]) : Number(m[5]) < Number(m[2]) ? y1 + 1 : y1;
-    return { start: `${y1}-${p2(m[2])}-${p2(m[3])}`, end: `${y2}-${p2(m[5])}-${p2(m[6])}` };
-  };
   const md = (iso: string) => iso.slice(5).replace('-', '.');
   const yy = (iso: string) => (iso.slice(0, 4) !== today.slice(0, 4) ? `’${iso.slice(2, 4)} ` : '');
   const daysLeft = (iso: string) => Math.round((Date.parse(iso) - Date.parse(today)) / 86400000);
-  const leftLabel = (iso?: string) => {
-    if (!iso) return '';
+  const leftLabel = (iso: string) => {
     const d = daysLeft(iso);
     return d < 0 ? '締切済' : d === 0 ? '本日締切' : `あと ${d} 日`;
   };
-  const all = TABS.flatMap((t) => (data[t.key] || []).map((x) => ({ ...x, t: term(x.schedule) })));
-  const open = all.filter((x) => x.t && x.t.end >= today).sort((a, b) => a.t!.end.localeCompare(b.t!.end));
-  const closed = all.filter((x) => x.t && x.t.end < today).sort((a, b) => b.t!.end.localeCompare(a.t!.end));
-  const items = getCurrentItems();
-  const current = TABS.find((t) => t.key === activeCategory);
+  // 次に来る締切: 参加表明・登録の締切がまだなら それ、過ぎていれば応募できないので載せない。無ければ提出の締切
+  const next = (x: Comp): { date: string; kind: string } | null =>
+    x.register ? (x.register >= today ? { date: x.register, kind: '登録締切' } : null) : x.deadline >= today ? { date: x.deadline, kind: '締切' } : null;
+  const open = DATA.items
+    .map((x) => ({ ...x, next: next(x) }))
+    .filter((x): x is Comp & { next: { date: string; kind: string } } => x.next !== null)
+    .sort((a, b) => a.next.date.localeCompare(b.next.date));
+  const items = tab === 'all' ? open : open.filter((x) => x.category === tab);
+  const count = (k: string) => (k === 'all' ? open.length : open.filter((x) => x.category === k).length);
 
   return (
     <div>
@@ -144,13 +70,12 @@ const Competitions: React.FC<CompetitionsProps> = ({ onNavigateToRegistration })
         no="17"
         en="competitions"
         title="コンペ"
-        desc="公共・民間・学生向けなど建築系コンペ情報"
+        desc="設計競技・プロポーザル・学生/アイデアコンペを、主催者の公式ページから"
         right={
           <>
-            <Stat n={all.length} label="件" />
             <Stat n={open.length} label="件 募集中" />
-            <Stat n={TABS.length} label="分類" />
-            <a href="#" onClick={showContactForm} className="yy-stat" style={{ textDecoration: 'none' }}>
+            <Stat n={TABS.length - 1} label="分類" />
+            <a href="/register" className="yy-stat" style={{ textDecoration: 'none' }}>
               掲載希望はコチラ ↗
             </a>
           </>
@@ -159,71 +84,61 @@ const Competitions: React.FC<CompetitionsProps> = ({ onNavigateToRegistration })
 
       <div className="yy-tabs">
         {TABS.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => onClickCategory(t.key)}
-            aria-pressed={activeCategory === t.key}
-            className="yy-tab"
-          >
+          <button key={t.key} type="button" onClick={() => setTab(t.key)} aria-pressed={tab === t.key} className="yy-tab">
             {t.label}
-            <small>{(data[t.key] || []).length}</small>
+            <small>{count(t.key)}</small>
           </button>
         ))}
       </div>
 
       <div className="yy-newspage">
-        <div className={`yy-newspage__main yy-cn-fade${isTransitioning ? ' is-out' : ''}`}>
+        <div className="yy-newspage__main">
           <section className="yy-cn-list">
-            <Sec no="I" title={current?.label} right={`${items.length} 件 · 締切の近い順は右列`} />
-            <SampleLine target="コンペ" onRequest={onNavigateToRegistration} />
+            <Sec no="I" title={TABS.find((t) => t.key === tab)?.label} right={`${items.length} 件 · 締切の近い順 · ${md(DATA.checked)} に公式ページで確認`} />
             {items.length === 0 ? (
-              <p className="yy-home__empty">該当するコンペはありません</p>
+              <p className="yy-home__empty">いま募集中のコンペはありません。</p>
             ) : (
               <BrickWall
                 items={items}
-                label={`${current?.label ?? ''}のコンペ`}
+                label="募集中のコンペ"
                 brick={290}
                 className="yy-brick--card yy-brick--ev"
                 keyOf={(item) => item.id}
-                render={(item, { half }) => {
-                  const t = term(item.schedule);
-                  const d = t ? daysLeft(t.end) : null;
-                  return (
-                    <span
-                      className={`yy-bc${d !== null && d < 0 ? ' is-closed' : ''}`}
-                      title={[item.title, item.outline, `主催: ${item.organizer}`, item.schedule].join(' / ')}
-                    >
-                      <span className="yy-bc__pic">
-                        {/* 写真は見本の共通画像しか無いので、主催と分類の表紙にする */}
-                        <FeedPic size="row" cover={{ label: `COMPE · ${current?.label ?? ''}`, word: item.organizer }} />
-                      </span>
-                      <span className="yy-bc__body">
-                        <span className="yy-bc__big">
-                          {t ? (
-                            <>
-                              <small>締切 </small>
-                              {yy(t.end)}
-                              {md(t.end)}
-                              <small> {leftLabel(t.end)}</small>
-                            </>
-                          ) : (
-                            <small>{item.schedule}</small>
-                          )}
-                        </span>
-                        <span className="yy-bc__title">{item.title}</span>
-                        {!half && (
-                          <span className="yy-bc__sub">
-                            {item.organizer}
-                            {t ? ` · 募集 ${md(t.start)} 〜 ${md(t.end)}` : ''}
-                          </span>
-                        )}
-                      </span>
+                render={(item, { half }) => (
+                  <a
+                    href={item.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`yy-bc${isRead(item.url) ? ' is-read' : ''}`}
+                    title={[item.title, `主催: ${item.organizer}`, `対象: ${item.target}`, item.register ? `登録締切 ${item.register}` : '', `締切 ${item.deadline}`].filter(Boolean).join(' / ')}
+                    {...readProps(item.url)}
+                  >
+                    <span className="yy-bc__pic">
+                      {/* 主催者の画像は使わない(権利のため)。分類と主催の表紙 */}
+                      <FeedPic size="row" cover={{ label: `COMPE · ${LABEL[item.category]}`, word: item.organizer }} />
                     </span>
-                  );
-                }}
+                    <span className="yy-bc__body">
+                      <span className="yy-bc__big">
+                        <small>{item.next.kind} </small>
+                        {yy(item.next.date)}
+                        {md(item.next.date)}
+                        <small> {leftLabel(item.next.date)}</small>
+                      </span>
+                      <span className="yy-bc__title">{item.title}</span>
+                      {!half && (
+                        <span className="yy-bc__sub">
+                          {item.organizer}
+                          {item.register ? ` · 提出 ${md(item.deadline)}` : ''} · {item.target}
+                        </span>
+                      )}
+                    </span>
+                  </a>
+                )}
               />
             )}
+            <p className="yy-cn-note">
+              名称・主催・締切・対象は、各主催者の公式ページで確かめた事実だけを載せています(説明文・画像は転載していません)。応募の前に、必ず公式ページで最新の要項を確かめてください。
+            </p>
           </section>
         </div>
         <aside className="yy-newspage__side">
@@ -231,13 +146,15 @@ const Competitions: React.FC<CompetitionsProps> = ({ onNavigateToRegistration })
             <Sec no="II" title="締切が近いもの" right={`募集中 ${open.length} 件`} />
             {open.length === 0 && <p className="yy-home__empty">いま募集中のコンペはありません</p>}
             <ul className="yy-cn-due">
-              {(open.length ? open : closed).slice(0, 5).map((x) => (
-                <li key={x.id} className={open.length ? '' : 'is-past'}>
-                  <span className="yy-cn-due__d">{md(x.t!.end)}</span>
+              {open.slice(0, 6).map((x) => (
+                <li key={x.id}>
+                  <span className="yy-cn-due__d">{md(x.next.date)}</span>
                   <span className="yy-cn-due__b">
-                    <span className="yy-cn-due__t" title={x.title}>{x.title}</span>
+                    <a className="yy-cn-due__t" href={x.url} target="_blank" rel="noopener noreferrer" title={x.title}>
+                      {x.title}
+                    </a>
                     <span className="yy-cn-due__s">
-                      {x.organizer} · {leftLabel(x.t!.end)}
+                      {x.organizer} · {x.next.kind} {leftLabel(x.next.date)}
                     </span>
                   </span>
                 </li>
@@ -246,19 +163,11 @@ const Competitions: React.FC<CompetitionsProps> = ({ onNavigateToRegistration })
           </section>
           <section>
             <Sec no="III" title="分類" right="件数" />
-            <CountList
-              rows={TABS.map((t) => ({ key: t.key, label: t.label, n: (data[t.key] || []).length }))}
-              active={activeCategory}
-              onPick={onClickCategory}
-            />
+            <CountList rows={TABS.map((t) => ({ key: t.key, label: t.label, n: count(t.key) }))} active={tab} onPick={(k) => setTab(k as typeof tab)} />
           </section>
           <section>
             <Sec no="IV" title="掲載希望" />
-            <RequestPanel
-              what="コンペ"
-              text="設計競技・プロポーザル・アイデアコンペの募集を、この一覧に掲載できます。"
-              onRequest={onNavigateToRegistration}
-            />
+            <RequestPanel what="コンペ" text="設計競技・プロポーザル・アイデアコンペを主催される方は、募集ページの URL をお知らせください。名称・締切・対象を掲載します。" onRequest={onNavigateToRegistration} />
           </section>
         </aside>
       </div>
