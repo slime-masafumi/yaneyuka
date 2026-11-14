@@ -68,11 +68,6 @@ const FeedbackForm: React.FC = () => {
     }
   };
 
-  const handlePrivacyPolicyClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    alert('プライバシーポリシーの詳細ページを表示します（実装予定）');
-  };
-
   return (
     <div className="opacity-100 transition-all duration-500 ease-in-out">
       <div className="flex items-baseline mb-2">

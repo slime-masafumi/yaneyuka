@@ -252,13 +252,8 @@ const Projects: React.FC<ProjectsProps> = ({ onNavigateToRegistration, initialCa
               <i className={`yy-dot${isActive(item.status) ? '' : ' is-none'}`} />
               {item.status}
             </span>
-            <button
-              type="button"
-              className="yy-linkbtn yy-cn-act"
-              onClick={() => alert(`${item.title}の詳細を表示します（実装予定）`)}
-            >
-              詳細
-            </button>
+            {/* 見本のデータなので詳細の画面は無い(以前は「実装予定」のアラートを出していた) */}
+            <span className="yy-cn-act" aria-hidden="true" />
           </div>
         ))}
       </section>

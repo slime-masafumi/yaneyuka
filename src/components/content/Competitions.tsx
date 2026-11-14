@@ -190,11 +190,9 @@ const Competitions: React.FC<CompetitionsProps> = ({ onNavigateToRegistration })
                   const t = term(item.schedule);
                   const d = t ? daysLeft(t.end) : null;
                   return (
-                    <button
-                      type="button"
+                    <span
                       className={`yy-bc${d !== null && d < 0 ? ' is-closed' : ''}`}
                       title={[item.title, item.outline, `主催: ${item.organizer}`, item.schedule].join(' / ')}
-                      onClick={() => alert(`${item.title}の詳細を表示します（実装予定）`)}
                     >
                       <span className="yy-bc__pic">
                         {/* 写真は見本の共通画像しか無いので、主催と分類の表紙にする */}
@@ -221,7 +219,7 @@ const Competitions: React.FC<CompetitionsProps> = ({ onNavigateToRegistration })
                           </span>
                         )}
                       </span>
-                    </button>
+                    </span>
                   );
                 }}
               />
