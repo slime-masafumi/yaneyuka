@@ -6,7 +6,7 @@ import FeedPic from '@/components/ui/FeedPic';
 import { openScreen, screenHref } from '@/lib/openScreen';
 import type { UserpageTarget } from '@/lib/userpageUrl';
 import { Store, itemStatus } from '@/lib/karte/engine';
-import { ITEMS } from '@/lib/karte/masters';
+import { ITEMS, itemKey } from '@/lib/karte/masters';
 
 /**
  * ホーム(モック「高級感 3」Q4)のうち、ブラウザでしか作れない部分。
@@ -45,7 +45,7 @@ export function HomeCase() {
     const p = db.projects.find((x) => x.id === db.current) ?? db.projects[0];
     const studies = db.studies.filter((s) => s.projId === p.id);
     const checks = db.itemChecks[p.id] ?? {};
-    const st = ITEMS.map((it) => ({ it, s: itemStatus(it, studies, p, checks) }));
+    const st = ITEMS.map((it) => ({ it, s: itemStatus(it, studies, p, checks, db.itemRecs?.[p.id]?.[itemKey(it)]) }));
     const live = st.filter((x) => x.s !== 'na');
     setView({
       name: p.name,

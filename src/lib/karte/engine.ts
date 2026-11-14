@@ -101,8 +101,20 @@ export type DB = {
   fnb: Record<string, Fnb>;
   fnbChecks: Record<string, Record<string, boolean>>;
   itemChecks: Record<string, Record<string, boolean>>;
+  /** 項目ごとの記録(物件 id → 項目キー → 記録)。2026-11-14 */
+  itemRecs: Record<string, Record<string, ItemRec>>;
   backTo: TabView;
   current: string;
+};
+
+/** 検討項目 1 つの記録:メモ・判定の入力と結果・確かめたことの印・手で対象外にしたか */
+export type ItemRec = {
+  memo?: string;
+  vals?: Record<string, string>;
+  res?: { verdict: 'ok' | 'ng' | 'info'; summary: string; lines: { k: string; v: string; ng?: boolean }[]; at: string };
+  ticks?: number[];
+  na?: boolean;
+  at?: string;
 };
 
 export const uid = () => Math.random().toString(36).slice(2, 9);
@@ -114,6 +126,7 @@ export function defaultDb(): DB {
     fnb: {},
     fnbChecks: {},
     itemChecks: {},
+    itemRecs: {},
     backTo: 'chart',
     current: DEMO_PROJECT.id,
   };
@@ -152,6 +165,7 @@ export const Store = (() => {
           fnb: d.fnb || {},
           fnbChecks: d.fnbChecks || {},
           itemChecks: d.itemChecks || {},
+          itemRecs: d.itemRecs || {},
           backTo: d.backTo || base.backTo,
           current: d.projects.some((p) => p.id === d.current) ? (d.current as string) : d.projects[0].id,
         };
@@ -415,9 +429,11 @@ export function depShow(k: string, val: string | number): string {
 /* ══════ 検討項目の状態 ══════ */
 export type ItemStatus = 'na' | 'done' | 'todo' | 'warn';
 
-export function itemStatus(it: ItemDef, studies: Study[], p: Project, checks: Record<string, boolean>): ItemStatus {
-  if (it.na && it.na(p)) return 'na';
+export function itemStatus(it: ItemDef, studies: Study[], p: Project, checks: Record<string, boolean>, rec?: ItemRec): ItemStatus {
+  if (rec?.na || (it.na && it.na(p))) return 'na';
   const manual = !!checks[itemKey(it)];
+  // その場の判定を記録した項目:不適合なら要確認、それ以外は済
+  if (rec?.res) return rec.res.verdict === 'ng' ? 'warn' : 'done';
   if (!it.tool) return manual ? 'done' : 'todo';
   const st = studies.find((s) => s.tool === it.tool);
   if (!st) return manual ? 'done' : 'todo';

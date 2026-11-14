@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { DESIGN_TOOL_MENU } from '@/lib/designToolsMenu';
 import { Store, itemStatus, type ItemStatus } from '@/lib/karte/engine';
-import { CATS, ITEMS } from '@/lib/karte/masters';
+import { CATS, ITEMS, itemKey } from '@/lib/karte/masters';
 import { ago, recentTools, setMode, studiesOf, type RecentTool } from '@/lib/caseStudies';
 import { SecHead, useCase } from '@/components/ui/Sheet';
 
@@ -56,7 +56,7 @@ export function useToolStates(): { mode: 'case' | 'free'; states: Record<string,
     if (!db || !p) return;
     const studies = db.studies.filter((s) => s.projId === p.id);
     const checks = db.itemChecks[p.id] ?? {};
-    const byLabel = new Map<string, ItemStatus>(ITEMS.map((it) => [it.label, itemStatus(it, studies, p, checks)]));
+    const byLabel = new Map<string, ItemStatus>(ITEMS.map((it) => [it.label, itemStatus(it, studies, p, checks, db.itemRecs?.[p.id]?.[itemKey(it)])]));
     const saved = studiesOf(p.id);
     const states: Record<string, ToolState> = {};
     for (const c of DESIGN_TOOL_MENU) {

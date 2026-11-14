@@ -10,8 +10,9 @@ import KarteSide, { type Progress } from './KarteSide';
 import PipeView from './PipeView';
 import PageHead, { Stat } from '@/components/ui/PageHead';
 import { ROUGH_LABEL } from '@/lib/karte/glass';
-import { Store, defaultDb, defaultFnb, itemStatus, uid, type DB, type Fnb, type StudyDraft, type TabView, type View } from '@/lib/karte/engine';
-import { CATS, ITEMS, STR_LABEL, USE_LABEL, newProject, type CatKey, type Project, type ToolKey } from '@/lib/karte/masters';
+import { Store, defaultDb, defaultFnb, itemStatus, uid, type DB, type Fnb, type ItemRec, type StudyDraft, type TabView, type View } from '@/lib/karte/engine';
+import { CATS, ITEMS, STR_LABEL, USE_LABEL, itemKey, newProject, type CatKey, type Project, type ToolKey } from '@/lib/karte/masters';
+import { downloadXlsx, printReport } from '@/lib/karte/report';
 import KarteGuide from './KarteGuide';
 
 const TABS: Array<[TabView, string]> = [['chart', 'カルテ'], ...CATS];
@@ -79,6 +80,7 @@ export default function KarteApp() {
   const studies = db.studies.filter((s) => s.projId === db.current);
   const fnb: Fnb = db.fnb[db.current];
   const itemChecks = db.itemChecks[db.current] ?? {};
+  const itemRecs = db.itemRecs?.[db.current] ?? {};
   const fnbChecks = db.fnbChecks[db.current] ?? {};
 
   const isTab = (v: View) => (TABS as Array<[string, string]>).some(([k]) => k === v);
@@ -113,11 +115,16 @@ export default function KarteApp() {
   const deleteStudy = (id: string) => setDb((d) => ({ ...d, studies: d.studies.filter((s) => s.id !== id) }));
   const checkItem = (key: string, on: boolean) =>
     setDb((d) => ({ ...d, itemChecks: { ...d.itemChecks, [d.current]: { ...(d.itemChecks[d.current] ?? {}), [key]: on } } }));
+  const recItem = (key: string, patch: Partial<ItemRec>) =>
+    setDb((d) => {
+      const mine = d.itemRecs?.[d.current] ?? {};
+      return { ...d, itemRecs: { ...d.itemRecs, [d.current]: { ...mine, [key]: { ...(mine[key] ?? {}), ...patch, at: new Date().toISOString() } } } };
+    });
   const changeFnb = (f: Fnb) => setDb((d) => ({ ...d, fnb: { ...d.fnb, [d.current]: f } }));
   const checkFnb = (id: string, on: boolean) =>
     setDb((d) => ({ ...d, fnbChecks: { ...d.fnbChecks, [d.current]: { ...(d.fnbChecks[d.current] ?? {}), [id]: on } } }));
 
-  const statusOf = new Map(ITEMS.map((it) => [it, itemStatus(it, studies, proj, itemChecks)] as const));
+  const statusOf = new Map(ITEMS.map((it) => [it, itemStatus(it, studies, proj, itemChecks, itemRecs[itemKey(it)])] as const));
   const todoOf = (cat: CatKey) => ITEMS.filter((it) => it.cat === cat && statusOf.get(it) === 'todo').length;
   const activeTab: TabView = (isTab(view) ? view : db.backTo || 'chart') as TabView;
 
@@ -205,6 +212,12 @@ export default function KarteApp() {
           <button type="button" className="yy-btn" onClick={createProject}>
             ＋ 新規物件
           </button>
+          <button type="button" className="yy-btn" title="全項目の状態・判定・メモを 1 枚に。印刷の画面で「PDF に保存」を選ぶ" onClick={() => printReport(db)}>
+            確認書 PDF
+          </button>
+          <button type="button" className="yy-btn" title="全項目の状態・判定・メモを Excel(.xlsx)で" onClick={() => downloadXlsx(db)}>
+            確認書 Excel
+          </button>
         </span>
         <span className="yy-kt-case__conds">
           {conds.map((t, i) => (
@@ -236,7 +249,7 @@ export default function KarteApp() {
       {(view === 'design' || view === 'struct' || view === 'mep' || view === 'elec') && (
         <div className="yy-kt-body">
           <div className="yy-kt-main">
-            <ItemsView cat={view} project={proj} studies={studies} checks={itemChecks} onOpen={(tool) => openTool(tool, view)} onCheck={checkItem} />
+            <ItemsView key={`${proj.id}-${view}`} cat={view} project={proj} studies={studies} checks={itemChecks} recs={itemRecs} onOpen={(tool) => openTool(tool, view)} onCheck={checkItem} onRec={recItem} />
           </div>
           {side}
         </div>

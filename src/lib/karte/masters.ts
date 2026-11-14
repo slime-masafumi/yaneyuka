@@ -470,12 +470,13 @@ export const ITEMS: ItemDef[] = [
   { cat: 'design', label: '建蔽率・容積率の算定', basis: '法52条・53条' },
   { cat: 'design', label: '高さ制限・斜線の検討', basis: '法55条・56条' },
   { cat: 'design', label: '日影規制の検討', basis: '法56条の2・別表第4' },
-  { cat: 'design', label: '採光・換気の検討', basis: '令19条・20条の2' },
+  { cat: 'design', label: '採光・換気の検討', basis: '法28条・令19条・20条・20条の2' },
   { cat: 'design', label: '排煙設備の要否', basis: '令126条の2' },
   { cat: 'design', label: '避難経路・歩行距離', basis: '令119条〜126条' },
+  { cat: 'design', label: '階段の寸法', basis: '令23条〜25条' },
   { cat: 'design', label: '2以上の直通階段の要否', basis: '令121条' },
   { cat: 'design', label: '防火区画の検討', basis: '令112条' },
-  { cat: 'design', label: '内装制限の確認', basis: '法35条の2・令128条の3の2' },
+  { cat: 'design', label: '内装制限の確認', basis: '法35条の2・令128条の3の2〜128条の5' },
   {
     cat: 'design',
     label: '必要ガラス厚',
@@ -495,14 +496,14 @@ export const ITEMS: ItemDef[] = [
   /* ── 構造 ── */
   { cat: 'struct', label: '荷重・外力の設定', basis: '令84条〜88条' },
   { cat: 'struct', label: '地盤調査と地耐力の設定', basis: '令93条・H13告1113' },
-  { cat: 'struct', label: '基礎形式の選定', basis: '建築基礎構造設計指針' },
+  { cat: 'struct', label: '基礎形式の選定', basis: '令38条・H12告1347・基礎指針' },
   { cat: 'struct', label: '構造計算ルートの判定', basis: '法20条・令81条' },
   { cat: 'struct', label: '壁量計算・四分割法', basis: '令46条・H12告1352', na: (p) => (p.str !== 'w' ? '木造以外のため対象外' : null) },
-  { cat: 'struct', label: 'N値計算と接合金物', basis: 'H12告示1460', na: (p) => (p.str !== 'w' ? '木造以外のため対象外' : null) },
+  { cat: 'struct', label: 'N値計算と接合金物', basis: '令47条・H12告1460', na: (p) => (p.str !== 'w' ? '木造以外のため対象外' : null) },
   {
     cat: 'struct',
     label: '幅厚比・保有耐力接合',
-    basis: 'H13告示1024',
+    basis: 'S55告1791・1792',
     na: (p) => (p.str !== 's' && p.str !== 'src' ? '鉄骨を含まないため対象外' : null),
   },
   {
@@ -519,7 +520,7 @@ export const ITEMS: ItemDef[] = [
     na: (p) => (p.fl <= 2 && p.str === 'w' ? 'ルート1で完結する規模のため通常は不要' : null),
   },
   { cat: 'struct', label: '特定天井の該当判定', basis: 'H25告示771' },
-  { cat: 'struct', label: '擁壁・山留めの検討', basis: '宅造技術基準・山留め指針' },
+  { cat: 'struct', label: '擁壁・山留めの検討', basis: '令138条・142条・盛土規制法・令136条の3' },
   { cat: 'struct', label: '機器・什器の床荷重', basis: '令85条', tool: 'fnb' },
 
   /* ── 設備 ── */
@@ -527,7 +528,7 @@ export const ITEMS: ItemDef[] = [
   { cat: 'mep', label: '給水管径の決定', basis: 'SHASE-S206' },
   { cat: 'mep', label: '排水管径・勾配', basis: 'SHASE-S206' },
   { cat: 'mep', label: '通気方式の選定', basis: 'SHASE-S206' },
-  { cat: 'mep', label: '衛生器具数の算定', basis: 'SHASE-S206' },
+  { cat: 'mep', label: '衛生器具数の算定', basis: '事務所衛生基準規則17条・SHASE・条例' },
   { cat: 'mep', label: '縦樋サイズの選定', basis: 'SHASE-S206', tool: 'pipe' },
   { cat: 'mep', label: '雨水流出抑制の要否', basis: '自治体条例' },
   { cat: 'mep', label: '換気量の算定', basis: '令20条の2・20条の3', tool: 'fnb' },
@@ -539,7 +540,7 @@ export const ITEMS: ItemDef[] = [
     tool: 'fnb',
     na: (p) => (p.gas === '0' ? 'ガスの引込がないため対象外' : null),
   },
-  { cat: 'mep', label: '消火設備の要否', basis: '消防令10条〜29条' },
+  { cat: 'mep', label: '消火設備の要否', basis: '消防令10条〜20条' },
   {
     cat: 'mep',
     label: '連結送水管の要否',
