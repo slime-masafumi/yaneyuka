@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useEffect, useState } from 'react'
+import { getJson, peekJson } from '@/lib/apiCache';
 import { sanitizeHtml } from '@/lib/sanitize'
 import FeedPic from '@/components/ui/FeedPic'
 import { NEWS_SOURCES } from '@/lib/newsSources'
@@ -71,8 +72,9 @@ export const getSourceHighlightColor = (source: string): { bg: string; border: s
 }
 
 export default function NewsFeed({ onToggleBookmark, isBookmarked, selectedMonth = 'all' }: NewsFeedProps) {
-  const [items, setItems] = useState<NewsItem[]>([])
-  const [loading, setLoading] = useState(true)
+  // 先に取ってあれば(src/lib/apiCache.ts)最初から出す
+  const [items, setItems] = useState<NewsItem[]>(() => peekJson<{ items?: NewsItem[] }>('/api/news/')?.items ?? [])
+  const [loading, setLoading] = useState(() => !peekJson('/api/news/'))
   const [minScoreUsed, setMinScoreUsed] = useState<number>(3)
   const cacheKey = 'newsCache:v1'
   // 建設・建築ドメインに強く寄せるフィルタ
@@ -245,10 +247,10 @@ export default function NewsFeed({ onToggleBookmark, isBookmarked, selectedMonth
       try {
         // --- Aプラン: サーバAPI (/api/news) を試行 ---
         console.log('Fetching from Server API...')
-        const api = await fetch('/api/news', { cache: 'no-store' })
+        // 先に取ってあればその場で返る(src/lib/apiCache.ts)
+        const data = await getJson<{ items?: NewsItem[] }>('/api/news/').catch(() => null)
         
-        if (api.ok) {
-          const data = await api.json()
+        if (data) {
           const arr = (data.items || []) as NewsItem[]
           
           if (arr.length > 0) {

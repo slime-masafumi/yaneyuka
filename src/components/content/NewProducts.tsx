@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { getJson } from '@/lib/apiCache';
 import FeedPic from '@/components/ui/FeedPic';
 import PageHead, { Stat } from '../ui/PageHead';
 import './see-pages.css';
@@ -135,9 +136,8 @@ const NewProducts: React.FC<NewProductsProps> = ({ onNavigateToRegistration }) =
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch('/api/new-products');
-        if (!res.ok) throw new Error(`status ${res.status}`);
-        const json = await res.json();
+        // 先に取ってあればその場で返る(src/lib/apiCache.ts。MainLayout が手の空いたときに取っておく)
+        const json = await getJson<{ items?: ApiItem[] }>('/api/new-products/');
         const items = (json?.items || []) as ApiItem[];
         const mapped: ProductCard[] = items.map(it => ({
           id: it.id,

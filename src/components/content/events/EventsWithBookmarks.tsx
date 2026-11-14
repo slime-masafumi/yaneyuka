@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { getJson, peekJson } from '@/lib/apiCache';
 import FeedPic from '@/components/ui/FeedPic';
 import type { EventItem } from '../../content/EventInfo';
 import { listEventBookmarks, setEventBookmark, deleteEventBookmark } from '@/lib/firebaseUserData';
@@ -27,7 +28,8 @@ export default function EventsWithBookmarks() {
   const uid = currentUser?.uid || null;
   
   const [bookmarks, setBookmarks] = useState<Record<string, EventItem>>({});
-  const [events, setEvents] = useState<ApiEventItem[]>([]);
+  // 先に取ってあれば(src/lib/apiCache.ts)最初から出す
+  const [events, setEvents] = useState<ApiEventItem[]>(() => peekJson<{ items?: ApiEventItem[] }>('/api/events/')?.items ?? []);
   // 'other' も選択できるように復活
   const [region, setRegion] = useState<'all' | 'tokyo' | 'nagoya' | 'osaka' | 'fukuoka' | 'other'>('all');
 
@@ -106,9 +108,8 @@ export default function EventsWithBookmarks() {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const res = await fetch('/api/events');
-        if (!res.ok) return;
-        const json = await res.json();
+        // 先に取ってあればその場で返る(src/lib/apiCache.ts)
+        const json = await getJson<{ items?: ApiEventItem[] }>('/api/events/');
         // API側ですでにソート・加工済みなのでそのままセット
         setEvents(json?.items || []);
       } catch (e) {

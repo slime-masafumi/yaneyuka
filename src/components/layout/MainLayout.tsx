@@ -62,6 +62,7 @@ import { MakerFilterProvider } from '../MakerFilter';
 import { MakerNews, MaterialSide, MaterialSponsor } from '../content/MaterialSide';
 import { INDEX_MENUS } from '@/lib/railMenu';
 import { OPEN_SCREEN_EVENT } from '@/lib/openScreen';
+import { prefetchApi } from '@/lib/apiCache';
 const DesignInfo = dynamic(() => import('../content/Userpage/DesignInfo'), { loading: () => <ToolLoading /> });
 const MaterialInfo = dynamic(() => import('../content/Userpage/MaterialInfo'), { loading: () => <ToolLoading /> });
 const Userpage_top = dynamic(() => import('../content/Userpage/Userpage_top'), { loading: () => <ToolLoading /> });
@@ -167,6 +168,54 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
   const [hasMounted, setHasMounted] = useState(false);
   useEffect(() => {
     setHasMounted(true);
+  }, []);
+
+  // 左メニューを押したら中央がすぐ出るように、最初のページを出したあと手が空いたときに
+  // よく開かれる画面の部品と、NEWS・新製品・イベントのデータを先に読んでおく(2026-11-14)。
+  // 通信を節約する設定(データセーバー)や遅い回線のときはしない。
+  useEffect(() => {
+    const conn = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
+    if (conn?.saveData || /(^|-)2g|3g/.test(conn?.effectiveType || '')) return;
+    const ric = (window as unknown as { requestIdleCallback?: (f: () => void, o?: { timeout: number }) => number }).requestIdleCallback?.bind(window);
+    const idle = (fn: () => void) => (ric ? ric(fn, { timeout: 2000 }) : window.setTimeout(fn, 200));
+    const loaders: Array<() => Promise<unknown>> = [
+      () => import('../content/news/NewsWithBookmarks'),
+      () => import('../content/events/EventsWithBookmarks'),
+      () => import('../content/NewProducts'),
+      () => import('../content/ToolIndex'),
+      () => import('../content/LawsRegulations'),
+      () => import('../content/Qualifications'),
+      () => import('../content/LandscapeCAD'),
+      () => import('../content/BooksSoftware'),
+      () => import('../content/Pickup'),
+      () => import('../content/Userpage/DesignTools'),
+      () => import('../content/Projects'),
+      () => import('../content/Competitions'),
+      () => import('../content/ConstructionCompanies'),
+      () => import('../content/DesignOffices'),
+      () => import('../content/JobInfo'),
+      () => import('../content/Forum'),
+      () => import('../content/ShopContent'),
+      () => import('../content/leftcolumn-menu/mak_1_屋根'),
+      () => import('../content/leftcolumn-menu/mak_2_外壁'),
+      () => import('../content/leftcolumn-menu/mak_7_内部床'),
+      () => import('../content/leftcolumn-menu/mak_8_内装壁材'),
+      () => import('../content/leftcolumn-menu/mak_9_内装天井材'),
+    ];
+    let i = 0;
+    let stopped = false;
+    const next = () => {
+      if (stopped || i >= loaders.length) return;
+      loaders[i++]().catch(() => {}).finally(() => idle(next));
+    };
+    const t = window.setTimeout(() => {
+      prefetchApi(['/api/news/', '/api/events/', '/api/new-products/']);
+      idle(next);
+    }, 800);
+    return () => {
+      stopped = true;
+      window.clearTimeout(t);
+    };
   }, []);
 
   /**
@@ -624,6 +673,18 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
         });
       }, 100);
     }
+  };
+
+  // 左メニューの URL を持つ入口(NEWS・イベント・建材など)を押したとき。サーバーからページが届くのを待たずに
+  // 中央の画面を先に切り替える(届いたあと applyRouteFromUrl が同じ画面を設定する)。2026-11-14
+  const handleRouteClick = (href: string) => {
+    const p = href.endsWith('/') && href !== '/' ? href.slice(0, -1) : href;
+    const mat = parseMaterialPath(p);
+    const content = mat ? mat.category : PATH_TO_CONTENT[p];
+    if (!content) return;
+    setActiveContent(content);
+    activeContentRef.current = content;
+    if (mat) handleSubcategoryFromQuery(mat.category, mat.sub ?? CATEGORY_SUBCATEGORIES[mat.category]?.[0] ?? '');
   };
 
   // refを常に最新のハンドラで更新（documentレベルのイベントハンドラから参照するため）
@@ -1169,7 +1230,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
 
     // サーバーで出すのは children（各ページ本文）だけ。ツールや掲載情報の画面は
     // ログイン状態を前提に読み書きするので、確認が終わるまで組み立てない。
-    if (!authReady && activeContent !== 'topix' && !CATEGORY_SUBCATEGORIES[activeContent]) {
+    // 公開の画面(URL を持つ NEWS・イベント・建材など、ツールの一覧)はログインの確認を待たずに出す。
+    // 待たせていたため、ページを開くたびに Firebase の確認が済むまで「読み込み中」が出ていた(2026-11-14)
+    const isPublicScreen = Boolean(SCREEN_TO_PATH[activeContent]) || (Object.values(INDEX_MENUS) as string[]).includes(activeContent);
+    if (!authReady && activeContent !== 'topix' && !CATEGORY_SUBCATEGORIES[activeContent] && !isPublicScreen) {
       return <ToolLoading />;
     }
 
@@ -1342,6 +1406,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
             <Sidebar
               onPageChange={handleSubcategoryClick}
               onMenuClick={handleMenuClick}
+              onRouteClick={handleRouteClick}
               activeContent={activeContent}
               onLogoClick={() => {
                 // ロゴクリック時はトップページにリセット（URL=/, activeContent=initialContent）

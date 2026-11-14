@@ -18,6 +18,8 @@ import VisitCounter from './VisitCounter';
 
 interface SidebarProps {
   onItemClick?: () => void;
+  /** URL を持つ入口(NEWS・建材など)を押した瞬間に呼ぶ。中央を先に切り替えるため */
+  onRouteClick?: (href: string) => void;
   /** 旧・建材ツリー用。左カラムから建材の小分類を出さなくなったので使っていない(MainLayout からは渡ってくる) */
   onPageChange?: (page: string) => void;
   onLogoClick?: () => void;
@@ -103,7 +105,7 @@ const GROUPS: Array<{ no: string; label: string; items: Entry[] }> = [
   },
 ];
 
-const Sidebar: React.FC<SidebarProps> = ({ onItemClick, onLogoClick, onMenuClick, activeContent = '' }) => {
+const Sidebar: React.FC<SidebarProps> = ({ onItemClick, onLogoClick, onMenuClick, onRouteClick, activeContent = '' }) => {
   const pathname = usePathname() || '/';
   const forumUnread = useForumUnread();
   const { isLoggedIn, currentUser, logout } = useAuth();
@@ -151,6 +153,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onItemClick, onLogoClick, onMenuClick
                     aria-current={on ? 'page' : undefined}
                     onClick={() => {
                       if (e.href === '/') onLogoClick?.();
+                      else onRouteClick?.(e.href!);
                       onItemClick?.();
                     }}
                   >

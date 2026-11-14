@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { getJson } from '@/lib/apiCache';
 import FeedPic from '@/components/ui/FeedPic';
 import { openScreen, screenHref } from '@/lib/openScreen';
 import type { UserpageTarget } from '@/lib/userpageUrl';
@@ -95,9 +96,8 @@ export function HomeNews({ limit = 6 }: { limit?: number }) {
   const [items, setItems] = useState<News[] | null>(null);
   useEffect(() => {
     let alive = true;
-    fetch('/api/news/', { cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : { items: [] }))
-      .then((j) => alive && setItems(((j.items as News[]) || []).slice(0, limit)))
+    getJson<{ items?: News[] }>('/api/news/')
+      .then((j) => alive && setItems((j.items || []).slice(0, limit)))
       .catch(() => alive && setItems([]));
     return () => {
       alive = false;
@@ -133,11 +133,10 @@ export function HomeEvents({ limit = 4 }: { limit?: number }) {
   useEffect(() => {
     let alive = true;
     const today = new Date(Date.now() + 9 * 3600_000).toISOString().slice(0, 10);
-    fetch('/api/events/')
-      .then((r) => (r.ok ? r.json() : { items: [] }))
+    getJson<{ items?: Ev[] }>('/api/events/')
       .then((j) => {
         if (!alive) return;
-        const up = ((j.items as Ev[]) || []).filter((e) => (e.endDate || e.startDate) >= today);
+        const up = (j.items || []).filter((e) => (e.endDate || e.startDate) >= today);
         setItems(up.slice(0, limit));
       })
       .catch(() => alive && setItems([]));
