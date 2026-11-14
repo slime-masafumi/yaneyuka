@@ -237,7 +237,8 @@ export default function EventsWithBookmarks() {
     <BrickWall
       items={list}
       label={done ? '終わったイベント' : 'これからのイベント'}
-      className={done ? 'is-past-wall' : ''}
+      brick={290}
+      className={`yy-brick--card yy-brick--ev${done ? ' is-past-wall' : ''}`}
       keyOf={(ev) => ev.id}
       render={(ev, { half }) => (
         <>

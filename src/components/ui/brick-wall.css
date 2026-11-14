@@ -85,3 +85,11 @@
   .yy-brick--card { --brick-h: 236px; }
   .yy-brick--card .yy-bc__title { font-size: 12.5px; }
 }
+
+/* イベント: 写真の下に会期(大きく)、題は 2 行、いちばん下に地域・会場 */
+.yy-brick--ev .yy-bc__body { gap: 4px; }
+.yy-brick--ev .yy-bc__title { -webkit-line-clamp: 2; }
+.yy-brick--ev .yy-brick__b.is-half .yy-bc__title { -webkit-line-clamp: 2; }
+.yy-brick--ev .yy-bc:has(.yy-pic.is-empty) .yy-bc__big { font-size: 24px; }
+.yy-brick--ev .yy-bc:has(.yy-pic.is-empty) .yy-bc__title { -webkit-line-clamp: 5; }
+.yy-brick--ev .yy-brick__b.is-half .yy-bc:has(.yy-pic.is-empty) .yy-bc__title { -webkit-line-clamp: 6; }

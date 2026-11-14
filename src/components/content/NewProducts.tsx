@@ -231,6 +231,8 @@ const NewProducts: React.FC<NewProductsProps> = ({ onNavigateToRegistration }) =
       <BrickWall
         items={products}
         label="新製品"
+        brick={290}
+        className="yy-brick--card"
         keyOf={(p) => p.id}
         render={(product, { index }) => {
           const meta = (
@@ -247,9 +249,8 @@ const NewProducts: React.FC<NewProductsProps> = ({ onNavigateToRegistration }) =
                 <ProductPhoto product={product} lead={false} />
               </span>
               <span className="yy-bc__body">
-                {meta}
                 <span className="yy-bc__title">{product.title}</span>
-                {product.description ? <span className="yy-bc__sub">{product.description}</span> : !product.link ? <span className="yy-bc__sub">見本 · {product.price}</span> : null}
+                {meta}
               </span>
             </>
           );
@@ -334,25 +335,8 @@ const NewProducts: React.FC<NewProductsProps> = ({ onNavigateToRegistration }) =
             </ol>
             <p className="yy-np-note">提案アイデアや仕様検討の入り口に。各社の公式サイト・業界紙・リリース配信から 3 時間ごとに集めています。</p>
           </section>
-          {sourceCounts.length > 0 && (
-            <section>
-              <div className="yy-sec"><span className="yy-sec__no">III</span><span className="yy-sec__title">配信元</span><span className="yy-sec__right">{sourceCounts.length}</span></div>
-              <ol className="yy-np-toc">
-                {sourceCounts.slice(0, 12).map(([name, n], i) => (
-                  <li key={name}>
-                    <span className="yy-srcrow">
-                      <span className="yy-home__tocno">{String(i + 1).padStart(2, '0')}</span>
-                      <span className="yy-home__toct">{name}</span>
-                      <span className="yy-leader" />
-                      <span className="yy-home__n">{n}</span>
-                    </span>
-                  </li>
-                ))}
-              </ol>
-            </section>
-          )}
           <section>
-            <div className="yy-sec"><span className="yy-sec__no">{sourceCounts.length > 0 ? 'IV' : 'III'}</span><span className="yy-sec__title">掲載希望</span></div>
+            <div className="yy-sec"><span className="yy-sec__no">III</span><span className="yy-sec__title">掲載希望</span></div>
             <div className="yy-gray">
               <span className="yy-gray__title">新製品を載せる</span>
               <span className="yy-gray__text">メーカー・販売店の新製品を、この一覧に掲載できます。</span>
