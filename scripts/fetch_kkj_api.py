@@ -19,6 +19,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import sys
 import time
 import xml.etree.ElementTree as ET
@@ -96,7 +97,30 @@ def fetch_prefecture(code, since):
             time.sleep(wait)
 
 
+# 正式名(都道府県の付いた形)→ 画面で使う短い名前。「東京都」の中の「京都」に当たらないよう、正式名で探す
+FULL_NAMES = {v + ('' if v == '北海道' else '都' if v == '東京' else '府' if v in ('京都', '大阪') else '県'): v for v in PREFECTURES.values()}
+PLACE_RE = re.compile(r'(?:履行場所|工事場所|施工場所|納入場所|履行の場所|工事の場所)[)）:：\s]*([^\n]{0,40})')
+PREF_RE = re.compile('|'.join(sorted(FULL_NAMES, key=len, reverse=True)))
+
+
+def place_area(desc):
+    """説明の「工事場所」「履行場所」に書かれた都道府県(書かれていなければ None)。2026-11-15
+
+    API は発注機関の所在地で都道府県を返す。国の機関は本部が東京のことが多く、
+    茨城・千葉・山梨などの工事が東京に入っていた(東京の 203 件中 21 件、2026-11-15 時点)。
+    """
+    m = PLACE_RE.search(desc or '')
+    if not m:
+        return None
+    p = PREF_RE.search(m.group(1))
+    return FULL_NAMES[p.group(0)] if p else None
+
+
 def to_doc(r, area):
+    # 工事場所に別の都道府県が書かれていれば、そちらに振り分ける
+    placed = place_area(text(r, 'ProjectDescription'))
+    moved = bool(placed and placed != area)
+    area = placed or area
     title = text(r, 'ProjectName')
     link = text(r, 'ExternalDocumentURI')
     issued = text(r, 'CftIssueDate')[:10]
@@ -114,7 +138,8 @@ def to_doc(r, area):
         'link': link,
         'description': '',
         'category': categorize_work(title),
-        'city': text(r, 'CityName'),
+        # 振り分け直したときの市区町村は発注機関のものなので出さない
+        'city': '' if moved else text(r, 'CityName'),
         'kkjKey': text(r, 'Key'),
         'expireAt': (date_obj + timedelta(days=DAYS)).isoformat(),
         'scrapedAt': datetime.now().isoformat(),
