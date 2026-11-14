@@ -221,11 +221,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
     // userpageMenusのメニューが表示されている場合は、pathnameが変更されてもactiveContentを保持
     // activeContentRefを使用して、最新の値を参照する（依存配列に含めないことで無限ループを防ぐ）
     const userpageMenus = USERPAGE_MENUS as readonly string[];
-    if (userpageMenus.includes(activeContentRef.current)) {
+    const normalizedPathname = pathname.endsWith('/') && pathname !== '/' ? pathname.slice(0, -1) : pathname;
+    // ツールを開くと URL は /?m=… になる(pathname は /)。そのときだけツールの画面を保つ。
+    // /lookup・/karte・/calc のような実ページへ移ったときは、ツールを閉じてそのページを出す。
+    // 以前は無条件に保っていたため、一般ツールを開いたあと「建築の調べもの」を押しても
+    // URL だけ /lookup/ に変わって中身は一般ツールのまま、左メニューも 2 つ選ばれていた(2026-11-14)。
+    if (userpageMenus.includes(activeContentRef.current) && normalizedPathname === '/') {
       return;
     }
-
-    const normalizedPathname = pathname.endsWith('/') && pathname !== '/' ? pathname.slice(0, -1) : pathname;
 
     // SPA的に管理されるページ（URL=/のままactiveContentで切替）はURLが/のままなら保持
     // ただしURLが/から離れた場合は実ルート遷移なのでactiveContentをリセットしてchildrenを描画させる
