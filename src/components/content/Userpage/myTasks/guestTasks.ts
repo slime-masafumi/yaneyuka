@@ -20,11 +20,11 @@ export const GUEST_TASKS_KEY = 'yy-guest-mytasks';
 type TaskApi = ReturnType<typeof useTaskContext>;
 
 const DEFAULTS: TaskCategory[] = [
-  { id: '1', title: 'Today', color: 'bg-gray-100', tasks: [] },
-  { id: '2', title: 'Priority', color: 'bg-gray-200', tasks: [] },
-  { id: '3', title: 'Projects', color: 'bg-gray-300', tasks: [] },
-  { id: '4', title: 'Ideas', color: 'bg-gray-400', tasks: [] },
-  { id: '5', title: 'Archive', color: 'bg-gray-500', tasks: [] },
+  { id: '1', title: '今日', color: 'bg-gray-100', tasks: [] },
+  { id: '2', title: '優先', color: 'bg-gray-200', tasks: [] },
+  { id: '3', title: '案件', color: 'bg-gray-300', tasks: [] },
+  { id: '4', title: 'アイデア', color: 'bg-gray-400', tasks: [] },
+  { id: '5', title: '済み', color: 'bg-gray-500', tasks: [] },
 ];
 
 const gid = () => `g${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
@@ -85,7 +85,7 @@ export function useGuestTasks(): TaskApi {
     updateTask: (categoryId, taskId, content, dueDate) => mapTask(categoryId, taskId, (t) => ({ ...t, content, dueDate: dueDate || null })),
     addCategory: async (title, color) => {
       const id = gid();
-      update((prev) => [...prev, { id, title: (title && title.trim()) || `List ${prev.length + 1}`, color: color || 'bg-gray-100', tasks: [] }]);
+      update((prev) => [...prev, { id, title: (title && title.trim()) || `リスト ${prev.length + 1}`, color: color || 'bg-gray-100', tasks: [] }]);
       return id;
     },
     deleteCategory: async (categoryId) => update((prev) => prev.filter((c) => c.id !== categoryId)),

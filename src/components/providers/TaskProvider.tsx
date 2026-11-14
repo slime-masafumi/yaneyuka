@@ -38,11 +38,11 @@ interface TaskContextType {
 }
 
 const DEFAULT_CATEGORIES: TaskCategory[] = [
-  { id: '1', title: 'Today', color: 'bg-gray-100', tasks: [] },
-  { id: '2', title: 'Priority', color: 'bg-gray-200', tasks: [] },
-  { id: '3', title: 'Projects', color: 'bg-gray-300', tasks: [] },
-  { id: '4', title: 'Ideas', color: 'bg-gray-400', tasks: [] },
-  { id: '5', title: 'Archive', color: 'bg-gray-500', tasks: [] },
+  { id: '1', title: '今日', color: 'bg-gray-100', tasks: [] },
+  { id: '2', title: '優先', color: 'bg-gray-200', tasks: [] },
+  { id: '3', title: '案件', color: 'bg-gray-300', tasks: [] },
+  { id: '4', title: 'アイデア', color: 'bg-gray-400', tasks: [] },
+  { id: '5', title: '済み', color: 'bg-gray-500', tasks: [] },
 ];
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
@@ -193,7 +193,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const addCategory = async (title?: string, color?: string): Promise<string> => {
     if (!currentUser) return ''; // 未ログインは guest 側が受け持つ
     const tempId = `tmp-${Date.now()}`
-    const nextTitle = (title && title.trim()) || `List ${(categories?.length || 0) + 1}`
+    const nextTitle = (title && title.trim()) || `リスト ${(categories?.length || 0) + 1}`
     const nextColor = color || 'bg-gray-100'
     // 楽観的にUIへ反映
     setCategories(prev => [...prev, { id: tempId, title: nextTitle, color: nextColor, tasks: [] }])

@@ -1042,20 +1042,24 @@ const ArticleCard = ({
     }
   };
 
-  // 編集モードに入った時、数字のみ抽出してセット
+  // 編集モードに入った時、数字のみ抽出してセット。
+  // 入れるのは「編集に入った瞬間」だけ。同じ法規の別の条文が保存されて article の参照が変わっても、
+  // 編集中の入力を元に戻さない(2026-11-15。以前は [isEditing, article] で入れ直していた)
   useEffect(() => {
     if (isEditing) {
+      const a = article;
       // 既存の「第〇条」などから数字だけを取り出す（編集しやすくする）
       // ただし「附則」などのテキストが入っている場合はそのままにする
-      setEditJo(article.jo.replace(/^第/, '').replace(/条$/, ''));
-      setEditKo(article.ko.replace(/項$/, ''));
-      setEditGo(article.go.replace(/号$/, ''));
+      setEditJo(a.jo.replace(/^第/, '').replace(/条$/, ''));
+      setEditKo(a.ko.replace(/項$/, ''));
+      setEditGo(a.go.replace(/号$/, ''));
 
       if (editorRef.current) {
-        editorRef.current.innerHTML = article.text;
+        editorRef.current.innerHTML = a.text;
       }
     }
-  }, [isEditing, article]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- article の中身の変化では入れ直さない(上のコメント)
+  }, [isEditing, article.id]);
 
   // 数字かどうかを判定（半角数字、全角数字、漢数字に対応）
   const isNumeric = (str: string) => {

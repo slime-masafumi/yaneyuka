@@ -2452,11 +2452,8 @@ type HBeamCatalogEntry = {
                         <button
                           key={m.id}
                           onClick={() => setBeamSupport(m.id as BeamSupport)}
-                          className={`flex-1 py-1.5 px-2 rounded border text-[11px] transition-colors ${
-                            beamSupport === m.id 
-                              ? 'bg-blue-600 text-white border-blue-600' 
-                              : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-                          }`}
+                          aria-pressed={beamSupport === m.id}
+                          className={`yy-dt-opt flex-1 py-1.5 px-2 text-[11px]${beamSupport === m.id ? ' is-on' : ''}`}
                         >
                           {m.label}
                         </button>

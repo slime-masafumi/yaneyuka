@@ -135,14 +135,16 @@ const ColorProposal: React.FC<ColorProposalProps> = ({ defaultTab, hideTabBar })
   }, [customMainColor]);
 
   // 日塗工検索ロジック
-  const handleJpmaSearch = () => {
+  const handleJpmaSearch = (code?: string) => {
+    // 収録例のボタンは setJpmaInput の直後に呼ぶので、まだ古い jpmaInput が見える。押した値を直接受け取る(2026-11-15)
+    const input = code ?? jpmaInput;
     setJpmaResult(null);
     setJpmaError('');
 
-    if (!jpmaInput) return;
+    if (!input) return;
 
     // 入力値の正規化 (全角→半角, 大文字化, 空白削除)
-    let normalized = jpmaInput
+    let normalized = input
       .toUpperCase()
       .replace(/[Ａ-Ｚａ-ｚ０-９]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xFEE0))
       .replace(/\s+/g, '');
@@ -175,7 +177,7 @@ const ColorProposal: React.FC<ColorProposalProps> = ({ defaultTab, hideTabBar })
         setJpmaError(`「${normalized}」は見つかりませんでしたが、候補があります。`);
         // 候補を表示するUIを追加しても良いが、ここでは最初の一つを表示する簡易実装にはせずエラーとする
       } else {
-        setJpmaError(`「${jpmaInput}」は見つかりませんでした。番号を確認してください。`);
+        setJpmaError(`「${input}」は見つかりませんでした。番号を確認してください。`);
       }
     }
   };
@@ -464,7 +466,7 @@ const ColorProposal: React.FC<ColorProposalProps> = ({ defaultTab, hideTabBar })
                   className="flex-1 p-2 border border-gray-300 rounded text-sm uppercase font-mono focus:ring-2 focus:ring-blue-500 outline-none"
                 />
                 <button 
-                  onClick={handleJpmaSearch}
+                  onClick={() => handleJpmaSearch()}
                   className="yy-btn is-primary"
                 >
                   検索
@@ -549,7 +551,7 @@ const ColorProposal: React.FC<ColorProposalProps> = ({ defaultTab, hideTabBar })
                    <button 
                      key={i} 
                      className="px-2 py-1 bg-white border border-gray-200 text-[10px] text-gray-600 rounded hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 transition"
-                     onClick={() => { setJpmaInput(d.code); handleJpmaSearch(); }}
+                     onClick={() => { setJpmaInput(d.code); handleJpmaSearch(d.code); }}
                    >
                      {d.code}
                    </button>

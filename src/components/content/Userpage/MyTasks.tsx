@@ -79,11 +79,11 @@ const COLORS = [
 ];
 
 const DEFAULT_CATEGORIES: TaskCategory[] = [
-  { id: '1', title: 'Today', tasks: [], color: 'bg-gray-100' },
-  { id: '2', title: 'Priority', tasks: [], color: 'bg-gray-200' },
-  { id: '3', title: 'Projects', tasks: [], color: 'bg-gray-300' },
-  { id: '4', title: 'Ideas', tasks: [], color: 'bg-gray-400' },
-  { id: '5', title: 'Archive', tasks: [], color: 'bg-gray-500' },
+  { id: '1', title: '今日', tasks: [], color: 'bg-gray-100' },
+  { id: '2', title: '優先', tasks: [], color: 'bg-gray-200' },
+  { id: '3', title: '案件', tasks: [], color: 'bg-gray-300' },
+  { id: '4', title: 'アイデア', tasks: [], color: 'bg-gray-400' },
+  { id: '5', title: '済み', tasks: [], color: 'bg-gray-500' },
 ];
 
 export default function MyTasks() {
@@ -300,7 +300,7 @@ export default function MyTasks() {
           type="button"
           className="px-2 py-1 text-xs border border-gray-300 bg-white hover:bg-gray-100"
           onClick={async () => {
-            const name = prompt('新しいタスクシート名を入力', `List ${(categories?.length || 0) + 1}`)?.trim() || undefined
+            const name = prompt('新しいタスクシート名を入力', `リスト ${(categories?.length || 0) + 1}`)?.trim() || undefined
             try { await addCategory(name) } catch {}
           }}
         >
