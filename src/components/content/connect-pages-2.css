@@ -246,3 +246,12 @@ select.yy-fr-input { cursor: pointer; }
   .yy-sh-guidetab { margin-left: 0; }
   .yy-sh-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 14px; }
 }
+/* 掲示板: 質問のきっかけ(2026-11-15) */
+.yy-fr-starters { margin-top: 20px; }
+.yy-fr-starters ul { margin: 6px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 24px; }
+.yy-fr-starters li { border-bottom: 1px solid var(--yy-line); }
+.yy-fr-starters button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 0; border: 0; background: none; font: inherit; font-size: 12.5px; color: var(--yy-ink); text-align: left; cursor: pointer; }
+.yy-fr-starters button:hover .yy-fr-starters__t { color: var(--yy-acc-ink); text-decoration: underline; text-underline-offset: 3px; }
+.yy-fr-starters__cat { flex: 0 0 auto; font-family: var(--font-mono), ui-monospace, monospace; font-size: 10px; letter-spacing: 0.08em; color: var(--yy-t3); min-width: 4em; }
+.yy-fr-starters__t { flex: 1 1 auto; min-width: 0; }
+@media (max-width: 767px) { .yy-fr-starters ul { grid-template-columns: 1fr; } }

@@ -27,6 +27,19 @@ const CATEGORIES = [
   '意匠', '構造', '設備', '施工', '法規', '積算', '現場管理', '材料', '内装', '外装'
 ]
 
+/**
+ * 投稿がまだ少ないあいだに出す「質問のきっかけ」(2026-11-15)。架空の投稿は作らない。
+ * 押すと、分類とタイトル・本文の書き出しが入った投稿フォームが開く(ログインが要る)。
+ */
+const STARTERS: { category: string; title: string; content: string }[] = [
+  { category: '法規', title: '排煙設備の要否の考え方', content: ['用途:', '階数・延べ面積:', '検討している室:', '迷っている点:'].join('\n') },
+  { category: '構造', title: '梁せいを抑えたいときの選択肢', content: ['構造種別:', 'スパン:', '荷重の条件:', '今考えている案:'].join('\n') },
+  { category: '設備', title: '電気容量・需要率の見方', content: ['用途・延べ面積:', '主な負荷:', '迷っている点:'].join('\n') },
+  { category: '施工', title: '外壁の取り合いの雨仕舞', content: ['部位・材料:', '下地:', '気になっている点:'].join('\n') },
+  { category: '材料', title: '建材を比べるときの観点', content: ['部位:', '候補のメーカー・製品:', '重視したいこと:'].join('\n') },
+  { category: '現場管理', title: '工程の遅れを取り戻した工夫', content: ['工事の種類・規模:', '遅れた原因:', '試したこと:'].join('\n') },
+]
+
 // 不適切な単語のリスト（悪口など）
 const INAPPROPRIATE_WORDS = [
   'バカ', 'アホ', '馬鹿', '阿呆', '死ね', 'クソ', '糞', 'キモい', 'キモ', 'ウザい', 'うざい',
@@ -383,6 +396,9 @@ export default function Forum() {
   // ブックマークID集合（イベント情報の方式に合わせ、状態を独立保持＋localStorageキャッシュ）
   const [bookmarkIds, setBookmarkIds] = useState<Set<string>>(new Set())
   const [showForm, setShowForm] = useState<boolean>(false)
+  // 「質問のきっかけ」から開いたときの書き出し
+  const [draft, setDraft] = useState<{ category: string; title: string; content: string } | null>(null)
+  const [starterNote, setStarterNote] = useState('')
   // 開いているスレッド（索引の行を押すと、その下に本文と回答を開く）
   const [openIds, setOpenIds] = useState<Set<string>>(new Set())
   const [allOpen, setAllOpen] = useState<boolean>(false)
@@ -632,9 +648,12 @@ export default function Forum() {
           {/* 投稿フォーム（トグル表示） */}
           {uid && showForm && (
             <PostForm
+              key={draft ? draft.title : 'blank'}
               categories={CATEGORIES}
-              defaultCategory={activeCategory === 'ALL' ? CATEGORIES[0] : activeCategory}
-              onSubmit={(data) => { addPost(data); setShowForm(false) }}
+              defaultCategory={draft?.category ?? (activeCategory === 'ALL' ? CATEGORIES[0] : activeCategory)}
+              initialTitle={draft?.title}
+              initialContent={draft?.content}
+              onSubmit={(data) => { addPost(data); setShowForm(false); setDraft(null) }}
             />
           )}
 
@@ -652,6 +671,33 @@ export default function Forum() {
             handleDeleteReply={handleDeleteReply}
             setRawPosts={setRawPosts}
           />
+
+          {/* 投稿がまだ少ないあいだの「質問のきっかけ」 */}
+          {rawPosts.length < 10 && (
+            <section className="yy-fr-starters">
+              <SecHead no="—" title="質問のきっかけ" right="押すと書き出しが入ったフォームが開きます" />
+              <ul>
+                {STARTERS.map((st) => (
+                  <li key={st.title}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!uid) { setStarterNote('質問するには会員登録(無料)・ログインが必要です。左下の「ログイン」からどうぞ。'); return }
+                        setDraft(st)
+                        setShowForm(true)
+                        window.scrollTo({ top: 0, behavior: 'smooth' })
+                      }}
+                    >
+                      <span className="yy-fr-starters__cat">{st.category}</span>
+                      <span className="yy-fr-starters__t">{st.title}</span>
+                      <span aria-hidden="true">→</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              {starterNote && <p className="yy-home__empty">{starterNote}</p>}
+            </section>
+          )}
         </div>
 
         <aside className="yy-newspage__side">
@@ -730,10 +776,10 @@ export default function Forum() {
   )
 }
 
-function PostForm({ onSubmit, categories, defaultCategory }: { onSubmit: (data: { title: string; author: string; content: string; category: string }) => void; categories: string[]; defaultCategory: string }) {
-  const [title, setTitle] = useState('')
+function PostForm({ onSubmit, categories, defaultCategory, initialTitle, initialContent }: { onSubmit: (data: { title: string; author: string; content: string; category: string }) => void; categories: string[]; defaultCategory: string; initialTitle?: string; initialContent?: string }) {
+  const [title, setTitle] = useState(initialTitle ?? '')
   const [author, setAuthor] = useState('')
-  const [content, setContent] = useState('')
+  const [content, setContent] = useState(initialContent ?? '')
   const [message, setMessage] = useState('')
   const [category, setCategory] = useState<string>(defaultCategory)
 
