@@ -1347,7 +1347,7 @@ const ShopContent: React.FC = () => {
             </p>
             <p className="yy-sh-pr">
               <span className="yy-fmt">PR</span>
-              当サイトはアフィリエイト広告を利用しています。Amazonのアソシエイトとして、適格販売により収入を得ています。
+              当サイトはアフィリエイト広告を利用しています。Amazonのアソシエイトとして、適格販売により収入を得ています。価格と在庫は各販売ページでご確認ください。
             </p>
           </div>
 
@@ -1413,9 +1413,7 @@ const ShopContent: React.FC = () => {
                           {descBlock(product)}
                           <div className="yy-sh-foot">
                             {images.length > 1 && <span className="yy-fmt">写真 {currentIndex + 1}/{images.length}</span>}
-                            {product.price > 0 && (
-                              <span className="yy-sh-price">¥{product.price.toLocaleString()}</span>
-                            )}
+                            {/* 価格は手で書いた値だと古くなり、Amazon アソシエイトの規約でも固定の価格表示は認められないので出さない(2026-11-15) */}
                             <span className="yy-sh-links">
                               <a
                                 href={`https:${product.rakutenLink}`}
@@ -1476,9 +1474,7 @@ const ShopContent: React.FC = () => {
                           <h3 className="yy-sh-name">{product.name}</h3>
                           {descBlock(product)}
                           <div className="yy-sh-foot">
-                            {product.price > 0 && (
-                              <span className="yy-sh-price">¥{product.price.toLocaleString()}</span>
-                            )}
+                            {/* 価格は手で書いた値だと古くなり、Amazon アソシエイトの規約でも固定の価格表示は認められないので出さない(2026-11-15) */}
                             <span className="yy-sh-links">
                               {product.amazonLink ? (
                                 <a

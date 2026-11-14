@@ -56,7 +56,7 @@ const onCoverError = (e: React.SyntheticEvent<HTMLImageElement>) => {
 function siteName(url?: string): string {
   if (!url) return '';
   if (/fujisan\.co\.jp/.test(url)) return 'Fujisan';
-  return 'サイト';
+  return '公式サイト';
 }
 
 const BooksSoftware: React.FC<BooksSoftwareProps> = ({ onNavigateToRegistration }) => {
@@ -67,7 +67,7 @@ const BooksSoftware: React.FC<BooksSoftwareProps> = ({ onNavigateToRegistration 
     magazine: [
       {
         id: 'mag2',
-        title: '新建築 最新号',
+        title: '新建築',
         description: '国内外の優れた建築事例を豊富な写真と図面で紹介。',
         price: '',
         image: 'https://img.fujisan.co.jp/images/products/backnumbers/2726263_o.jpg',
@@ -76,7 +76,7 @@ const BooksSoftware: React.FC<BooksSoftwareProps> = ({ onNavigateToRegistration 
       },
       {
         id: 'mag3',
-        title: '建築知識 最新号',
+        title: '建築知識',
         description: '実務に役立つ法規・納まり・ディテールを特集。',
         price: '',
         image: 'https://img.fujisan.co.jp/images/products/684_o.jpg',
@@ -85,7 +85,7 @@ const BooksSoftware: React.FC<BooksSoftwareProps> = ({ onNavigateToRegistration 
       },
       {
         id: 'mag4',
-        title: '住宅建築 最新号',
+        title: '住宅建築',
         description: '住宅設計の先端事例を丁寧に紹介。',
         price: '',
         image: 'https://img.fujisan.co.jp/images/products/backnumbers/2721837_o.jpg',
@@ -94,7 +94,7 @@ const BooksSoftware: React.FC<BooksSoftwareProps> = ({ onNavigateToRegistration 
       },
       {
         id: 'mag5',
-        title: '商店建築 最新号',
+        title: '商店建築',
         description: '店舗デザインと商空間のトレンドを網羅。',
         price: '',
         image: 'https://img.fujisan.co.jp/images/products/backnumbers/2722595_o.jpg',
@@ -103,7 +103,7 @@ const BooksSoftware: React.FC<BooksSoftwareProps> = ({ onNavigateToRegistration 
       },
       {
         id: 'mag6',
-        title: 'a+u 最新号',
+        title: 'a+u',
         description: '国内外の建築と都市を英日バイリンガルで特集。',
         price: '',
         image: 'https://img.fujisan.co.jp/images/products/backnumbers/2722491_p.jpg',
@@ -112,7 +112,7 @@ const BooksSoftware: React.FC<BooksSoftwareProps> = ({ onNavigateToRegistration 
       },
       {
         id: 'mag7',
-        title: 'Casa BRUTUS 最新号',
+        title: 'Casa BRUTUS',
         description: '建築・デザイン・ライフスタイルを横断的に紹介。',
         price: '',
         image: 'https://img.fujisan.co.jp/images/products/backnumbers/2728639_o.jpg',
@@ -121,7 +121,7 @@ const BooksSoftware: React.FC<BooksSoftwareProps> = ({ onNavigateToRegistration 
       },
       {
         id: 'mag8',
-        title: '日経アーキテクチュア 最新号',
+        title: '日経アーキテクチュア',
         description: '業界のニュース、技術、実務情報を深掘り。',
         price: '',
         image: 'https://img.fujisan.co.jp/images/products/backnumbers/2685063_o.jpg',
@@ -130,7 +130,7 @@ const BooksSoftware: React.FC<BooksSoftwareProps> = ({ onNavigateToRegistration 
       },
       {
         id: 'mag9',
-        title: 'ELLE DECOR 最新号',
+        title: 'ELLE DECOR',
         description: '',
         price: '',
         image: 'https://img.fujisan.co.jp/images/products/1281690833_p.jpg',
@@ -142,7 +142,7 @@ const BooksSoftware: React.FC<BooksSoftwareProps> = ({ onNavigateToRegistration 
       },
       {
         id: 'mag10',
-        title: '建築ジャーナル 最新号',
+        title: '建築ジャーナル',
         description: '',
         price: '',
         image: 'https://img.fujisan.co.jp/images/products/backnumbers/2726480_p.jpg',
@@ -154,7 +154,7 @@ const BooksSoftware: React.FC<BooksSoftwareProps> = ({ onNavigateToRegistration 
       },
       {
         id: 'mag11',
-        title: 'CONFORT 最新号',
+        title: 'CONFORT',
         description: '',
         price: '',
         image: 'https://img.fujisan.co.jp/images/products/backnumbers/2726521_p.jpg',
@@ -257,7 +257,7 @@ const BooksSoftware: React.FC<BooksSoftwareProps> = ({ onNavigateToRegistration 
         id: 'software1',
         title: 'Vectorworks',
         description: '2D/3D CADソフトウェア',
-        price: '¥150,000',
+        price: '',
         image: '/image/software1.jpg',
         category: 'software',
         link: 'https://amzn.to/4rzc8ZH',
@@ -270,33 +270,41 @@ const BooksSoftware: React.FC<BooksSoftwareProps> = ({ onNavigateToRegistration 
         id: 'software2',
         title: 'Revit',
         description: 'BIMソフトウェア',
-        price: '¥180,000',
+        price: '',
         image: '/image/software2.jpg',
-        category: 'software'
+        category: 'software',
+        link: 'https://www.autodesk.com/jp/products/revit/overview',
+        isExternal: true
       },
       {
         id: 'software3',
         title: 'AutoCAD',
         description: '2D CADソフトウェア',
-        price: '¥160,000',
+        price: '',
         image: '/image/software3.jpg',
-        category: 'software'
+        category: 'software',
+        link: 'https://www.autodesk.com/jp/products/autocad/overview',
+        isExternal: true
       },
       {
         id: 'software4',
         title: 'SketchUp',
         description: '3Dモデリングソフト',
-        price: '¥80,000',
+        price: '',
         image: '/image/software4.jpg',
-        category: 'software'
+        category: 'software',
+        link: 'https://www.sketchup.com/ja',
+        isExternal: true
       },
       {
         id: 'software5',
         title: 'ARCHICAD',
         description: 'BIMソフトウェア',
-        price: '¥170,000',
+        price: '',
         image: '/image/software5.jpg',
-        category: 'software'
+        category: 'software',
+        link: 'https://graphisoft.com/jp',
+        isExternal: true
       }
     ],
     ai: [
@@ -304,7 +312,7 @@ const BooksSoftware: React.FC<BooksSoftwareProps> = ({ onNavigateToRegistration 
         id: 'ai1',
         title: 'ChatGPT',
         description: 'OpenAIの対話型AI',
-        price: '¥2,000/月～',
+        price: '',
         image: '/image/ChatGPT Image 2025年5月1日 15_33_37.png',
         category: 'ai',
         link: 'https://chat.openai.com/',
@@ -314,7 +322,7 @@ const BooksSoftware: React.FC<BooksSoftwareProps> = ({ onNavigateToRegistration 
         id: 'ai2',
         title: 'Claude',
         description: 'Anthropicの高性能AI',
-        price: '¥2,500/月～',
+        price: '',
         image: '/image/ChatGPT Image 2025年5月1日 15_39_58.png',
         category: 'ai',
         link: 'https://claude.ai/',
@@ -324,7 +332,7 @@ const BooksSoftware: React.FC<BooksSoftwareProps> = ({ onNavigateToRegistration 
         id: 'ai3',
         title: 'Midjourney',
         description: 'AIイメージ生成ツール',
-        price: '¥1,500/月～',
+        price: '',
         image: '/image/ChatGPT Image 2025年5月1日 15_48_44.png',
         category: 'ai',
         link: 'https://www.midjourney.com/',
@@ -334,7 +342,7 @@ const BooksSoftware: React.FC<BooksSoftwareProps> = ({ onNavigateToRegistration 
         id: 'ai4',
         title: 'DALL-E',
         description: 'OpenAIの画像生成AI',
-        price: '従量課金制',
+        price: '',
         image: '/image/ChatGPT Image 2025年5月1日 16_00_25.png',
         category: 'ai',
         link: 'https://openai.com/dall-e-3',
@@ -344,7 +352,7 @@ const BooksSoftware: React.FC<BooksSoftwareProps> = ({ onNavigateToRegistration 
         id: 'ai5',
         title: 'Stable Diffusion',
         description: 'オープンソースの画像生成AI',
-        price: '無料',
+        price: '',
         image: '/image/ChatGPT Image 2025年5月1日 16_21_16.png',
         category: 'ai',
         link: 'https://stability.ai/',
@@ -503,7 +511,8 @@ const BooksSoftware: React.FC<BooksSoftwareProps> = ({ onNavigateToRegistration 
           {item.description && <span className="yy-bk-desc">{item.description}</span>}
         </div>
         <span className="yy-bk-price">
-          {item.price ? item.price : isPR ? <span className="yy-fmt" title="アフィリエイト(広告)リンクを含みます">PR</span> : ''}
+          {/* 価格・料金は変わるので載せない(各販売・公式ページで。2026-11-15) */}
+          {isPR ? <span className="yy-fmt" title="アフィリエイト(広告)リンクを含みます">PR</span> : ''}
         </span>
         <span className="yy-bk-links">{links}</span>
       </li>
