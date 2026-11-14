@@ -110,7 +110,7 @@ export const DESIGN_TOOL_MENU: DesignToolCategory[] = [
     subTabs: [
       { id: 'plant-selection', label: '植栽選定', title: '植栽選定', description: '条件に合った樹種を検索・選定' },
       { id: 'exterior-rainwater', label: '外構雨水', title: '外構雨水', description: '雨水管渠の排水能力（マニング公式）と、埋設管が上を通る車に耐えるか（耐荷重）を判定' },
-      { id: 'slope-calc', label: '勾配計算', title: '勾配計算', description: '外構の勾配計算ツール（準備中）' },
+      { id: 'slope-calc', label: '勾配計算', title: '勾配計算', description: '高低差・水平距離・勾配の換算(% / 1:n / 角度 / 寸)と、傾斜路・車路・水勾配の基準' },
       { id: 'pavement', label: '舗装設計', title: '舗装設計', description: 'アスファルト舗装の構成を TA 法（舗装設計便覧）で決める。使われ方と路床の CBR から必要な厚さを出し、構成を判定' },
     ],
   },

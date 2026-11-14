@@ -17,6 +17,7 @@ import UnitVolumeCalculation from '@/components/content/Userpage/design-tools/6_
 import RainwaterCalculation from '@/components/content/Userpage/design-tools/2_RainwaterCalculation';
 import ExteriorRainwater from '@/components/content/Userpage/design-tools/ExteriorRainwater';
 import PavementDesign from '@/components/content/Userpage/design-tools/PavementDesign';
+import SlopeCalc from '@/components/content/Userpage/design-tools/SlopeCalc';
 import AreaTableLauncher from '@/components/content/Userpage/design-tools/AreaTableLauncher';
 import FireEquipment from '@/components/content/Userpage/design-tools/3_FireEquipment';
 import BuildingRegulations from '@/components/content/Userpage/design-tools/7_BuildingRegulations';
@@ -89,7 +90,7 @@ const TOOL_COMPONENTS: Record<string, React.ReactNode> = {
   'trunk-size': <PlaceholderTool name="幹線サイズ" description="幹線ケーブルサイズの選定ツールです。（準備中）" />,
   'plant-selection': <PlantSelection hideHeader />,
   'exterior-rainwater': <ExteriorRainwater />,
-  'slope-calc': <PlaceholderTool name="勾配計算" description="外構の勾配計算ツールです。（準備中）" />,
+  'slope-calc': <SlopeCalc />,
   'pavement': <PavementDesign />,
 };
 
