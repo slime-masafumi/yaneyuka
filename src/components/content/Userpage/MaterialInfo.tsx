@@ -265,6 +265,67 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
           </div>
         </div>
 
+        <div id="section-43" className="yy-mi-sec" data-cat="arch">
+          <h4 className="yy-mi-ch">床材（フローリング・ビニル床材・タイルカーペット）</h4>
+          <p className="yy-mi-note">フローリングはフローリングの日本農林規格（JAS）、ビニル系床材は JIS A 5705、タイルカーペットは JIS L 4406。「既定」は公共建築工事標準仕様書（建築工事編）令和7年版 19章で特記が無い場合の値。寸法例は主要メーカー品。</p>
+          <div className="yy-mi-scroll">
+            <table className="yy-tbl yy-mi-tbl">
+              <thead>
+                <tr>
+                  <th>材料種別</th>
+                  <th>規格・記号</th>
+                  <th>厚さ・寸法 (mm)</th>
+                  <th>備考</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>単層フローリング（フローリングボード）</td>
+                  <td>JAS</td>
+                  <td>根太張用 12 / 15 / 18、直張用 6〜18</td>
+                  <td>既定：根太張りは厚さ15・幅75以上、直張りは厚さ12以上</td>
+                </tr>
+                <tr>
+                  <td>複合フローリング</td>
+                  <td>JAS</td>
+                  <td>根太張用 12 / 15 / 18、直張用 3〜18</td>
+                  <td>表層：A種 ひき板2以上／B種 突板1.2以上／C種 突板0.25以上</td>
+                </tr>
+                <tr>
+                  <td>複層ビニル床シート（長尺シート）</td>
+                  <td>JIS A 5705　FS</td>
+                  <td>厚さ2.0（既定）、幅1820</td>
+                  <td>発泡層ありは HS、クッションフロアは KS</td>
+                </tr>
+                <tr>
+                  <td>コンポジションビニル床タイル</td>
+                  <td>JIS A 5705　KT</td>
+                  <td>厚さ2.0（既定）、303角・450角など</td>
+                  <td>標準仕様書の既定のタイル</td>
+                </tr>
+                <tr>
+                  <td>複層ビニル床タイル</td>
+                  <td>JIS A 5705　FT</td>
+                  <td>厚さ3.0など、450角など</td>
+                  <td>―</td>
+                </tr>
+                <tr>
+                  <td>タイルカーペット</td>
+                  <td>JIS L 4406</td>
+                  <td>500角、総厚6.5（既定）</td>
+                  <td>既定は第一種ループパイル／部分張替えが可能</td>
+                </tr>
+                <tr>
+                  <td>ビニル幅木</td>
+                  <td>―</td>
+                  <td>厚さ1.5以上、高さ60（既定）</td>
+                  <td>―</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <div id="section-4" className="yy-mi-sec" data-cat="arch">
           <h4 className="yy-mi-ch">タイル・石材・左官材</h4>
           <p className="yy-mi-note">主要なタイル・石材・左官材の代表例。実設計ではメーカー資料・仕様書を確認してください。</p>
@@ -350,13 +411,103 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
                   <td>木毛セメント板</td>
                   <td>厚さ15〜25mm</td>
                   <td>天井・壁</td>
-                  <td>不燃材料／調湿性／耐久性あり</td>
+                  <td>t15以上で準不燃材料（平12建告1401号）／調湿性あり</td>
                 </tr>
                 <tr>
                   <td>不燃化粧パネル</td>
                   <td>3〜5mm（下地合板と併用）</td>
                   <td>キッチン・水回り壁面</td>
                   <td>メラミン化粧板／アルミ複合板など</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="section-42" className="yy-mi-sec" data-cat="arch">
+          <h4 className="yy-mi-ch">石膏ボードの種類と規格（JIS A 6901）</h4>
+          <p className="yy-mi-note">JIS A 6901:2014（せっこうボード製品）の種類・記号と主な厚さ（石膏ボード工業会の資料による）。防火材料は告示で決まる：厚さ12mm以上で不燃材料（平12建告1400号）、9mm以上で準不燃材料（同1401号）、7mm以上で難燃材料（同1402号）。いずれもボード用原紙の厚さの条件付き。製品の大臣認定番号も確認すること。定尺はメーカー品で 910×1820（3×6）・910×2420（3×8）・910×2730（3×9）など。</p>
+          <div className="yy-mi-scroll">
+            <table className="yy-tbl yy-mi-tbl">
+              <thead>
+                <tr>
+                  <th>種類</th>
+                  <th>記号</th>
+                  <th>主な厚さ (mm)</th>
+                  <th>主な用途</th>
+                  <th>備考</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>せっこうボード</td>
+                  <td>GB-R</td>
+                  <td>9.5 / 12.5 / 15.0</td>
+                  <td>壁・天井の下地</td>
+                  <td>9.5は準不燃、12.5以上は不燃（告示の条件）</td>
+                </tr>
+                <tr>
+                  <td>普通硬質せっこうボード</td>
+                  <td>GB-R-H</td>
+                  <td>9.5 / 12.5 / 15.0</td>
+                  <td>間仕切・廊下・腰壁、防火・遮音構造の下地</td>
+                  <td>―</td>
+                </tr>
+                <tr>
+                  <td>シージングせっこうボード</td>
+                  <td>GB-S</td>
+                  <td>9.5 / 12.5 / 15.0 / 16.0</td>
+                  <td>外壁下地・屋根下地・洗面所・台所の下地</td>
+                  <td>防水加工品</td>
+                </tr>
+                <tr>
+                  <td>強化せっこうボード</td>
+                  <td>GB-F</td>
+                  <td>12.5 / 15.0 / 16.0 / 18.0 / 21.0 / 25.0</td>
+                  <td>準耐火・耐火・遮音構造の構成材</td>
+                  <td>防耐火構造は認定仕様どおりに組む</td>
+                </tr>
+                <tr>
+                  <td>構造用せっこうボード</td>
+                  <td>GB-St-A / GB-St-B</td>
+                  <td>GB-F に準じる</td>
+                  <td>耐力壁の面材</td>
+                  <td>GB-F の性能＋くぎ側面抵抗 A種750N以上・B種500N以上</td>
+                </tr>
+                <tr>
+                  <td>せっこうラスボード</td>
+                  <td>GB-L</td>
+                  <td>9.5 / 12.5</td>
+                  <td>プラスター塗りの下地</td>
+                  <td>―</td>
+                </tr>
+                <tr>
+                  <td>化粧せっこうボード</td>
+                  <td>GB-D</td>
+                  <td>9.5 / 12.5 / 15.0</td>
+                  <td>天井・壁の仕上げ</td>
+                  <td>表面化粧済み</td>
+                </tr>
+                <tr>
+                  <td>不燃積層せっこうボード</td>
+                  <td>GB-NC</td>
+                  <td>9.5</td>
+                  <td>内装制限で不燃を求められる壁・天井</td>
+                  <td>9.5mm で不燃材料</td>
+                </tr>
+                <tr>
+                  <td>吸放湿せっこうボード</td>
+                  <td>各記号の末尾に -Hc</td>
+                  <td>元の品種に準じる</td>
+                  <td>調湿を求める居室</td>
+                  <td>例：GB-R-Hc、GB-D-Hc</td>
+                </tr>
+                <tr>
+                  <td>吸音用あなあきせっこうボード</td>
+                  <td>GB-P</td>
+                  <td>9.5 / 12.5</td>
+                  <td>天井の吸音</td>
+                  <td>規格は JIS A 6301</td>
                 </tr>
               </tbody>
             </table>
@@ -379,9 +530,9 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
               <tbody>
                 <tr>
                   <td>押出成形セメント板</td>
-                  <td>t=15〜18mm</td>
-                  <td>外壁下地・化粧外壁</td>
-                  <td>JIS A 5430／不燃認定／下地兼用</td>
+                  <td>t=60mm等（中空板）</td>
+                  <td>外壁・間仕切壁（非耐力）</td>
+                  <td>JIS A 5441（ECP）／不燃認定品</td>
                 </tr>
                 <tr>
                   <td>金属サイディング</td>
@@ -406,6 +557,68 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
                   <td>t=5.5〜6mm</td>
                   <td>屋根・外壁</td>
                   <td>軽量・耐水／旧アスベスト代替</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="section-44" className="yy-mi-sec" data-cat="arch">
+          <h4 className="yy-mi-ch">防水の種類と工法（公共建築工事標準仕様書 9章）</h4>
+          <p className="yy-mi-note">公共建築工事標準仕様書（建築工事編）令和7年版 9章の工法・種別記号・材料規格・標準の厚さ。塗膜防水は膜厚ではなく使用量（kg/㎡、硬化物比重1.0の材料での値）で規定されている。FRP 防水は建築工事編 9章には無く、公共建築木造工事標準仕様書が参照先。</p>
+          <div className="yy-mi-scroll">
+            <table className="yy-tbl yy-mi-tbl">
+              <thead>
+                <tr>
+                  <th>工法</th>
+                  <th>種別記号（例）</th>
+                  <th>主な材料・規格</th>
+                  <th>標準の厚さ・使用量</th>
+                  <th>備考</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>アスファルト防水</td>
+                  <td>A-1〜3（保護密着）・B-1, 2（保護絶縁）・D-1, 2（露出絶縁）・E-1, 2（屋内）</td>
+                  <td>アスファルトルーフィング1500（JIS A 6005）・ストレッチルーフィング1000（JIS A 6022）・防水工事用アスファルト3種（JIS K 2207）</td>
+                  <td>ルーフィングの積層（工程数は種別による）</td>
+                  <td>断熱工法は AI・BI・DI</td>
+                </tr>
+                <tr>
+                  <td>改質アスファルトシート防水</td>
+                  <td>AS-T1〜T4（トーチ工法）・AS-J1（常温粘着工法）</td>
+                  <td>改質アスファルトルーフィングシート（JIS A 6013）</td>
+                  <td>露出単層用 R種 4.0mm以上／AS-T1 は露出複層用 3.0mm以上＋非露出複層用 2.5mm以上</td>
+                  <td>増張り用は 2.5mm以上</td>
+                </tr>
+                <tr>
+                  <td>合成高分子系シート防水（加硫ゴム系）</td>
+                  <td>S-F1（接着）・S-M1（機械的固定）</td>
+                  <td>合成高分子系ルーフィングシート（JIS A 6008）</td>
+                  <td>S-F1：1.2mm／S-M1：1.5mm</td>
+                  <td>断熱工法は SI-F1・SI-M1</td>
+                </tr>
+                <tr>
+                  <td>合成高分子系シート防水（塩ビ樹脂系）</td>
+                  <td>S-F2（接着）・S-M2（機械的固定）</td>
+                  <td>合成高分子系ルーフィングシート（JIS A 6008）</td>
+                  <td>1.5mm（軽歩行仕様は特記で 2.0mm）</td>
+                  <td>断熱工法は SI-F2・SI-M2</td>
+                </tr>
+                <tr>
+                  <td>ウレタンゴム系塗膜防水</td>
+                  <td>X-1（絶縁工法）・X-2（密着工法）</td>
+                  <td>建築用塗膜防水材（JIS A 6021）屋根用・高伸長形</td>
+                  <td>X-1：3.0kg/㎡（通気緩衝シート併用）／X-2：0.3＋2.7kg/㎡</td>
+                  <td>1工程の上限 平場2.5・立上り1.5kg/㎡</td>
+                </tr>
+                <tr>
+                  <td>ゴムアスファルト系塗膜防水</td>
+                  <td>Y-1（地下外壁）・Y-2（屋内）</td>
+                  <td>建築用塗膜防水材（JIS A 6021）</td>
+                  <td>Y-1：7.0kg/㎡／Y-2：4.5kg/㎡（固形分60%の材料）</td>
+                  <td>―</td>
                 </tr>
               </tbody>
             </table>
@@ -685,7 +898,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
                 <tr>
                   <td>高性能グラスウール</td>
                   <td>16K〜24K</td>
-                  <td>0.032〜0.036</td>
+                  <td>0.038（16K）／高密度ほど小さい</td>
                   <td>省エネ住宅・ZEH</td>
                   <td>断熱性良・価格手頃</td>
                   <td>厚み必要／気流止め必須</td>
@@ -709,7 +922,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
                 </tr>
                 <tr>
                   <td>ビーズ法ポリスチレンフォーム（EPS）</td>
-                  <td>A種〜B種</td>
+                  <td>特号・1号〜4号</td>
                   <td>0.032〜0.038</td>
                   <td>外断熱・屋根断熱</td>
                   <td>耐水◎・コスパ良</td>
@@ -797,9 +1010,9 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
                   </tr>
                   <tr>
                     <td><strong>ランナー (U形)</strong></td>
-                    <td>50 / 65 / 75 / 90 / 100 × 40mm (t=0.8mm)</td>
+                    <td>52 / 67 / 77 / 92 / 102 × 40mm (t=0.8mm)</td>
                     <td>壁の上下に固定する受け材</td>
-                    <td>スタッドのサイズに合わせて選択。</td>
+                    <td>スタッドのサイズに合わせて選択（幅はスタッド＋2mm。例：65形スタッド 65×45 にランナー 67×40）。</td>
                   </tr>
                   <tr>
                     <td><strong>振れ止め</strong></td>
@@ -947,20 +1160,20 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
                   <td>9.53</td>
                   <td>71</td>
                   <td>0.560</td>
-                  <td>SD295A</td>
+                  <td>SD295</td>
                   <td>295</td>
                   <td>スラブ・壁配筋・軽構造補強筋</td>
-                  <td>曲げ施工性が良い</td>
+                  <td>曲げ施工性が良い／2020年改正で旧SD295A→SD295</td>
                 </tr>
                 <tr>
                   <td>D13</td>
                   <td>12.7</td>
                   <td>127</td>
                   <td>0.995</td>
-                  <td>SD295A/B</td>
-                  <td>295</td>
+                  <td>SD295 / SD345</td>
+                  <td>295 / 345</td>
                   <td>スラブ主筋・耐力壁補強筋</td>
-                  <td>Bは溶接性が高い</td>
+                  <td>強度区分は構造図の指定による</td>
                 </tr>
                 <tr>
                   <td>D16</td>
@@ -986,7 +1199,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
                   <td>D32</td>
                   <td>31.8</td>
                   <td>794</td>
-                  <td>6.31</td>
+                  <td>6.23</td>
                   <td>SD390</td>
                   <td>390</td>
                   <td>大スパン梁・耐震壁主筋</td>
@@ -999,7 +1212,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
 
         <div id="section-13" className="yy-mi-sec" data-cat="struct">
           <h4 className="yy-mi-ch">H形鋼（JIS G 3192 / 材質：JIS G 3101 SS400, JIS G 3136 SN490等）</h4>
-          <p className="yy-mi-note">代表的な呼称例。実寸・断面性能はカタログ値を参照してください。Ix：主軸方向の断面二次モーメント、構造設計時の曲げ剛性に関与。</p>
+          <p className="yy-mi-note">代表的な呼称例。単位質量・Ix は JIS G 3192 の寸法による鋼材メーカー（日本製鉄）カタログ値。Ix：強軸まわりの断面二次モーメント、構造設計時の曲げ剛性に関与。</p>
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -1016,7 +1229,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
                 <tr>
                   <td>H-150×150×7×10</td>
                   <td>31.1</td>
-                  <td>約1210</td>
+                  <td>1,620</td>
                   <td>一般柱・梁</td>
                   <td>SS400/SN400B</td>
                   <td>曲げ剛性良好／小中規模鉄骨造</td>
@@ -1024,31 +1237,31 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
                 <tr>
                   <td>H-200×200×8×12</td>
                   <td>49.9</td>
-                  <td>約2950</td>
+                  <td>4,720</td>
                   <td>柱・梁（中規模）</td>
                   <td>SN490B</td>
                   <td>軸力設計時は局部座屈に注意</td>
                 </tr>
                 <tr>
                   <td>H-300×150×6.5×9</td>
-                  <td>36.3</td>
-                  <td>約3300</td>
+                  <td>36.7</td>
+                  <td>7,210</td>
                   <td>大梁・門型ラーメン</td>
                   <td>SS400</td>
                   <td>梁成・梁幅バランス注意</td>
                 </tr>
                 <tr>
                   <td>H-400×200×8×13</td>
-                  <td>66.2</td>
-                  <td>約7920</td>
+                  <td>65.4</td>
+                  <td>23,500</td>
                   <td>主梁・耐震架構</td>
                   <td>SN490B</td>
                   <td>施工時の搬入・接合条件確認</td>
                 </tr>
                 <tr>
                   <td>H-588×300×12×20</td>
-                  <td>151</td>
-                  <td>約38000</td>
+                  <td>147</td>
+                  <td>114,000</td>
                   <td>高層柱・大スパン梁</td>
                   <td>SN490C等</td>
                   <td>高力ボルト接合／現場溶接部の熱影響管理</td>
@@ -1060,7 +1273,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
 
         <div id="section-14" className="yy-mi-sec" data-cat="struct">
           <h4 className="yy-mi-ch">六角ボルト（JIS B 1180・JIS B 1051）</h4>
-          <p className="yy-mi-note">並目ねじの代表値。二面幅（SW）は一般的なスパナサイズ。</p>
+          <p className="yy-mi-note">並目ねじの代表値。二面幅（SW）は一般的なスパナサイズ。ボルト孔径は建築基準法施行令第68条第4項：ボルト径＋1mm 以下（※径20mm以上で支障が無ければ＋1.5mm まで）。高力ボルトは同条第2項：径＋2mm 以下（M16→18、M20→22、M24→26）。</p>
           <div className="yy-mi-scroll is-gap">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -1117,16 +1330,16 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
               <thead>
                 <tr>
                     <th>呼び (M)</th>
-                    <th>標準穴径 (mm)</th>
+                    <th>ボルト孔径の上限 (mm)・令68条4項</th>
                 </tr>
               </thead>
               <tbody>
                   <tr><td>M8</td><td>9</td></tr>
                   <tr><td>M10</td><td>11</td></tr>
                   <tr><td>M12</td><td>13</td></tr>
-                  <tr><td>M16</td><td>18</td></tr>
-                  <tr><td>M20</td><td>22</td></tr>
-                  <tr><td>M24</td><td>26</td></tr>
+                  <tr><td>M16</td><td>17</td></tr>
+                  <tr><td>M20</td><td>21.5（※）</td></tr>
+                  <tr><td>M24</td><td>25.5（※）</td></tr>
                 </tbody>
               </table>
         </div>
@@ -1209,7 +1422,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
 
         <div id="section-16" className="yy-mi-sec" data-cat="struct">
           <h4 className="yy-mi-ch">鉄筋 断面積・単位重量 早見（参考）</h4>
-          <p className="yy-mi-note">概算値。実務ではメーカー資料・構造計算書を確認してください。</p>
+          <p className="yy-mi-note">JIS G 3112 の公称直径・公称断面積・単位質量（断面積は整数に丸め）。実務ではメーカー資料・構造計算書を確認してください。</p>
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -1228,10 +1441,10 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
                 <tr><td>D22</td><td>22.2</td><td>387</td><td>3.04</td></tr>
                 <tr><td>D25</td><td>25.4</td><td>507</td><td>3.98</td></tr>
                 <tr><td>D29</td><td>28.6</td><td>643</td><td>5.04</td></tr>
-                <tr><td>D32</td><td>31.8</td><td>794</td><td>6.31</td></tr>
-                <tr><td>D35</td><td>35.0</td><td>962</td><td>7.99</td></tr>
-                <tr><td>D38</td><td>38.1</td><td>1140</td><td>9.89</td></tr>
-                <tr><td>D41</td><td>41.3</td><td>1330</td><td>12.0</td></tr>
+                <tr><td>D32</td><td>31.8</td><td>794</td><td>6.23</td></tr>
+                <tr><td>D35</td><td>34.9</td><td>957</td><td>7.51</td></tr>
+                <tr><td>D38</td><td>38.1</td><td>1140</td><td>8.95</td></tr>
+                <tr><td>D41</td><td>41.3</td><td>1340</td><td>10.5</td></tr>
               </tbody>
             </table>
           </div>
@@ -1307,7 +1520,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
 
         <div id="section-20" className="yy-mi-sec" data-cat="struct">
           <h4 className="yy-mi-ch">高力ボルト（JIS B 1186 等）</h4>
-          <p className="yy-mi-note">高力ボルトの代表例。F8T: 降伏強度785MPa／引張強度1000MPa相当、予め軸力管理が必要（トルク・回転法）。</p>
+          <p className="yy-mi-note">摩擦接合用高力六角ボルト（JIS B 1186）の代表例。F10T：耐力 900N/mm²以上／引張強さ 1000〜1200N/mm²。引張荷重は F10T の最小値。締付けは軸力管理が必要（トルクコントロール法・ナット回転法）。</p>
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -1316,41 +1529,41 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
                   <th>二面幅 SW (mm)</th>
                   <th>頭部高さ k (mm)</th>
                   <th>強度区分</th>
-                  <th>破断荷重 (kN)</th>
+                  <th>引張荷重・最小 (kN)</th>
                   <th>適用例</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
                   <td>M16</td>
-                  <td>24</td>
-                  <td>約10.0</td>
-                  <td>F8T</td>
-                  <td>約147</td>
+                  <td>27</td>
+                  <td>10</td>
+                  <td>F10T</td>
+                  <td>157</td>
                   <td>一般柱梁接合、高力フランジ</td>
                 </tr>
                 <tr>
                   <td>M20</td>
-                  <td>30</td>
-                  <td>約12.5</td>
-                  <td>F8T</td>
-                  <td>約230</td>
+                  <td>32</td>
+                  <td>13</td>
+                  <td>F10T</td>
+                  <td>245</td>
                   <td>大梁接合、十字仕口</td>
                 </tr>
                 <tr>
                   <td>M22</td>
-                  <td>32</td>
-                  <td>約14.0</td>
+                  <td>36</td>
+                  <td>14</td>
                   <td>F10T</td>
-                  <td>約300</td>
+                  <td>303</td>
                   <td>耐震仕口、大型接合部</td>
                 </tr>
                 <tr>
                   <td>M24</td>
-                  <td>36</td>
-                  <td>約15.0</td>
+                  <td>41</td>
+                  <td>15</td>
                   <td>F10T</td>
-                  <td>約355</td>
+                  <td>353</td>
                   <td>高層構造柱脚</td>
                 </tr>
               </tbody>
@@ -1415,7 +1628,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
               <tbody>
                 <tr>
                   <td>J型アンカー</td>
-                  <td>SD295A/D16〜D25</td>
+                  <td>SD295/D16〜D25</td>
                   <td>柱脚ベース、仮設基礎</td>
                   <td>コンクリート埋込み／定着長確保が必要</td>
                 </tr>
@@ -1485,6 +1698,45 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
           </div>
         </div>
 
+        <div id="section-46" className="yy-mi-sec" data-cat="struct">
+          <h4 className="yy-mi-ch">コンクリートブロック（JIS A 5406）</h4>
+          <p className="yy-mi-note">建築用コンクリートブロック JIS A 5406:2023（2023-04-20 改正）。旧版の「A種・B種・C種」の呼び方は無くなり、A(08)・B(12)・C(16)・D(20) の記号になった（( ) 内だけで書いてもよい）。値は空洞ブロックの圧縮強さによる区分。出典は建材試験センター「建材試験情報」2023年7・8月号の規格紹介。</p>
+          <div className="yy-mi-scroll is-gap">
+            <table className="yy-tbl yy-mi-tbl">
+              <thead>
+                <tr>
+                  <th>区分（記号）</th>
+                  <th>圧縮強さ (N/mm²)</th>
+                  <th>全断面積圧縮強さ (N/mm²)</th>
+                  <th>質量吸水率 (%)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>A(08)</td><td>8以上</td><td>4以上</td><td>30以下</td></tr>
+                <tr><td>B(12)</td><td>12以上</td><td>6以上</td><td>20以下</td></tr>
+                <tr><td>C(16)</td><td>16以上</td><td>8以上</td><td>10以下</td></tr>
+                <tr><td>D(20)</td><td>20以上</td><td>10以上</td><td>規格票で確認</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div className="yy-mi-scroll">
+            <table className="yy-tbl yy-mi-tbl">
+              <thead>
+                <tr>
+                  <th>項目</th>
+                  <th>内容</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>空洞ブロック</td><td>主に補強コンクリートブロック造。空洞部を部分充塡する（建築基準法施行令 第3章第4節の2）。指定建築材料としては3階建てまで</td></tr>
+                <tr><td>型枠状ブロック</td><td>主に鉄筋コンクリート組積造（RM造）。全充塡する。区分は 20〜60（数値＝圧縮強さ N/mm² 以上）。5階建てまで</td></tr>
+                <tr><td>寸法</td><td>JIS はモデュール呼び寸法の範囲だけを規定：長さ300〜900・高さ100〜300、空洞ブロックの正味厚さ100〜200。製品寸法＝呼び寸法−目地幅（例：呼び400×200、目地10 → 390×190）</td></tr>
+                <tr><td>そのほかの区分</td><td>化粧の有無（素地／化粧）、防水性（W。空洞ブロックの透水量 300mL/(m²·h)以下）、寸法精度（高精度 H）</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <div id="section-24" className="yy-mi-sec" data-cat="struct">
           <h4 className="yy-mi-ch">耐震補強・補強材（RC・SRC・S造共通）</h4>
           <p className="yy-mi-note">主要な耐震補強工法と補強材の種類。</p>
@@ -1522,6 +1774,58 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
                   <td>H鋼・角パイプ・プレート</td>
                   <td>フレーム・開口補強</td>
                   <td>剛性配分／躯体応力再検討必要</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="section-45" className="yy-mi-sec" data-cat="struct">
+          <h4 className="yy-mi-ch">合板・構造用合板（JAS）</h4>
+          <p className="yy-mi-note">合板の日本農林規格（JAS 0233:2026、2026-04-13 改正）。構造用合板は建築物の構造耐力上主要な部分に使う合板。寸法は JAS 附属書C（参考）の標準寸法の範囲。壁倍率は昭56建告1100号 別表第一。</p>
+          <div className="yy-mi-scroll">
+            <table className="yy-tbl yy-mi-tbl">
+              <thead>
+                <tr>
+                  <th>項目</th>
+                  <th>普通合板</th>
+                  <th>構造用合板</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>接着の程度</td>
+                  <td>1類・2類</td>
+                  <td>特類・1類</td>
+                </tr>
+                <tr>
+                  <td>等級</td>
+                  <td>―</td>
+                  <td>1級（曲げ性能 E-F 等級の規定あり）・2級</td>
+                </tr>
+                <tr>
+                  <td>厚さの範囲 (mm)</td>
+                  <td>2.3〜24.0</td>
+                  <td>4.0〜50.0</td>
+                </tr>
+                <tr>
+                  <td>幅×長さの範囲 (mm)</td>
+                  <td>幅610〜1220 × 長さ910〜3030</td>
+                  <td>幅610〜1240 × 長さ1800〜3330</td>
+                </tr>
+                <tr>
+                  <td>厚さの許容差 (mm)</td>
+                  <td>―</td>
+                  <td>7.5以下 +0.5/−0.3、7.5超 +0.8/−0.5（幅・長さ +0/−3）</td>
+                </tr>
+                <tr>
+                  <td>ホルムアルデヒド放散量 (mg/L、平均／最大)</td>
+                  <td colSpan={2}>F☆☆☆☆ 0.3／0.4、F☆☆☆ 0.5／0.7、F☆☆ 1.5／2.1、F☆ 5.0／7.0</td>
+                </tr>
+                <tr>
+                  <td>耐力壁の壁倍率</td>
+                  <td>―</td>
+                  <td>2.5（厚さ5mm以上、N50くぎ・間隔15cm以下）。屋外壁等は特類・厚さ7.5mm以上</td>
                 </tr>
               </tbody>
             </table>
@@ -1581,6 +1885,97 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
                 </tr>
               </tbody>
             </table>
+          </div>
+        </div>
+
+        <div id="section-47" className="yy-mi-sec" data-cat="mech">
+          <h4 className="yy-mi-ch">配管の呼び径と外径（JIS G 3452・K 6741・G 3448）</h4>
+          <p className="yy-mi-note">外径・厚さは規格の基準寸法。SGP は JIS G 3452、ステンレスは JIS G 3448（いずれも日本製鉄 建設用資材ハンドブック 2025）、VP・VU は JIS K 6741（積水化学 承認図）。呼び径が同じでも管種で外径が違うので、継手・支持金物は管種で選ぶ。</p>
+
+          <div className="yy-mi-part">
+            <h5 className="yy-mi-sub">1. 配管用炭素鋼鋼管 SGP（JIS G 3452）</h5>
+            <div className="yy-mi-scroll">
+              <table className="yy-tbl yy-mi-tbl">
+                <thead>
+                  <tr>
+                    <th>呼び径 (A)</th>
+                    <th>呼び径 (B)</th>
+                    <th>外径 (mm)</th>
+                    <th>厚さ (mm)</th>
+                    <th>単位質量 (kg/m)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td>15A</td><td>1/2</td><td>21.7</td><td>2.8</td><td>1.31</td></tr>
+                  <tr><td>20A</td><td>3/4</td><td>27.2</td><td>2.8</td><td>1.68</td></tr>
+                  <tr><td>25A</td><td>1</td><td>34.0</td><td>3.2</td><td>2.43</td></tr>
+                  <tr><td>32A</td><td>1 1/4</td><td>42.7</td><td>3.5</td><td>3.38</td></tr>
+                  <tr><td>40A</td><td>1 1/2</td><td>48.6</td><td>3.5</td><td>3.89</td></tr>
+                  <tr><td>50A</td><td>2</td><td>60.5</td><td>3.8</td><td>5.31</td></tr>
+                  <tr><td>65A</td><td>2 1/2</td><td>76.3</td><td>4.2</td><td>7.47</td></tr>
+                  <tr><td>80A</td><td>3</td><td>89.1</td><td>4.2</td><td>8.79</td></tr>
+                  <tr><td>100A</td><td>4</td><td>114.3</td><td>4.5</td><td>12.2</td></tr>
+                  <tr><td>125A</td><td>5</td><td>139.8</td><td>4.5</td><td>15.0</td></tr>
+                  <tr><td>150A</td><td>6</td><td>165.2</td><td>5.0</td><td>19.8</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="yy-mi-part">
+            <h5 className="yy-mi-sub">2. 硬質ポリ塩化ビニル管 VP・VU（JIS K 6741）</h5>
+            <p className="yy-mi-note">VU は呼び径40から。VP の 13〜30 は省略。</p>
+            <div className="yy-mi-scroll">
+              <table className="yy-tbl yy-mi-tbl">
+                <thead>
+                  <tr>
+                    <th>呼び径</th>
+                    <th>外径 (mm)</th>
+                    <th>VP 厚さ (mm)</th>
+                    <th>VU 厚さ (mm)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td>40</td><td>48.0</td><td>3.6</td><td>1.8</td></tr>
+                  <tr><td>50</td><td>60.0</td><td>4.1</td><td>1.8</td></tr>
+                  <tr><td>65</td><td>76.0</td><td>4.1</td><td>2.2</td></tr>
+                  <tr><td>75</td><td>89.0</td><td>5.5</td><td>2.7</td></tr>
+                  <tr><td>100</td><td>114.0</td><td>6.6</td><td>3.1</td></tr>
+                  <tr><td>125</td><td>140.0</td><td>7.0</td><td>4.1</td></tr>
+                  <tr><td>150</td><td>165.0</td><td>8.9</td><td>5.1</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="yy-mi-part">
+            <h5 className="yy-mi-sub">3. 一般配管用ステンレス鋼鋼管（JIS G 3448）</h5>
+            <div className="yy-mi-scroll">
+              <table className="yy-tbl yy-mi-tbl">
+                <thead>
+                  <tr>
+                    <th>呼び方</th>
+                    <th>外径 (mm)</th>
+                    <th>厚さ (mm)</th>
+                    <th>単位質量 (kg/m・SUS304)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td>13Su</td><td>15.88</td><td>0.8</td><td>0.301</td></tr>
+                  <tr><td>20Su</td><td>22.22</td><td>1.0</td><td>0.529</td></tr>
+                  <tr><td>25Su</td><td>28.58</td><td>1.0</td><td>0.687</td></tr>
+                  <tr><td>30Su</td><td>34.0</td><td>1.2</td><td>0.980</td></tr>
+                  <tr><td>40Su</td><td>42.7</td><td>1.2</td><td>1.24</td></tr>
+                  <tr><td>50Su</td><td>48.6</td><td>1.2</td><td>1.42</td></tr>
+                  <tr><td>60Su</td><td>60.5</td><td>1.5</td><td>2.20</td></tr>
+                  <tr><td>75Su</td><td>76.3</td><td>1.5</td><td>2.79</td></tr>
+                  <tr><td>80Su</td><td>89.1</td><td>2.0</td><td>4.34</td></tr>
+                  <tr><td>100Su</td><td>114.3</td><td>2.0</td><td>5.59</td></tr>
+                  <tr><td>125Su</td><td>139.8</td><td>2.0</td><td>6.87</td></tr>
+                  <tr><td>150Su</td><td>165.2</td><td>3.0</td><td>12.1</td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
@@ -1882,21 +2277,21 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
               <tbody>
                 <tr>
                   <td>スプリンクラー配管</td>
-                  <td>SGW鋼管 25A〜80A</td>
+                  <td>SGPW（JIS G 3442）等 25A〜80A</td>
                   <td>倉庫・共同住宅・商業施設</td>
                   <td>ヘッド配置は面積・天井高により異なる</td>
                 </tr>
                 <tr>
                   <td>連結送水管（乾式）</td>
-                  <td>75A縦管・送水口・放水口</td>
-                  <td>高層建物消防隊連携</td>
-                  <td>屋外送水口・防火戸室への接続位置計画</td>
+                  <td>主管内径100mm以上・送水口・放水口</td>
+                  <td>地階を除く7階以上 等（消防法施行令29条）</td>
+                  <td>3階以上の各階に、放水口まで水平距離50m以下／11階以上は双口形・加圧送水装置</td>
                 </tr>
                 <tr>
                   <td>屋内消火栓（1号／2号）</td>
                   <td>消火栓箱・ホース・バルブ</td>
                   <td>公共施設・大規模建物</td>
-                  <td>消火用水源・ポンプ連動、距離制限（建築基準法）</td>
+                  <td>水平距離 1号25m・2号15m以下（消防法施行令11条）／1号 130L/min・0.17MPa、2号 60L/min・0.25MPa</td>
                 </tr>
                 <tr>
                   <td>加圧送水装置</td>
@@ -1928,31 +2323,31 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
                   <td>VVFケーブル</td>
                   <td>600V VVF 2.0-2C等</td>
                   <td>居室・一般照明回路</td>
-                  <td>平形／耐熱60℃／露出・隠ぺい兼用</td>
+                  <td>JIS C 3342／平形／最高許容温度60℃／通称「Fケーブル」</td>
                 </tr>
                 <tr>
                   <td>CVケーブル</td>
                   <td>600V CV 3.5sq〜150sq</td>
                   <td>幹線・分電幹線</td>
-                  <td>架橋PE絶縁／耐熱／三芯・四芯構成あり</td>
+                  <td>JIS C 3605／架橋PE絶縁／最高許容温度90℃／三芯・四芯構成あり</td>
                 </tr>
                 <tr>
                   <td>IV電線</td>
                   <td>600V IV 1.6〜14sq</td>
                   <td>盤内配線・低圧結線</td>
-                  <td>一芯単線／可とう性無／金属管内配線用</td>
+                  <td>JIS C 3307／最高許容温度60℃／電線管内配線用</td>
                 </tr>
                 <tr>
                   <td>EM-EEFケーブル</td>
-                  <td>環境配慮型（非鉛PVC）</td>
+                  <td>エコケーブル（PE絶縁・耐燃性PEシース）</td>
                   <td>室内一般照明・電源</td>
-                  <td>ハロゲンフリー／F☆☆☆☆相当／低発煙</td>
+                  <td>ハロゲンフリー／低発煙／最高許容温度75℃</td>
                 </tr>
                 <tr>
-                  <td>Fケーブル</td>
-                  <td>600V耐熱電線</td>
-                  <td>機械室・厨房等高温部</td>
-                  <td>90℃耐熱／特定用途のみ</td>
+                  <td>HIV電線</td>
+                  <td>600V二種ビニル絶縁電線（JIS C 3317）</td>
+                  <td>盤内配線・耐熱を要する配線</td>
+                  <td>最高許容温度75℃（IVは60℃）</td>
                 </tr>
                 <tr>
                   <td>LANケーブル</td>
@@ -2114,7 +2509,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
 
         <div id="section-37" className="yy-mi-sec" data-cat="elec">
           <h4 className="yy-mi-ch">接地・避雷・保安設備</h4>
-          <p className="yy-mi-note">主要な接地・避雷・保安設備の種類と用途。</p>
+          <p className="yy-mi-note">主要な接地・避雷・保安設備の種類と用途。接地抵抗値・接地線の太さは電気設備の技術基準の解釈（接地工事の種類）による。</p>
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -2128,21 +2523,27 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
               <tbody>
                 <tr>
                   <td>A種接地（接地抵抗10Ω以下）</td>
-                  <td>Φ14接地極、CV線22sq</td>
-                  <td>分電盤・高圧機器接地</td>
+                  <td>接地線：直径2.6mm以上の軟銅線 等</td>
+                  <td>高圧・特別高圧機器の外箱、避雷器</td>
                   <td>接地抵抗測定必須／補助極設置検討</td>
                 </tr>
                 <tr>
-                  <td>C種接地（100Ω以下）</td>
-                  <td>Φ9接地棒、VVF2.0mm²</td>
-                  <td>弱電・LAN・機器保護接地</td>
-                  <td>接地共用可否確認／絶縁確認</td>
+                  <td>C種接地（10Ω以下）</td>
+                  <td>接地線：直径1.6mm以上の軟銅線 等</td>
+                  <td>300V超の低圧機器の外箱（400V級動力等）</td>
+                  <td>地絡時0.5秒以内に遮断する装置があれば500Ω以下</td>
+                </tr>
+                <tr>
+                  <td>D種接地（100Ω以下）</td>
+                  <td>接地線：直径1.6mm以上の軟銅線 等</td>
+                  <td>300V以下の低圧機器の外箱</td>
+                  <td>地絡時0.5秒以内に遮断する装置があれば500Ω以下</td>
                 </tr>
                 <tr>
                   <td>避雷設備（LPS）</td>
                   <td>直撃雷保護・引下線</td>
-                  <td>高層建築・法定対象建物</td>
-                  <td>JIS A 4201適合／等電位化処理</td>
+                  <td>高さ20m超の建築物（建築基準法33条）</td>
+                  <td>JIS Z 9290-3:2019適合（平12建告1425号。旧JIS A 4201は令和6年改正で削除）／等電位化処理</td>
                 </tr>
               </tbody>
             </table>
@@ -2179,13 +2580,13 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
                   <td>非常照明</td>
                   <td>LED式バッテリー内蔵灯具</td>
                   <td>避難経路・階段・廊下照明</td>
-                  <td>60分間点灯、壁・天井取付、保守点検義務あり</td>
+                  <td>予備電源で30分間点灯・床面1lx以上（LED・蛍光灯は2lx）（昭45建告1830号）</td>
                 </tr>
                 <tr>
                   <td>誘導灯（避難口）</td>
-                  <td>A級（20m）・B級（10m）・C級（6m）</td>
-                  <td>避難方向表示</td>
-                  <td>消防法に基づく視認距離設計／蓄電池付属</td>
+                  <td>有効範囲 A級60m（方向シンボル付40m）・B級30m（同20m）・C級15m</td>
+                  <td>避難口の表示</td>
+                  <td>消防法施行規則28条の3／通路誘導灯は A級20m・B級15m・C級10m／蓄電池内蔵</td>
                 </tr>
                 <tr>
                   <td>非常放送設備</td>
@@ -2243,7 +2644,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
 
         <div id="section-40" className="yy-mi-sec" data-cat="elec">
           <h4 className="yy-mi-ch">照度基準と設計目安（JIS Z 9110）</h4>
-          <p className="yy-mi-note">主要な空間用途別の照度基準と設計目安。</p>
+          <p className="yy-mi-note">照度は JIS Z 9110:2010（2011年追補）の推奨照度。括弧内は照度範囲。JIS Z 9110 は 2024年に改正され、屋内の照度表は JIS Z 9125:2023（屋内照明基準）に移っている。色温度は設計目安。</p>
           <div className="yy-mi-scroll">
             <table className="yy-tbl yy-mi-tbl">
               <thead>
@@ -2257,33 +2658,33 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
               <tbody>
                 <tr>
                   <td>住宅リビング</td>
-                  <td>300〜500</td>
+                  <td>全般50／団らん200／読書500</td>
                   <td>2700〜3500</td>
-                  <td>温白色推奨／調光器併用可</td>
+                  <td>全般照明＋局部照明で組む／調光器併用可</td>
                 </tr>
                 <tr>
-                  <td>事務所（一般執務）</td>
-                  <td>500〜750</td>
+                  <td>事務所（執務室）</td>
+                  <td>750（500〜1000）</td>
                   <td>4000〜5000</td>
                   <td>均等配光、机面照度維持</td>
                 </tr>
                 <tr>
                   <td>会議室</td>
-                  <td>300〜500</td>
+                  <td>500（300〜750）</td>
                   <td>3500〜4500</td>
                   <td>映像対応照明／グレア防止要</td>
                 </tr>
                 <tr>
                   <td>廊下・階段</td>
-                  <td>100〜200</td>
+                  <td>廊下100（75〜150）／階段150（100〜200）</td>
                   <td>3000〜4000</td>
                   <td>非常照明とのバランス</td>
                 </tr>
                 <tr>
                   <td>教室</td>
-                  <td>500〜750</td>
+                  <td>照度範囲200〜500</td>
                   <td>4000〜5000</td>
-                  <td>黒板照明別回路推奨／演色性Ra&gt;80が望ましい</td>
+                  <td>学校環境衛生基準：教室300lx以上、教室・黒板500lx以上が望ましい／黒板照明別回路推奨</td>
                 </tr>
               </tbody>
             </table>
