@@ -390,5 +390,8 @@ const basePosts: DesignPost[] = [
 import { designPostsExtraA } from './design-posts-extra-a';
 import { designPostsExtraB } from './design-posts-extra-b';
 import { designPostsExtraC } from './design-posts-extra-c';
+import { designPostsExtraD } from './design-posts-extra-d';
+import { designPostsExtraE } from './design-posts-extra-e';
+import { designPostsExtraF } from './design-posts-extra-f';
 
-export const designPosts: DesignPost[] = [...basePosts, ...designPostsExtraA, ...designPostsExtraB, ...designPostsExtraC];
+export const designPosts: DesignPost[] = [...basePosts, ...designPostsExtraA, ...designPostsExtraB, ...designPostsExtraC, ...designPostsExtraD, ...designPostsExtraE, ...designPostsExtraF];

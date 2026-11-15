@@ -175,7 +175,7 @@ export default function Home() {
               ))}
               {MATERIAL_FIELDS.map((f, i) => (
                 <li key={f}>
-                  <Link href="/lookup/?tab=material">
+                  <Link href="/lookup/material/">
                     <span className="yy-home__tocno is-tool">{String(infoCats.length + i + 1).padStart(2, '0')}</span>
                     <span className="yy-home__toct">材料情報 · {f}の早見表</span>
                     <span className="yy-leader" />
@@ -200,6 +200,13 @@ export default function Home() {
                   </Link>
                 </li>
               ))}
+              <li>
+                <Link href="/lookup/zone/">
+                  <span className="yy-home__toct">用途地域 13 種類</span>
+                  <span className="yy-leader" />
+                  <span className="yy-home__n">建蔽率 · 容積率 · 高さ</span>
+                </Link>
+              </li>
             </ol>
           </section>
         </div>
