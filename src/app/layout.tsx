@@ -46,6 +46,11 @@ export const metadata: Metadata = {
       '建築・建設の現場で"本当に使える"業務支援プラットフォーム。CAD添景、建築計算ツール、My法規、タスク管理などを無料で提供。',
     images: ['/image/og-default.png'],
   },
+  // Search Console の所有権の確認(URL プレフィックス https://yaneyuka.com/、slime.design.architect のアカウント。2026-11-15)。
+  // ドメインプロパティは別アカウントが DNS で確認していて、普段のアカウントから見られなかったため。消さない
+  verification: {
+    google: 'KlpgDZPbabqY9u-Dz1AQJCRsKtZmwIr0zw4nxiBYwis',
+  },
   other: {
     'impact-site-verification': 'f2fbe835-3c4c-4ce4-a5a1-42bfec9b31c0',
   },
