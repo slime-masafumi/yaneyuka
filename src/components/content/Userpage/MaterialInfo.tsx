@@ -141,9 +141,9 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
                 </tr>
                 <tr>
                   <td>合わせガラス</td>
-                  <td>6.8 (3+3), 8.8 (4+4), 10.8 (5+5)</td>
+                  <td>6.8 (3+0.76+3), 8.8 (4+0.76+4), 10.8 (5+0.76+5)</td>
                   <td>安全対策・防音・防犯</td>
-                  <td>中間膜の種類により性能変化</td>
+                  <td>厚さは中間膜(PVB 0.76mm = 30mil)込み。中間膜は 0.38・1.52mm などもあり、種類で性能が変わる</td>
                 </tr>
                 <tr>
                   <td>複層ガラス（断熱）</td>
