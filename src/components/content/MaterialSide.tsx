@@ -29,14 +29,16 @@ const SPONSOR_IMG: Record<string, string> = {
   waterproof: '/image/bousui_cm_sample.png',
   hardware: '/image/kanamono_cm_sample.png',
   furniture: '/image/kagu_cm_sample.png',
-  // 2026-11-15 Codex に作ってもらう 5 枚。届くまでは読み込みに失敗して「掲載募集中」に替わる
+  // 2026-11-15 Codex に作ってもらう 5 枚。届くまでは分類の写真(public/image/mat/)で代わりにする
   'internal-ceiling': '/image/tenjou_cm_sample.png',
   'electrical-systems': '/image/denki_cm_sample.png',
   'mechanical-systems': '/image/kikai_cm_sample.png',
   'exterior-infrastructure': '/image/gaikou_cm_sample.png',
   exterior: '/image/exterior_cm_sample.png',
 };
-const NO_SAMPLE = '/image/掲載募集中a.png';
+/** 掲載の募集(画像の下の 2 段目)。2026-11-15 までは見本画像が無い分類で上の枠いっぱいに引き伸ばしていた */
+const RECRUIT = '/image/掲載募集中a.png';
+const matImg = (category: string) => `/image/mat/${category}.jpg`;
 
 function SecHead({ no, title, right }: { no: string; title: string; right?: React.ReactNode }) {
   return (
@@ -49,36 +51,35 @@ function SecHead({ no, title, right }: { no: string; title: string; right?: Reac
 }
 
 export function MaterialSponsor({ category, subcategory, onRegister }: { category: string; subcategory: string; onRegister: () => void }) {
-  const want = SPONSOR_IMG[category] ?? NO_SAMPLE;
+  const want = SPONSOR_IMG[category] ?? matImg(category);
   const [src, setSrc] = useState(want);
   const imgRef = React.useRef<HTMLImageElement>(null);
   const label = subcategoryLabel(subcategory);
-  // 画像がまだ無い分類は「掲載募集中」に替える。サーバーで出した <img> は画面の準備より先に読み込みに
+  // 見本画像がまだ無い分類は分類の写真に替える。サーバーで出した <img> は画面の準備より先に読み込みに
   // 失敗することがあり、onError だけでは拾えないので、準備ができた時点でも確かめる
+  const fallback = matImg(category);
   useEffect(() => {
     setSrc(want);
     const img = imgRef.current;
-    if (img && img.complete && img.naturalWidth === 0 && want !== NO_SAMPLE) setSrc(NO_SAMPLE);
-  }, [want]);
+    if (img && img.complete && img.naturalWidth === 0 && want !== fallback) setSrc(fallback);
+  }, [want, fallback]);
   return (
     <aside className="yy-matpage__spon" aria-label="掲載枠">
+      {/* 1 段目: 掲載イメージ(見本)。2 段目: 掲載企業の募集 */}
       <button type="button" className="yy-spon" onClick={onRegister} title="この枠への掲載を希望する">
         <img
           ref={imgRef}
           src={src}
           alt={`${label} の掲載枠(見本)`}
-          onError={(e) => {
-            if (src !== NO_SAMPLE) setSrc(NO_SAMPLE);
+          onError={() => {
+            if (src !== fallback) setSrc(fallback);
           }}
         />
         <span className="yy-spon__label">materials — {label}</span>
       </button>
-      <span className="yy-spon__note">
-        sponsor — 掲載枠 ·{' '}
-        <button type="button" onClick={onRegister}>
-          掲載希望
-        </button>
-      </span>
+      <button type="button" className="yy-spon__recruit" onClick={onRegister} title="この枠への掲載を希望する">
+        <img src={RECRUIT} alt="掲載企業様募集中 · 掲載希望はこちらからご相談ください" width={575} height={170} />
+      </button>
     </aside>
   );
 }

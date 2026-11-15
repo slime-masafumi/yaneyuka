@@ -2334,8 +2334,10 @@ nav {
 .yy-spon img { display: block; width: 100%; height: 330px; object-fit: cover; }
 .yy-spon:hover img { opacity: 0.92; }
 .yy-spon__label { position: absolute; left: 10px; bottom: 10px; z-index: 1; font-family: var(--font-mono), monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #ffffff; }
-.yy-spon__note { font-family: var(--font-mono), monospace; font-size: 10px; letter-spacing: 0.08em; color: var(--yy-t3); }
-.yy-spon__note button { padding: 0; border: 0; background: none; font: inherit; color: var(--yy-acc-ink); cursor: pointer; }
+/* 2 段目: 掲載企業の募集バナー(横長をそのままの比率で) */
+.yy-spon__recruit { display: block; padding: 0; border: 0; background: none; cursor: pointer; }
+.yy-spon__recruit img { display: block; width: 100%; height: auto; }
+.yy-spon__recruit:hover img { opacity: 0.85; }
 
 /* 右列 */
 .yy-gray { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 12px 14px; border-radius: 4px; background: var(--yy-case); box-shadow: inset 0 0 0 1px #e2e2dd; }
