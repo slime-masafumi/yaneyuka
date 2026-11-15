@@ -166,3 +166,78 @@ export function HomeEvents({ limit = 4 }: { limit?: number }) {
       </ul>
   );
 }
+
+type Product = { id?: string; title: string; link: string; pubDate: string; source: string; image?: string };
+
+/** 新製品(/api/new-products)の最新を数件。ホームの建材欄に出す(2026-11-15) */
+export function HomeNewProducts({ limit = 5 }: { limit?: number }) {
+  const [items, setItems] = useState<Product[] | null>(null);
+  useEffect(() => {
+    let alive = true;
+    getJson<{ items?: Product[] }>('/api/new-products/')
+      .then((j) => alive && setItems((j.items || []).slice(0, limit)))
+      .catch(() => alive && setItems([]));
+    return () => {
+      alive = false;
+    };
+  }, [limit]);
+  if (!items) return <p className="yy-home__empty">読み込み中…</p>;
+  if (!items.length) return <p className="yy-home__empty">いまは取得できません</p>;
+  return (
+    <ul className="yy-home__news">
+      {items.map((n) => (
+        <li key={n.link} className="has-pic">
+          <span className="yy-home__newsbody">
+            <span className="yy-home__meta">
+              <span>{n.source}</span>
+              <span>{md(new Date(n.pubDate))}</span>
+            </span>
+            <a href={n.link} target="_blank" rel="noopener noreferrer" title={n.title}>
+              {n.title}
+            </a>
+          </span>
+          <FeedPic src={n.image} size="mini" />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export type HomeComp = { id: string; title: string; organizer: string; register?: string; deadline?: string; url: string };
+
+/**
+ * コンペの締切が近いもの。ホームはビルド時に作るので、締切を過ぎたものが次のデプロイまで残らないよう、
+ * 日付の判定はブラウザでもやり直す(サーバーではビルドした日で判定した一覧を出す)。2026-11-15
+ */
+export function HomeComps({ items, limit = 4 }: { items: HomeComp[]; limit?: number }) {
+  const [today, setToday] = useState<string | null>(null);
+  useEffect(() => setToday(new Date(Date.now() + 9 * 3600_000).toISOString().slice(0, 10)), []);
+  const day = today ?? new Date(Date.now() + 9 * 3600_000).toISOString().slice(0, 10);
+  const list = items
+    .map((c) => {
+      const reg = c.register && c.register >= day ? c.register : '';
+      const next = reg || (c.deadline && c.deadline >= day ? c.deadline : '');
+      return { ...c, next, kind: reg ? '登録締切' : '提出締切' };
+    })
+    .filter((c) => c.next)
+    .sort((x, y) => x.next.localeCompare(y.next))
+    .slice(0, limit);
+  if (!list.length) return <p className="yy-home__empty">募集中のものはありません</p>;
+  return (
+    <ul className="yy-home__events">
+      {list.map((c) => (
+        <li key={c.id}>
+          <span className="yy-home__date">{dot(c.next)}</span>
+          <span className="yy-home__evbody">
+            <a href={c.url} target="_blank" rel="noopener noreferrer" title={c.title}>
+              {c.title}
+            </a>
+            <span>
+              {c.kind} · {c.organizer}
+            </span>
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}

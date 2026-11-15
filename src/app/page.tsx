@@ -3,12 +3,13 @@
 import { FORCE_FLOW_PUBLIC } from '@/lib/forceFlowGate';
 import Link from 'next/link';
 import { screensInGroup, screenPath } from '@/lib/siteScreens';
-import { CATEGORY_SUBCATEGORIES } from '@/lib/materialCategories';
-import { matPhoto } from '@/lib/materialPhotos';
 import { designPosts } from '@/data/design-posts';
 import { DESIGN_TOOL_MENU } from '@/lib/designToolsMenu';
 import { TOOL_ART } from '@/components/home/toolArt';
-import { HomeCase, HomeEvents, HomeNews, ScreenLink } from '@/components/home/HomeParts';
+import { HomeCase, HomeComps, HomeEvents, HomeNews, HomeNewProducts, ScreenLink, type HomeComp } from '@/components/home/HomeParts';
+import makers from '@/data/makers.json';
+import makerFeeds from '@/data/maker-feeds.json';
+import competitions from '@/data/competitions.json';
 
 /** よく使う設計ツール 8 本(分野の略称・図・短い説明はモックどおり) */
 const FAVORITES: Array<{ cat: string; sub: string; tag: string; art: string; desc: string }> = [
@@ -53,6 +54,13 @@ export default function Home() {
     designPosts.reduce<Record<string, number>>((m, p) => ((m[p.category] = (m[p.category] || 0) + 1), m), {})
   ).sort((a, b) => b[1] - a[1]);
   const MATERIAL_FIELDS = ['意匠', '構造', '機械', '電気'];
+  const makerTotal = new Set(Object.values(makers as unknown as Record<string, { name: string }[]>).flat().map((m) => m.name)).size;
+  // メーカーのお知らせ:各社サイトの更新(新しい順 5 件。社名と同じだけの題は除く)
+  const makerNews = (makerFeeds as { feeds: { origin: string; name: string; sample: string[]; newest: string }[] }).feeds
+    .filter((f) => f.newest && f.sample?.length && (f.sample[1] || f.sample[0]) !== f.name)
+    .sort((x, y) => y.newest.localeCompare(x.newest))
+    .slice(0, 5);
+  const latestPosts = [...designPosts].sort((x, y) => y.date.localeCompare(x.date) || y.id.localeCompare(x.id)).slice(0, 5);
   const month = new Date(Date.now() + 9 * 3600_000).toISOString().slice(0, 7);
 
   return (
@@ -63,27 +71,40 @@ export default function Home() {
       <div className="yy-home__cols">
         {/* 左:建材と設計ツール */}
         <div className="yy-home__main">
+          {/* 建材(2026-11-15 作り替え)。16 分類の一覧は建材トップ(/materials/)にあるので、ここは分類の入口 1 行と
+              新製品・メーカーのお知らせ(動きのあるもの)にする */}
           <section>
-            <SecHead no="I" title="建材" right={`${mats.length} カテゴリ · メーカーと基本知識`} />
-            <div className="yy-home__grid2">
-              {mats.map((m, i) => {
-                const subs = CATEGORY_SUBCATEGORIES[m.id] ?? [];
-                const photo = matPhoto(m.id);
-                return (
-                  <Link key={m.id} className="yy-home__row" href={`${screenPath(m.id)}/`}>
-                    {photo ? (
-                      <span className="yy-photo yy-photo--mat">
-                        <img src={photo} alt="" loading="lazy" />
+            <SecHead no="I" title="建材" right={<Link href="/materials/">{mats.length} 分類 · {makerTotal} 社 ›</Link>} />
+            <nav className="yy-home__matstrip" aria-label="建材の分類">
+              {mats.map((m) => (
+                <Link key={m.id} href={`${screenPath(m.id)}/`}>
+                  {m.label}
+                </Link>
+              ))}
+            </nav>
+            <div className="yy-home__grid2 yy-home__matnews">
+              <div>
+                <h3 className="yy-home__h3">
+                  新製品 <Link href="/new-products/">すべて ›</Link>
+                </h3>
+                <HomeNewProducts limit={5} />
+              </div>
+              <div>
+                <h3 className="yy-home__h3">メーカーのお知らせ</h3>
+                <ul className="yy-home__notes">
+                  {makerNews.map((f) => (
+                    <li key={f.origin}>
+                      <span className="yy-home__meta">
+                        <span>{f.name}</span>
+                        <span>{f.newest.slice(5).replace('-', '/')}</span>
                       </span>
-                    ) : (
-                      <span className="yy-photo yy-photo--none" aria-hidden="true" />
-                    )}
-                    <span className="yy-home__no">{String(i + 1).padStart(2, '0')}</span>
-                    <span className="yy-home__name">{m.label}</span>
-                    <span className="yy-home__n">{subs.length} 分類</span>
-                  </Link>
-                );
-              })}
+                      <a href={f.origin} target="_blank" rel="noopener noreferrer" title={f.sample[1] || f.sample[0]}>
+                        {f.sample[1] || f.sample[0]}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
           </section>
 
@@ -119,12 +140,28 @@ export default function Home() {
             <SecHead no="IV" title="イベント" right={<Link href="/event/">すべて</Link>} />
             <HomeEvents />
           </section>
+          <section>
+            <SecHead no="V" title="コンペ · 締切が近いもの" right={<Link href="/competitions/">すべて</Link>} />
+            <HomeComps items={(competitions as { items: HomeComp[] }).items} />
+          </section>
         </div>
 
         {/* 右:調べものと法規 */}
         <div className="yy-home__side">
           <section>
-            <SecHead no="V" title="建築の調べもの" right={`${designPosts.length} 記事 · ${MATERIAL_FIELDS.length} 分野`} />
+            <SecHead no="VI" title="建築の調べもの" right={`${designPosts.length} 記事 · ${MATERIAL_FIELDS.length} 分野`} />
+            <h3 className="yy-home__h3">新着の記事</h3>
+            <ol className="yy-home__toc yy-home__latest">
+              {latestPosts.map((p) => (
+                <li key={p.id}>
+                  <Link href={`/lookup/?post=${encodeURIComponent(p.id)}`} title={p.title}>
+                    <span className="yy-home__toct">{p.title}</span>
+                    <span className="yy-home__n">{p.category}</span>
+                  </Link>
+                </li>
+              ))}
+            </ol>
+            <h3 className="yy-home__h3">分野</h3>
             <ol className="yy-home__toc">
               {infoCats.map(([cat, n], i) => (
                 <li key={cat}>
@@ -152,7 +189,7 @@ export default function Home() {
             </Link>
           </section>
           <section>
-            <SecHead no="VI" title="法規" />
+            <SecHead no="VII" title="法規" />
             <ol className="yy-home__toc">
               {LAWS.map(([a, b]) => (
                 <li key={a}>

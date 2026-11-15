@@ -30,6 +30,17 @@ interface EditingPost {
   tags: string;
 }
 
+/** 目録に出す書き出し:見出し・箇条書き・表・注意書きを飛ばした最初の段落(90 字まで) */
+function leadOf(content: string): string {
+  for (const raw of content.replace(/\r/g, '').split('\n')) {
+    const l = raw.trim();
+    if (!l || /^(#|-|・|\||>|\d+\.\s|【)/.test(l)) continue;
+    const t = l.replace(/\*\*/g, '');
+    return t.length > 90 ? `${t.slice(0, 90)}…` : t;
+  }
+  return '';
+}
+
 /** embedded: 建築の調べもの(/lookup/)のタブの中で出すとき。自前の見出しを出さない */
 const DesignInfo: React.FC<{ embedded?: boolean; initialPost?: string | null }> = ({ embedded = false, initialPost = null }) => {
   const { isAdmin, currentUser, isLoggedIn } = useAuth();
@@ -41,7 +52,7 @@ const DesignInfo: React.FC<{ embedded?: boolean; initialPost?: string | null }> 
   const [selectedPostId, setSelectedPostId] = useState<string | null>(initialPost);
   // 記事を指定して開いたとき(/lookup/?post=7)
   useEffect(() => {
-    if (initialPost) setSelectedPostId(initialPost);
+    setSelectedPostId(initialPost);
   }, [initialPost]);
   
   const [isEditing, setIsEditing] = useState(false);
@@ -169,20 +180,8 @@ const DesignInfo: React.FC<{ embedded?: boolean; initialPost?: string | null }> 
     return sorted;
   }, [posts, selectedCategory, searchQuery, showBookmarksOnly, bookmarks, sortOrder]);
 
-  // フィルタリング結果が変わった時、選択中の記事がリストになければ先頭を選択する
-  useEffect(() => {
-    if (filteredPosts.length > 0) {
-      // 現在選択中のIDがフィルタ結果に含まれていない場合、または未選択の場合
-      setSelectedPostId(prev => {
-        if (!prev || !filteredPosts.find(p => p.id === prev)) {
-          return filteredPosts[0].id;
-        }
-        return prev;
-      });
-    } else {
-      setSelectedPostId(null);
-    }
-  }, [filteredPosts]);
+  // 2026-11-15: 以前は先頭の記事を自動で開き、記事を探す一覧は細い列だけだった。
+  // 何も選んでいないときは「目録」(分野ごとの一覧)を中央に出す。
 
   // 現在表示すべき記事データ
   const currentPost = useMemo(() => 
@@ -390,199 +389,317 @@ const DesignInfo: React.FC<{ embedded?: boolean; initialPost?: string | null }> 
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  const selectPost = (id: string) => {
-    setSelectedPostId(id);
-    setIsEditing(false); // 閲覧モードに戻す
+  const toTop = () => {
     const top = document.getElementById('yy-di-top');
     if (top && top.getBoundingClientRect().top < 0) top.scrollIntoView({ block: 'start' });
   };
+  // 記事を開く。調べもの(/lookup/)の中では URL も ?post= にする(共有・戻るボタンで同じ記事)
+  const selectPost = (id: string) => {
+    setSelectedPostId(id);
+    setIsEditing(false); // 閲覧モードに戻す
+    if (embedded) {
+      try {
+        window.history.pushState(null, '', `/lookup/?post=${encodeURIComponent(id)}`);
+      } catch {}
+    }
+    toTop();
+  };
+  const backToIndex = () => {
+    setSelectedPostId(null);
+    setIsEditing(false);
+    if (embedded) {
+      try {
+        window.history.pushState(null, '', '/lookup/');
+      } catch {}
+    }
+    toTop();
+  };
+  const pickCategory = (cat: string) => {
+    setSelectedCategory(cat);
+    if (currentPost) backToIndex();
+  };
+  const pickTag = (tag: string) => {
+    setSearchQuery(tag);
+    setSelectedCategory('all');
+    if (currentPost) backToIndex();
+  };
 
-  return (
-    <div className="yy-di" id="yy-di-top">
-      {!embedded && <PageHead
-        no="15"
-        en="design info"
-        title="設計情報"
-        desc={
-          <>
-            設計の技術・法規・設備の読みもの <span className="yy-fmt yy-info-beta">β版</span>
-          </>
-        }
+  // 目録の並び(分野の順)。データにある分類で、ここに無いものは後ろへ
+  const ORDER = ['法規制', '意匠計画', '構造設計', '機械設備', '電気設備', 'インテリア計画', '用語集'];
+  const orderedCats = [...categories.filter((c) => c !== 'all')].sort((a, b) => {
+    const ia = ORDER.indexOf(a);
+    const ib = ORDER.indexOf(b);
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+  });
+  const groups = orderedCats
+    .map((cat) => ({ cat, list: filteredPosts.filter((p) => p.category === cat) }))
+    .filter((g) => g.list.length);
+  const flat = Boolean(searchQuery.trim()) || showBookmarksOnly || selectedCategory !== 'all';
+  const recent = [...posts].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6);
+  const topTags = Object.entries(
+    posts.flatMap((p) => p.tags ?? []).reduce<Record<string, number>>((acc, t) => ((acc[t] = (acc[t] ?? 0) + 1), acc), {}),
+  )
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 24)
+    .map(([t]) => t);
+  const sameCat = currentPost ? posts.filter((p) => p.category === currentPost.category) : [];
+  const pos = currentPost ? sameCat.findIndex((p) => p.id === currentPost.id) : -1;
+  const prevPost = pos > 0 ? sameCat[pos - 1] : null;
+  const nextPost = pos >= 0 && pos < sameCat.length - 1 ? sameCat[pos + 1] : null;
+
+  /** 目録の 1 行:番号 / 題 + 書き出し + 分類・日付・タグ / お気に入り */
+  const Entry = ({ post, n }: { post: DesignPost; n: number }) => (
+    <li className="yy-di-entry">
+      <button type="button" className="yy-di-entry__main" onClick={() => selectPost(post.id)}>
+        <span className="yy-di-entry__no">{String(n).padStart(2, '0')}</span>
+        <span className="yy-di-entry__body">
+          <span className="yy-di-entry__t">{post.title}</span>
+          <span className="yy-di-entry__lead">{leadOf(post.content)}</span>
+          <span className="yy-di-entry__meta">
+            <span>{post.category}</span>
+            <span>{post.date}</span>
+            {(post.tags ?? []).slice(0, 3).map((tag) => (
+              <span key={tag}>#{tag}</span>
+            ))}
+          </span>
+        </span>
+      </button>
+      {isLoggedIn && (
+        <button
+          type="button"
+          className="yy-di-star"
+          aria-pressed={isBookmarked(post.id)}
+          aria-label={isBookmarked(post.id) ? 'お気に入りから外す' : 'お気に入りに追加'}
+          onClick={() => toggleBookmark(post)}
+        >
+          {isBookmarked(post.id) ? '★' : '☆'}
+        </button>
+      )}
+    </li>
+  );
+
+  const tabs = (
+    <nav className="yy-tabs" aria-label="分類">
+      {categories.map((cat) => (
+        <button key={cat} type="button" className="yy-tab" aria-pressed={!currentPost && selectedCategory === cat} onClick={() => pickCategory(cat)}>
+          {cat === 'all' ? 'すべて' : cat}
+          <small>{countOf(cat)}</small>
+        </button>
+      ))}
+    </nav>
+  );
+
+  const editor = isEditing && (
+    <div>
+      <SecHead
+        title="記事編集"
         right={
-          <>
-            <Stat n={posts.length} label="記事" />
-            <Stat n={categories.length - 1} label="分類" />
-            {isLoggedIn && <Stat n={bookmarkCount} label="お気に入り" />}
-          </>
-        }
-      />}
-
-      <nav className="yy-tabs" aria-label="分類">
-        {categories.map(cat => (
-          <button
-            key={cat}
-            type="button"
-            className="yy-tab"
-            aria-pressed={selectedCategory === cat}
-            onClick={() => setSelectedCategory(cat)}
-          >
-            {cat === 'all' ? 'すべて' : cat}
-            <small>{countOf(cat)}</small>
+          <button type="button" className="yy-di-textbtn" onClick={() => setIsEditing(false)}>
+            閉じる ×
           </button>
-        ))}
-      </nav>
+        }
+      />
+      <div className="yy-di-edit">
+        <input placeholder="タイトル" value={editingPost?.title} onChange={(e) => setEditingPost((prev) => (prev ? { ...prev, title: e.target.value } : null))} />
+        <div className="yy-di-edit__row">
+          <input placeholder="カテゴリー" value={editingPost?.category} onChange={(e) => setEditingPost((prev) => (prev ? { ...prev, category: e.target.value } : null))} />
+          <input placeholder="タグ(カンマ区切り)" value={editingPost?.tags} onChange={(e) => setEditingPost((prev) => (prev ? { ...prev, tags: e.target.value } : null))} />
+        </div>
+        <textarea placeholder="本文" value={editingPost?.content} onChange={(e) => setEditingPost((prev) => (prev ? { ...prev, content: e.target.value } : null))} />
+        <div className="yy-di-edit__act">
+          <button type="button" className="yy-btn" onClick={() => setIsEditing(false)}>
+            キャンセル
+          </button>
+          <button type="button" className="yy-btn is-primary" onClick={handleSave}>
+            保存
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
-      <div className="yy-di-body">
-        {/* ========================================== */}
-        {/* 左：記事の索引・検索 */}
-        {/* ========================================== */}
-        <section className="yy-di-index" aria-label="記事">
-          <SecHead no="I" title="記事" right={`${filteredPosts.length} 件`} />
-          <div className="yy-di-search">
-            <FiSearch />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="キーワード検索"
-            />
-          </div>
-          <div className="yy-di-ctrl">
-            {isLoggedIn && (
-              <button
-                type="button"
-                className="yy-di-textbtn"
-                aria-pressed={showBookmarksOnly}
-                onClick={() => setShowBookmarksOnly(!showBookmarksOnly)}
-              >
-                {showBookmarksOnly ? '★ お気に入りのみ' : '☆ お気に入り一覧'}
-              </button>
-            )}
-            {isAdmin && (
-              <button type="button" className="yy-di-textbtn is-acc" onClick={handleCreateNew}>
-                ＋ 新しい記事を作成
-              </button>
-            )}
-            {/* ソート機能 */}
-            <select
-              value={sortOrder}
-              onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest' | 'title')}
-              aria-label="並び順"
-            >
-              <option value="newest">新しい順</option>
-              <option value="oldest">古い順</option>
-              <option value="title">タイトル順</option>
-            </select>
-          </div>
-
-          {/* 記事リスト本体 */}
-          {filteredPosts.length === 0 ? (
-            <p className="yy-info-empty">該当なし</p>
-          ) : (
-            <ol className="yy-di-list">
-              {filteredPosts.map((post, i) => (
-                <li
-                  key={post.id}
-                  className="yy-di-row"
-                  aria-current={selectedPostId === post.id ? 'true' : undefined}
-                  onClick={() => selectPost(post.id)}
+  // ───────── 目録(記事を選んでいないとき) ─────────
+  if (!currentPost && !isEditing) {
+    let n = 0;
+    return (
+      <div className="yy-di" id="yy-di-top">
+        {!embedded && <PageHead no="15" en="design info" title="設計情報" desc="設計の技術・法規・設備の読みもの" right={<Stat n={posts.length} label="記事" />} />}
+        {tabs}
+        <div className="yy-di-home">
+          <div className="yy-di-home__main">
+            <div className="yy-di-finder">
+              <FiSearch aria-hidden="true" />
+              <input type="search" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="題・本文・タグから探す(例: 排煙、接地、ALC)" aria-label="記事を探す" />
+              <span className="yy-di-finder__n">{filteredPosts.length} 件</span>
+            </div>
+            <div className="yy-di-ctrl">
+              {isLoggedIn && (
+                <button type="button" className="yy-di-textbtn" aria-pressed={showBookmarksOnly} onClick={() => setShowBookmarksOnly(!showBookmarksOnly)}>
+                  {showBookmarksOnly ? '★ お気に入りのみ' : '☆ お気に入りだけ見る'}
+                </button>
+              )}
+              {(searchQuery || selectedCategory !== 'all' || showBookmarksOnly) && (
+                <button
+                  type="button"
+                  className="yy-di-textbtn"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setSelectedCategory('all');
+                    setShowBookmarksOnly(false);
+                  }}
                 >
-                  <span className="yy-di-rowno">{String(i + 1).padStart(2, '0')}</span>
-                  <span className="yy-di-rowbody">
-                    <span className="yy-di-rowt">{post.title}</span>
-                    <span className="yy-di-rowmeta">
-                      <span>{post.category}</span>
-                      <span>{post.date}</span>
-                      {post.tags && post.tags.slice(0, 2).map(tag => (
-                        <span key={tag}>#{tag}</span>
-                      ))}
-                    </span>
-                  </span>
-                  {isLoggedIn && (
-                    <button
-                      type="button"
-                      className="yy-di-star"
-                      aria-pressed={isBookmarked(post.id)}
-                      aria-label={isBookmarked(post.id) ? 'お気に入りから外す' : 'お気に入りに追加'}
+                  絞り込みを外す ×
+                </button>
+              )}
+              {isAdmin && (
+                <button type="button" className="yy-di-textbtn is-acc" onClick={handleCreateNew}>
+                  ＋ 新しい記事を作成
+                </button>
+              )}
+              <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest' | 'title')} aria-label="並び順">
+                <option value="newest">新しい順</option>
+                <option value="oldest">古い順</option>
+                <option value="title">タイトル順</option>
+              </select>
+            </div>
+
+            {filteredPosts.length === 0 ? (
+              <p className="yy-info-empty">該当する記事はありません</p>
+            ) : flat ? (
+              <ol className="yy-di-entries">
+                {filteredPosts.map((post, i) => (
+                  <Entry key={post.id} post={post} n={i + 1} />
+                ))}
+              </ol>
+            ) : (
+              groups.map((g, gi) => (
+                <section key={g.cat} className="yy-di-group" aria-label={g.cat}>
+                  <SecHead no={String.fromCharCode(0x2160 + gi)} title={g.cat} right={`${g.list.length} 本`} />
+                  <ol className="yy-di-entries">
+                    {g.list.map((post) => (
+                      <Entry key={post.id} post={post} n={++n} />
+                    ))}
+                  </ol>
+                </section>
+              ))
+            )}
+          </div>
+
+          <aside className="yy-info-side">
+            <section className="yy-info-block" aria-label="分野">
+              <SecHead no="" title="分野" right={`${posts.length} 本`} />
+              <ul className="yy-info-toc">
+                {orderedCats.map((cat) => (
+                  <li key={cat}>
+                    <a
+                      href="#"
                       onClick={(e) => {
-                        e.stopPropagation();
-                        toggleBookmark(post);
+                        e.preventDefault();
+                        pickCategory(cat);
+                      }}
+                      aria-current={selectedCategory === cat ? 'true' : undefined}
+                    >
+                      <span className="yy-info-toct">{cat}</span>
+                      <span className="yy-leader" />
+                      <span className="yy-info-tocv">{countOf(cat)}</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </section>
+            <section className="yy-info-block" aria-label="新着">
+              <SecHead no="" title="新着" />
+              <ul className="yy-info-toc">
+                {recent.map((p) => (
+                  <li key={p.id}>
+                    <a
+                      href={`/lookup/?post=${encodeURIComponent(p.id)}`}
+                      title={p.title}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        selectPost(p.id);
                       }}
                     >
-                      {isBookmarked(post.id) ? '★' : '☆'}
+                      <span className="yy-info-toct">{p.title}</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </section>
+            <section className="yy-info-block" aria-label="タグ">
+              <SecHead no="" title="タグから探す" />
+              <ul className="yy-di-tagcloud">
+                {topTags.map((t) => (
+                  <li key={t}>
+                    <button type="button" onClick={() => pickTag(t)} aria-pressed={searchQuery === t}>
+                      #{t}
                     </button>
-                  )}
+                  </li>
+                ))}
+              </ul>
+            </section>
+            <section className="yy-info-block" aria-label="関連">
+              <SecHead no="" title="関連" />
+              <ul className="yy-info-toc">
+                <li>
+                  <Link href="/lookup/?tab=material">
+                    <span className="yy-info-toct">材料情報</span>
+                    <span className="yy-leader" />
+                    <span className="yy-info-tocv">規格の早見表</span>
+                  </Link>
                 </li>
-              ))}
-            </ol>
-          )}
-        </section>
+                <li>
+                  <Link href="/calc/">
+                    <span className="yy-info-toct">計算ツール</span>
+                    <span className="yy-leader" />
+                    <span className="yy-info-tocv">根拠つき</span>
+                  </Link>
+                </li>
+              </ul>
+              <p className="yy-info-text">記事は根拠の条文・告示・規格を末尾に載せています。最終判断は最新の法令・基準を確かめたうえで行ってください。</p>
+            </section>
+          </aside>
+        </div>
+      </div>
+    );
+  }
 
-        {/* ========================================== */}
-        {/* 中央：記事 */}
-        {/* ========================================== */}
+  // ───────── 記事 ─────────
+  return (
+    <div className="yy-di" id="yy-di-top">
+      {!embedded && <PageHead no="15" en="design info" title="設計情報" desc="設計の技術・法規・設備の読みもの" right={<Stat n={posts.length} label="記事" />} />}
+      {tabs}
+      <div className="yy-di-read">
         <article className="yy-di-article">
           {isEditing ? (
-            /* --- 編集モード --- */
-            <div>
-              <SecHead
-                title="記事編集"
-                right={
-                  <button type="button" className="yy-di-textbtn" onClick={() => setIsEditing(false)}>
-                    閉じる ×
-                  </button>
-                }
-              />
-              <div className="yy-di-edit">
-                <input
-                  placeholder="タイトル"
-                  value={editingPost?.title}
-                  onChange={e => setEditingPost(prev => prev ? {...prev, title: e.target.value} : null)}
-                />
-                <div className="yy-di-edit__row">
-                  <input
-                    placeholder="カテゴリー"
-                    value={editingPost?.category}
-                    onChange={e => setEditingPost(prev => prev ? {...prev, category: e.target.value} : null)}
-                  />
-                  <input
-                    placeholder="タグ(カンマ区切り)"
-                    value={editingPost?.tags}
-                    onChange={e => setEditingPost(prev => prev ? {...prev, tags: e.target.value} : null)}
-                  />
-                </div>
-                <textarea
-                  placeholder="本文"
-                  value={editingPost?.content}
-                  onChange={e => setEditingPost(prev => prev ? {...prev, content: e.target.value} : null)}
-                />
-                <div className="yy-di-edit__act">
-                  <button type="button" className="yy-btn" onClick={() => setIsEditing(false)}>キャンセル</button>
-                  <button type="button" className="yy-btn is-primary" onClick={handleSave}>保存</button>
-                </div>
-              </div>
-            </div>
+            editor
           ) : currentPost && article ? (
-            /* --- 閲覧モード --- */
             <>
-              {/* 記事ヘッダー */}
+              <nav className="yy-di-crumb" aria-label="記事の位置">
+                <button type="button" className="yy-di-textbtn" onClick={backToIndex}>
+                  ← 目録
+                </button>
+                <span>/</span>
+                <button type="button" className="yy-di-textbtn" onClick={() => pickCategory(currentPost.category)}>
+                  {currentPost.category}
+                </button>
+              </nav>
               <div className="yy-di-meta">
                 <span>{currentPost.category}</span>
                 <span>{currentPost.date}</span>
                 {isLoggedIn && (
-                  <button
-                    type="button"
-                    className="yy-di-textbtn"
-                    aria-pressed={isBookmarked(currentPost.id)}
-                    onClick={() => toggleBookmark(currentPost)}
-                  >
+                  <button type="button" className="yy-di-textbtn" aria-pressed={isBookmarked(currentPost.id)} onClick={() => toggleBookmark(currentPost)}>
                     {isBookmarked(currentPost.id) ? '★ お気に入り済み' : '☆ お気に入りに追加'}
                   </button>
                 )}
                 {isAdmin && (
                   <span className="yy-di-meta__admin">
-                    <button type="button" className="yy-di-textbtn" onClick={() => handleEdit(currentPost)}>編集</button>
-                    <button type="button" className="yy-di-textbtn is-danger" onClick={() => handleDelete(currentPost.id)}>削除</button>
+                    <button type="button" className="yy-di-textbtn" onClick={() => handleEdit(currentPost)}>
+                      編集
+                    </button>
+                    <button type="button" className="yy-di-textbtn is-danger" onClick={() => handleDelete(currentPost.id)}>
+                      削除
+                    </button>
                   </span>
                 )}
               </div>
@@ -591,13 +708,16 @@ const DesignInfo: React.FC<{ embedded?: boolean; initialPost?: string | null }> 
 
               {currentPost.tags && currentPost.tags.length > 0 && (
                 <ul className="yy-di-tags">
-                  {currentPost.tags.map(tag => (
-                    <li key={tag}>#{tag}</li>
+                  {currentPost.tags.map((tag) => (
+                    <li key={tag}>
+                      <button type="button" onClick={() => pickTag(tag)} title={`「${tag}」の記事を探す`}>
+                        #{tag}
+                      </button>
+                    </li>
                   ))}
                 </ul>
               )}
 
-              {/* 計算ツール（該当カテゴリのみ） */}
               {currentPost.category === '構造設計' && (
                 <section className="yy-di-tool">
                   <SecHead
@@ -616,21 +736,33 @@ const DesignInfo: React.FC<{ embedded?: boolean; initialPost?: string | null }> 
                 </section>
               )}
 
-              {/* 記事本文 */}
               <div className="yy-di-content">{article.nodes}</div>
+
+              <nav className="yy-di-pager" aria-label="同じ分類の前後の記事">
+                {prevPost ? (
+                  <button type="button" onClick={() => selectPost(prevPost.id)}>
+                    <span className="yy-label">← 前の記事</span>
+                    <span>{prevPost.title}</span>
+                  </button>
+                ) : (
+                  <span />
+                )}
+                {nextPost ? (
+                  <button type="button" className="is-next" onClick={() => selectPost(nextPost.id)}>
+                    <span className="yy-label">次の記事 →</span>
+                    <span>{nextPost.title}</span>
+                  </button>
+                ) : (
+                  <span />
+                )}
+              </nav>
             </>
-          ) : (
-            /* --- 記事未選択時 --- */
-            <p className="yy-di-none">記事を選択してください</p>
-          )}
+          ) : null}
         </article>
 
-        {/* ========================================== */}
-        {/* 右：目次 / 関連 / この画面について */}
-        {/* ========================================== */}
         <aside className="yy-info-side">
           <section className="yy-info-block" aria-label="目次">
-            <SecHead no="II" title="目次" right={article && !isEditing ? `${article.heads.length} 章` : undefined} />
+            <SecHead no="I" title="目次" right={article && !isEditing ? `${article.heads.length} 章` : undefined} />
             {article && article.heads.length > 0 && !isEditing ? (
               <ol className="yy-info-toc">
                 {article.heads.map((h, i) => (
@@ -654,21 +786,38 @@ const DesignInfo: React.FC<{ embedded?: boolean; initialPost?: string | null }> 
             )}
           </section>
 
+          {currentPost && (
+            <section className="yy-info-block" aria-label="同じ分類の記事">
+              <SecHead no="II" title={currentPost.category} right={`${sameCat.length} 本`} />
+              <ol className="yy-info-toc yy-di-samecat">
+                {sameCat.map((p, i) => (
+                  <li key={p.id}>
+                    <a
+                      href={`/lookup/?post=${encodeURIComponent(p.id)}`}
+                      title={p.title}
+                      aria-current={p.id === currentPost.id ? 'true' : undefined}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        selectPost(p.id);
+                      }}
+                    >
+                      <span className="yy-info-tocno">{String(i + 1).padStart(2, '0')}</span>
+                      <span className="yy-info-toct">{p.title}</span>
+                    </a>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
+
           <section className="yy-info-block" aria-label="関連">
             <SecHead no="III" title="関連" />
             <ul className="yy-info-toc">
               <li>
-                <ScreenLink target={{ menu: 'material-info' }}>
+                <Link href="/lookup/?tab=material">
                   <span className="yy-info-toct">材料情報</span>
                   <span className="yy-leader" />
                   <span className="yy-info-tocv">規格の早見表</span>
-                </ScreenLink>
-              </li>
-              <li>
-                <Link href="/lookup/">
-                  <span className="yy-info-toct">建築の調べもの</span>
-                  <span className="yy-leader" />
-                  <span className="yy-info-tocv">条文と計算 ↗</span>
                 </Link>
               </li>
               <li>
@@ -679,19 +828,13 @@ const DesignInfo: React.FC<{ embedded?: boolean; initialPost?: string | null }> 
                 </ScreenLink>
               </li>
             </ul>
-          </section>
-
-          <section className="yy-info-block" aria-label="この画面について">
-            <SecHead no="IV" title="この画面について" />
-            <p className="yy-info-text">
-              最新の設計関連情報をお届けします。建築設計に必要な技術情報、法規情報、設備情報などをまとめています。※情報は設計者が実務において適切に調査・確認してください。
-            </p>
-            <p className="yy-info-text is-beta">※この機能は現在β版です。ご意見をぜひお聞かせください。</p>
+            <p className="yy-info-text">※情報は設計者が実務において適切に調査・確認してください。</p>
           </section>
         </aside>
       </div>
     </div>
   );
+
 };
 
 export default DesignInfo;

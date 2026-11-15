@@ -1026,6 +1026,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
     }
     
     switch (page) {
+      case 'materials':
+        return [
+          { src: '/image/掲載募集中a.png', alt: '建材メーカー掲載希望広告', link: 'registration' },
+          { src: '/image/naibu-wall_cm_sample.png', alt: '建材メーカー掲載希望広告', link: 'registration' },
+          { src: '/image/kagu_cm_sample.png', alt: '建材メーカー掲載希望広告', link: 'registration' },
+        ];
       case 'event':
         return [
           { src: 'https://h.accesstrade.net/sp/rr?rk=0100ntts00ol67', alt: '日旅まつり　お得まとめ', link: 'https://h.accesstrade.net/sp/cc?rk=0100ntts00ol67', isAccessTrade: true },
@@ -1513,7 +1519,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
           {/* 右サイドバー：広告欄（Userpageメニュー以外で表示） */}
           {/* iPadサイズ(md:768px)以上で表示、最小200px〜最大300pxで縮小対応 */}
           {/* ホーム・建材・調べものはモック「高級感 3」どおり中央を使い切るので、広告欄を出さない（建材の掲載枠は左列へ移した） */}
-          {!isUserpageMenu() && !(pathname === '/' && activeContent === 'topix') && !CATEGORY_SUBCATEGORIES[activeContent] && !pathname.startsWith('/lookup') && !pathname.startsWith('/karte') && !pathname.startsWith('/materials') && !(pathname.startsWith('/calc') && !pathname.startsWith('/calc/force-flow')) && (() => {
+          {!isUserpageMenu() && !(pathname === '/' && activeContent === 'topix') && !CATEGORY_SUBCATEGORIES[activeContent] && !pathname.startsWith('/lookup') && !pathname.startsWith('/karte') && !(pathname.startsWith('/calc') && !pathname.startsWith('/calc/force-flow')) && (() => {
             // プライバシーポリシーページ判定（広告を非表示にして関連プライポリ一覧を出す）
             // - 個別アプリページ: URLパス /xxx-app-privacy-policy/ で開いている
             // - yaneyuka.com 本体のプライポリ: フッターバー「プライバシーポリシー」から SPA遷移 → URLは / のまま、activeContent='privacy-policy'
@@ -1540,7 +1546,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
                 // アフィリエイト広告をランダムに最大2個選択
                 // 乱数はマウント後だけ。サーバーの HTML と初回描画は同じ並びにしないと
                 // ハイドレーションが失敗し、ページ全体が描き直しになる。
-                const allAds = getAdContent(activeContent);
+                // 建材トップ(/materials/)の右は広告エリア(2026-11-15 ユーザー指示)。掲載の募集を出す
+                const allAds = getAdContent(pathname.startsWith('/materials') ? 'materials' : activeContent);
                 const shuffled = hasMounted ? [...allAds].sort(() => Math.random() - 0.5) : allAds;
                 const displayAds = shuffled.slice(0, 2);
 
