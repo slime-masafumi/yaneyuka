@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-11-08",
-  "checked": 2061,
+  "generatedAt": "2026-11-15",
+  "checked": 2150,
   "summary": {
-    "ok": 1525,
-    "broken": 311,
-    "unreachable": 164,
-    "error": 61
+    "ok": 1637,
+    "broken": 325,
+    "unreachable": 170,
+    "error": 18
   },
   "broken": [
     {
@@ -789,14 +789,9 @@
       "fallback": "https://www.kmew.co.jp"
     },
     {
-      "url": "https://www.koizumi-lt.co.jp/catalog/",
+      "url": "https://www.kokensangyo.co.jp/product/masu/",
       "status": 404,
-      "fallback": "https://www.koizumi-lt.co.jp"
-    },
-    {
-      "url": "https://www.koizumi-lt.co.jp/contact/",
-      "status": 404,
-      "fallback": "https://www.koizumi-lt.co.jp"
+      "fallback": "https://www.kokensangyo.co.jp"
     },
     {
       "url": "https://www.komatsumatere.co.jp/greenbiz/",
@@ -1504,6 +1499,81 @@
       "fallback": "https://www.woodtec.co.jp"
     },
     {
+      "url": "https://www.ykkap.co.jp/about/network/",
+      "status": 404,
+      "fallback": "https://www.ykkap.co.jp"
+    },
+    {
+      "url": "https://www.ykkap.co.jp/catalog/",
+      "status": 404,
+      "fallback": "https://www.ykkap.co.jp"
+    },
+    {
+      "url": "https://www.ykkap.co.jp/consumer/products/wall/",
+      "status": 404,
+      "fallback": "https://www.ykkap.co.jp"
+    },
+    {
+      "url": "https://www.ykkap.co.jp/consumer/products/window/",
+      "status": 404,
+      "fallback": "https://www.ykkap.co.jp"
+    },
+    {
+      "url": "https://www.ykkap.co.jp/contact/",
+      "status": 404,
+      "fallback": "https://www.ykkap.co.jp"
+    },
+    {
+      "url": "https://www.ykkap.co.jp/info/catalog/",
+      "status": 404,
+      "fallback": "https://www.ykkap.co.jp"
+    },
+    {
+      "url": "https://www.ykkap.co.jp/products/carport/",
+      "status": 404,
+      "fallback": "https://www.ykkap.co.jp"
+    },
+    {
+      "url": "https://www.ykkap.co.jp/products/ex/accessories/",
+      "status": 404,
+      "fallback": "https://www.ykkap.co.jp"
+    },
+    {
+      "url": "https://www.ykkap.co.jp/products/ex/galvarium/kantan-sidei-s/",
+      "status": 404,
+      "fallback": "https://www.ykkap.co.jp"
+    },
+    {
+      "url": "https://www.ykkap.co.jp/products/exterior/",
+      "status": 404,
+      "fallback": "https://www.ykkap.co.jp"
+    },
+    {
+      "url": "https://www.ykkap.co.jp/products/fence/",
+      "status": 404,
+      "fallback": "https://www.ykkap.co.jp"
+    },
+    {
+      "url": "https://www.ykkap.co.jp/products/garden/",
+      "status": 404,
+      "fallback": "https://www.ykkap.co.jp"
+    },
+    {
+      "url": "https://www.ykkap.co.jp/showroom/",
+      "status": 404,
+      "fallback": "https://www.ykkap.co.jp"
+    },
+    {
+      "url": "https://www.ykkap.co.jp/support/catalog/exterior/",
+      "status": 404,
+      "fallback": "https://www.ykkap.co.jp"
+    },
+    {
+      "url": "https://www.ykkap.co.jp/support/contact/",
+      "status": 404,
+      "fallback": "https://www.ykkap.co.jp"
+    },
+    {
       "url": "https://www.yodoko.co.jp/company/network/",
       "status": 404,
       "fallback": "https://www.yodoko.co.jp"
@@ -1566,26 +1636,6 @@
   ],
   "unreachable": [
     {
-      "url": "http://kimura-kawara.co.jp/about",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
-    },
-    {
-      "url": "http://kimura-kawara.co.jp/inquiry",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
-    },
-    {
-      "url": "http://kimura-kawara.co.jp/products",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
-    },
-    {
-      "url": "http://www.alracs.co.jp/company/index.html",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
-    },
-    {
-      "url": "http://www.alracs.co.jp/index.html",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
-    },
-    {
       "url": "http://www.orimeta.co.jp/company.html",
       "reason": "UND_ERR_CONNECT_TIMEOUT"
     },
@@ -1598,20 +1648,16 @@
       "reason": "UND_ERR_CONNECT_TIMEOUT"
     },
     {
-      "url": "https://ssl.runon.co.jp/product/",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
-    },
-    {
-      "url": "https://ssl.runon.co.jp/samplebook/wallcoverings.php",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
-    },
-    {
       "url": "https://st.sankyo-tateyama.co.jp/inquiry/business/",
       "reason": "ENOTFOUND"
     },
     {
       "url": "https://st.sankyo-tateyama.co.jp/service/catalog/",
       "reason": "ENOTFOUND"
+    },
+    {
+      "url": "https://webcatalog.koizumi-lt.co.jp/iportal/CatalogViewInterfaceStartUpAction.do?method=startUp&mode=PAGE&volumeID=DIGICATA&catalogId=8642230000&pageGroupId=1&catalogCategoryId=",
+      "reason": "EAI_AGAIN"
     },
     {
       "url": "https://www.acosstec.co.jp/company/index.html#outline",
@@ -1692,6 +1738,18 @@
     {
       "url": "https://www.ats-v.co.jp/sales/index.html",
       "reason": "ENOTFOUND"
+    },
+    {
+      "url": "https://www.brass.co.jp/inq/",
+      "reason": "CERT_HAS_EXPIRED"
+    },
+    {
+      "url": "https://www.brass.co.jp/item_list/04601/",
+      "reason": "CERT_HAS_EXPIRED"
+    },
+    {
+      "url": "https://www.brass.co.jp/sub/company/",
+      "reason": "CERT_HAS_EXPIRED"
     },
     {
       "url": "https://www.chiyoda-steel.co.jp/company/access.php",
@@ -1846,8 +1904,32 @@
       "reason": "ENOTFOUND"
     },
     {
+      "url": "https://www.koizumi-lt.co.jp/catalog/",
+      "reason": "EAI_AGAIN"
+    },
+    {
+      "url": "https://www.koizumi-lt.co.jp/company/",
+      "reason": "EAI_AGAIN"
+    },
+    {
+      "url": "https://www.koizumi-lt.co.jp/company/office.html",
+      "reason": "EAI_AGAIN"
+    },
+    {
+      "url": "https://www.koizumi-lt.co.jp/contact/",
+      "reason": "EAI_AGAIN"
+    },
+    {
+      "url": "https://www.koizumi-lt.co.jp/l-design/",
+      "reason": "EAI_AGAIN"
+    },
+    {
+      "url": "https://www.koizumi-lt.co.jp/product/",
+      "reason": "EAI_AGAIN"
+    },
+    {
       "url": "https://www.koizumi-lt.co.jp/support/",
-      "reason": "UND_ERR_CONNECT_TIMEOUT"
+      "reason": "EAI_AGAIN"
     },
     {
       "url": "https://www.kyowa-kb.co.jp/branch/",
@@ -2220,6 +2302,18 @@
     {
       "url": "https://www.y-y-k.co.jp/support/inquiry_step1/",
       "reason": "UNABLE_TO_VERIFY_LEAF_SIGNATURE"
+    },
+    {
+      "url": "https://www.yamanaka-jp.com/about/location/",
+      "reason": "EAI_AGAIN"
+    },
+    {
+      "url": "https://www.yamanaka-jp.com/catalog/?cat_filter=%25e7%2595%25b3%25e8%25b3%2587%25e6%259d%2590",
+      "reason": "EAI_AGAIN"
+    },
+    {
+      "url": "https://www.yamanaka-jp.com/contact/",
+      "reason": "EAI_AGAIN"
     }
   ],
   "error": [
@@ -2230,54 +2324,6 @@
     {
       "url": "https://cleanup.jp/support/contact/",
       "status": 500
-    },
-    {
-      "url": "https://danto.jp/catalog_request/",
-      "status": 503
-    },
-    {
-      "url": "https://danto.jp/companyinfo/showroom/",
-      "status": 503
-    },
-    {
-      "url": "https://danto.jp/contact/",
-      "status": 503
-    },
-    {
-      "url": "https://danto.jp/products/list?mode=search&productplus_4%5B%5D=7&shape=on",
-      "status": 503
-    },
-    {
-      "url": "https://danto.jp/products/list?productplus_4=5",
-      "status": 503
-    },
-    {
-      "url": "https://danto.jp/products/list?productplus_4=6",
-      "status": 503
-    },
-    {
-      "url": "https://danto.jp/products/list?productplus_4=81",
-      "status": 503
-    },
-    {
-      "url": "https://www.aica-tech.co.jp/company/office.html",
-      "status": 503
-    },
-    {
-      "url": "https://www.aica-tech.co.jp/inquiry/index.html",
-      "status": 503
-    },
-    {
-      "url": "https://www.aica-tech.co.jp/products/data_catalog.html",
-      "status": 503
-    },
-    {
-      "url": "https://www.aica-tech.co.jp/products/mace_index.html",
-      "status": 503
-    },
-    {
-      "url": "https://www.danto.co.jp/products/",
-      "status": 503
     },
     {
       "url": "https://www.excelshanon.co.jp/catalog/",
@@ -2312,30 +2358,6 @@
       "status": 503
     },
     {
-      "url": "https://www.kawaki-sowa.co.jp/product_search/category05",
-      "status": 500
-    },
-    {
-      "url": "https://www.kokensangyo.co.jp/catalogue_cad/",
-      "status": 503
-    },
-    {
-      "url": "https://www.kokensangyo.co.jp/catalogue_cad/catalogue/",
-      "status": 503
-    },
-    {
-      "url": "https://www.kokensangyo.co.jp/company/place/",
-      "status": 503
-    },
-    {
-      "url": "https://www.kokensangyo.co.jp/contact/",
-      "status": 503
-    },
-    {
-      "url": "https://www.kokensangyo.co.jp/product/masu/",
-      "status": 503
-    },
-    {
       "url": "https://www.ohmura-trading.co.jp/products/list?category_id=1",
       "status": 500
     },
@@ -2357,106 +2379,6 @@
     },
     {
       "url": "https://www.seiki.gr.jp/showroom.html",
-      "status": 503
-    },
-    {
-      "url": "https://www.ykkap.co.jp/about/network/",
-      "status": 503
-    },
-    {
-      "url": "https://www.ykkap.co.jp/business/ext/search/?t=building&c=30",
-      "status": 503
-    },
-    {
-      "url": "https://www.ykkap.co.jp/business/ext/search/?t=housing&c=13",
-      "status": 503
-    },
-    {
-      "url": "https://www.ykkap.co.jp/business/ext/search/?t=housing&c=14",
-      "status": 503
-    },
-    {
-      "url": "https://www.ykkap.co.jp/business/showroom/",
-      "status": 503
-    },
-    {
-      "url": "https://www.ykkap.co.jp/business/support/",
-      "status": 503
-    },
-    {
-      "url": "https://www.ykkap.co.jp/catalog/",
-      "status": 503
-    },
-    {
-      "url": "https://www.ykkap.co.jp/company/",
-      "status": 503
-    },
-    {
-      "url": "https://www.ykkap.co.jp/consumer/products/exterior/parasorea",
-      "status": 503
-    },
-    {
-      "url": "https://www.ykkap.co.jp/consumer/products/wall/",
-      "status": 503
-    },
-    {
-      "url": "https://www.ykkap.co.jp/consumer/products/window/",
-      "status": 503
-    },
-    {
-      "url": "https://www.ykkap.co.jp/consumer/search/products/window",
-      "status": 503
-    },
-    {
-      "url": "https://www.ykkap.co.jp/consumer/search/products/window/pvc",
-      "status": 503
-    },
-    {
-      "url": "https://www.ykkap.co.jp/consumer/search/products/window/wood",
-      "status": 503
-    },
-    {
-      "url": "https://www.ykkap.co.jp/contact/",
-      "status": 503
-    },
-    {
-      "url": "https://www.ykkap.co.jp/info/catalog/",
-      "status": 503
-    },
-    {
-      "url": "https://www.ykkap.co.jp/products/carport/",
-      "status": 503
-    },
-    {
-      "url": "https://www.ykkap.co.jp/products/ex/accessories/",
-      "status": 503
-    },
-    {
-      "url": "https://www.ykkap.co.jp/products/ex/galvarium/kantan-sidei-s/",
-      "status": 503
-    },
-    {
-      "url": "https://www.ykkap.co.jp/products/exterior/",
-      "status": 503
-    },
-    {
-      "url": "https://www.ykkap.co.jp/products/fence/",
-      "status": 503
-    },
-    {
-      "url": "https://www.ykkap.co.jp/products/garden/",
-      "status": 503
-    },
-    {
-      "url": "https://www.ykkap.co.jp/showroom/",
-      "status": 503
-    },
-    {
-      "url": "https://www.ykkap.co.jp/support/catalog/exterior/",
-      "status": 503
-    },
-    {
-      "url": "https://www.ykkap.co.jp/support/contact/",
       "status": 503
     },
     {
