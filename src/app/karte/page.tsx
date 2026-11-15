@@ -14,6 +14,8 @@ export const metadata: Metadata = {
 export default function KartePage() {
   return (
     <div className="yy-kt yk-app">
+      {/* 画面は読み込み後に組むので、ページの見出しだけはサーバーで出す(2026-11-15) */}
+      <h1 className="sr-only">物件カルテ</h1>
       <KarteLoader />
     </div>
   );

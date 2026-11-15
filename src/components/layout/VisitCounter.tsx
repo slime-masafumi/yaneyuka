@@ -15,6 +15,27 @@ import { auth } from '@/lib/firebaseClient';
 
 const ADMIN_EMAIL = 'slime-a@outlook.com';
 const DAY_KEY = 'yy-visit-day';
+const SESSION_KEY = 'yy-visit-session';
+/** 管理者として一度ログインした端末には印を残し、以後はログアウト中でも数えない */
+const SKIP_KEY = 'yy-visit-skip';
+
+/** 参照元を大まかな種類に(検索エンジン名・SNS・ほかのサイト・直接)。URL や検索語は送らない */
+function sourceOf(referrer: string): string {
+  let host = '';
+  try {
+    host = referrer ? new URL(referrer).hostname : '';
+  } catch {
+    return 'direct';
+  }
+  if (!host || host === location.hostname) return 'direct';
+  if (/(^|\.)google\./.test(host)) return 'google';
+  if (/(^|\.)bing\.com$/.test(host)) return 'bing';
+  if (/(^|\.)yahoo\.co(\.jp|m)$/.test(host)) return 'yahoo';
+  if (/duckduckgo|ecosia|baidu|naver/.test(host)) return 'search-other';
+  if (/(^|\.)(t\.co|x\.com|twitter\.com|facebook\.com|instagram\.com|threads\.net|linkedin\.com|line\.me|youtube\.com|note\.com|pinterest\.)/.test(host)) return 'social';
+  if (/chatgpt|openai|perplexity|claude\.ai|copilot|gemini/.test(host)) return 'ai';
+  return 'other';
+}
 
 type Count = { pv: number; uv: number };
 type Stats = { today: Count; yesterday: Count; total: Count };
@@ -29,6 +50,14 @@ export default function VisitCounter() {
 
   // ページを移るたびに 1 回数える(その日の最初の 1 回だけ「来た端末」にも数える)
   useEffect(() => {
+    // 手元の確認(localhost)と管理者本人の閲覧は数えない。どちらも本番の Firestore に書いていて、
+    // 2026-11-13〜15 の 665 PV はほとんどが確認作業だった
+    if (location.hostname !== 'yaneyuka.com') return;
+    try {
+      if (localStorage.getItem(SKIP_KEY)) return;
+    } catch {
+      /* 数える */
+    }
     let first = false;
     try {
       const today = jstDay();
@@ -39,15 +68,37 @@ export default function VisitCounter() {
     } catch {
       /* 保存できない端末は開いた回数だけ数える */
     }
+    // どこから来たか(検索・SNS・直接など)は、その訪問の最初のページでだけ送る。参照元はドメインだけ
+    let from: string | undefined;
+    try {
+      if (!sessionStorage.getItem(SESSION_KEY)) {
+        sessionStorage.setItem(SESSION_KEY, '1');
+        from = sourceOf(document.referrer);
+      }
+    } catch {
+      /* 数えない */
+    }
     fetch('/api/visit/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ first }),
+      body: JSON.stringify({ first, path: pathname, from }),
       keepalive: true,
     }).catch(() => {});
   }, [pathname]);
 
-  useEffect(() => onAuthStateChanged(auth, (u) => setAdmin(u?.email === ADMIN_EMAIL ? u : null)), []);
+  useEffect(
+    () =>
+      onAuthStateChanged(auth, (u) => {
+        const isAdmin = u?.email === ADMIN_EMAIL;
+        if (isAdmin) {
+          try {
+            localStorage.setItem(SKIP_KEY, '1');
+          } catch {}
+        }
+        setAdmin(isAdmin ? u : null);
+      }),
+    [],
+  );
 
   // 管理者のときだけ読む。ページを移るたびに読み直す(数えた直後なので少し待つ)
   useEffect(() => {

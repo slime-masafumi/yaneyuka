@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'Shop',
-  description: '建築・建設業界向けの商品を販売。建材、工具、書籍など実務に役立つ商品を取り揃えています。',
+  description: '設計・現場で役立つ道具 62 品を、6 つの分類・50 ブランドで紹介します。各ブランドの公式ページや販売ページへ直接移れます。',
   alternates: {
     canonical: 'https://yaneyuka.com/shop',
   },
@@ -23,7 +23,7 @@ export default function ShopLayout({
     '@context': 'https://schema.org',
     '@type': 'Store',
     name: 'yaneyuka Shop',
-    description: '建築・建設業界向けの商品を販売。建材、工具、書籍など実務に役立つ商品を取り揃えています。',
+    description: '設計・現場で役立つ道具 62 品を、6 つの分類・50 ブランドで紹介します。各ブランドの公式ページや販売ページへ直接移れます。',
     url: 'https://yaneyuka.com/shop',
   };
 

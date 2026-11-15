@@ -142,6 +142,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
     // 小分類ごとの URL（/roof/seppan/）も同じく建材の画面
     const mat = parseMaterialPath(normalizedPathname);
     if (mat) return mat.category;
+    // NEWS・イベント・コンペなどの画面も同じ。サーバーでは 'topix'(空)を出していたため、
+    // 配信 HTML の本文が 300 字ほど(左カラムの文字だけ)しか無かった(2026-11-15)
+    const screen = PATH_TO_SCREEN[normalizedPathname];
+    if (screen) return screen;
     return 'topix';
   };
   // 建材ページをサーバーで組むときの小分類。/roof/seppan/ ならその小分類、/roof/ なら先頭のもの

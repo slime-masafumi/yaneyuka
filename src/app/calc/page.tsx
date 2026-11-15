@@ -66,7 +66,6 @@ export default function CalcIndexPage() {
         <span>/</span>
         <span>計算ツール</span>
       </p>
-      <h1 className="sr-only">計算ツール</h1>
       <PageHead
         en="calculation"
         title="計算ツール"

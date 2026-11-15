@@ -123,7 +123,7 @@ export function buildIndex(knowledge: KnowledgePage[], posts: Post[], guides: Re
       if (/^根拠|^参考|^主なメーカー/.test(head)) continue;
       const body = plain(part.replace(/^## .+\n?/, '').replace(/\n### 根拠[\s\S]*$/, ''));
       if (body.length < 40) continue;
-      chunks.push({ kind: '設計情報', group: `p:${post.id}`, title: head ? `${post.title.replace(/【[^】]*】/g, '')} — ${head}` : post.title, text: body, href: `/lookup/?post=${post.id}` });
+      chunks.push({ kind: '設計情報', group: `p:${post.id}`, title: head ? `${post.title.replace(/【[^】]*】/g, '')} — ${head}` : post.title, text: body, href: `/lookup/post/${encodeURIComponent(post.id)}/` });
     }
   }
   // 材料情報(規格・寸法の早見表)は表なので、節の題だけを入れて表へのリンクにする

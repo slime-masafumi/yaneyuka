@@ -77,7 +77,8 @@ export const MATERIAL_INFO_SECTIONS: Record<InfoCat, { id: string; title: string
 };
 
 export const materialInfoHref = (sectionId: string) => `/lookup/?tab=material&sec=${encodeURIComponent(sectionId)}`;
-export const designInfoHref = (postId: string) => `/lookup/?post=${encodeURIComponent(postId)}`;
+// 記事の単体ページ(2026-11-15。それまでは /lookup/?post=7 で、こちらも引き続き開ける)
+export const designInfoHref = (postId: string) => `/lookup/post/${encodeURIComponent(postId)}/`;
 
 /** 章 id → { 分野, 題 }。無ければ null */
 export function findMaterialSection(id: string): { cat: InfoCat; id: string; title: string } | null {

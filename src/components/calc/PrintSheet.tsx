@@ -113,7 +113,8 @@ export default function PrintSheet({ title, basis, url, children }: { title: str
       </div>
       <div className="yy-ps__head" aria-hidden="true">
         <span className="yy-ps__label">CALCULATION SHEET — yaneyuka.com</span>
-        <h1 className="yy-ps__title">{title}</h1>
+        {/* 画面の見出し(h1)はページ側にあるので、印刷の表題は h1 にしない(1 ページに h1 が 2 つになる) */}
+        <p className="yy-ps__title">{title}</p>
         {basis && <p className="yy-ps__basis">根拠: {basis}</p>}
         <p className="yy-ps__meta">
           作成日 {today}

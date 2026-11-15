@@ -13,7 +13,6 @@ export const metadata: Metadata = {
 export default function LookupIndexPage() {
   return (
     <>
-      <h1 className="sr-only">建築の調べもの(設計情報・材料情報)</h1>
       <LookupTabs />
     </>
   );

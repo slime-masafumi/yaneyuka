@@ -1123,7 +1123,7 @@ function PrintableReport({ title, partLabel, profile, cond, outLabel, limitLabel
     <div id="print-report-container" className="hidden print:block text-black bg-white text-[10px] leading-snug">
       <div className="flex justify-between items-end border-b-2 border-black pb-1 mb-3">
         <div>
-          <h1 className="text-[18px] font-bold">結露計算書</h1>
+          <p className="text-[18px] font-bold">結露計算書</p>
           <p>{partLabel} · {title}</p>
         </div>
         <p>{today}　yaneyuka.com 結露検討</p>

@@ -99,7 +99,13 @@ export function materialSubPage(category: string) {
         ],
       },
     ];
-    return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />;
+    // 画面の見出しは小分類のタブ(見た目)なので、ページの題を h1 として読み上げ・検索エンジン向けに置く(2026-11-15)
+    return (
+      <>
+        <h1 className="sr-only">{`${label}(${catLabel})のメーカー一覧`}</h1>
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />
+      </>
+    );
   }
 
   return { generateStaticParams, generateMetadata, Page };

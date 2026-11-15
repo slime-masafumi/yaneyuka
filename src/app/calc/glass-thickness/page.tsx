@@ -127,7 +127,7 @@ const RELATED = [
   { href: '/karte/?open=glass', title: '物件カルテで検討を残す', desc: '物件の風速・粗度・高さを一度入れれば、以後の検討で再入力が不要。条件が変わると要再確認が付く' },
   { href: '/lookup/?tab=material&sec=section-1', title: 'ガラス種別(JIS R 3202 他)', desc: 'フロート・強化・合わせ・複層ガラスの厚さと用途の早見表' },
   { href: '/lookup/?tab=material&sec=section-10', title: 'シーリング材', desc: 'ガラスまわり・目地に使うシーリング材の種類と使い分け' },
-  { href: '/lookup/?post=7', title: '耐火・準耐火構造の考え方', desc: '防火設備としての開口部・ガラスを選ぶ前提' },
+  { href: '/lookup/post/7/', title: '耐火・準耐火構造の考え方', desc: '防火設備としての開口部・ガラスを選ぶ前提' },
   { href: '/lookup/', title: '建築の調べもの', desc: '設計情報(読みもの)と材料情報(規格・寸法の早見表)' },
 ];
 
@@ -140,7 +140,6 @@ export default function GlassThicknessPage() {
         <span>/</span>
         <Link href="/calc/">計算ツール</Link>
       </p>
-      <h1 className="sr-only">必要ガラス厚の計算</h1>
       <PageHead
         en="calc · glass thickness"
         title="必要ガラス厚の計算"

@@ -171,8 +171,9 @@ export default function KarteApp() {
 
   return (
     <div ref={rootRef} style={{ scrollMarginTop: 8 }}>
-      <h1 className="sr-only">物件カルテ</h1>
+      {/* h1 は /karte/ のページ側(サーバーで出す)にある */}
       <PageHead
+        level={2}
         no="11"
         en="property chart"
         title="物件カルテ"

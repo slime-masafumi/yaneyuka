@@ -83,6 +83,12 @@ function buildCrumbs(
   const path = pathname.replace(/\/$/, '') || '/';
   const first = path.split('/')[1] ?? '';
 
+  // 設計情報の記事 /lookup/post/{id}/。/lookup/post/ というページは無いので、目録(/lookup/)へ戻す。
+  // 記事の題はここで引かない(記事の本文ごと全ページの読み込みに入ってしまう)
+  if (/^\/lookup\/post\/[^/]+$/.test(path)) {
+    return [home, { label: '建築の調べもの', href: '/lookup/' }, { label: '設計情報', href: '/lookup/' }, { label: '記事' }];
+  }
+
   if (first && PATH_LABEL[first]) {
     let acc = '';
     const rest = path

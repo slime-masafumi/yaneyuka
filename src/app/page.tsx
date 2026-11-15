@@ -154,7 +154,7 @@ export default function Home() {
             <ol className="yy-home__toc yy-home__latest">
               {latestPosts.map((p) => (
                 <li key={p.id}>
-                  <Link href={`/lookup/?post=${encodeURIComponent(p.id)}`} title={p.title}>
+                  <Link href={`/lookup/post/${encodeURIComponent(p.id)}/`} title={p.title}>
                     <span className="yy-home__toct">{p.title}</span>
                     <span className="yy-home__n">{p.category}</span>
                   </Link>

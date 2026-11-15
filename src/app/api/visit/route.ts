@@ -21,6 +21,21 @@ export const dynamic = 'force-dynamic';
 
 const BOT = /bot|crawl|spider|slurp|bingpreview|headless|lighthouse|facebookexternalhit|embedly|preview|monitor|curl|wget|python|axios|node-fetch/i;
 
+/** VisitCounter の sourceOf が返す種類 */
+const SOURCES = new Set(['direct', 'google', 'bing', 'yahoo', 'search-other', 'social', 'ai', 'other']);
+const SEARCH = new Set(['google', 'bing', 'yahoo', 'search-other']);
+
+/**
+ * ページ別に数えるときのキー。サイトの URL の形(小文字・数字・ハイフン・スラッシュ)だけ受け付ける。
+ * でたらめな文字列を送られて 1 日分の記録が膨らまないよう、形と長さと深さで絞る
+ */
+function cleanPath(v: unknown): string {
+  if (typeof v !== 'string') return '';
+  const p = v.split(/[?#]/)[0].toLowerCase();
+  if (p.length > 80 || !/^\/[a-z0-9\-/]*$/.test(p) || p.split('/').length > 5) return '';
+  return p.endsWith('/') ? p : `${p}/`;
+}
+
 /** 日本時間の YYYY-MM-DD */
 function jstDay(offsetDays = 0): string {
   const d = new Date(Date.now() + 9 * 3600_000 - offsetDays * 86400_000);
@@ -36,18 +51,28 @@ export async function POST(req: NextRequest) {
   if (!db || !FieldValue) return NextResponse.json({ ok: false }, { status: 503 });
 
   let first = false;
+  let path = '';
+  let from = '';
   try {
-    const body = (await req.json()) as { first?: unknown };
+    const body = (await req.json()) as { first?: unknown; path?: unknown; from?: unknown };
     first = body.first === true;
+    path = cleanPath(body.path);
+    from = typeof body.from === 'string' && SOURCES.has(body.from) ? body.from : '';
   } catch {
     /* 本文なしは pv だけ数える */
   }
 
-  const inc = { pv: FieldValue.increment(1), ...(first ? { uv: FieldValue.increment(1) } : {}) };
+  const one = FieldValue.increment(1);
+  const inc = { pv: one, ...(first ? { uv: one } : {}) };
+  // ページ別 / 参照元別 / 検索から最初に開かれたページ(どのページが検索で人を連れてくるか)
+  const daily: Record<string, unknown> = { ...inc, day: jstDay() };
+  if (path) daily.pages = { [path]: one };
+  if (from) daily.from = { [from]: one };
+  if (path && SEARCH.has(from)) daily.landing = { [path]: one };
   try {
     const batch = db.batch();
     batch.set(db.doc('site_stats/total'), inc, { merge: true });
-    batch.set(db.doc(`site_stats_daily/${jstDay()}`), { ...inc, day: jstDay() }, { merge: true });
+    batch.set(db.doc(`site_stats_daily/${jstDay()}`), daily, { merge: true });
     await batch.commit();
     return NextResponse.json({ ok: true, counted: true });
   } catch (e) {

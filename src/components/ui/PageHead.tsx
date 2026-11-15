@@ -8,18 +8,22 @@ type Props = {
   desc?: React.ReactNode;
   /** 右端に出す数字など（<Stat /> を並べる） */
   right?: React.ReactNode;
+  /** 見出しの階層。ページ側にすでに h1 があるとき(物件カルテ)だけ 2 にする */
+  level?: 1 | 2;
 };
 
 /**
  * ページの頭：1 行の見出しと、その下の二重線。
  * 大きな写真や巨大な文字は使わない（1 画面の情報量を優先する方針）。
  */
-export default function PageHead({ no, en, title, desc, right }: Props) {
+export default function PageHead({ no, en, title, desc, right, level = 1 }: Props) {
+  const H = level === 1 ? 'h1' : 'h2';
   return (
     <div className="yy-pagehead">
       <div className="yy-pagehead__row">
         {(no || en) && <span className="yy-label">{[no, en].filter(Boolean).join(' — ')}</span>}
-        <h2 className="yy-pagehead__title">{title}</h2>
+        {/* 画面の題。1 画面に 1 つなので h1(2026-11-15 まで h2。NEWS などのページに h1 が無かった) */}
+        <H className="yy-pagehead__title">{title}</H>
         {desc && <span className="yy-pagehead__desc">{desc}</span>}
         {right && <span className="yy-pagehead__right">{right}</span>}
       </div>

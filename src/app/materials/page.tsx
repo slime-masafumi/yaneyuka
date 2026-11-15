@@ -41,7 +41,6 @@ export default function MaterialsPage() {
   const subTotal = mats.reduce((n, m) => n + (CATEGORY_SUBCATEGORIES[m.id]?.length ?? 0), 0);
   return (
     <div className="yy-kt yy-mats">
-      <h1 className="sr-only">建材メーカー一覧</h1>
       <PageHead
         en="materials"
         title="建材"

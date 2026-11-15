@@ -21,7 +21,9 @@ export async function generateMetadata({ params }: { params: Promise<{ tool: str
   const { tool } = await params;
   const t = toolPage(tool);
   if (!t) return {};
-  const desc = [t.description, t.basis].filter(Boolean).join('。');
+  // 検索結果の説明。短い説明文(20 字ほど)だけだと Google が本文から勝手に抜き出すので、
+  // 根拠・分類と「無料・登録不要・ブラウザで使える」を足して 70〜120 字にする(2026-11-15)
+  const desc = `${t.description}。${t.basis ? `根拠は${t.basis}。` : ''}${t.category}の計算を、無料・登録不要でブラウザからすぐに使えます。`;
   return {
     title: `${t.title}｜建築の計算ツール`,
     description: desc,
@@ -54,7 +56,8 @@ export default async function DesignToolPage({ params }: { params: Promise<{ too
         <span>/</span>
         <span>{t.category}</span>
       </p>
-      <h1 className="sr-only">{t.title}</h1>
+      {/* 見出し(h1)は PageHead。計算書の形のツール(PageHead を出さない)だけ、読み上げ用の h1 を置く */}
+      {SHEET_IDS.has(t.id) && <h1 className="sr-only">{t.title}</h1>}
       {!SHEET_IDS.has(t.id) && <PageHead en={`calc · ${t.category}`} title={t.title} desc={t.basis ? `根拠:${t.basis}` : t.category} />}
       <p className="yy-kt-note" style={{ marginTop: SHEET_IDS.has(t.id) ? 0 : -6 }}>
         {t.description}
