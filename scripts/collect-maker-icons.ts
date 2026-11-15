@@ -1,11 +1,12 @@
 // 建材メーカー一覧に添える「会社のシンボル」(サイトのアイコン)を集める。2026-11-15
 //
-//   node --import ./scripts/lib/register-ts.mjs scripts/collect-maker-icons.ts [--all] [--limit 50]
+//   node --import ./scripts/lib/register-ts.mjs scripts/collect-maker-icons.ts [--all | --empty] [--limit 50]
 //
 // 以前は商品ページの写真(collect-maker-images.ts)を出していたが、社ごとに写真の質がばらつき、
 // 表が散らかって見えた。各社が自分のサイトに置いているアイコン(apple-touch-icon・大きめの icon・SVG)を
 // 社名の横に小さく出す。画像は相手のサーバーから直接表示する(保存・加工はしない)。
-// 64px 未満しか無い会社(favicon.ico だけ等)は出さない。取れなかった会社は空文字で残し、30 日は読み直さない。
+// 表では 22px で出すので 32px 以上なら使う(2026-11-15 に 64px から下げた。favicon.ico も中の最大サイズを見て使う)。
+// 取れなかった会社は空文字で残し、30 日は読み直さない。--empty で取れていない会社だけ今すぐ読み直す。
 // 相手に負担をかけないよう、同時に 6 本まで・1 本 8 秒で打ち切る。読むのは各社のトップページ 1 枚だけ。
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import sharp from 'sharp';
@@ -17,10 +18,11 @@ type Entry = { icon: string; at: string };
 const OUT = 'scripts/data/maker-icons-state.json';
 const SLIM = 'src/data/maker-icons.json';
 const RETRY_DAYS = 30;
-const MIN = 64;
+const MIN = 32;
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0 (compatible; yaneyuka-makerbot/1.0; +https://yaneyuka.com/)';
 
 const all = process.argv.includes('--all');
+const empty = process.argv.includes('--empty');
 const limitArg = process.argv.indexOf('--limit');
 const limit = limitArg > 0 ? Number(process.argv[limitArg + 1]) : Infinity;
 
@@ -28,7 +30,7 @@ const makers = JSON.parse(readFileSync('src/data/makers.json', 'utf8')) as Recor
 const old: Record<string, Entry> = existsSync(OUT) ? JSON.parse(readFileSync(OUT, 'utf8')) : {};
 
 const hosts = [...new Set(Object.values(makers).flat().map(makerHost).filter(Boolean))];
-const stale = (e?: Entry) => !e || all || (!e.icon && Date.now() - new Date(e.at).getTime() > RETRY_DAYS * 86_400_000);
+const stale = (e?: Entry) => !e || all || (empty && !e.icon) || (!e.icon && Date.now() - new Date(e.at).getTime() > RETRY_DAYS * 86_400_000);
 const queue = hosts.filter((h) => stale(old[h])).slice(0, limit);
 console.log(`会社のサイト ${hosts.length} / 今回読む ${queue.length}`);
 
@@ -64,7 +66,20 @@ function iconLinks(html: string, base: string): { url: string; size: number }[] 
   return out.sort((a, b) => b.size - a.size);
 }
 
-/** 画像として使えるか: 直リンクで読める・64px 以上・正方形に近い(横長のロゴ帯は社名の横に収まらない) */
+/** .ico の中で一番大きい絵の辺の長さ(ICONDIR の各項目。0 は 256px) */
+function icoSize(buf: Buffer): number {
+  if (buf.length < 6 || buf.readUInt16LE(0) !== 0 || buf.readUInt16LE(2) !== 1) return 0;
+  const n = buf.readUInt16LE(4);
+  let max = 0;
+  for (let i = 0; i < n && 6 + i * 16 + 2 <= buf.length; i++) {
+    const w = buf[6 + i * 16] || 256;
+    const h = buf[7 + i * 16] || 256;
+    if (w / h < 1.6 && h / w < 1.6) max = Math.max(max, Math.min(w, h));
+  }
+  return max;
+}
+
+/** 画像として使えるか: 直リンクで読める・32px 以上・正方形に近い(横長のロゴ帯は社名の横に収まらない) */
 async function usable(url: string): Promise<boolean> {
   const res = await get(url, 10000);
   if (!res || !res.ok) return false;
@@ -72,7 +87,7 @@ async function usable(url: string): Promise<boolean> {
   if (!type.startsWith('image/') && !/\.svg(\?|$)/i.test(url)) return false;
   const buf = Buffer.from(await res.arrayBuffer());
   if (type.includes('svg') || /\.svg(\?|$)/i.test(url)) return buf.length > 200 && buf.toString('utf8', 0, 400).includes('<svg');
-  if (type.includes('icon') || /\.ico(\?|$)/i.test(url)) return false; // .ico は 16〜48px がほとんど
+  if (type.includes('icon') || /\.ico(\?|$)/i.test(url) || icoSize(buf) > 0) return icoSize(buf) >= MIN;
   try {
     const meta = await sharp(buf).metadata();
     const w = meta.width ?? 0;
@@ -91,8 +106,12 @@ async function iconOf(host: string): Promise<string> {
   const cands = iconLinks(html, base);
   // 宣言が無くても置いてあることが多い
   cands.push({ url: new URL('/apple-touch-icon.png', base).toString(), size: 180 });
+  cands.push({ url: new URL('/favicon.ico', base).toString(), size: 32 });
+  cands.sort((a, b) => b.size - a.size);
   const seen = new Set<string>();
   for (const c of cands) {
+    // yaneyuka は https なので http の画像は読み込みを止められる。https で読めるものだけ使う
+    c.url = c.url.replace(/^http:/, 'https:');
     if (c.size < MIN || seen.has(c.url)) continue;
     seen.add(c.url);
     if (await usable(c.url)) return c.url;
