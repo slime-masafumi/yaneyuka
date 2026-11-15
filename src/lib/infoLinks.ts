@@ -76,7 +76,8 @@ export const MATERIAL_INFO_SECTIONS: Record<InfoCat, { id: string; title: string
   ],
 };
 
-export const materialInfoHref = (sectionId: string) => `/lookup/?tab=material&sec=${encodeURIComponent(sectionId)}`;
+// 材料情報の単体ページ(2026-11-15。それまでは /lookup/?tab=material&sec=…。こちらも引き続き開ける)
+export const materialInfoHref = (sectionId: string) => `/lookup/material/#${encodeURIComponent(sectionId)}`;
 // 記事の単体ページ(2026-11-15。それまでは /lookup/?post=7 で、こちらも引き続き開ける)
 export const designInfoHref = (postId: string) => `/lookup/post/${encodeURIComponent(postId)}/`;
 

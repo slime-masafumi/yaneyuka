@@ -70,6 +70,8 @@ const PATH_LABEL: Record<string, string> = {
   'glass-thickness': '必要ガラス厚の計算',
   karte: '物件カルテ',
   materials: '建材',
+  material: '材料情報',
+  zone: '用途地域',
 };
 
 function buildCrumbs(
@@ -85,6 +87,9 @@ function buildCrumbs(
 
   // 設計情報の記事 /lookup/post/{id}/。/lookup/post/ というページは無いので、目録(/lookup/)へ戻す。
   // 記事の題はここで引かない(記事の本文ごと全ページの読み込みに入ってしまう)
+  if (/^\/lookup\/zone\/[^/]+$/.test(path)) {
+    return [home, { label: '建築の調べもの', href: '/lookup/' }, { label: '用途地域', href: '/lookup/zone/' }, { label: '解説' }];
+  }
   if (/^\/lookup\/post\/[^/]+$/.test(path)) {
     return [home, { label: '建築の調べもの', href: '/lookup/' }, { label: '設計情報', href: '/lookup/' }, { label: '記事' }];
   }

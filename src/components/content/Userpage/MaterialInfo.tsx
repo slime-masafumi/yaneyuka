@@ -34,12 +34,14 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
   const rootRef = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState<Cat>('意匠');
   // 章を指定して開いたとき(/lookup/?tab=material&sec=section-6):その分野に切り替えて、章まで送る
+  // 単体ページ(/lookup/material/#section-6)では URL の # で章を指定する(2026-11-15)
   useEffect(() => {
-    if (!initialSection) return;
-    const s = findMaterialSection(initialSection);
+    const want = initialSection ?? (window.location.hash.startsWith('#section-') ? window.location.hash.slice(1) : null);
+    if (!want) return;
+    const s = findMaterialSection(want);
     if (!s) return;
     setTab(s.cat as Cat);
-    const t = setTimeout(() => document.getElementById(initialSection)?.scrollIntoView({ block: 'start' }), 120);
+    const t = setTimeout(() => document.getElementById(want)?.scrollIntoView({ block: 'start' }), 120);
     return () => clearTimeout(t);
   }, [initialSection]);
   const [current, setCurrent] = useState<string | null>(null);

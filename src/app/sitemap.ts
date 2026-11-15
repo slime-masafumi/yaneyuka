@@ -4,6 +4,7 @@ import { FLOW_ARTICLES } from '@/lib/forceFlowArticles'
 import { FORCE_FLOW_PUBLIC } from '@/lib/forceFlowGate'
 import { TOOL_PAGES } from '@/lib/designToolPages'
 import { designPosts } from '@/data/design-posts'
+import { ZONE_GUIDES } from '@/lib/zoneGuide'
 import { ROUTED_SCREENS, screenPath, type ChangeFreq } from '@/lib/siteScreens'
 import { CATEGORY_SUBCATEGORIES, materialSubPath } from '@/lib/materialCategories'
 
@@ -60,6 +61,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
       : []),
     // 設計ツールの単体ページ(2026-11-15)
     ...TOOL_PAGES.map((t) => ({ path: `/calc/${t.id}`, changeFrequency: 'monthly' as ChangeFreq, priority: 0.6 })),
+    // 材料情報(早見表 48 章)の単体ページ(2026-11-15)
+    { path: '/lookup/material', changeFrequency: 'monthly' as ChangeFreq, priority: 0.8 },
+    // 用途地域 13 種類の一覧と解説(2026-11-15)
+    { path: '/lookup/zone', changeFrequency: 'yearly' as ChangeFreq, priority: 0.8 },
+    ...ZONE_GUIDES.map((z) => ({ path: `/lookup/zone/${z.id}`, changeFrequency: 'yearly' as ChangeFreq, priority: 0.7 })),
     // 設計情報の記事 1 本 1 URL(2026-11-15)
     ...designPosts.map((p) => ({ path: `/lookup/post/${encodeURIComponent(p.id)}`, changeFrequency: 'monthly' as ChangeFreq, priority: 0.7 })),
     { path: '/karte', changeFrequency: 'monthly', priority: 0.4 },

@@ -20,6 +20,9 @@ interface BuildingRegulationsProps {
 }
 
 const BuildingRegulations: React.FC<BuildingRegulationsProps> = ({ hideHeader }) => {
+  // 建蔽率は建築基準法 第 53 条 1 項、容積率は第 52 条 1 項の「都市計画で定める数値」の選択肢(%)。
+  // 2026-11-15 に e-Gov の現行条文と照合して直した(2中高の 30%・1住/2住/準工の 80%・中高層/住居系/近商/準工の容積率 400・500%・
+  // 工業/工専の 100・150% が抜けていた。田園住居地域が無かった)
   const ZONING_REGULATIONS: { [key: string]: ZoningRegulation } = {
     category1Low: {
       name: '第一種低層住居専用地域',
@@ -31,35 +34,40 @@ const BuildingRegulations: React.FC<BuildingRegulationsProps> = ({ hideHeader })
       buildingCoverageRatios: [30, 40, 50, 60],
       floorAreaRatios: [50, 60, 80, 100, 150, 200]
     },
+    rural: {
+      name: '田園住居地域',
+      buildingCoverageRatios: [30, 40, 50, 60],
+      floorAreaRatios: [50, 60, 80, 100, 150, 200]
+    },
     category1Mid: {
       name: '第一種中高層住居専用地域',
       buildingCoverageRatios: [30, 40, 50, 60],
-      floorAreaRatios: [100, 150, 200, 300]
+      floorAreaRatios: [100, 150, 200, 300, 400, 500]
     },
     category2Mid: {
       name: '第二種中高層住居専用地域',
-      buildingCoverageRatios: [40, 50, 60],
-      floorAreaRatios: [100, 150, 200, 300]
+      buildingCoverageRatios: [30, 40, 50, 60],
+      floorAreaRatios: [100, 150, 200, 300, 400, 500]
     },
     category1: {
       name: '第一種住居地域',
-      buildingCoverageRatios: [50, 60],
-      floorAreaRatios: [100, 200, 300]
+      buildingCoverageRatios: [50, 60, 80],
+      floorAreaRatios: [100, 150, 200, 300, 400, 500]
     },
     category2: {
       name: '第二種住居地域',
-      buildingCoverageRatios: [50, 60],
-      floorAreaRatios: [200, 300, 400]
+      buildingCoverageRatios: [50, 60, 80],
+      floorAreaRatios: [100, 150, 200, 300, 400, 500]
     },
     quasiCategory: {
       name: '準住居地域',
       buildingCoverageRatios: [50, 60, 80],
-      floorAreaRatios: [200, 300, 400]
+      floorAreaRatios: [100, 150, 200, 300, 400, 500]
     },
     neighborhood: {
       name: '近隣商業地域',
       buildingCoverageRatios: [60, 80],
-      floorAreaRatios: [200, 300, 400]
+      floorAreaRatios: [100, 150, 200, 300, 400, 500]
     },
     commercial: {
       name: '商業地域',
@@ -68,30 +76,24 @@ const BuildingRegulations: React.FC<BuildingRegulationsProps> = ({ hideHeader })
     },
     quasiIndustrial: {
       name: '準工業地域',
-      buildingCoverageRatios: [50, 60],
-      floorAreaRatios: [200, 300, 400]
+      buildingCoverageRatios: [50, 60, 80],
+      floorAreaRatios: [100, 150, 200, 300, 400, 500]
     },
     industrial: {
       name: '工業地域',
       buildingCoverageRatios: [50, 60],
-      floorAreaRatios: [200, 300, 400]
+      floorAreaRatios: [100, 150, 200, 300, 400]
     },
     exclusiveIndustrial: {
       name: '工業専用地域',
       buildingCoverageRatios: [30, 40, 50, 60],
-      floorAreaRatios: [200, 300, 400]
-    }
+      floorAreaRatios: [100, 150, 200, 300, 400]
+    },
   };
 
-  const RESIDENTIAL_ZONES = [
-    'category1Low',
-    'category2Low',
-    'category1Medium',
-    'category2Medium',
-    'category1Residential',
-    'category2Residential',
-    'quasiResidential'
-  ];
+  // 前面道路の幅員による容積率(52 条 2 項)で係数 0.4 を使う地域。残りは 0.6。
+  // 2026-11-15 まではキーの名前が上の表と食い違っていて(category1Medium など)、低層以外はすべて 0.6 で計算していた
+  const RESIDENTIAL_ZONES = ['category1Low', 'category2Low', 'rural', 'category1Mid', 'category2Mid', 'category1', 'category2', 'quasiCategory'];
 
   // State
   const [zoningAreas, setZoningAreas] = useState<ZoningArea[]>([
@@ -136,7 +138,8 @@ const BuildingRegulations: React.FC<BuildingRegulationsProps> = ({ hideHeader })
     let averageFAR = (weightedFAR / totalArea) * 100;
 
     // 前面道路幅員による容積率制限
-    if (hasRoadWidthLimit && roadWidth > 0) {
+    // 52 条 2 項は前面道路の幅員が 12m 未満のときだけ
+    if (hasRoadWidthLimit && roadWidth > 0 && roadWidth < 12) {
       const residentialArea = zoningAreas.reduce((sum, { area, zoning }) => 
         RESIDENTIAL_ZONES.includes(zoning) ? sum + (area || 0) : sum, 0);
       const otherArea = totalArea - residentialArea;

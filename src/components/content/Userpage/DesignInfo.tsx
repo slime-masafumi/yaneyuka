@@ -516,6 +516,13 @@ const DesignInfo: React.FC<{ embedded?: boolean; initialPost?: string | null }> 
                     <span className="yy-info-tocv">根拠つき</span>
                   </Link>
                 </li>
+                <li>
+                  <Link href="/lookup/zone/">
+                    <span className="yy-info-toct">用途地域 13 種類</span>
+                    <span className="yy-leader" />
+                    <span className="yy-info-tocv">比較表</span>
+                  </Link>
+                </li>
               </ul>
               <p className="yy-info-text">記事は根拠の条文・告示・規格を末尾に載せています。最終判断は最新の法令・基準を確かめたうえで行ってください。</p>
             </section>
