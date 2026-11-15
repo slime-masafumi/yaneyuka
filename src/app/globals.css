@@ -2223,6 +2223,9 @@ nav {
 }
 .yy-photo img { width: 100%; height: 100%; object-fit: cover; display: block; filter: grayscale(1) contrast(1.05); opacity: 0.8; }
 .yy-photo::after { content: ''; position: absolute; inset: 0; background: var(--yy-acc); mix-blend-mode: multiply; opacity: 0.25; }
+/* 建材の写真は色をそのまま出す(緑を重ねない。2026-11-15 ユーザー指示) */
+.yy-photo--mat img { filter: none; opacity: 1; }
+.yy-photo--mat::after { display: none; }
 .yy-photo--none { background: var(--yy-surf); }
 .yy-photo--none::after { display: none; }
 .yy-thumb { flex: 0 0 auto; width: 44px; height: 32px; border-radius: 3px; background: var(--yy-surf); }
@@ -2263,7 +2266,7 @@ nav {
 .yy-mk { margin: 6px 0 14px; }
 .yy-mk__row {
   display: grid;
-  grid-template-columns: 44px 60px minmax(0, 1.5fr) minmax(0, 1.1fr) repeat(6, 52px) 40px;
+  grid-template-columns: 44px 32px minmax(0, 1.5fr) minmax(0, 1.1fr) repeat(6, 52px) 40px;
   align-items: center;
   min-height: 30px;
   padding: 3px 0;
@@ -2292,13 +2295,13 @@ nav {
 .yy-mk__cell .is-none { color: #d4d4cf; }
 .yy-mk__cell .is-moved { font-size: 9.5px; color: var(--yy-t3); margin-left: 2px; }
 @media (max-width: 1023px) {
-  .yy-mk__row { grid-template-columns: 38px 52px minmax(0, 1fr) repeat(6, 40px) 32px; }
+  .yy-mk__row { grid-template-columns: 38px 30px minmax(0, 1fr) repeat(6, 40px) 32px; }
   .yy-mk.is-nopic .yy-mk__row { grid-template-columns: 38px minmax(0, 1fr) repeat(6, 40px) 32px; }
   .yy-mk__pages, .yy-mk__row--head .yy-mk__pages { display: none; }
 }
 /* スマホ: 列の合計が画面幅を超えて横にはみ出していた(2026-11-15)。番号・写真・リンクの列を詰める */
 @media (max-width: 767px) {
-  .yy-mk__row { grid-template-columns: 30px 40px minmax(0, 1fr) repeat(6, 28px) 26px; }
+  .yy-mk__row { grid-template-columns: 30px 26px minmax(0, 1fr) repeat(6, 28px) 26px; }
   .yy-mk.is-nopic .yy-mk__row { grid-template-columns: 30px minmax(0, 1fr) repeat(6, 28px) 26px; }
   .yy-mk__row--head { font-size: 9.5px; }
 }
@@ -2327,9 +2330,9 @@ nav {
 /* 中の掲載募集カード（mak_*.tsx の旧カード）は、左の掲載枠に置き換えたので出さない */
 .yy-matbody .flex.flex-wrap.gap-2:has(> .card) { display: none !important; }
 .yy-spon { position: relative; display: block; padding: 0; border: 0; background: var(--yy-deep); border-radius: 3px; overflow: hidden; cursor: pointer; }
-.yy-spon img { display: block; width: 100%; height: 330px; object-fit: cover; filter: grayscale(1) contrast(1.05); opacity: 0.8; }
-.yy-spon::after { content: ''; position: absolute; inset: 0; background: var(--yy-acc); mix-blend-mode: multiply; opacity: 0.25; pointer-events: none; }
-.yy-spon:hover img { opacity: 0.95; }
+/* 掲載枠の見本画像も色をそのまま(2026-11-15。以前は灰色 + 緑の重ね) */
+.yy-spon img { display: block; width: 100%; height: 330px; object-fit: cover; }
+.yy-spon:hover img { opacity: 0.92; }
 .yy-spon__label { position: absolute; left: 10px; bottom: 10px; z-index: 1; font-family: var(--font-mono), monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #ffffff; }
 .yy-spon__note { font-family: var(--font-mono), monospace; font-size: 10px; letter-spacing: 0.08em; color: var(--yy-t3); }
 .yy-spon__note button { padding: 0; border: 0; background: none; font: inherit; color: var(--yy-acc-ink); cursor: pointer; }
@@ -2612,8 +2615,11 @@ nav {
 .yy-pic--mini { width: 56px; height: 38px; }
 /* 建材メーカーの表の行(商品ページの写真)。写真が無い社は枠も出さない */
 .yy-pic--mk { width: 48px; height: 32px; }
-.yy-mk__pic { display: block; width: 48px; }
-.yy-mk__row--head > span:nth-child(2) { width: 48px; }
+.yy-mk__pic { display: block; width: auto; }
+/* 会社のシンボル(2026-11-15。商品写真から差し替え)。色はそのまま、小さな正方形に収める */
+.yy-mk__logo { display: flex; align-items: center; height: 24px; }
+.yy-mk__logo img { display: block; width: 22px; height: 22px; object-fit: contain; border-radius: 3px; }
+.yy-mk__row--head > span:nth-child(2) { width: auto; }
 a:hover + .yy-pic img, .yy-pic:hover img { opacity: 0.85; }
 /* NEWS の行: 番号 / 写真(左) / 配信元 · 日時 · 掲載サイト → 題 → 要約 / 保存 */
 .yy-news__row { grid-template-columns: 28px 96px minmax(0, 1fr) auto !important; align-items: start !important; }
@@ -2648,3 +2654,14 @@ a:hover + .yy-pic img, .yy-pic:hover img { opacity: 0.85; }
 .yy-ev__titlecell { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .yy-ev__titlecell .yy-ev__title { display: block; }
 .yy-ev__co { font-size: 10.5px; color: var(--yy-t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* 建材トップ /materials/ の小分類の索引(2026-11-15)。分類ごとに 1 かたまり、4 列(スマホ 1 列) */
+.yy-mats section + section { margin-top: 22px; }
+.yy-mats__index { columns: 4 200px; column-gap: 28px; }
+.yy-mats__group { break-inside: avoid; margin: 0 0 14px; }
+.yy-mats__cat { display: block; padding: 2px 0 4px; border-bottom: 1px solid var(--yy-line); font-family: var(--yy-serif); font-size: 14px; color: var(--yy-ink); text-decoration: none; }
+.yy-mats__cat:hover { color: var(--yy-acc-ink); }
+.yy-mats__group ul { margin: 4px 0 0; padding: 0; list-style: none; }
+.yy-mats__group li a { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; font-size: 12px; color: var(--yy-t2); text-decoration: none; }
+.yy-mats__group li a:hover { color: var(--yy-ink); }
+.yy-mats__n { font-family: var(--font-mono), monospace; font-size: 10.5px; color: var(--yy-t3); font-variant-numeric: tabular-nums; }

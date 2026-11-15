@@ -67,7 +67,7 @@ const GROUPS: Array<{ no: string; label: string; items: Entry[] }> = [
     label: '見る',
     items: [
       { label: 'ホーム', icon: FiHome, href: '/', active: (c, p) => p === '/' && c === 'topix' },
-      { label: '建材', icon: FiLayers, href: '/roof/', active: (c) => MATERIAL_IDS.has(c) },
+      { label: '建材', icon: FiLayers, href: '/materials/', active: (c, p) => MATERIAL_IDS.has(c) || p.startsWith('/materials') },
       page('news', 'NEWS', FiFileText),
       page('new-products', '新製品', FiPackage),
       page('event', 'イベント', FiCalendar),

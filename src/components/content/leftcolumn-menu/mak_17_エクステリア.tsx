@@ -357,7 +357,7 @@ const ExteriorContent: React.FC<ExteriorContentProps> = ({ subcategory, onNaviga
       {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
       
       <div className="mt-4">
-        <p className="yy-mk2-empty">この分類のメーカーは、いまは載せていません。建材の検索や Chatbot で探せます。掲載のご希望は上の「掲載希望はコチラ」から。</p>
+        <MakerRows category="エクステリア" page="大型引戸" empty />
       </div>
     </div>
   );
@@ -394,7 +394,7 @@ const ExteriorContent: React.FC<ExteriorContentProps> = ({ subcategory, onNaviga
       {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
       
       <div className="mt-4">
-        <p className="yy-mk2-empty">この分類のメーカーは、いまは載せていません。建材の検索や Chatbot で探せます。掲載のご希望は上の「掲載希望はコチラ」から。</p>
+        <MakerRows category="エクステリア" page="駐輪場" empty />
       </div>
     </div>
   );
@@ -431,7 +431,7 @@ const ExteriorContent: React.FC<ExteriorContentProps> = ({ subcategory, onNaviga
       {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
       
       <div className="mt-4">
-        <p className="yy-mk2-empty">この分類のメーカーは、いまは載せていません。建材の検索や Chatbot で探せます。掲載のご希望は上の「掲載希望はコチラ」から。</p>
+        <MakerRows category="エクステリア" page="ゴミストッカー" empty />
       </div>
     </div>
   );
@@ -468,7 +468,7 @@ const ExteriorContent: React.FC<ExteriorContentProps> = ({ subcategory, onNaviga
       {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
       
       <div className="mt-4">
-        <p className="yy-mk2-empty">この分類のメーカーは、いまは載せていません。建材の検索や Chatbot で探せます。掲載のご希望は上の「掲載希望はコチラ」から。</p>
+        <MakerRows category="エクステリア" page="エクステリア緑化" empty />
       </div>
     </div>
   );
@@ -505,7 +505,7 @@ const ExteriorContent: React.FC<ExteriorContentProps> = ({ subcategory, onNaviga
       {showBasicKnowledge && <BasicKnowledge data={KNOWLEDGE} param={subcategory} />}
       
       <div className="mt-4">
-        <p className="yy-mk2-empty">この分類のメーカーは、いまは載せていません。建材の検索や Chatbot で探せます。掲載のご希望は上の「掲載希望はコチラ」から。</p>
+        <MakerRows category="エクステリア" page="エクステリアその他" empty />
       </div>
     </div>
   );

@@ -469,7 +469,7 @@
       "cad": ""
     },
     {
-      "name": "中部ｺｰﾎﾟﾚｰｼｮﾝ",
+      "name": "中部コーポレーション",
       "pages": [
         "グレーチング"
       ],
@@ -1566,7 +1566,7 @@
       "cad": ""
     },
     {
-      "name": "神栄ﾎｰﾑｸﾘｴｲﾄ",
+      "name": "神栄ホームクリエイト",
       "pages": [
         "ハンドル"
       ],
@@ -1683,7 +1683,7 @@
       "cad": ""
     },
     {
-      "name": "ｼﾞｬﾊﾟﾝﾓﾄﾞﾘｯｸ",
+      "name": "ジャパンモドリック",
       "pages": [
         "ハンドル"
       ],
@@ -1761,7 +1761,7 @@
       "cad": ""
     },
     {
-      "name": "ｱﾄﾑﾘﾋﾞﾝﾃｯｸ",
+      "name": "アトムリビンテック",
       "pages": [
         "引棒"
       ],
@@ -1774,7 +1774,7 @@
       "cad": "https://www.atomlt.com/caddata/"
     },
     {
-      "name": "ｼﾞｬﾊﾟﾝﾓﾄﾞﾘｯｸ",
+      "name": "ジャパンモドリック",
       "pages": [
         "引棒"
       ],
@@ -2024,7 +2024,7 @@
       "cad": ""
     },
     {
-      "name": "ｱﾄﾑﾘﾋﾞﾝﾃｯｸ",
+      "name": "アトムリビンテック",
       "pages": [
         "鍵関係"
       ],
@@ -2533,7 +2533,7 @@
       "cad": ""
     },
     {
-      "name": "立川ﾌﾞﾗｲﾝﾄﾞ工業",
+      "name": "立川ブラインド工業",
       "pages": [
         "ブラインド"
       ],
@@ -2798,7 +2798,7 @@
       "cad": ""
     },
     {
-      "name": "ｷｬﾝｴﾝﾀｰﾌﾟﾗｲｾﾞｽﾞ",
+      "name": "キャンエンタープライゼズ",
       "pages": [
         "照明"
       ],
@@ -3032,7 +3032,7 @@
       "cad": ""
     },
     {
-      "name": "ﾄｰｼﾝｺｰﾎﾟﾚｰｼｮﾝ",
+      "name": "トーシンコーポレーション",
       "pages": [
         "外構照明"
       ],
@@ -3045,7 +3045,7 @@
       "cad": ""
     },
     {
-      "name": "ﾏﾁﾀﾞｺｰﾎﾟﾚｰｼｮﾝ",
+      "name": "マチダコーポレーション",
       "pages": [
         "外構照明"
       ],
@@ -3097,7 +3097,7 @@
       "cad": ""
     },
     {
-      "name": "ｺﾞｰﾘｷｱｲﾗﾝﾄﾞ",
+      "name": "ゴーリキアイランド",
       "pages": [
         "スイッチコンセント"
       ],
@@ -3112,7 +3112,8 @@
     {
       "name": "パナソニック",
       "pages": [
-        "スイッチコンセント"
+        "スイッチコンセント",
+        "電気設備その他"
       ],
       "group": "",
       "products": "https://www2.panasonic.biz/jp/densetsu/",
@@ -3328,6 +3329,71 @@
       "contact": "https://www.iwasaki.co.jp/contact/",
       "sample": "",
       "cad": ""
+    },
+    {
+      "name": "日東工業",
+      "pages": [
+        "電気設備その他"
+      ],
+      "group": "",
+      "products": "https://www.nito.co.jp/products/standard-distribution-boards/",
+      "catalog": "https://www.nito.co.jp/products/catalog/",
+      "office": "https://www.nito.co.jp/company/sales/",
+      "contact": "https://www.nito.co.jp/toiawase/",
+      "sample": "",
+      "cad": ""
+    },
+    {
+      "name": "河村電器産業",
+      "pages": [
+        "電気設備その他"
+      ],
+      "group": "",
+      "products": "https://www.kawamura.co.jp/products/",
+      "catalog": "https://www.kawamura.co.jp/catalog/index.html",
+      "office": "https://www.kawamura.co.jp/corporate/bases/",
+      "contact": "https://www.kawamura.co.jp/contactus/index.html",
+      "sample": "",
+      "cad": ""
+    },
+    {
+      "name": "アイホン",
+      "pages": [
+        "電気設備その他"
+      ],
+      "group": "",
+      "products": "https://www.aiphone.co.jp/products/",
+      "catalog": "https://www.aiphone.co.jp/data/catalog/",
+      "office": "https://www.aiphone.co.jp/corp/facilities/",
+      "contact": "https://www.aiphone.co.jp/support/",
+      "sample": "",
+      "cad": ""
+    },
+    {
+      "name": "テンパール工業",
+      "pages": [
+        "電気設備その他"
+      ],
+      "group": "",
+      "products": "https://tempearl.biz/cate04/",
+      "catalog": "https://www.tempearl.co.jp/download/",
+      "office": "https://www.tempearl.co.jp/company/about/",
+      "contact": "https://www.tempearl.co.jp/contact/",
+      "sample": "",
+      "cad": ""
+    },
+    {
+      "name": "音羽電機工業",
+      "pages": [
+        "電気設備その他"
+      ],
+      "group": "",
+      "products": "https://www.otowadenki.co.jp/products/",
+      "catalog": "https://www.otowadenki.co.jp/download/",
+      "office": "https://www.otowadenki.co.jp/offices/",
+      "contact": "https://www.otowadenki.co.jp/contact/",
+      "sample": "",
+      "cad": ""
     }
   ],
   "機械設備": [
@@ -3490,7 +3556,8 @@
     {
       "name": "三菱電機",
       "pages": [
-        "空調機"
+        "空調機",
+        "機械設備その他"
       ],
       "group": "",
       "products": "https://www.mitsubishielectric.co.jp/home/kirigamine/",
@@ -3503,13 +3570,66 @@
     {
       "name": "パナソニック",
       "pages": [
-        "空調機"
+        "空調機",
+        "機械設備その他"
       ],
       "group": "",
       "products": "https://panasonic.jp/aircon/",
       "catalog": "https://panasonic.jp/aircon/catalog/",
       "office": "https://panasonic.jp/showroom/",
       "contact": "https://panasonic.jp/support/contact/",
+      "sample": "",
+      "cad": ""
+    },
+    {
+      "name": "リンナイ",
+      "pages": [
+        "機械設備その他"
+      ],
+      "group": "",
+      "products": "https://rinnai.jp/products/waterheater/",
+      "catalog": "https://rinnai.jp/catalog_download/",
+      "office": "https://www.rinnai.co.jp/corp/office/",
+      "contact": "https://www.rinnai.co.jp/contact/",
+      "sample": "",
+      "cad": ""
+    },
+    {
+      "name": "ノーリツ",
+      "pages": [
+        "機械設備その他"
+      ],
+      "group": "",
+      "products": "https://www.noritz.co.jp/product/kyutou_bath/",
+      "catalog": "https://ncata.jp/catalog/",
+      "office": "https://www.noritz.co.jp/company/about/outline/office/index.html",
+      "contact": "https://www.noritz.co.jp/contact/",
+      "sample": "",
+      "cad": ""
+    },
+    {
+      "name": "川本製作所",
+      "pages": [
+        "機械設備その他"
+      ],
+      "group": "",
+      "products": "https://www.kawamoto.co.jp/products/index.php",
+      "catalog": "https://www.kawamoto.co.jp/products/index03.php",
+      "office": "https://www.kawamoto.co.jp/profile/index04.html",
+      "contact": "https://www.kawamoto.co.jp/contact/index.html",
+      "sample": "",
+      "cad": "https://www.kawamoto.co.jp/products/cad.php"
+    },
+    {
+      "name": "フジクリーン",
+      "pages": [
+        "機械設備その他"
+      ],
+      "group": "",
+      "products": "https://www.fujiclean.co.jp/product/jokaso/",
+      "catalog": "https://fujiclean.icata.net/iportal/CatalogViewInterfaceStartUpAction.do?method=startUp&mode=PAGE&volumeID=FJC00001&catalogId=1982560000&pageGroupId=1&designID=FJCD001&catalogCategoryId=&designConfirmFlg=&keyword=",
+      "office": "https://www.fujiclean.co.jp/company/office/",
+      "contact": "https://www.fujiclean.co.jp/contact/",
       "sample": "",
       "cad": ""
     }
@@ -3542,7 +3662,7 @@
       "cad": ""
     },
     {
-      "name": "日本ｴｺﾏﾃﾘｱﾙ",
+      "name": "日本エコマテリアル",
       "pages": [
         "縁石"
       ],
@@ -3581,7 +3701,7 @@
       "cad": ""
     },
     {
-      "name": "ﾏﾁﾀﾞｺｰﾎﾟﾚｰｼｮﾝ",
+      "name": "マチダコーポレーション",
       "pages": [
         "外構舗装"
       ],
@@ -3607,7 +3727,7 @@
       "cad": ""
     },
     {
-      "name": "日本ｴｺﾏﾃﾘｱﾙ",
+      "name": "日本エコマテリアル",
       "pages": [
         "外構舗装"
       ],
@@ -3633,7 +3753,7 @@
       "cad": ""
     },
     {
-      "name": "久保田ｾﾒﾝﾄ工業",
+      "name": "久保田セメント工業",
       "pages": [
         "外構舗装"
       ],
@@ -3646,7 +3766,7 @@
       "cad": ""
     },
     {
-      "name": "太陽ｴｺﾌﾟﾚｺﾝ工業",
+      "name": "太陽エコプレコン工業",
       "pages": [
         "外構舗装"
       ],
@@ -3711,7 +3831,7 @@
       "cad": ""
     },
     {
-      "name": "太平洋ﾌﾟﾚｺﾝ工業",
+      "name": "太平洋プレコン工業",
       "pages": [
         "外構舗装"
       ],
@@ -3737,7 +3857,7 @@
       "cad": ""
     },
     {
-      "name": "ﾄｸﾔﾏｱｰﾄﾌﾞﾛｯｸLABO",
+      "name": "トクヤマアートブロックLABO",
       "pages": [
         "外構舗装"
       ],
@@ -4069,7 +4189,7 @@
       "cad": ""
     },
     {
-      "name": "中部ｺｰﾎﾟﾚｰｼｮﾝ",
+      "name": "中部コーポレーション",
       "pages": [
         "外構グレーチング"
       ],
@@ -4242,7 +4362,8 @@
     {
       "name": "三協アルミ",
       "pages": [
-        "門扉"
+        "門扉",
+        "大型引戸"
       ],
       "group": "",
       "products": "https://alumi.st-grp.co.jp/products/gate/",
@@ -4381,6 +4502,172 @@
       "contact": "https://www.ykkap.co.jp/support/contact/",
       "sample": "",
       "cad": "https://cad.ykkap.co.jp/"
+    },
+    {
+      "name": "積水樹脂",
+      "pages": [
+        "大型引戸",
+        "駐輪場",
+        "ゴミストッカー",
+        "エクステリア緑化",
+        "エクステリアその他"
+      ],
+      "group": "",
+      "products": "https://www.sekisuijushi.co.jp/products/list.html?knst",
+      "catalog": "https://www.sekisuijushi.co.jp/catalog/top.html",
+      "office": "https://www.sekisuijushi.co.jp/office/",
+      "contact": "https://www.sekisuijushi.co.jp/contact/",
+      "sample": "",
+      "cad": "https://www.sekisuijushi.co.jp/products/cad/"
+    },
+    {
+      "name": "四国化成建材",
+      "pages": [
+        "大型引戸",
+        "駐輪場",
+        "ゴミストッカー",
+        "エクステリア緑化"
+      ],
+      "group": "",
+      "products": "https://kenzai.shikoku.co.jp/products/ex_public/",
+      "catalog": "https://kenzai.shikoku.co.jp/catalog/index.php",
+      "office": "https://www.shikoku.co.jp/company/group/shikoku-kenzai/",
+      "contact": "https://kenzai.shikoku.co.jp/support/",
+      "sample": "",
+      "cad": "https://download.shikoku.co.jp/download/cgi-bin/select_list.cgi?site=CAD"
+    },
+    {
+      "name": "JFE建材",
+      "pages": [
+        "大型引戸"
+      ],
+      "group": "",
+      "products": "https://jfe-kenzai.co.jp/products/aluminum-fence-sliding-door-gate-handrail/",
+      "catalog": "https://jfe-kenzai.co.jp/catalog-request/",
+      "office": "https://jfe-kenzai.co.jp/corporate-insight/business-sites/",
+      "contact": "https://jfe-kenzai.co.jp/contact/",
+      "sample": "",
+      "cad": ""
+    },
+    {
+      "name": "ダイケン",
+      "pages": [
+        "駐輪場",
+        "ゴミストッカー"
+      ],
+      "group": "",
+      "products": "https://www.daiken.ne.jp/products/environment.html",
+      "catalog": "https://pro.daiken.ne.jp/iportal/CatalogSearch.do?method=catalogSearchByDefaultSettingCategories&volumeID=DAI00011&designID=DAID01",
+      "office": "https://www.daiken.ne.jp/profile/officelist.html",
+      "contact": "https://www.daiken.ne.jp/support/",
+      "sample": "",
+      "cad": ""
+    },
+    {
+      "name": "タカショー",
+      "pages": [
+        "駐輪場",
+        "エクステリア緑化",
+        "エクステリアその他"
+      ],
+      "group": "",
+      "products": "https://proex.takasho.co.jp/product",
+      "catalog": "https://proex.takasho.co.jp/catalog/online",
+      "office": "https://www.takasho.co.jp/profile_network",
+      "contact": "https://www.takasho.co.jp/contact/takasho",
+      "sample": "",
+      "cad": ""
+    },
+    {
+      "name": "ヨドコウ",
+      "pages": [
+        "エクステリアその他"
+      ],
+      "group": "",
+      "products": "https://www.yodoko.co.jp/product/exterior/",
+      "catalog": "https://www.yodoko.co.jp/product/catalog/",
+      "office": "https://www.yodoko.co.jp/company/branch.html",
+      "contact": "https://www.yodoko.co.jp/contact/",
+      "sample": "",
+      "cad": ""
+    },
+    {
+      "name": "稲葉製作所",
+      "pages": [
+        "エクステリアその他"
+      ],
+      "group": "",
+      "products": "https://www.inaba-ss.co.jp/monooki/",
+      "catalog": "https://www.inaba-ss.co.jp/monooki/support/ebook/",
+      "office": "https://www.inaba-ss.co.jp/recruit/location/",
+      "contact": "https://www.inaba-ss.co.jp/form/inquiry/",
+      "sample": "",
+      "cad": ""
+    },
+    {
+      "name": "テラモト",
+      "pages": [
+        "ゴミストッカー"
+      ],
+      "group": "",
+      "products": "https://www.teramoto.co.jp/products/place/factory/factory_gomi/",
+      "catalog": "https://www.teramoto.co.jp/catalog/",
+      "office": "https://www.teramoto.co.jp/company/network/",
+      "contact": "https://www.teramoto.co.jp/inquiry_list/",
+      "sample": "",
+      "cad": ""
+    },
+    {
+      "name": "東邦レオ",
+      "pages": [
+        "エクステリア緑化"
+      ],
+      "group": "",
+      "products": "https://www.r-green.jp/",
+      "catalog": "",
+      "office": "https://www.toho-leo.co.jp/company/offices/",
+      "contact": "https://www.toho-leo.co.jp/contact/",
+      "sample": "",
+      "cad": ""
+    },
+    {
+      "name": "田島緑化プラス",
+      "pages": [
+        "エクステリア緑化"
+      ],
+      "group": "",
+      "products": "https://www.tajima-ryokkaplus.jp/product/",
+      "catalog": "https://www.tajima-ryokkaplus.jp/catalog/",
+      "office": "https://www.tajima-ryokkaplus.jp/company/",
+      "contact": "https://www.tajima-ryokkaplus.jp/contact/",
+      "sample": "",
+      "cad": "https://www.tajima-ryokkaplus.jp/download/cad/"
+    },
+    {
+      "name": "カイスイマレン",
+      "pages": [
+        "ゴミストッカー"
+      ],
+      "group": "",
+      "products": "https://www.kaisuimaren.co.jp/categories/?product_category_id=1",
+      "catalog": "https://www.kaisuimaren.co.jp/catalog/",
+      "office": "https://www.kaisuimaren.co.jp/company/",
+      "contact": "https://www.kaisuimaren.co.jp/inquiry/",
+      "sample": "",
+      "cad": ""
+    },
+    {
+      "name": "アスザック",
+      "pages": [
+        "大型引戸"
+      ],
+      "group": "",
+      "products": "https://asuzac-space.jp/exteria/ogatamonpi.htm",
+      "catalog": "https://asuzac-space.jp/pdf/catalogjp.pdf",
+      "office": "https://asuzac.co.jp/company/access/",
+      "contact": "https://asuzac-space.jp/contact/form.htm",
+      "sample": "",
+      "cad": ""
     }
   ],
   "屋根": [
@@ -4528,7 +4815,7 @@
       "cad": "http://www.nsos.co.jp/info/"
     },
     {
-      "name": "ｵﾘｴﾝﾀﾙﾒﾀﾙ",
+      "name": "オリエンタルメタル",
       "pages": [
         "折板"
       ],
@@ -5139,7 +5426,7 @@
       "cad": ""
     },
     {
-      "name": "ｵｰｳｪﾝｽｺｰﾆﾝｸﾞｼﾞｬﾊﾟﾝ",
+      "name": "オーウェンスコーニングジャパン",
       "pages": [
         "屋根その他"
       ],
@@ -5152,7 +5439,7 @@
       "cad": ""
     },
     {
-      "name": "ﾀﾆﾀﾊｳｼﾞﾝｸﾞｳｪｱ",
+      "name": "タニタハウジングウェア",
       "pages": [
         "屋根その他"
       ],
@@ -6051,7 +6338,7 @@
       "cad": ""
     },
     {
-      "name": "ｱｲｺｯﾄﾘｮｰﾜ",
+      "name": "アイコットリョーワ",
       "pages": [
         "tile"
       ],
@@ -6900,7 +7187,7 @@
       "cad": ""
     },
     {
-      "name": "(株)ｱｲｺｯﾄﾘｮｰﾜ",
+      "name": "アイコットリョーワ",
       "pages": [
         "external-tile"
       ],
@@ -8958,7 +9245,7 @@
       "cad": ""
     },
     {
-      "name": "イケヒコ・ｺｰﾎﾟﾚｰｼｮﾝ",
+      "name": "イケヒコ・コーポレーション",
       "pages": [
         "畳"
       ],
@@ -9729,7 +10016,8 @@
     {
       "name": "トップライズ",
       "pages": [
-        "内装壁化粧パネル"
+        "内装壁化粧パネル",
+        "内装壁金属板"
       ],
       "group": "金属パネル",
       "products": "https://www.toprise.co.jp/products/01panel.html",
@@ -9742,7 +10030,8 @@
     {
       "name": "菊川工業",
       "pages": [
-        "内装壁化粧パネル"
+        "内装壁化粧パネル",
+        "内装壁金属板"
       ],
       "group": "金属パネル",
       "products": "https://www.kikukawa.com/citytexture-top/",
@@ -9766,7 +10055,7 @@
       "cad": ""
     },
     {
-      "name": "ｴﾇ・ｴｽ・ｹｰ ﾆｼﾀﾞ工業",
+      "name": "エヌ・エス・ケー ニシダ工業",
       "pages": [
         "内装壁化粧パネル"
       ],
@@ -9781,7 +10070,8 @@
     {
       "name": "日鉄ステンレスアート",
       "pages": [
-        "内装壁化粧パネル"
+        "内装壁化粧パネル",
+        "内装壁金属板"
       ],
       "group": "金属パネル",
       "products": "https://www.ms-art.co.jp/products/",
@@ -9961,7 +10251,7 @@
       "cad": ""
     },
     {
-      "name": "ｷｬﾝｴﾝﾀｰﾌﾟﾗｲｾﾞｽﾞ",
+      "name": "キャンエンタープライゼズ",
       "pages": [
         "内装壁タイル"
       ],
@@ -10065,7 +10355,7 @@
       "cad": "https://www.abc-t.co.jp/download/bim/"
     },
     {
-      "name": "ｷｬﾝｴﾝﾀｰﾌﾟﾗｲｾﾞｽﾞ",
+      "name": "キャンエンタープライゼズ",
       "pages": [
         "内装壁石レンガ"
       ],
@@ -10117,7 +10407,7 @@
       "cad": ""
     },
     {
-      "name": "ｷｬﾝｴﾝﾀｰﾌﾟﾗｲｾﾞｽﾞ",
+      "name": "キャンエンタープライゼズ",
       "pages": [
         "内装壁石レンガ"
       ],
@@ -10156,7 +10446,7 @@
       "cad": "https://dupont-mcc.co.jp/cad/"
     },
     {
-      "name": "ﾛｯﾃｹﾐｶﾙｼﾞｬﾊﾟﾝ",
+      "name": "ロッテケミカルジャパン",
       "pages": [
         "内装壁石レンガ"
       ],
@@ -10195,7 +10485,7 @@
       "cad": ""
     },
     {
-      "name": "ｷｬﾝｴﾝﾀｰﾌﾟﾗｲｾﾞｽﾞ",
+      "name": "キャンエンタープライゼズ",
       "pages": [
         "内装壁石レンガ"
       ],
@@ -10349,6 +10639,32 @@
       "contact": "",
       "sample": "",
       "cad": ""
+    },
+    {
+      "name": "タカラスタンダード",
+      "pages": [
+        "内装壁金属板"
+      ],
+      "group": "",
+      "products": "https://www.takara-standard.co.jp/product/emawall/",
+      "catalog": "https://forms.takara-standard.co.jp/webapp/form/22048_aqgb_2/index.do",
+      "office": "https://www.takara-standard.co.jp/company/business_establishment.html",
+      "contact": "https://forms.takara-standard.co.jp/webapp/form/22048_aqgb_3/index.do",
+      "sample": "",
+      "cad": ""
+    },
+    {
+      "name": "三菱ケミカルインフラテック",
+      "pages": [
+        "内装壁金属板"
+      ],
+      "group": "",
+      "products": "https://www.alpolic.com/japan/use/interior.html",
+      "catalog": "https://www.alpolic.com/japan/download/",
+      "office": "",
+      "contact": "https://www.alpolic.com/japan/inquiry/index.php",
+      "sample": "",
+      "cad": ""
     }
   ],
   "内装天井材": [
@@ -10379,7 +10695,7 @@
       "cad": ""
     },
     {
-      "name": "ｴｰｱﾝﾄﾞｴｰﾏﾃﾘｱﾙ",
+      "name": "エーアンドエーマテリアル",
       "pages": [
         "ボード"
       ],
@@ -10587,7 +10903,7 @@
       "cad": ""
     },
     {
-      "name": "ﾊﾟﾅｿﾆｯｸﾊｳｼﾞﾝｸﾞｿﾘｭｰｼｮﾝｽﾞ",
+      "name": "パナソニックハウジングソリューションズ",
       "pages": [
         "装飾材"
       ],
@@ -10652,7 +10968,7 @@
       "cad": ""
     },
     {
-      "name": "ﾆﾁﾓｸﾌｧﾝｼｰﾏﾃﾘｱﾙ",
+      "name": "ニチモクファンシーマテリアル",
       "pages": [
         "装飾材"
       ],
@@ -10730,7 +11046,7 @@
       "cad": ""
     },
     {
-      "name": "ﾊﾟﾅｿﾆｯｸ内装建材",
+      "name": "パナソニック内装建材",
       "pages": [
         "機能性"
       ],

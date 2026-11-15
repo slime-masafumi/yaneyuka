@@ -215,48 +215,8 @@ const ElectricalSystemsContent: React.FC<ElectricalSystemsContentProps> = ({ sub
       {renderHeader(title)}
       <KnowledgeToggle data={KNOWLEDGE} param={subcategory} />
       <div className="mt-4">
-        {renderCompanyRow('パナソニック', {
-          products: 'https://www2.panasonic.biz/jp/lighting/',
-          catalog: 'https://www2.panasonic.biz/jp/catalog/',
-          office: 'https://www2.panasonic.biz/jp/company/',
-          contact: 'https://www2.panasonic.biz/jp/contact/'
-        })}
-        {renderCompanyRow('コイズミ照明', {
-          products: 'https://www.koizumi-lt.co.jp/product/',
-          catalog: 'https://www.koizumi-lt.co.jp/catalog/',
-          office: 'https://www.koizumi-lt.co.jp/company/',
-          contact: 'https://www.koizumi-lt.co.jp/contact/'
-        })}
-        {renderCompanyRow('大光電機', {
-          products: 'https://www.lighting-daiko.co.jp/product/',
-          catalog: 'https://www.lighting-daiko.co.jp/catalog/',
-          office: 'https://www.lighting-daiko.co.jp/company/base/',
-          contact: 'https://www.lighting-daiko.co.jp/contact/'
-        })}
-        {renderCompanyRow('オーデリック', {
-          products: 'https://www.odelic.co.jp/products/',
-          catalog: 'https://www.odelic.co.jp/catalog/',
-          office: 'https://www.odelic.co.jp/company/',
-          contact: 'https://www.odelic.co.jp/contact/'
-        })}
-        {renderCompanyRow('遠藤照明', {
-          products: 'https://www.endo-lighting.co.jp/products/',
-          catalog: '#',
-          office: 'https://www.endo-lighting.co.jp/company/base/',
-          contact: 'https://www.endo-lighting.co.jp/contact/'
-        })}
-        {renderCompanyRow('東芝ライテック', {
-          products: 'https://www.tlt.co.jp/tlt/products/',
-          catalog: '#',
-          office: 'https://www.tlt.co.jp/tlt/company/base/',
-          contact: 'https://www.tlt.co.jp/tlt/contact/'
-        })}
-        {renderCompanyRow('岩崎電気', {
-          products: 'https://www.iwasaki.co.jp/lighting/products/',
-          catalog: '#',
-          office: 'https://www.iwasaki.co.jp/company/base/',
-          contact: 'https://www.iwasaki.co.jp/contact/'
-        })}
+        {/* 2026-11-15: 以前は照明メーカーの行を直書きしていた(分類違い)。makers.json の「電気設備その他」を出す */}
+        <MakerRows category="電気設備" page={subcategory} empty />
       </div>
     </div>
   );

@@ -385,7 +385,10 @@ const InternalWallContent: React.FC<InternalWallContentProps> = ({ subcategory }
             
 
             <div className="mt-4 text-[13px]">
-              <MakerRows category="内装壁材" page="内装壁その他" nameWidth="200px" />
+              {/* 2026-11-15: 金属板のページにも「その他」の行を出していた */}
+              {/* 化粧パネルの「金属パネル」見出しの社(日鉄ステンレスアートなど)も金属板を扱う */}
+              {subcategory === '内装壁金属板' && <MakerRows category="内装壁材" page={subcategory} group="金属パネル" nameWidth="200px" />}
+              <MakerRows category="内装壁材" page={subcategory} nameWidth="200px" />
             </div>
           </div>
         );

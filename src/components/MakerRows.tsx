@@ -4,8 +4,8 @@ import React from 'react';
 import { useMakerFilter } from '@/components/MakerFilter';
 import MakerLink from '@/components/MakerLink';
 import makers from '@/data/makers.json';
-import makerImages from '@/data/maker-images.json';
-import FeedPic from '@/components/ui/FeedPic';
+import makerIcons from '@/data/maker-icons.json';
+import { makerHost } from '@/lib/makerHost';
 import { PICK_MAX, useMakerPick } from '@/components/MakerPick';
 import SaveToMakerBox from '@/components/SaveToMakerBox';
 import MakerLinkLogger from '@/components/MakerLinkLogger';
@@ -43,8 +43,10 @@ type Maker = {
 };
 
 const DATA = makers as unknown as Record<string, Maker[]>;
-// 商品ページの写真(scripts/collect-maker-images.ts が集める。相手のサーバーから直接出す)。2026-11-14
-const IMAGES = makerImages as Record<string, string>;
+// 会社のシンボル(各社サイトのアイコン。scripts/collect-maker-icons.ts が集める。相手のサーバーから直接出す)。2026-11-15
+// 以前は商品ページの写真(maker-images.json)を出していた。取れない社は何も出さない
+const ICONS = makerIcons as Record<string, string>;
+const iconOf = (m: Maker) => ICONS[makerHost(m)] || '';
 
 // 表示順とラベルは全ファイル共通
 const SLOTS: { key: keyof Maker; label: string; short: string }[] = [
@@ -67,6 +69,8 @@ type MakerRowsProps = {
   nameWidth?: '180px' | '200px';
   /** 先頭行に余白を付けるか（元の JSX に mt-4 があった箇所向け） */
   topMargin?: boolean;
+  /** 1 社も無いとき、何も出さずに「いまは載せていません」の 1 行を出す */
+  empty?: boolean;
 };
 
 const MakerRows: React.FC<MakerRowsProps> = ({
@@ -75,6 +79,7 @@ const MakerRows: React.FC<MakerRowsProps> = ({
   group = '',
   nameWidth = '180px',
   topMargin = false,
+  empty = false,
 }) => {
   const { filter } = useMakerFilter();
   const pick = useMakerPick();
@@ -83,9 +88,12 @@ const MakerRows: React.FC<MakerRowsProps> = ({
     (m) => m.pages.includes(page) && (m.group || '') === group && (!filter || Boolean(m[filter]))
   );
 
-  if (!rows.length) return null;
-  // 写真が 1 枚も無い表は写真の列ごと出さない(空の列が続くのを避ける)
-  const hasPic = rows.some((m) => IMAGES[m.products]);
+  if (!rows.length)
+    return empty && !filter ? (
+      <p className="yy-mk2-empty">この分類のメーカーは、いまは載せていません。建材の検索や Chatbot で探せます。掲載のご希望は上の「掲載希望はコチラ」から。</p>
+    ) : null;
+  // シンボルが 1 つも無い表はその列ごと出さない(空の列が続くのを避ける)
+  const hasPic = rows.some((m) => iconOf(m));
   const part = subcategoryLabel(page);
 
   // モック「高級感 3」Q9 の表：番号・社名（明朝）・扱い・リンク 6 列・保存。
@@ -119,10 +127,11 @@ const MakerRows: React.FC<MakerRowsProps> = ({
             )}
             {String(i + 1).padStart(2, '0')}
           </span>
-          {!hasPic ? null : IMAGES[m.products] ? (
-            <a className="yy-mk__pic" href={m.products} target="_blank" rel="noopener nofollow" tabIndex={-1} aria-hidden="true">
-              <FeedPic src={IMAGES[m.products]} size="mk" />
-            </a>
+          {!hasPic ? null : iconOf(m) ? (
+            <span className="yy-mk__pic yy-mk__logo" aria-hidden="true">
+              {/* eslint-disable-next-line @next/next/no-img-element -- 相手のサーバーの画像をそのまま出す */}
+              <img src={iconOf(m)} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={(e) => (e.currentTarget.style.visibility = 'hidden')} />
+            </span>
           ) : (
             <span className="yy-mk__pic" aria-hidden="true" />
           )}

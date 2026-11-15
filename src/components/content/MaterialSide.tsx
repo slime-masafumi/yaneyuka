@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { MATERIAL_LINKS } from '@/lib/materialLinks';
 import { subcategoryLabel } from '@/lib/materialCategories';
 import { DESIGN_TOOL_MENU } from '@/lib/designToolsMenu';
@@ -28,7 +29,14 @@ const SPONSOR_IMG: Record<string, string> = {
   waterproof: '/image/bousui_cm_sample.png',
   hardware: '/image/kanamono_cm_sample.png',
   furniture: '/image/kagu_cm_sample.png',
+  // 2026-11-15 Codex に作ってもらう 5 枚。届くまでは読み込みに失敗して「掲載募集中」に替わる
+  'internal-ceiling': '/image/tenjou_cm_sample.png',
+  'electrical-systems': '/image/denki_cm_sample.png',
+  'mechanical-systems': '/image/kikai_cm_sample.png',
+  'exterior-infrastructure': '/image/gaikou_cm_sample.png',
+  exterior: '/image/exterior_cm_sample.png',
 };
+const NO_SAMPLE = '/image/掲載募集中a.png';
 
 function SecHead({ no, title, right }: { no: string; title: string; right?: React.ReactNode }) {
   return (
@@ -41,12 +49,28 @@ function SecHead({ no, title, right }: { no: string; title: string; right?: Reac
 }
 
 export function MaterialSponsor({ category, subcategory, onRegister }: { category: string; subcategory: string; onRegister: () => void }) {
-  const src = SPONSOR_IMG[category] ?? '/image/掲載募集中a.png';
+  const want = SPONSOR_IMG[category] ?? NO_SAMPLE;
+  const [src, setSrc] = useState(want);
+  const imgRef = React.useRef<HTMLImageElement>(null);
   const label = subcategoryLabel(subcategory);
+  // 画像がまだ無い分類は「掲載募集中」に替える。サーバーで出した <img> は画面の準備より先に読み込みに
+  // 失敗することがあり、onError だけでは拾えないので、準備ができた時点でも確かめる
+  useEffect(() => {
+    setSrc(want);
+    const img = imgRef.current;
+    if (img && img.complete && img.naturalWidth === 0 && want !== NO_SAMPLE) setSrc(NO_SAMPLE);
+  }, [want]);
   return (
     <aside className="yy-matpage__spon" aria-label="掲載枠">
       <button type="button" className="yy-spon" onClick={onRegister} title="この枠への掲載を希望する">
-        <img src={src} alt={`${label} の掲載枠(見本)`} />
+        <img
+          ref={imgRef}
+          src={src}
+          alt={`${label} の掲載枠(見本)`}
+          onError={(e) => {
+            if (src !== NO_SAMPLE) setSrc(NO_SAMPLE);
+          }}
+        />
         <span className="yy-spon__label">materials — {label}</span>
       </button>
       <span className="yy-spon__note">
@@ -195,9 +219,9 @@ export function MaterialSide({ category, subcategory }: { category: string; subc
               </li>
             ))}
           </ul>
-          <a className="yy-home__more" href="/lookup/?tab=material">
+          <Link className="yy-home__more" href="/lookup/?tab=material">
             材料情報をすべて <span aria-hidden="true">›</span>
-          </a>
+          </Link>
         </section>
       )}
     </aside>

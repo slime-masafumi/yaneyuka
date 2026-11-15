@@ -46,6 +46,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   // 索引ページは検索流入の受け皿なので優先度を高めに置く。カルテは端末内アプリなので低め。
   const lookup: SitemapEntry[] = [
     { path: '/lookup', changeFrequency: 'monthly', priority: 0.8 },
+    { path: '/materials', changeFrequency: 'weekly', priority: 0.8 },
     // /lookup/{分野}/(旧・条文の目次)は 2026-11-14 に載せるのをやめた。ページは公開済みの URL なので残している
     { path: '/calc', changeFrequency: 'monthly', priority: 0.6 },
     { path: '/calc/glass-thickness', changeFrequency: 'monthly', priority: 0.7 },

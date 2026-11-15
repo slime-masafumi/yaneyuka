@@ -1513,7 +1513,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
           {/* 右サイドバー：広告欄（Userpageメニュー以外で表示） */}
           {/* iPadサイズ(md:768px)以上で表示、最小200px〜最大300pxで縮小対応 */}
           {/* ホーム・建材・調べものはモック「高級感 3」どおり中央を使い切るので、広告欄を出さない（建材の掲載枠は左列へ移した） */}
-          {!isUserpageMenu() && !(pathname === '/' && activeContent === 'topix') && !CATEGORY_SUBCATEGORIES[activeContent] && !pathname.startsWith('/lookup') && !pathname.startsWith('/karte') && !(pathname.startsWith('/calc') && !pathname.startsWith('/calc/force-flow')) && (() => {
+          {!isUserpageMenu() && !(pathname === '/' && activeContent === 'topix') && !CATEGORY_SUBCATEGORIES[activeContent] && !pathname.startsWith('/lookup') && !pathname.startsWith('/karte') && !pathname.startsWith('/materials') && !(pathname.startsWith('/calc') && !pathname.startsWith('/calc/force-flow')) && (() => {
             // プライバシーポリシーページ判定（広告を非表示にして関連プライポリ一覧を出す）
             // - 個別アプリページ: URLパス /xxx-app-privacy-policy/ で開いている
             // - yaneyuka.com 本体のプライポリ: フッターバー「プライバシーポリシー」から SPA遷移 → URLは / のまま、activeContent='privacy-policy'

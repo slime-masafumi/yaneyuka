@@ -43,9 +43,11 @@ export function mergeMaker(data: MakerData, name: string): { name: string; categ
   const links: MakerLinks = { products: '', catalog: '', office: '', contact: '', sample: '', cad: '' };
   const categories: string[] = [];
   let found = false;
+  // 2026-11-15 に半角カタカナの社名を全角へ直した。以前に保存した「ｱﾄﾑﾘﾋﾞﾝﾃｯｸ」も同じ社として引けるよう、幅をそろえて比べる
+  const key = name.normalize('NFKC');
   for (const [cat, rows] of Object.entries(data)) {
     for (const r of rows) {
-      if (r.name !== name) continue;
+      if (r.name.normalize('NFKC') !== key) continue;
       found = true;
       if (!categories.includes(cat)) categories.push(cat);
       for (const { key } of BOX_SLOTS) if (!usable(links[key]) && usable(r[key])) links[key] = r[key];

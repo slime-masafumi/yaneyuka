@@ -69,6 +69,7 @@ const PATH_LABEL: Record<string, string> = {
   calc: '計算ツール',
   'glass-thickness': '必要ガラス厚の計算',
   karte: '物件カルテ',
+  materials: '建材',
 };
 
 function buildCrumbs(
