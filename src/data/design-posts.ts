@@ -7,7 +7,7 @@ export interface DesignPost {
   tags?: string[];
 }
 
-export const designPosts: DesignPost[] = [
+const basePosts: DesignPost[] = [
   {
     id: '1',
     title: '【2025年最新】「断熱基準」完全解説！義務化の内容と等級5・6・7の違いとは？',
@@ -385,3 +385,10 @@ export const designPosts: DesignPost[] = [
     tags: ['バリアフリー法', '特別特定建築物', '建築物移動等円滑化基準', '移動等円滑化経路', '車椅子使用者用便房', '車椅子使用者用駐車施設', '建築設計標準']
   }
 ];
+
+// 2026-11-15 に足した 30 本(構造・意匠計画 / 機械・電気 / インテリア・法規)。各ファイルの記事は末尾に根拠の条文・告示・規格を載せている
+import { designPostsExtraA } from './design-posts-extra-a';
+import { designPostsExtraB } from './design-posts-extra-b';
+import { designPostsExtraC } from './design-posts-extra-c';
+
+export const designPosts: DesignPost[] = [...basePosts, ...designPostsExtraA, ...designPostsExtraB, ...designPostsExtraC];
