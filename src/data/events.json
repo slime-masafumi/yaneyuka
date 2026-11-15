@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-13",
+  "updatedAt": "2026-11-15",
   "events": [
     {
       "id": "nikkei-architecture-materials-2026",
@@ -230,6 +230,19 @@
       "isLinkActive": true,
       "image": "https://www.m-messe.co.jp/static/images/event/noimage_cat3.jpg",
       "discovered": "makuhari"
+    },
+    {
+      "id": "auto-portmesse-9e7844eb5e",
+      "title": "建設技術フェア2026in中部",
+      "description": "",
+      "dateText": "2026年11月19日～20日",
+      "startDate": "2026-11-19",
+      "endDate": "2026-11-20",
+      "venue": "ポートメッセなごや 第1展示館",
+      "region": "nagoya",
+      "link": "https://kgf-chubu.com/",
+      "isLinkActive": true,
+      "discovered": "portmesse"
     }
   ]
 }
