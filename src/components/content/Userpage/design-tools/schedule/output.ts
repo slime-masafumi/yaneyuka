@@ -38,10 +38,14 @@ svg { display: block; }
   doc.close();
   const win = frame.contentWindow!;
   // 保存先のファイル名の候補はタイトルから付く
+  // print() がダイアログを閉じるまで待たないブラウザでは、1 秒で iframe を消すと印刷の中身が無くなることがある。
+  // 印刷が終わった合図（afterprint）で消し、来なくても 1 分後には片付ける
+  const remove = () => frame.isConnected && frame.remove();
   const run = () => {
+    win.addEventListener('afterprint', () => setTimeout(remove, 0), { once: true });
     win.focus();
     win.print();
-    setTimeout(() => frame.remove(), 1000);
+    setTimeout(remove, 60_000);
   };
   // フォントの読み込みを待つ（無ければすぐ）
   const fonts = (doc as Document & { fonts?: FontFaceSet }).fonts;

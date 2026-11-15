@@ -132,7 +132,7 @@ export function weightedLimits(
     const k = roadCoefOf(part.zone);
     const byRoad = opt.road > 0 && opt.road < 12 ? opt.road * k * 100 : Infinity;
     const farLimit = part.far > 0 ? Math.min(part.far, byRoad) : 0;
-    const farNote = part.far > 0 ? (Number.isFinite(byRoad) && byRoad < part.far ? `道路 ${opt.road}m × ${k} = ${Math.round(byRoad * 10) / 10}` : `指定 ${part.far}`) : '';
+    const farNote = part.far > 0 ? (Number.isFinite(byRoad) && byRoad < part.far ? `道路 ${Math.round(opt.road * 100) / 100}m × ${k} = ${Math.round(byRoad * 10) / 10}` : `指定 ${part.far}`) : '';
     return { part, bcLimit, bcNote: notes.join(' · '), farLimit, farNote };
   });
   const w = (f: (r: (typeof rows)[number]) => number) => (site > 0 ? rows.reduce((s, r) => s + f(r) * (r.part.area > 0 ? r.part.area : 0), 0) / site : NaN);

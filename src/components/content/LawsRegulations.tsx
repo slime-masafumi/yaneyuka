@@ -53,7 +53,7 @@ const LAW_LINKS: Array<{ name: string; desc: string; links: Array<{ label: strin
         "label": "施行令"
       },
       {
-        "href": "https://elaws.e-gov.go.jp/document?lawid=428M60000800008",
+        "href": "https://elaws.e-gov.go.jp/document?lawid=428M60000800005",
         "label": "施行規則"
       }
     ]
@@ -107,7 +107,7 @@ const LAW_LINKS: Array<{ name: string; desc: string; links: Array<{ label: strin
         "label": "施行令"
       },
       {
-        "href": "https://elaws.e-gov.go.jp/document?lawid=418M60000800011",
+        "href": "https://elaws.e-gov.go.jp/document?lawid=418M60000800110",
         "label": "施行規則"
       }
     ]
@@ -914,17 +914,17 @@ const LawsRegulations: React.FC = () => {
                       </td>
                       <td className="border border-gray-300 p-2">20/10以下の場合</td>
                       <td className="border border-gray-300 p-2 whitespace-nowrap">20ｍ</td>
-                      <td className="border border-gray-300 p-2">0.25又は1.5のうち、特定行政庁が土地利用の状況等を考慮し当該区域を区分して都道府県都市計画審議会の議を経て定めるもの</td>
+                      <td className="border border-gray-300 p-2">1.25又は1.5のうち、特定行政庁が土地利用の状況等を考慮し当該区域を区分して都道府県都市計画審議会の議を経て定めるもの</td>
                     </tr>
                     <tr>
                       <td className="border border-gray-300 p-2">20/10を超え、30/10以下の場合</td>
                       <td className="border border-gray-300 p-2 whitespace-nowrap">25ｍ</td>
-                      <td className="border border-gray-300 p-2">0.25又は1.5のうち、特定行政庁が土地利用の状況等を考慮し当該区域を区分して都道府県都市計画審議会の議を経て定めるもの</td>
+                      <td className="border border-gray-300 p-2">1.25又は1.5のうち、特定行政庁が土地利用の状況等を考慮し当該区域を区分して都道府県都市計画審議会の議を経て定めるもの</td>
                     </tr>
                     <tr>
                       <td className="border border-gray-300 p-2">30/10を超える場合</td>
                       <td className="border border-gray-300 p-2 whitespace-nowrap">30ｍ</td>
-                      <td className="border border-gray-300 p-2">0.25又は1.5のうち、特定行政庁が土地利用の状況等を考慮し当該区域を区分して都道府県都市計画審議会の議を経て定めるもの</td>
+                      <td className="border border-gray-300 p-2">1.25又は1.5のうち、特定行政庁が土地利用の状況等を考慮し当該区域を区分して都道府県都市計画審議会の議を経て定めるもの</td>
                     </tr>
                   </tbody>
                 </table>
@@ -935,7 +935,7 @@ const LawsRegulations: React.FC = () => {
                 <div className="text-xs text-gray-700 space-y-2">
                   <div>一　建築物が(い)欄に掲げる地域、地区又は区域の二以上にわたる場合においては、(い)欄の「建築物」は「建築物の部分」と読み替えるものとする。</div>
                   <div>二　建築物の敷地が(い)欄に掲げる地域、地区又は区域の二以上にわたる場合における(は)欄の距離の適用については、政令で定める。</div>
-                  <div>三　第一種中高層住居専用地域又は第二種中高層住居専用地域内の建築物で、当該地域内において定められた高層住居誘導地区（容積率の限度が40/10以上であるものに限る。）内の建築物又は第一種住居地域、第二種住居地域若しくは準住居地域内について定められた高層住居誘導地区内の建築物については、(は)欄第一項の「25メートル」を「20メートル」と、「30メートル」を「25メートル」と、「35メートル」を「30メートル」と読み替えるものとし、(に)欄第一項の「1.25」を「1.5」と読み替えるものとする。</div>
+                  <div>三　この表(い)欄一の項に掲げる第一種中高層住居専用地域若しくは第二種中高層住居専用地域（第五十二条第一項第二号の規定により、容積率の限度が40/10以上とされている地域に限る。）又は第一種住居地域、第二種住居地域若しくは準住居地域のうち、特定行政庁が都道府県都市計画審議会の議を経て指定する区域内の建築物については、(は)欄一の項中「25メートル」とあるのは「20メートル」と、「30メートル」とあるのは「25メートル」と、「35メートル」とあるのは「30メートル」と、(に)欄一の項中「1.25」とあるのは「1.5」とする。</div>
                 </div>
               </div>
             </div>

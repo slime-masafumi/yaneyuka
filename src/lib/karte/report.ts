@@ -52,7 +52,12 @@ export function buildReport(db: DB): Report {
         label: it.label,
         basis: it.basis,
         status: ST_LABEL[st],
-        result: rec.res?.summary ?? (tool ? tool.result : reason),
+        // 記録の後に条件が変わった判定は、古い結果だと分かるように書く
+        result: rec.res
+          ? `${st === 'warn' && rec.res.verdict !== 'ng' ? '記録後に条件が変わったため要再判定 · 記録時 ' : ''}${rec.res.summary}`
+          : tool
+            ? `${st === 'warn' && tool.ok ? '記録後に条件が変わったため要再計算 · 記録時 ' : ''}${tool.result}`
+            : reason,
         detail: rec.res ? rec.res.lines.map((l) => `${l.k}: ${l.v}`).join(' / ') : tool?.detail ?? '',
         memo: (rec.memo ?? '').trim(),
         at: rec.res ? stamp(rec.res.at) : tool ? stamp(tool.at) : '',
@@ -68,6 +73,8 @@ export function buildReport(db: DB): Report {
     ['高さ', `${p.H} m`],
     ['用途地域', partsSummary(p).zone],
     ['防火地域', partsSummary(p).fire],
+    ['前面道路', p.road && p.road > 0 ? `${p.road} m` : '—'],
+    ['その他の制限', p.other?.trim() || '—'],
   ];
   return {
     project: p,

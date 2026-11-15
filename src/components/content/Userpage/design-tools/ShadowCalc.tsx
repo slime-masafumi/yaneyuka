@@ -48,7 +48,8 @@ function PlanMap({ r, v, near, far }: { r: ShadowOut; v: ShadowIn; near: number;
         const h = r.hours[k];
         if (h <= 0) continue;
         const d = r.dist[k];
-        const over = (d > 10 && h > far) || (d > 5 && d <= 10 && h > near);
+        // 56 条の 2: 規制時間「以上」日影となる部分を生じさせない → ちょうども超える側
+        const over = (d > 10 && h >= far - 1e-6) || (d > 5 && d <= 10 && h >= near - 1e-6);
         if (over) g.fillStyle = 'rgba(180, 64, 47, 0.55)';
         else g.fillStyle = `rgba(59, 59, 59, ${Math.min(0.08 + h * 0.06, 0.5)})`;
         g.fillRect(px(r.x0 + i * r.step), py(r.y0 + (j + 1) * r.step), cell, cell);
@@ -76,10 +77,17 @@ function PlanMap({ r, v, near, far }: { r: ShadowOut; v: ShadowIn; near: number;
     };
     ring(5, '#2f6f5e', [4, 3]);
     ring(10, '#2f6f5e', [1, 3]);
-    // 敷地・建物
+    // 敷地・建物(道路・水面等の緩和があるときは、みなした境界線を細い破線で)
     g.strokeStyle = '#3b3b3b';
     g.lineWidth = 1;
-    g.strokeRect(px(r.site.x0), py(r.site.y1), (r.site.x1 - r.site.x0) * scale, (r.site.y1 - r.site.y0) * scale);
+    g.strokeRect(px(r.real.x0), py(r.real.y1), (r.real.x1 - r.real.x0) * scale, (r.real.y1 - r.real.y0) * scale);
+    if (r.site.x0 !== r.real.x0 || r.site.y0 !== r.real.y0 || r.site.x1 !== r.real.x1 || r.site.y1 !== r.real.y1) {
+      g.save();
+      g.setLineDash([2, 2]);
+      g.strokeStyle = '#8a8a85';
+      g.strokeRect(px(r.site.x0), py(r.site.y1), (r.site.x1 - r.site.x0) * scale, (r.site.y1 - r.site.y0) * scale);
+      g.restore();
+    }
     g.fillStyle = '#2b2b2b';
     g.fillRect(px(0), py(v.bd), v.bw * scale, v.bd * scale);
     // 真北
@@ -121,6 +129,12 @@ export default function ShadowCalc() {
   const [setE, setSetE] = useState('3');
   const [setS, setSetS] = useState('5');
   const [setW, setSetW] = useState('3');
+  const [wayN, setWayN] = useState('0');
+  const [wayE, setWayE] = useState('0');
+  const [wayS, setWayS] = useState('0');
+  const [wayW, setWayW] = useState('0');
+  const [diff, setDiff] = useState('0');
+  const [floors3, setFloors3] = useState(false);
 
   const z = SHADOW_ZONES.find((x) => x.id === zone) ?? SHADOW_ZONES[0];
   const row = z.rows.find((x) => x.go === go) ?? z.rows[0];
@@ -141,13 +155,29 @@ export default function ShadowCalc() {
       setE: Number(setE),
       setS: Number(setS),
       setW: Number(setW),
+      wayN: Number(wayN) || 0,
+      wayE: Number(wayE) || 0,
+      wayS: Number(wayS) || 0,
+      wayW: Number(wayW) || 0,
+      diff: Number(diff) || 0,
     }),
-    [lat, hokkaido, bw, bd, bh, rot, planeN, setN, setE, setS, setW]
+    [lat, hokkaido, bw, bd, bh, rot, planeN, setN, setE, setS, setW, wayN, wayE, wayS, wayW, diff]
   );
   const valid = v.bw > 0 && v.bd > 0 && v.bh > 0 && v.lat > 20 && v.lat < 50;
   const r = useMemo(() => (valid ? computeShadow(v) : null), [v, valid]);
-  const ngNear = r ? r.maxNear > near + 1e-6 : false;
-  const ngFar = r ? r.maxFar > far + 1e-6 : false;
+  // 56 条の 2 第 1 項: 規制時間「以上」日影となる部分を生じさせない(ちょうども不適合)。10 分刻みの数え方なので境目は ±5 分程度ずれうる
+  const ngNear = r ? r.maxNear >= near - 1e-6 : false;
+  const ngFar = r ? r.maxFar >= far - 1e-6 : false;
+  // 規制の対象になる建築物か(別表第 4(ろ)欄)。直方体なので軒の高さ = 高さとみなす
+  const lowType = z.id === 'low' || z.id === 'none-i';
+  const covered = lowType ? v.bh > 7 || floors3 : v.bh > 10;
+  const coverText = lowType
+    ? covered
+      ? `対象(${v.bh > 7 ? '軒の高さ 7m 超' : '地階を除く階数 3 以上'})`
+      : '対象外(軒の高さ 7m 以下かつ地階を除く階数 2 以下)'
+    : covered
+      ? '対象(高さ 10m 超)'
+      : '対象外(高さ 10m 以下。区域外の 10m 超の建物が対象区域に影を落とす場合は 56 条の 2 第 4 項)';
   const noon = sunAt(Number(lat), 12);
 
   return (
@@ -223,7 +253,12 @@ export default function ShadowCalc() {
                 </select>
               </label>
             </div>
-            <p className="text-[10px] text-gray-500">対象: {z.applies}(別表第 4 {z.item}の項)</p>
+            <p className="text-[10px] text-gray-500">対象: {z.applies}(別表第 4 {z.item}の項)。号と測定面の高さは条例で指定されたものを選ぶ</p>
+            {lowType && (
+              <label className="flex items-start gap-1 text-[11px]">
+                <input type="checkbox" checked={floors3} onChange={(e) => setFloors3(e.target.checked)} className="mt-0.5" /> 地階を除く階数が 3 以上
+              </label>
+            )}
           </div>
 
           <div className={box}>
@@ -242,6 +277,20 @@ export default function ShadowCalc() {
               <Num k="西" v={setW} set={setSetW} />
             </div>
           </div>
+
+          <details className={box}>
+            <summary className="text-[11px] font-bold text-gray-700 cursor-pointer">道路・水面等と高低差の緩和(令 135 条の 12 第 3 項)</summary>
+            <span className="block text-[10px] text-gray-500">敷地が接する道路・水面・線路敷等の幅(m。無ければ 0)</span>
+            <div className="grid grid-cols-4 gap-2">
+              <Num k="北" v={wayN} set={setWayN} />
+              <Num k="東" v={wayE} set={setWayE} />
+              <Num k="南" v={wayS} set={setWayS} />
+              <Num k="西" v={wayW} set={setWayW} />
+            </div>
+            <p className="text-[10px] text-gray-400">境界線を幅の 1/2 外側にみなす。幅 10m 超は反対側の境界線から 5m 内側の線。</p>
+            <Num k="隣地(影の落ちる土地)の地盤面 − 敷地の平均地盤面(m)" v={diff} set={setDiff} step="0.1" />
+            <p className="text-[10px] text-gray-400">1m 以上低い敷地は、平均地盤面を(差 − 1)/ 2 高くみなす。特定行政庁が規則で別に定めている場合はそちら。</p>
+          </details>
         </div>
 
         <div className="space-y-3">
@@ -251,13 +300,14 @@ export default function ShadowCalc() {
                 <div className="flex-1 min-w-[260px] max-w-[420px]">
                   <DtResult
                     label={`日影時間の最大(冬至日 真太陽時 ${r.t0}〜${r.t1} 時・測定面 ${planeN}m)`}
-                    value={ngNear || ngFar ? '超える' : '収まる'}
+                    value={!covered ? '規制の対象外' : ngNear || ngFar ? '超える' : '収まる'}
                     text
-                    ng={ngNear || ngFar}
-                    sub={`規制 ${near} 時間 / ${far} 時間(${z.label} ${row.go})`}
+                    ng={covered && (ngNear || ngFar)}
+                    sub={`規制 ${near} 時間 / ${far} 時間以上の日影を生じさせない(${z.label} ${row.go})`}
                   >
-                    <ResultRow k="5m を超え 10m 以内" v={`${hm(r.maxNear)}(規制 ${near} 時間)${ngNear ? ' · 超える' : ''}`} />
-                    <ResultRow k="10m を超える範囲" v={`${hm(r.maxFar)}(規制 ${far} 時間)${ngFar ? ' · 超える' : ''}`} />
+                    <ResultRow k="規制の対象か(別表第 4(ろ)欄)" v={coverText} />
+                    <ResultRow k="5m を超え 10m 以内" v={`${hm(r.maxNear)}(${near} 時間未満であること)${ngNear ? ' · 超える' : ''}`} />
+                    <ResultRow k="10m を超える範囲" v={`${hm(r.maxFar)}(${far} 時間未満であること)${ngFar ? ' · 超える' : ''}`} />
                     <ResultRow k="正午の太陽高度" v={`${((noon.alt * 180) / Math.PI).toFixed(1)}°`} />
                     <ResultRow k="計算の細かさ" v={`${r.step} m 格子・10 分刻み`} />
                   </DtResult>
@@ -277,7 +327,8 @@ export default function ShadowCalc() {
 
           <p className="text-[10px] text-gray-400 leading-relaxed">
             ※ 建築基準法 第 56 条の 2・別表第 4 の規制時間と、冬至日(赤緯 −23.44°)の真太陽時の太陽位置で数えた目安です(e-Gov、2026-05-27 施行版で確認)。
-            <br />※ 建物は直方体 1 棟、敷地は建物と同じ向きの長方形、平均地盤面は平らとしています。道路・水面・線路敷による緩和(令 135 条の 12)、高低差の緩和、隣の建物、塔屋・パラペットは入っていません。
+            <br />※ 規制時間は「その時間以上日影となる部分を生じさせない」なので、ちょうどの時間も超える扱いです。10 分刻みで数えているので境目は数分ずれます。
+            <br />※ 建物は直方体 1 棟、敷地は建物と同じ向きの長方形、平均地盤面は平らとしています。同じ敷地の 2 以上の建物は 1 つとみなす(56 条の 2 第 2 項)ため、別棟があれば合わせて検討が必要です。塔屋・パラペット、規制の異なる区域にまたがる場合(令 135 条の 13)、商業地域等の対象区域外は入っていません。
             <br />※ 確認申請の日影図は専用ソフトで作ってください。このツールは計画初期のボリューム検討用です。
           </p>
         </div>

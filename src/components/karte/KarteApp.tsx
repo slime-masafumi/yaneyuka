@@ -150,7 +150,7 @@ export default function KarteApp() {
   const pct = progress.total ? Math.round((progress.done / progress.total) * 100) : 0;
 
   const ps = partsSummary(proj);
-  const conds = [ps.zone, ps.fire, `V₀ ${proj.v0} m/s`, `粗度 ${ROUGH_LABEL[proj.rough] ?? proj.rough}`, `降雨 ${proj.rain} mm/h`, `Z ${proj.z}`, `積雪 ${proj.snow} cm`];
+  const conds = [ps.zone, ps.fire, ...(proj.road && proj.road > 0 ? [`前面道路 ${proj.road} m`] : []), ...(proj.other?.trim() ? [proj.other.trim()] : []), `V₀ ${proj.v0} m/s`, `粗度 ${ROUGH_LABEL[proj.rough] ?? proj.rough}`, `降雨 ${proj.rain} mm/h`, `Z ${proj.z}`, `積雪 ${proj.snow} cm`];
   const sub = [
     proj.addr,
     `H ${proj.H} m`,

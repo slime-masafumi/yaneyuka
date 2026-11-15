@@ -28,7 +28,7 @@ export const solveDiameter = (
 ): number => {
   const rho = getAirDensity(tempC);
   const Q = airflow_m3h / 3600; // m³/s
-  const mu = 1.81e-5; // 動粘度 (Pa·s) @ 20℃
+  const mu = 1.81e-5; // 粘性係数 μ (Pa·s) @ 20℃(動粘度ではない)
   
   // コールブルック式の簡易近似
   // レイノルズ数 Re = 4Qρ / (πDμ)
@@ -51,8 +51,10 @@ export const solveDiameter = (
     
     if (Math.abs(calculatedLoss - targetLoss) < 0.01) break;
     
-    // ニュートン法で更新
-    D = D * Math.sqrt(targetLoss / calculatedLoss);
+    // 摩擦損失は径のおよそ 5 乗に反比例するので、比の 1/5 乗で径を直す。
+    // 2026-11-15 まで平方根で直していて振動・発散し、理論径が NaN になっていた
+    if (!(calculatedLoss > 0) || !Number.isFinite(calculatedLoss)) return NaN;
+    D = D * Math.pow(calculatedLoss / targetLoss, 1 / 5);
   }
   
   return D * 1000; // mmに変換

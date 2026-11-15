@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import PageHead from '@/components/ui/PageHead';
 import { SecHead } from '@/components/ui/Sheet';
 import { ZONE_GUIDES, pct, roadRows, zoneGuide, zoneSetback, zoneShadow, zoneUses } from '@/lib/zoneGuide';
+import { USE_ZONE_SUBITEMS } from '@/data/useZoneTable';
 import '@/components/content/Userpage/info-pages.css';
 
 /**
@@ -111,8 +112,17 @@ export default async function ZonePage({ params }: { params: Promise<{ id: strin
               </p>
             )}
             <ol className="yy-di-ol">
-              {uses?.items.map((t) => (
-                <li key={t}>{t.replace(/^[一二三四五六七八九十]+　/, '')}</li>
+              {uses?.items.map((t, n) => (
+                <li key={t}>
+                  {t.replace(/^[一二三四五六七八九十]+　/, '')}
+                  {USE_ZONE_SUBITEMS[z.id]?.[n] && (
+                    <ul className="yy-di-ul">
+                      {USE_ZONE_SUBITEMS[z.id][n].map((s) => (
+                        <li key={s}>{s}</li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
               ))}
             </ol>
 
@@ -179,7 +189,12 @@ export default async function ZonePage({ params }: { params: Promise<{ id: strin
                   </tr>
                   <tr>
                     <td>隣地斜線</td>
-                    <td>{sb.neighbor ? `立上り ${sb.neighbor[0]}m + 勾配 ${sb.neighbor[1]}` : 'かからない(絶対高さで抑える)'}</td>
+                    <td>
+                      {sb.neighbor ? `立上り ${sb.neighbor[0]}m + 勾配 ${sb.neighbor[1]}` : 'かからない(絶対高さで抑える)'}
+                      {sb.neighbor && sb.neighbor[1] === 1.25
+                        ? `(特定行政庁が指定する区域は 31m + 2.5${sb.north === 10 ? '。容積率 300% 以下の地域は指定の対象外' : ''})`
+                        : ''}
+                    </td>
                     <td>法 56 条 1 項 2 号</td>
                   </tr>
                   <tr>
@@ -215,7 +230,13 @@ export default async function ZonePage({ params }: { params: Promise<{ id: strin
                 </tbody>
               </table>
             </div>
+            <p className="yy-di-note">表の容積率は、都市計画の値ではなく前面道路の幅員で下げた後の容積率の限度(法 52 条 1・2・7・9 項)で引きます(別表第三(ろ)欄)。</p>
             {sb.wide12 && <p className="yy-di-note">前面道路の幅員が 12m 以上のときは、道路の反対側の境界線から「1.25 × 幅員」以上離れた範囲の勾配が 1.5 になります(法 56 条 3 項・4 項)。</p>}
+            {sb.note3 && (
+              <p className="yy-di-note">
+                特定行政庁が指定する区域{sb.north === 10 ? '(中高層住居専用地域は容積率 400% 以上の地域に限る)' : ''}では、適用距離が 5m 短くなり勾配が 1.5 になります(別表第三 備考三)。
+              </p>
+            )}
             <p className="yy-di-p">
               建物の面ごとの許される高さは、<Link href="/calc/setback-regulation/">斜線制限の計算ツール</Link>で出せます。
             </p>

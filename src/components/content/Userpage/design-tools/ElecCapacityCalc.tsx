@@ -37,6 +37,7 @@ export default function ElecCapacityCalc() {
   const [powerKw, setPowerKw] = useState('60');
   const [powerDf, setPowerDf] = useState('0.8');
   const [pf, setPf] = useState('0.8');
+  const [diversity, setDiversity] = useState('1');
   const house = use === 'house';
 
   const r = useMemo(
@@ -54,8 +55,9 @@ export default function ElecCapacityCalc() {
         powerKw: Number(powerKw),
         powerDf: Number(powerDf),
         pf: Number(pf),
+        diversity: Number(diversity),
       }),
-    [use, area, partArea, partUse, dwellings, perDwelling, showWindowM, extraVa, lightDf, powerKw, powerDf, pf]
+    [use, area, partArea, partUse, dwellings, perDwelling, showWindowM, extraVa, lightDf, powerKw, powerDf, pf, diversity]
   );
 
   return (
@@ -105,6 +107,7 @@ export default function ElecCapacityCalc() {
               <Num k="需要率" v={powerDf} set={setPowerDf} step="0.05" />
               <Num k="力率" v={pf} set={setPf} step="0.05" />
             </div>
+            <Num k="不等率(電灯と動力の間。1 以上)" v={diversity} set={setDiversity} step="0.05" hint="1 = 見込まない(安全側)。合計の最大需要 = 各最大の和 ÷ 不等率" />
             <p className="text-[10px] text-gray-400 leading-relaxed">
               需要率の参考(建築設備設計基準の曲線を読み取った解説資料。一次資料は未確認): 照明 1.0〜0.68 / コンセント 0.55〜0.27 / 空調 1.0〜0.75 / 冷凍機 1.0〜0.94 / 衛生 0.21 / EV 1.0
             </p>
@@ -117,6 +120,7 @@ export default function ElecCapacityCalc() {
               <ResultRow k="電灯・コンセントの設備容量" v={`${f1(r.lightVa / 1000)} kVA(${r.a} VA/m² ほか)`} />
               <ResultRow k="電灯・コンセントの最大需要" v={`${f1(r.lightMax)} kW`} />
               <ResultRow k="動力の最大需要" v={`${f1(r.powerMax)} kW`} />
+              {Number(diversity) > 1 && <ResultRow k="不等率" v={`÷ ${diversity}(和 ${f1(r.lightMax + r.powerMax)} kW)`} />}
               {r.receive.label !== '低圧' && (
                 <>
                   <ResultRow k="変圧器(単相・電灯)" v={r.tr1 ? `${r.tr1} kVA(需要 ${f1(r.lightKva)} kVA)` : r.tr1 === 0 ? '—' : '標準容量の範囲外'} />

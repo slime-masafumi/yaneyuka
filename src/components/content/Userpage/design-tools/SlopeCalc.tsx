@@ -143,7 +143,7 @@ export default function SlopeCalc() {
                   {s.label}
                 </option>
               ))}
-              <option value="drain">屋外の排水管(横管)の最小勾配</option>
+              <option value="drain">排水横管の最小勾配(SHASE。屋外は自治体の基準も)</option>
             </select>
             {std === 'drain' ? (
               <label className="block">
@@ -209,7 +209,7 @@ export default function SlopeCalc() {
                   </tr>
                 ))}
                 <tr className="border-t">
-                  <td className="px-2 py-1">屋外の排水管(横管)</td>
+                  <td className="px-2 py-1">排水横管(建物内。屋外は自治体の排水設備基準も)</td>
                   <td className="px-2 py-1 whitespace-nowrap">{DRAIN_MIN.map((d) => `${d.d}:${d.show}`).join(' / ')}</td>
                   <td className="px-2 py-1 text-[10px] text-gray-500">SHASE-S206</td>
                 </tr>

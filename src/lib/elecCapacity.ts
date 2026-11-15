@@ -5,6 +5,7 @@
  *     A = 建物の種類ごとの標準負荷(3605-1 表)、B = 部分的な標準負荷(3605-2 表。住宅には使わない)、C = 加算
  *     ※ 内線規程(JEAC 8001-2022)の原本は有料のため、値は解説資料 2 つで一致を確かめたもの
  *   最大需要電力 = 設備容量 × 需要率(需要率は設計者が決める。下の値は参考)
+ *   合成最大需要電力 = Σ(各群の最大需要電力)÷ 不等率(1 以上。既定 1 = 不等率を見込まない)
  *   受電の区分: 契約電力 50kW 未満は低圧、50kW 以上 2,000kW 未満は高圧(6kV)、2,000kW 以上は特別高圧
  *     (東京電力パワーグリッド 託送供給等約款 2024-10-01 実施。地域の約款で確認)
  */
@@ -40,6 +41,12 @@ export type CapIn = {
   powerKw: number;
   powerDf: number;
   pf: number;
+  /**
+   * 不等率(各負荷の最大需要電力の合計 ÷ 合成最大需要電力、1 以上)。電灯と動力の最大は同じ時刻に来ないので、
+   * 合計の最大需要電力 = (電灯の最大 + 動力の最大) ÷ 不等率。省略・1 未満は 1(安全側)。
+   * 変圧器は群ごとの値をそのまま使う(群の中の不等率は見込まない)
+   */
+  diversity?: number;
 };
 
 export type CapOut = {
@@ -65,7 +72,8 @@ export function capacity(v: CapIn): CapOut {
   const lightVa = P * std.va + partArea * part.va + C;
   const lightMax = (lightVa * v.lightDf) / 1000; // kW(電灯は力率 1 とみなす)
   const powerMax = v.powerKw * v.powerDf; // kW
-  const totalKw = lightMax + powerMax;
+  const div = v.diversity && v.diversity > 1 ? v.diversity : 1;
+  const totalKw = (lightMax + powerMax) / div;
   const receive =
     totalKw < 50 ? { label: '低圧', volt: '100V / 200V' } : totalKw < 2000 ? { label: '高圧', volt: '6,000V(キュービクルで受電)' } : { label: '特別高圧', volt: '20,000V 以上' };
   const lightKva = lightMax;

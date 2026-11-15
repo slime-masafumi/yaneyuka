@@ -436,10 +436,19 @@ const TeamTasks: React.FC = () => {
     setEditingTaskId(null);
     await patchTask(projectId, taskId, { title: tempTaskTitle.trim() });
   };
+  // 共有ボードのタスクはメンバー全員から消えるので、確かめてから消す。失敗したら元に戻して知らせる(2026-11-15)
   const deleteTask = async (projectId: string, taskId: string) => {
-    setTasksByProject(prev => ({ ...prev, [projectId]: (prev[projectId] || []).filter(task => task.id !== taskId) }));
+    const task = (tasksByProject[projectId] || []).find(t => t.id === taskId);
+    if (!guestMode && !window.confirm(`「${task?.title ?? 'このタスク'}」を消します。ボードのメンバー全員の画面から消え、元に戻せません。`)) return;
+    const before = tasksByProject[projectId] || [];
+    setTasksByProject(prev => ({ ...prev, [projectId]: (prev[projectId] || []).filter(t => t.id !== taskId) }));
     if (guestMode || taskId.startsWith('tmp-')) return;
-    try { await deleteBoardTask(projectId, taskId) } catch {}
+    try {
+      await deleteBoardTask(projectId, taskId);
+    } catch {
+      setTasksByProject(prev => ({ ...prev, [projectId]: before }));
+      window.alert('タスクを消せませんでした。通信の状態を確かめて、もう一度試してください。');
+    }
   };
 
   // 色が暗いかどうか

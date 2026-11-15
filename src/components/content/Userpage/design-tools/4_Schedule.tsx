@@ -616,11 +616,13 @@ const Schedule: React.FC = () => {
   const tpl = TEMPLATES.find((t) => t.id === tplId)!;
   const tplPreview = useMemo(() => instantiate(tpl, tplStart || nextMonday(), cal, holidays, 1), [tpl, tplStart, cal, holidays]);
   const tplEnd = tplPreview.filter((t) => kindOf(t) !== 'group').map((t) => t.end).sort().reverse()[0];
+  /** 設計工程は設計の着手日、工事のテンプレートは着工日から並べる */
+  const tplStartLabel = tpl.id === 'design' ? '着手日（設計開始）' : '着工日';
 
   const applyTemplate = (mode: 'new' | 'append' | 'replace') => {
     if (!requireLogin()) return;
     if (!isDate(tplStart)) {
-      alert('着手日を入れてください。');
+      alert(`${tplStartLabel}を入れてください。`);
       return;
     }
     const rows = instantiate(tpl, tplStart, cal, holidays, nextId());
@@ -927,7 +929,7 @@ const Schedule: React.FC = () => {
         <span><span className={`${mono} text-gray-500 mr-2`}>FINISH</span>{endAll ?? '—'}</span>
         <span>
           <span className={`${mono} text-gray-500 mr-2`}>DAYS</span>
-          {startAll && endAll ? `${daysBetween(startAll, endAll) + 1} 日（稼働 ${workdaysBetween(startAll, endAll, cal, holidays)} 日）` : '—'}
+          {startAll && endAll ? `暦日 ${daysBetween(startAll, endAll) + 1} 日（うち稼働 ${workdaysBetween(startAll, endAll, cal, holidays)} 日）` : '—'}
         </span>
         {hasBaseline && baseEndAll && endAll && (
           <span className={endAll > baseEndAll ? 'text-[#b24a4a]' : ''}>
@@ -1155,7 +1157,7 @@ const Schedule: React.FC = () => {
               </label>
               <p className="text-[11px] text-gray-600">{tpl.note}</p>
               <label className="block">
-                <span className="yy-label">着手日</span>
+                <span className="yy-label">{tplStartLabel}</span>
                 <input type="date" value={tplStart} onChange={(e) => setTplStart(e.target.value)} className={inputCls} />
               </label>
               <p className="text-[11px]">
@@ -1168,7 +1170,12 @@ const Schedule: React.FC = () => {
                 <button type="button" className={btn} onClick={() => applyTemplate('append')} disabled={!currentId}>今の工程表の末尾に足す</button>
                 <button type="button" className={btn} onClick={() => applyTemplate('replace')} disabled={!currentId}>今の工程表を置き換える</button>
               </div>
-              <p className="text-[10px] text-gray-500">日数は小〜中規模の目安です。休みは「稼働日」タブの設定で数えます。並べたあと物件に合わせて直してください。</p>
+              <p className="text-[10px] text-gray-500">日数は小〜中規模の目安（稼働日）です。休みは「稼働日」タブの設定で数え、土曜を休みにすると暦日の工期は延びます。並べたあと物件に合わせて直してください。</p>
+              <p className="text-[10px] text-gray-500">
+                検査の節目は目安の位置です。中間検査が要るのは、階数 3 以上の共同住宅の床・はりの配筋の工程と、特定行政庁が指定した特定工程です（建築基準法 第 7 条の 3）。該当しなければ消してください。
+                配筋検査（工事監理・瑕疵保険）、躯体検査、消防検査、鉄骨の製品検査などは入っていないので、必要に応じて足してください。
+                役所・検査機関は土曜に検査をしないことが多いので、土曜を稼働にしている場合は検査の節目が土曜に当たっていないか確かめてください。
+              </p>
             </div>
             <div className="border border-[#d6d3cc] max-h-[360px] overflow-y-auto">
               <table className="w-full text-[11px]">
@@ -1217,7 +1224,8 @@ const Schedule: React.FC = () => {
               </div>
               <p className="text-[10px] text-gray-500 mt-2">
                 日数・押し出し・テンプレートはこの休みを飛ばして数えます。休みを変えても既に入っている日付は動きません（日数の表示が変わります）。
-                祝日は内閣府の公表をもとにした一覧を使います{Object.keys(holidays).length ? '' : '（いま読み込めていません。祝日なしで数えています）'}。
+                祝日は内閣府の公表（前年〜翌年）を読み込み、それより先の年や読み込めないときは祝日法の規定（振替休日・国民の休日を含む）から計算します。
+                春分の日・秋分の日は前年 2 月の官報で正式に決まるため、それより先の年は推定です。年末年始・お盆の期間は会社・現場で違います。長いときは休工日で足し、短いときはチェックを外して休む日を休工日で入れてください。
               </p>
             </div>
             <div>

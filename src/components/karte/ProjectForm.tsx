@@ -28,8 +28,13 @@ type Props = {
 
 type Form = { [K in Exclude<keyof Project, 'parts'>]: string };
 
+// 後から足した項目(前面道路・その他の制限)は古い物件に無いので空で始める
 const toForm = (p: Project): Form =>
-  Object.fromEntries(Object.entries(p).filter(([k]) => k !== 'parts').map(([k, v]) => [k, String(v ?? '')])) as Form;
+  ({
+    road: '',
+    other: '',
+    ...Object.fromEntries(Object.entries(p).filter(([k]) => k !== 'parts').map(([k, v]) => [k, String(v ?? '')])),
+  }) as Form;
 
 /** 指定建蔽率・指定容積率の選択肢(法 53 条 1 項・52 条 1 項)。用途地域の指定のない区域は 53 条 1 項 6 号・52 条 1 項 8 号 */
 const NONE_ZONE = '用途地域の指定のない区域';
@@ -70,7 +75,13 @@ function numField(p: {
 export default function ProjectForm({ project, onSave }: Props) {
   const [f, setF] = useState<Form>(() => toForm(project));
   // 敷地の部分(用途地域・防火指定・面積・指定建蔽率・指定容積率)。2 以上にわたる敷地のため行を足せる
-  const [parts, setParts] = useState<SitePart[]>(() => partsOf(project).map((x) => ({ ...x })));
+  const [parts, setPartsRaw] = useState<SitePart[]>(() => partsOf(project).map((x) => ({ ...x })));
+  // 保存していない変更があるか(この画面の入力は「条件を保存」を押すまで各分野の判定に反映されない)
+  const [dirty, setDirty] = useState(false);
+  const setParts: typeof setPartsRaw = (u) => {
+    setDirty(true);
+    setPartsRaw(u);
+  };
   const setPart = (i: number, patch: Partial<SitePart>) => setParts((prev) => prev.map((x, j) => (j === i ? { ...x, ...patch } : x)));
   const addPart = () =>
     setParts((prev) => [...prev, { zone: prev[prev.length - 1]?.zone ?? ZONES[0], fire: prev[prev.length - 1]?.fire ?? FIRE_ZONES[0], area: 0, bc: 0, far: 0, bldg: true }]);
@@ -80,8 +91,10 @@ export default function ProjectForm({ project, onSave }: Props) {
   const siteArea = siteAreaOf(parts);
   const hNotes = heightNotes(parts);
   const [saved, setSaved] = useState(false);
-  const set = (k: keyof Form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+  const set = (k: keyof Form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    setDirty(true);
     setF((prev) => ({ ...prev, [k]: e.target.value }));
+  };
 
   const save = () => {
     onSave({
@@ -108,7 +121,10 @@ export default function ProjectForm({ project, onSave }: Props) {
       fl: num(f.fl, 1),
       bf: num(f.bf, 0),
       area: num(f.area, 0),
+      road: f.road.trim() === '' ? undefined : num(f.road, 0),
+      other: f.other,
     });
+    setDirty(false);
     setSaved(true);
     window.setTimeout(() => setSaved(false), 2000);
   };
@@ -143,10 +159,11 @@ export default function ProjectForm({ project, onSave }: Props) {
               </select>
             }
           />
-          <KV k={L('p-fl', '地上階数')} v={Num({ id: 'p-fl', k: 'fl', unit: '階', min: 1, step: 1 })} />
+          <KV k={L('p-fl', '地上階数(地階を除く)')} v={Num({ id: 'p-fl', k: 'fl', unit: '階', min: 1, step: 1 })} />
           <KV k={L('p-bf', '地下階数')} v={Num({ id: 'p-bf', k: 'bf', unit: '階', min: 0, step: 1 })} />
-          <KV k={L('p-area', '延べ面積')} v={Num({ id: 'p-area', k: 'area', unit: 'm²', min: 0, step: 10 })} />
-          <KV k={L('p-h', '建築物の高さ H')} v={Num({ id: 'p-h', k: 'H', unit: 'm', min: 1, step: 0.5 })} />
+          <KV k={L('p-area', '延べ面積(各階の床面積の合計)')} v={Num({ id: 'p-area', k: 'area', unit: 'm²', min: 0, step: 10 })} />
+          <KV k={L('p-h', '建築物の高さ H(地盤面から)')} v={Num({ id: 'p-h', k: 'H', unit: 'm', min: 1, step: 0.5 })} />
+          <KV k={L('p-road', '前面道路の幅員(最大のもの)')} v={Num({ id: 'p-road', k: 'road', unit: 'm', min: 0, step: 0.1 })} />
           <KV k={L('p-v0', '基準風速 V₀')} v={Num({ id: 'p-v0', k: 'v0', unit: 'm/s', min: 30, max: 46, step: 1 })} />
           <KV
             k={L('p-rough', '地表面粗度区分')}
@@ -269,8 +286,22 @@ export default function ProjectForm({ project, onSave }: Props) {
             </ul>
           )}
         </div>
+        <div className="yy-kt-form">
+          <KV
+            k={L('p-other', 'その他の制限(判定の外)')}
+            v={
+              <input
+                id="p-other"
+                className="is-text"
+                value={f.other}
+                onChange={set('other')}
+                placeholder="高度地区・地区計画・建築協定・景観地区・条例など"
+              />
+            }
+          />
+        </div>
         <p className="yy-kt-note">
-          ここに入れた条件が、意匠・構造・設備・電気の各検討で共通に使われます。関係のない項目は自動でグレーになります。V₀・粗度区分・Z・垂直積雪量は告示および自治体規則で地域ごとに定まります。所在地からの自動取得は今後の対応です。
+          ここに入れた条件が、意匠・構造・設備・電気の各検討で共通に使われます。関係のない項目は自動でグレーになります。高さ H は地盤面からの建築物の高さ(令 2 条 1 項 6 号)。階段室・昇降機塔などで水平投影面積が建築面積の 1/8 以内の部分は、12m まで高さに入れない規定と入れる規定(北側斜線など)があるので、各項目で確かめてください。前面道路の幅員は 2 項道路なら後退後の 4m(指定区域は 6m)。高度地区・地区計画・建築協定・条例はカルテでは判定しないので、「その他の制限」に書いておくと確認書に残ります。V₀・粗度区分・Z・垂直積雪量は告示および自治体規則で地域ごとに定まります。所在地からの自動取得は今後の対応です。
         </p>
       </section>
 
@@ -314,8 +345,9 @@ export default function ProjectForm({ project, onSave }: Props) {
         </div>
         <p className="yy-kt-note">必要量を出しても、建物が供給できなければ成立しません。</p>
         <div className="yy-kt-acts">
-          <button type="button" className="yy-btn is-primary" onClick={save}>条件を保存</button>
+          <button type="button" className="yy-btn is-primary" onClick={save}>条件を保存(I・II とも)</button>
           {saved && <span className="yy-kt-saved">✓ 保存しました</span>}
+          {!saved && dirty && <span className="yy-kt-note" style={{ marginTop: 0 }}>保存していない変更があります。保存するまで各分野の判定には反映されません</span>}
         </div>
       </section>
     </>

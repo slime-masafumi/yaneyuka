@@ -13,7 +13,7 @@ import makers from '@/data/makers.json';
 export const metadata: Metadata = {
   title: '建材メーカー一覧(16 分類)',
   description:
-    '屋根・外壁・開口部・床・壁・天井・防水・金物・設備・外構など 16 分類の建材メーカー一覧。小分類ごとに商品ページ・カタログ・CAD・サンプル・問い合わせ先をまとめています。',
+    '屋根・外壁・開口部・床・壁・天井・防水・金物・設備・外構など 16 分類の建材メーカー一覧。小分類ごとに商品ページ・カタログ・CAD・営業所・問い合わせ先をまとめています。',
   alternates: { canonical: '/materials/' },
 };
 

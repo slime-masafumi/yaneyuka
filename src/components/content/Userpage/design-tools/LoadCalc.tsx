@@ -23,6 +23,7 @@ export default function LoadCalc() {
   const [snowUnit, setSnowUnit] = useState('20');
   const [roofDeg, setRoofDeg] = useState('0');
   const [snowStop, setSnowStop] = useState(false);
+  const [heavySnow, setHeavySnow] = useState(false);
   const [area, setArea] = useState('');
 
   const r = useMemo(
@@ -37,8 +38,9 @@ export default function LoadCalc() {
         roofDeg: Number(roofDeg),
         snowStop,
         area: Number(area),
+        heavySnow,
       }),
-    [layers, extra, live, floors, snowCm, snowUnit, roofDeg, snowStop, area]
+    [layers, extra, live, floors, snowCm, snowUnit, roofDeg, snowStop, area, heavySnow]
   );
   const A = Number(area);
   const setLayer = (i: number, patch: Partial<Layer>) => setLayers((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
@@ -107,9 +109,13 @@ export default function LoadCalc() {
               <label className="flex items-end gap-1 pb-2 text-[11px]">
                 <input type="checkbox" checked={snowStop} onChange={(e) => setSnowStop(e.target.checked)} /> 雪止めあり
               </label>
+              <label className="col-span-2 flex items-center gap-1 text-[11px]">
+                <input type="checkbox" checked={heavySnow} onChange={(e) => setHeavySnow(e.target.checked)} /> 多雪区域(特定行政庁の指定)
+              </label>
             </div>
             <p className="text-[10px] text-gray-500 leading-relaxed">
-              単位荷重は積雪 1cm ごとに 20 N/m² 以上。多雪区域と垂直積雪量は特定行政庁の規則で決まります。雪下ろしの慣習がある地方は 1m まで減らせます(令 86 条第 6 項。表示が要る)。
+              単位荷重は積雪 1cm ごとに 20 N/m² 以上。多雪区域の単位荷重と垂直積雪量は特定行政庁の規則で決まるので、その値を入れてください。雪下ろしの慣習がある地方は 1m まで減らせます(令 86 条第 6 項。表示が要る)。
+              {Number(roofDeg) > 60 && !snowStop && ' 勾配 60° を超えるので屋根形状係数 0(積雪荷重を零とすることができる)で計算しています。'}
             </p>
           </div>
 
@@ -195,8 +201,10 @@ export default function LoadCalc() {
                 <ResultRow k="大ばり・柱・基礎用(固定 + 積載(ろ))" v={`${kN(r.frameUse)} kN/m²`} />
                 {r.rf < 1 && <ResultRow k={`柱・基礎の圧縮力用(低減 ${r.rf})`} v={`${kN(r.colUse)} kN/m²`} />}
                 <ResultRow k="地震力用(固定 + 積載(は))" v={`${kN(r.seismicUse)} kN/m²`} />
-                {r.snow > 0 && <ResultRow k={`積雪荷重(μb = ${r.mu.toFixed(3)})`} v={`${kN(r.snow)} kN/m²(水平投影面)`} />}
-                {r.snow > 0 && <ResultRow k="固定 + 積雪(短期・屋根)" v={`${kN(r.dl + r.snow)} kN/m²`} />}
+                {r.snow > 0 && <ResultRow k={`積雪荷重 S(μb = ${r.mu.toFixed(3)})`} v={`${kN(r.snow)} kN/m²(水平投影面)`} />}
+                {r.snowLong !== null && <ResultRow k="長期・積雪時 G + P(ろ)+ 0.7S(多雪区域)" v={`${kN(r.snowLong)} kN/m²`} />}
+                {r.snow > 0 && <ResultRow k="短期・積雪時 G + P(ろ)+ S" v={`${kN(r.snowShort)} kN/m²`} />}
+                {r.seismicSnow !== null && <ResultRow k="地震時の重量 G + P(は)+ 0.35S(多雪区域)" v={`${kN(r.seismicSnow)} kN/m²`} />}
               </DtResult>
             </div>
             <table className="text-[11px] min-w-[220px]">
@@ -213,6 +221,8 @@ export default function LoadCalc() {
             ※ 固定荷重・積載荷重・積雪荷重は建築基準法施行令 第 84〜86 条の表の値です(e-Gov、2026-11-01 施行版で確認)。表に無い部分は実況に応じて計算します。
             {hasOutside && ' 黄色の注記の行(スラブ本体など)は令 84 条の表に無い慣用値です。'}
             <br />※ 屋根の固定荷重は「屋根面につき」の値です。勾配がある屋根を水平投影で使うときは ÷ cos(勾配)をしてください。積雪荷重は水平投影面積あたりです。
+            <br />※ 荷重の組合せは令 82 条第二号の表によります(積雪時の P は大ばり・柱・基礎用の(ろ)で表示。床版・小ばりは(い)に読み替え)。多雪区域の暴風時 G + P + 0.35S + W は風圧力が要るので出していません。
+            <br />※ 積雪の不均等(片荷重・吹きだまり。令 86 条第 5 項)や、緩勾配・大スパン屋根の積雪後の降雨による割増(平成 19 年国交告第 594 号)は含みません。
             <br />※ 風圧力・地震力・特殊な荷重(機械・倉庫の実況など)は含みません。構造計算は建築士の判断で行ってください。
           </p>
         </div>

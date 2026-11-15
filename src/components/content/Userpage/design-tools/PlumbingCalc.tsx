@@ -7,7 +7,7 @@ import React, { useMemo, useState } from 'react';
 import { FiDroplet, FiArrowDownCircle } from 'react-icons/fi';
 import { ResultRow } from '@/components/ui/Sheet';
 import DtResult from './DtResult';
-import { DRAIN, DRAIN_CAP, SUPPLY, drainSize, flowOf, innerDia, minSlope } from '@/lib/plumbing';
+import { DRAIN, DRAIN_CAP, DRAIN_MAIN, MAIN_SLOPES, SUPPLY, drainMainSize, drainSize, flowOf, innerDia, minSlope } from '@/lib/plumbing';
 
 const box = 'bg-gray-50 p-3 border border-[#3b3b3b] space-y-2';
 const label = 'block text-[11px] font-bold text-gray-700 mb-1';
@@ -23,7 +23,8 @@ function Supply() {
   const [n, setN] = useState<Record<string, number>>({ 'wc-valve': 4, 'ur-valve': 3, lav: 4, 'mop-sink': 1 });
   const [vel, setVel] = useState('2.0');
   const rows = SUPPLY.filter((f) => (pub ? f.pub : f.priv) !== null);
-  const sum = rows.reduce((s, f) => s + (n[f.id] || 0) * ((pub ? f.pub : f.priv) ?? 0), 0) * (hot ? 0.75 : 1);
+  // 給湯栓を併用する器具だけ 3/4 にする(便器・水飲み器・散水栓に湯は来ないので表の値のまま)
+  const sum = rows.reduce((s, f) => s + (n[f.id] || 0) * ((pub ? f.pub : f.priv) ?? 0) * (hot && f.hot ? 0.75 : 1), 0);
   const wcValve = rows.filter((f) => f.valve).reduce((s, f) => s + (n[f.id] || 0), 0);
   const wcAll = (n['wc-valve'] || 0) + (n['wc-tank'] || 0) + (n['bath-set-valve'] || 0) + (n['bath-set-tank'] || 0);
   const valve = wcAll > 0 && wcValve / wcAll >= 0.5;
@@ -42,7 +43,7 @@ function Supply() {
               <input type="radio" checked={!pub} onChange={() => setPub(false)} /> 私室用
             </label>
             <label className="flex items-center gap-1 ml-auto">
-              <input type="checkbox" checked={hot} onChange={(e) => setHot(e.target.checked)} /> 給湯栓を併用(× 3/4)
+              <input type="checkbox" checked={hot} onChange={(e) => setHot(e.target.checked)} /> 給湯栓を併用(湯も使う器具 × 3/4)
             </label>
           </div>
           <table className="w-full text-[11px]">
@@ -50,7 +51,7 @@ function Supply() {
               {rows.map((f) => (
                 <tr key={f.id} className="border-t">
                   <td className="py-1">{f.label}</td>
-                  <td className="py-1 text-right text-gray-500 tabular-nums w-[40px]">{pub ? f.pub : f.priv}</td>
+                  <td className="py-1 text-right text-gray-500 tabular-nums w-[40px]">{hot && f.hot ? f1(((pub ? f.pub : f.priv) ?? 0) * 0.75) : pub ? f.pub : f.priv}</td>
                   <td className="py-1 pl-2 w-[70px]">
                     <Count v={n[f.id] || 0} set={(x) => setN((p) => ({ ...p, [f.id]: x }))} />
                   </td>
@@ -73,7 +74,7 @@ function Supply() {
           </DtResult>
         </div>
         <p className="text-[10px] text-gray-400 leading-relaxed">
-          ※ 器具給水負荷単位と同時使用流量の早見表は、空気調和・衛生工学便覧の値を引用した京都市上下水道局「給水装置工事基準」(令和 7 年 4 月)表 9・表 10 によります。大便器の半数以上が洗浄弁なら曲線 ①、それ以外は ② を使います。
+          ※ 器具給水負荷単位と同時使用流量の早見表は、空気調和・衛生工学便覧の値を引用した京都市上下水道局「給水装置工事基準」(令和 7 年 4 月)表 9・表 10 によります。大便器の半数以上が洗浄弁なら曲線 ①、それ以外は ② を使います。給湯栓を併用するときの 3/4 は、湯も使う器具(洗面器・流し・浴槽・シャワーなど)の給水側だけに掛けています(便器・浴室一式は表の値のまま)。
           <br />※ 必要内径は流量と流速から出した値です。管種ごとの内径(ライニング鋼管・樹脂管などで違う)を見て、この値以上の呼び径を選んでください。水道直結は事業体の基準に従います。
         </p>
       </div>
@@ -84,9 +85,11 @@ function Supply() {
 function Drain() {
   const [n, setN] = useState<Record<string, number>>({ 'wc-pub': 4, 'ur-wall': 3, lav: 4, mop: 1 });
   const [floors, setFloors] = useState<'low' | 'high'>('low');
+  const [mainSlope, setMainSlope] = useState<0 | 1 | 2 | 3>(1);
   const sum = DRAIN.reduce((s, f) => s + (n[f.id] || 0) * f.du, 0);
   const branch = drainSize(sum, 1);
   const stack = drainSize(sum, floors === 'low' ? 2 : 3);
+  const main = drainMainSize(sum, mainSlope);
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-4">
       <div className="space-y-3">
@@ -105,7 +108,6 @@ function Drain() {
               ))}
             </tbody>
           </table>
-          <p className="text-[10px] text-gray-400">流し類(調理用・洗濯など)は出典で値を確かめられなかったので入れていません。</p>
         </div>
         <div className={box}>
           <span className={label}>立て管</span>
@@ -118,6 +120,16 @@ function Drain() {
             </label>
           </div>
         </div>
+        <div className={box}>
+          <span className={label}>排水横主管・敷地排水管の勾配</span>
+          <div className="flex gap-3 text-[11px]">
+            {MAIN_SLOPES.map((s, i) => (
+              <label key={s} className="flex items-center gap-1">
+                <input type="radio" checked={mainSlope === i} onChange={() => setMainSlope(i as 0 | 1 | 2 | 3)} /> {s}
+              </label>
+            ))}
+          </div>
+        </div>
       </div>
       <div className="space-y-3">
         <div className="max-w-[420px]">
@@ -125,6 +137,12 @@ function Drain() {
             {branch && <ResultRow k="横枝管の最小勾配" v={minSlope(branch)} />}
             {stack && <ResultRow k={`立て管(${floors === 'low' ? '3 階建て以下' : '3 階建て超・合計'})`} v={`${stack} mm`} />}
             {floors === 'high' && <ResultRow k="注" v="3 階建てを超えるときは、1 階分の負荷単位の上限も確かめてください(下の表の右端)" />}
+            {sum > 0 && (
+              <ResultRow
+                k={`横主管(勾配 ${MAIN_SLOPES[mainSlope]})`}
+                v={main ? `${main} mm` : 'この勾配では表の範囲外'}
+              />
+            )}
           </DtResult>
         </div>
         <table className="w-full text-[11px]">
@@ -151,8 +169,29 @@ function Drain() {
             ))}
           </tbody>
         </table>
+        <table className="w-full text-[11px]">
+          <thead>
+            <tr className="text-gray-500">
+              <th className="text-left px-2 py-1 font-normal">横主管 管径 mm</th>
+              {MAIN_SLOPES.map((s) => (
+                <th key={s} className="px-2 py-1 font-normal text-right">勾配 {s}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {DRAIN_MAIN.map((r) => (
+              <tr key={r[0]} className={`border-t ${r[0] === main ? 'bg-[#eef3f1] font-bold' : ''}`}>
+                <td className="px-2 py-1">{r[0]}</td>
+                {[r[1], r[2], r[3], r[4]].map((v, i) => (
+                  <td key={i} className="px-2 py-1 text-right tabular-nums">{v === null ? '—' : v.toLocaleString('ja-JP')}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
         <p className="text-[10px] text-gray-400 leading-relaxed">
-          ※ 器具排水負荷単位と許容最大排水負荷単位は SHASE-S206 の値です(盛岡市上下水道局「排水設備の設計基準」表 3-1・3-2、下関市「排水設備技術基準」別表第 2・第 3 で確認)。伸頂通気方式・特殊継手排水システムには使えません。
+          ※ 器具排水負荷単位と許容最大排水負荷単位は SHASE-S206 の値です(盛岡市上下水道局「排水設備の設計基準」表 3-1・3-2、下関市「排水設備技術基準」別表第 2・第 3、鹿児島市「排水設備工事施行基準」表 3-7・3-8 で確認)。伸頂通気方式・特殊継手排水システムには使えません。
+          <br />※ 横枝管の表は横主管に使いません。横主管と敷地排水管は勾配ごとの表(上の 2 つ目)で決めます。敷地内の屋外排水設備は、下水道の事業体の排水設備基準(管径と勾配の下限)にも従ってください。
           <br />※ 管径は器具のトラップ口径以上とし、下流に向かって細くしないでください。最小勾配は 65mm 以下 1/50・75〜100mm 1/100・125mm 1/150・150mm 以上 1/200 です。
         </p>
       </div>

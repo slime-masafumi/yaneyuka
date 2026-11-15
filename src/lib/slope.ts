@@ -103,7 +103,8 @@ export const DRAIN_MIN: { d: number; i: number; show: string }[] = [
   { d: 125, i: 1 / 150, show: '1/150' },
   { d: 150, i: 1 / 200, show: '1/200' },
 ];
-export const DRAIN_SOURCE = 'SHASE-S206 給排水衛生設備規準 の排水横管の最小勾配(管径 65 以下 1/50・75〜100 1/100・125 1/150・150 以上 1/200)';
+export const DRAIN_SOURCE =
+  'SHASE-S206 給排水衛生設備規準 の排水横管の最小勾配(管径 65 以下 1/50・75〜100 1/100・125 1/150・150 以上 1/200)。建物内の排水横管の値です。敷地内の屋外排水設備(桝と桝の間の管)は、下水道の事業体の排水設備基準の勾配(管径ごとの下限)を優先してください';
 
 export type SlopeCheck = { ok: boolean; limit: number; text: string };
 

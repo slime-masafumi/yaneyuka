@@ -6,6 +6,8 @@
  *
  * 規制値は建築基準法 別表第 4・第 56 条の 2(e-Gov、2026-05-27 施行版で確認)。
  * 太陽の位置は赤緯 −23.44°(冬至)と真太陽時の時角から計算する(均時差は真太陽時なので不要)。
+ * 56 条の 2 第 1 項は「(に)欄の時間以上日影となる部分を生じさせない」なので、規制時間ちょうども不適合(画面側で >= で判定)。
+ * 2026-11-16: 道路・水面・線路敷等の緩和と高低差の緩和(令 135 条の 12 第 3 項)を足した。
  */
 
 export type ShadowZone = { id: string; label: string; item: string; applies: string; planes: number[]; rows: { go: string; near: number; far: number; nearH: number; farH: number }[] };
@@ -149,7 +151,22 @@ export type ShadowIn = {
   setE: number;
   setS: number;
   setW: number;
+  /** 敷地が接する道路・水面・線路敷等の幅(北・東・南・西、m。0 = なし)。令 135 条の 12 第 3 項 1 号 */
+  wayN?: number;
+  wayE?: number;
+  wayS?: number;
+  wayW?: number;
+  /** 隣地(日影の生ずる土地)の地盤面 − 敷地の平均地盤面(m)。1m 以上で平均地盤面を(差 − 1)/ 2 高くみなす(同 2 号) */
+  diff?: number;
 };
+
+/**
+ * 令 135 条の 12 第 3 項 1 号: 道路・水面・線路敷等に接する敷地境界線は、その幅の 1/2 外側にあるとみなす。
+ * 幅が 10m を超えるときは、反対側の境界線から敷地側へ 5m の線を敷地境界線とみなす(= 幅 − 5 だけ外側)。
+ */
+export const wayOffset = (w: number | undefined) => (w && w > 0 ? (w > 10 ? w - 5 : w / 2) : 0);
+/** 同 2 号: 高低差 1m 以上のとき (高低差 − 1)/ 2 */
+export const diffRaiseShadow = (d: number | undefined) => (d !== undefined && d >= 1 ? (d - 1) / 2 : 0);
 
 export type ShadowOut = {
   /** 格子の左下(敷地座標)と間隔、列・行数、各点の日影時間(時) */
@@ -163,7 +180,10 @@ export type ShadowOut = {
   dist: Float32Array;
   maxNear: number;
   maxFar: number;
+  /** 5m・10m を測る敷地境界線(道路・水面等の緩和でみなした線) */
   site: { x0: number; y0: number; x1: number; y1: number };
+  /** 実際の敷地 */
+  real: { x0: number; y0: number; x1: number; y1: number };
   t0: number;
   t1: number;
 };
@@ -177,8 +197,15 @@ const DT = 10 / 60; // 10 分刻み
 export function computeShadow(v: ShadowIn): ShadowOut {
   const t0 = v.hokkaido ? 9 : 8;
   const t1 = v.hokkaido ? 15 : 16;
-  const he = v.bh - v.plane;
-  const site = { x0: -v.setW, y0: -v.setS, x1: v.bw + v.setE, y1: v.bd + v.setN };
+  // 高低差の緩和: 平均地盤面を高くみなす = 建物の高さが減ったのと同じ
+  const he = v.bh - v.plane - diffRaiseShadow(v.diff);
+  // 5m・10m の線を測る敷地境界線(道路・水面等の緩和でみなした線)
+  const site = {
+    x0: -v.setW - wayOffset(v.wayW),
+    y0: -v.setS - wayOffset(v.wayS),
+    x1: v.bw + v.setE + wayOffset(v.wayE),
+    y1: v.bd + v.setN + wayOffset(v.wayN),
+  };
   // 影がいちばん長い時刻(始まり)の長さで範囲を決める
   const s0 = sunAt(v.lat, t0);
   const maxLen = he > 0 && s0.alt > 0 ? he / Math.tan(s0.alt) : 0;
@@ -242,7 +269,8 @@ export function computeShadow(v: ShadowIn): ShadowOut {
     if (d > 10) maxFar = Math.max(maxFar, hours[k]);
     else if (d > 5) maxNear = Math.max(maxNear, hours[k]);
   }
-  return { x0: gx0, y0: gy0, step, nx, ny, hours, dist, maxNear, maxFar, site, t0, t1 };
+  const real = { x0: -v.setW, y0: -v.setS, x1: v.bw + v.setE, y1: v.bd + v.setN };
+  return { x0: gx0, y0: gy0, step, nx, ny, hours, dist, maxNear, maxFar, site, real, t0, t1 };
 }
 
 export const hm = (h: number) => {

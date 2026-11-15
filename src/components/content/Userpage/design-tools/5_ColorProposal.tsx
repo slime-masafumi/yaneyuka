@@ -16,6 +16,12 @@ interface JPMAColorData {
   name?: string;    // 通称（あれば）
 }
 
+/**
+ * 画面の近似色が大きくずれている番号か（色相 2 桁が 49 以上 = 10G〜RP）。
+ * CIELAB で確かめると、この範囲の HEX は色相がおおむね 20〜60° 赤寄りにずれている（DB の注記を参照）
+ */
+const hueOffSwatch = (code: string) => /^\d{2}-/.test(code) && Number(code.slice(0, 2)) >= 49;
+
 interface ColorProposalProps {
   defaultTab?: 'harmony' | 'jpma';
   hideTabBar?: boolean;
@@ -32,6 +38,7 @@ const ColorProposal: React.FC<ColorProposalProps> = ({ defaultTab, hideTabBar })
   const [jpmaInput, setJpmaInput] = useState('');
   const [jpmaResult, setJpmaResult] = useState<JPMAColorData | null>(null);
   const [jpmaError, setJpmaError] = useState('');
+  const [jpmaCandidates, setJpmaCandidates] = useState<JPMAColorData[]>([]);
 
   // 配色データ
   const [colorHarmony, setColorHarmony] = useState<{
@@ -42,7 +49,9 @@ const ColorProposal: React.FC<ColorProposalProps> = ({ defaultTab, hideTabBar })
     tetradic: ColorScheme;
   } | null>(null);
 
-  // --- データベース: 日塗工近似色 (主要600色+) ---
+  // --- データベース: 日塗工番号ごとのマンセル値と画面表示用の近似 HEX（193 色） ---
+  // HEX は色見本から測った値ではない。CIELAB で確かめると、10G〜RP（色相 49〜99）は色相がおおむね 20〜60° 赤寄りにずれている。
+  // マンセル値は番号の規則（色相 2 桁・明度 2 桁・彩度記号）と一致させてある。画面の色は目安にとどめ、実物は色見本帳で確かめる（2026-11-16）
   // データ量が多いのでuseMemoで保持
   const jpmaDatabase = useMemo<JPMAColorData[]>(() => [
     // --- 無彩色 (N) ---
@@ -108,22 +117,24 @@ const ColorProposal: React.FC<ColorProposalProps> = ({ defaultTab, hideTabBar })
     {code:'57-70H', munsell:'7.5BG 7/4', hex:'#95A8CF'},{code:'57-60H', munsell:'7.5BG 6/4', hex:'#7689B3'},{code:'59-90B', munsell:'10BG 9/1', hex:'#D8DAE8'},
     {code:'59-80D', munsell:'10BG 8/2', hex:'#C4C9DB'},{code:'59-70L', munsell:'10BG 7/6', hex:'#8595CC'},{code:'59-60H', munsell:'10BG 6/4', hex:'#767EB3'},
 
-    // --- 62〜79系 (青紫〜赤紫) ---
+    // --- 62〜79系 (青〜青紫) ---
     {code:'62-90B', munsell:'2.5B 9/1', hex:'#D9D8E8'},{code:'62-80H', munsell:'2.5B 8/4', hex:'#B0ADE0'},{code:'62-60D', munsell:'2.5B 6/2', hex:'#9392A6'},
     {code:'65-90A', munsell:'5B 9/0.5', hex:'#E3E2E7'},{code:'65-80B', munsell:'5B 8/1', hex:'#C2C1CE'},{code:'65-70D', munsell:'5B 7/2', hex:'#ADACBD'},
     {code:'65-60D', munsell:'5B 6/2', hex:'#9594A6'},{code:'65-50D', munsell:'5B 5/2', hex:'#787785'},{code:'65-40D', munsell:'5B 4/2', hex:'#5C5B66'},
     {code:'69-80D', munsell:'10B 8/2', hex:'#CDC4DB'},{code:'69-70L', munsell:'10B 7/6', hex:'#A385CC'},{code:'69-50H', munsell:'10B 5/4', hex:'#6F5980'},
-    {code:'72-80D', munsell:'2.5P 8/2', hex:'#D4C4DB'},{code:'72-70H', munsell:'2.5P 7/4', hex:'#B095CF'},{code:'72-50L', munsell:'2.5P 5/6', hex:'#794E99'},
-    {code:'75-90A', munsell:'5P 9/0.5', hex:'#E5E2E7'},{code:'75-80D', munsell:'5P 8/2', hex:'#D6C4DB'},{code:'75-70D', munsell:'5P 7/2', hex:'#B8ADBD'},
-    {code:'75-60D', munsell:'5P 6/2', hex:'#9E92A6'},{code:'75-50D', munsell:'5P 5/2', hex:'#7F7685'},{code:'75-40D', munsell:'5P 4/2', hex:'#615966'},
-    {code:'77-80D', munsell:'7.5P 8/2', hex:'#DBC4D8'},{code:'77-50L', munsell:'7.5P 5/6', hex:'#994E8F'},{code:'79-80D', munsell:'10P 8/2', hex:'#DBC4D1'},
+    // 日塗工番号の色相 2 桁は、十の位がマンセル 10 色相（0 R・1 YR・2 Y・3 GY・4 G・5 BG・6 B・7 PB・8 P・9 RP）、
+    // 一の位が 2=2.5・5=5・7=7.5・9=10。以前は 7x を P、8x を RP、9x を R と書いていた（PB が抜けて 1 つずつずれていた）
+    {code:'72-80D', munsell:'2.5PB 8/2', hex:'#D4C4DB'},{code:'72-70H', munsell:'2.5PB 7/4', hex:'#B095CF'},{code:'72-50L', munsell:'2.5PB 5/6', hex:'#794E99'},
+    {code:'75-90A', munsell:'5PB 9/0.5', hex:'#E5E2E7'},{code:'75-80D', munsell:'5PB 8/2', hex:'#D6C4DB'},{code:'75-70D', munsell:'5PB 7/2', hex:'#B8ADBD'},
+    {code:'75-60D', munsell:'5PB 6/2', hex:'#9E92A6'},{code:'75-50D', munsell:'5PB 5/2', hex:'#7F7685'},{code:'75-40D', munsell:'5PB 4/2', hex:'#615966'},
+    {code:'77-80D', munsell:'7.5PB 8/2', hex:'#DBC4D8'},{code:'77-50L', munsell:'7.5PB 5/6', hex:'#994E8F'},{code:'79-80D', munsell:'10PB 8/2', hex:'#DBC4D1'},
 
-    // --- 82〜99系 (赤紫〜赤) ---
-    {code:'82-80D', munsell:'2.5RP 8/2', hex:'#DBC4CB'},{code:'82-50H', munsell:'2.5RP 5/4', hex:'#805966'},{code:'85-90A', munsell:'5RP 9/0.5', hex:'#E7E2E4'},
-    {code:'85-80B', munsell:'5RP 8/1', hex:'#CEC1C5'},{code:'85-70D', munsell:'5RP 7/2', hex:'#BDB0B4'},{code:'85-60D', munsell:'5RP 6/2', hex:'#A69599'},
-    {code:'85-50D', munsell:'5RP 5/2', hex:'#85767A'},{code:'85-40D', munsell:'5RP 4/2', hex:'#66595C'},{code:'89-80D', munsell:'10RP 8/2', hex:'#DBC4C5'},
-    {code:'92-90B', munsell:'2.5R 9/1', hex:'#E8D8D9'},{code:'92-80H', munsell:'2.5R 8/4', hex:'#E0AEB4'},{code:'95-90D', munsell:'5R 9/2', hex:'#E9D3D6'},
-    {code:'95-80D', munsell:'5R 8/2', hex:'#DBC4C7'},{code:'95-60H', munsell:'5R 6/4', hex:'#A66D74'},{code:'99-70L', munsell:'10R 7/6', hex:'#CC858D'}
+    // --- 82〜99系 (紫〜赤紫) ---
+    {code:'82-80D', munsell:'2.5P 8/2', hex:'#DBC4CB'},{code:'82-50H', munsell:'2.5P 5/4', hex:'#805966'},{code:'85-90A', munsell:'5P 9/0.5', hex:'#E7E2E4'},
+    {code:'85-80B', munsell:'5P 8/1', hex:'#CEC1C5'},{code:'85-70D', munsell:'5P 7/2', hex:'#BDB0B4'},{code:'85-60D', munsell:'5P 6/2', hex:'#A69599'},
+    {code:'85-50D', munsell:'5P 5/2', hex:'#85767A'},{code:'85-40D', munsell:'5P 4/2', hex:'#66595C'},{code:'89-80D', munsell:'10P 8/2', hex:'#DBC4C5'},
+    {code:'92-90B', munsell:'2.5RP 9/1', hex:'#E8D8D9'},{code:'92-80H', munsell:'2.5RP 8/4', hex:'#E0AEB4'},{code:'95-90D', munsell:'5RP 9/2', hex:'#E9D3D6'},
+    {code:'95-80D', munsell:'5RP 8/2', hex:'#DBC4C7'},{code:'95-60H', munsell:'5RP 6/4', hex:'#A66D74'},{code:'99-70L', munsell:'10RP 7/6', hex:'#CC858D'}
   ], []);
 
   // --- ロジック ---
@@ -140,13 +151,19 @@ const ColorProposal: React.FC<ColorProposalProps> = ({ defaultTab, hideTabBar })
     const input = code ?? jpmaInput;
     setJpmaResult(null);
     setJpmaError('');
+    setJpmaCandidates([]);
 
-    if (!input) return;
+    if (!input.trim()) {
+      setJpmaError('日塗工番号を入れてください（例: 22-90B、N-90）。');
+      return;
+    }
 
-    // 入力値の正規化 (全角→半角, 大文字化, 空白削除)
+    // 入力値の正規化 (全角→半角, 大文字化, 空白削除, 全角・長音のハイフンを半角へ, 全角ピリオド)
     let normalized = input
-      .toUpperCase()
       .replace(/[Ａ-Ｚａ-ｚ０-９]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xFEE0))
+      .replace(/[－ー‐−–—]/g, '-')
+      .replace(/．/g, '.')
+      .toUpperCase()
       .replace(/\s+/g, '');
 
     // 年号(H, K, L, P等) + 数字 で始まる場合、先頭のアルファベットを削除して検索
@@ -172,12 +189,12 @@ const ColorProposal: React.FC<ColorProposalProps> = ({ defaultTab, hideTabBar })
       setJpmaResult(found);
     } else {
       // 部分一致検索（オプション）
-      const partial = jpmaDatabase.filter(d => d.code.startsWith(normalized)).slice(0, 5);
+      const partial = jpmaDatabase.filter(d => d.code.startsWith(normalized)).slice(0, 12);
       if (partial.length > 0) {
-        setJpmaError(`「${normalized}」は見つかりませんでしたが、候補があります。`);
-        // 候補を表示するUIを追加しても良いが、ここでは最初の一つを表示する簡易実装にはせずエラーとする
+        setJpmaError(`「${normalized}」は収録していません。前方が一致する番号を下に出しました。`);
+        setJpmaCandidates(partial);
       } else {
-        setJpmaError(`「${input}」は見つかりませんでした。番号を確認してください。`);
+        setJpmaError(`「${input}」は収録していません（収録は ${jpmaDatabase.length} 色だけです）。番号が正しければ色見本帳で確かめてください。`);
       }
     }
   };
@@ -309,9 +326,18 @@ const ColorProposal: React.FC<ColorProposalProps> = ({ defaultTab, hideTabBar })
   const handleHexInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setHexInput(val);
-    if (/^#([0-9A-F]{3}){1,2}$/i.test(val)) {
-      setCustomMainColor(val);
-    }
+    // 6 桁がそろったら反映（# は省いてもよい）。3 桁は打ち終わり（blur）で広げる
+    const m = /^#?([0-9A-F]{6})$/i.exec(val.trim());
+    if (m) setCustomMainColor(`#${m[1].toUpperCase()}`);
+  };
+  /** #ABC の 3 桁は #AABBCC に広げる（色の欄と配色の計算は 6 桁しか読めない）。読めない値は今の色に戻す */
+  const handleHexInputBlur = () => {
+    const m = /^#?([0-9A-F]{3})$/i.exec(hexInput.trim());
+    if (m) {
+      const full = `#${m[1].split('').map((c) => c + c).join('').toUpperCase()}`;
+      setCustomMainColor(full);
+      setHexInput(full);
+    } else setHexInput(customMainColor.toUpperCase());
   };
 
   const copyToClipboard = (text: string) => {
@@ -388,7 +414,10 @@ const ColorProposal: React.FC<ColorProposalProps> = ({ defaultTab, hideTabBar })
                       type="text"
                       value={hexInput}
                       onChange={handleHexInputChange}
+                      onBlur={handleHexInputBlur}
+                      onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
                       maxLength={7}
+                      aria-label="基準色の 16 進数コード"
                       className="w-24 text-xs border border-gray-300 rounded px-2 py-1 font-mono uppercase focus:ring-2 focus:ring-blue-500 outline-none"
                       placeholder="#000000"
                     />
@@ -405,10 +434,22 @@ const ColorProposal: React.FC<ColorProposalProps> = ({ defaultTab, hideTabBar })
               <div className="hidden md:block h-10 border-l border-gray-300"></div>
               
               <p className="text-[11px] text-gray-600 flex-1">
-                カラーピッカーで色を選ぶか、16進数コードを入力してください。<br/>
+                カラーピッカーで色を選ぶか、16進数コード（#RRGGBB）を入力してください。<br/>
                 「日塗工番号検索」タブから色を探して反映することもできます。
               </p>
             </div>
+
+            <ul className="mb-5 list-disc pl-4 space-y-1 text-[10px] text-gray-500">
+              <li>
+                下の配色は画面の色（RGB を HSL に直した色相環）で色相を回したものです。マンセル表色系の色相環とは位置が違うので、ここでいう「補色」はマンセルの補色（例: 5R と 5BG）と一致しません。
+                明度・彩度は基準色と同じままなので、建物の外装に使える組み合わせかどうかは別に判断してください。
+              </li>
+              <li>
+                外壁・屋根など屋外の色は、景観法に基づく景観計画・景観条例で、マンセル値による色彩基準（色相ごとの彩度の上限など）が定められている地域が多く、景観計画区域内の新築や外観の色の変更は届出の対象です（景観法 第 16 条。届出の要らない小規模な行為の範囲は自治体の景観計画・条例で決まります）。
+                基準の数値は自治体ごとに違うので、計画地の景観計画で確かめてください。
+              </li>
+              <li>画面の色は端末の設定で変わります。仕上げの色は塗り板・色見本で決めてください。</li>
+            </ul>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
               {Object.values(colorHarmony).map((scheme, idx) => (
@@ -473,14 +514,28 @@ const ColorProposal: React.FC<ColorProposalProps> = ({ defaultTab, hideTabBar })
                 </button>
               </div>
               <p className="text-[11px] text-gray-500 mb-4">
-                ※年号（H,K,L等）は自動的に無視して検索します。<br/>
-                ※本ツールは近似値データベース（主要約600色）を使用しています。実物は色見本帳で確認してください。
+                ※先頭の版の記号（H・K・L など）は無視して検索します。番号は「色相 2 桁-明度 2 桁+彩度の記号」（例: 22-90B = 2.5Y 9/1）、無彩色は N-90 = N9.0 です。<br/>
+                ※収録は {jpmaDatabase.length} 色だけです。画面の色は計算で当てた近似で、色見本から測った値ではありません。実物は色見本帳・塗り板で確認してください。
               </p>
 
               {jpmaError && (
                 <div className="p-3 bg-red-50 text-red-600 text-xs rounded border border-red-100 flex items-center gap-2">
                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
                    {jpmaError}
+                </div>
+              )}
+              {jpmaCandidates.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {jpmaCandidates.map((d) => (
+                    <button
+                      key={d.code}
+                      type="button"
+                      className="px-2 py-1 bg-white border border-gray-200 text-[10px] text-gray-600 rounded hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 transition font-mono"
+                      onClick={() => { setJpmaInput(d.code); handleJpmaSearch(d.code); }}
+                    >
+                      {d.code}（{d.munsell}）
+                    </button>
+                  ))}
                 </div>
               )}
 
@@ -499,7 +554,7 @@ const ColorProposal: React.FC<ColorProposalProps> = ({ defaultTab, hideTabBar })
                     
                     <div className="flex-1 space-y-3">
                       <div>
-                        <span className="text-xs text-gray-500 block">日塗工近似番号</span>
+                        <span className="text-xs text-gray-500 block">日塗工番号</span>
                         <span className="text-lg font-bold font-mono text-blue-600">{jpmaResult.code}</span>
                       </div>
                       
@@ -509,7 +564,7 @@ const ColorProposal: React.FC<ColorProposalProps> = ({ defaultTab, hideTabBar })
                           <span className="text-sm font-mono">{jpmaResult.munsell}</span>
                         </div>
                         <div>
-                          <span className="text-xs text-gray-500 block">RGB / HEX</span>
+                          <span className="text-xs text-gray-500 block">画面表示の近似 RGB / HEX</span>
                           {/* RGB(10進数)とHEX(16進数)を併記する */}
                           <span className="text-sm font-mono">
                             {(() => {
@@ -523,9 +578,15 @@ const ColorProposal: React.FC<ColorProposalProps> = ({ defaultTab, hideTabBar })
                         </div>
                       </div>
 
+                      {hueOffSwatch(jpmaResult.code) && (
+                        <p className="text-[11px] text-red-600">
+                          この色相（10G〜RP）の画面の色は、マンセル値から見て色相が赤寄りに大きくずれています。左の色見本は参考にせず、マンセル値と色見本帳で確かめてください。
+                        </p>
+                      )}
+
                       {jpmaResult.name && (
                         <div>
-                          <span className="text-xs text-gray-500 block">通称</span>
+                          <span className="text-xs text-gray-500 block">呼び名（参考。日塗工の名称ではありません）</span>
                           <span className="text-sm">{jpmaResult.name}</span>
                         </div>
                       )}
@@ -556,7 +617,7 @@ const ColorProposal: React.FC<ColorProposalProps> = ({ defaultTab, hideTabBar })
                      {d.code}
                    </button>
                  ))}
-                 <span className="text-[10px] text-gray-400 self-center ml-1">...他 600色以上</span>
+                 <span className="text-[10px] text-gray-400 self-center ml-1">…ほか（全 {jpmaDatabase.length} 色）</span>
                </div>
             </div>
           </div>

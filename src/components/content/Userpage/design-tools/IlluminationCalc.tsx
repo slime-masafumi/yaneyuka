@@ -131,6 +131,8 @@ export default function IlluminationCalc() {
                   <ResultRow k="室指数 K" v={Number.isFinite(r.k) ? `${r.k.toFixed(2)}(H = ${r.h.toFixed(2)} m)` : '—'} />
                   <ResultRow k="必要台数" v={`${r.need} 台(E × A ÷ (F × U × M))`} />
                   {r.grid && <ResultRow k="配置の目安" v={`${r.grid.rows} 行 × ${r.grid.cols} 列 · 間隔 ${r.grid.sx.toFixed(2)} × ${r.grid.sy.toFixed(2)} m`} />}
+                  {r.grid && r.h > 0 && <ResultRow k="間隔 ÷ H(器具〜作業面)" v={`${(Math.max(r.grid.sx, r.grid.sy) / r.h).toFixed(2)}(器具の最大間隔比と比べる)`} />}
+                  {!(r.h > 0) && <ResultRow k="注" v="取付高さが作業面より高くないので室指数が出せません" />}
                 </DtResult>
               </div>
               {r.grid && <Plan x={Number(x)} y={Number(y)} rows={r.grid.rows} cols={r.grid.cols} />}
@@ -140,7 +142,9 @@ export default function IlluminationCalc() {
           )}
           <p className="text-[10px] text-gray-400 leading-relaxed">
             ※ 光束法による平均照度の目安です。照明率は器具ごとに違うので、器具メーカーの照明率表で、室指数 K と天井・壁・床の反射率の行を読んで入れてください。
-            <br />※ 配置は壁際を間隔の半分とした等間隔です。器具の間隔は、器具の配光で決まる最大間隔(取付高さの 1.2〜1.5 倍程度が多い)以下にしてください。
+            <br />※ 照明率 U は入力した値をそのまま使います。上の室指数 K を出してから照明率表を読み、U を入れ直してください(K が変わると U も変わります)。
+            <br />※ 保守率 M は器具の種類・使う場所の汚れ方・清掃の間隔で変わります。器具メーカーの保守率表の値を使ってください。
+            <br />※ 配置は壁際を間隔の半分とした等間隔です。器具の間隔は、器具の配光で決まる最大間隔(カタログの「最大取付間隔」。作業面から器具までの高さ H の倍率で示されることが多い)以下にしてください。光束法の平均照度は均斉度(明るさのむら)を保証しません。
             <br />※ 非常用照明(建築基準法施行令 第 126 条の 5)の照度は別の計算です。
           </p>
         </div>

@@ -23,16 +23,27 @@ type Props = {
   className?: string;
 };
 
-const GuestNote: React.FC<Props> = ({ children, action = 'ログイン', className }) => (
+// このブラウザの保存を「消されにくい」扱いにするよう頼む(対応ブラウザだけ。断られても何もしない)。2026-11-15
+let persistAsked = false;
+function askPersist() {
+  if (persistAsked || typeof navigator === 'undefined' || !navigator.storage?.persist) return;
+  persistAsked = true;
+  navigator.storage.persisted().then((ok) => (ok ? undefined : navigator.storage.persist())).catch(() => {});
+}
+
+const GuestNote: React.FC<Props> = ({ children, action = 'ログイン', className }) => {
+  React.useEffect(askPersist, []);
+  return (
   <p className={`yy-guest${className ? ` ${className}` : ''}`} role="note">
     <span className="yy-guest__dot" aria-hidden="true" />
     <span className="yy-guest__text">
-      {children ?? 'このブラウザに保存しています。ログインすると端末間で同期します。'}
+      {children ?? 'このブラウザだけに保存しています。ブラウザのデータ削除や、しばらく開かないと消えることがあります(Safari は 7 日)。残したい記録はログインして同期してください。'}
     </span>
     <button type="button" className="yy-guest__btn" onClick={openLogin}>
       {action}
     </button>
   </p>
-);
+  );
+};
 
 export default GuestNote;

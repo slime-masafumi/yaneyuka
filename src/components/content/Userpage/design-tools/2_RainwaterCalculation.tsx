@@ -25,6 +25,8 @@ const RainwaterCalculation: React.FC<RainwaterCalculationProps> = ({ defaultTab,
   const [drainType, setDrainType] = useState<'vertical' | 'horizontal'>('vertical');
   const [drainSize, setDrainSize] = useState<string>('100');
   const [drainCount, setDrainCount] = useState<string>('1');
+  // 屋根に雨を落とす外壁の面積(m²)。吹き付けた雨が屋根に流れるので、その 50% を屋根面積に足す(SHASE-S 206 の扱い)
+  const [wallArea, setWallArea] = useState<string>('');
 
   // --- 雨水管渠（配管）計算用のState ---
   const [pipeArea, setPipeArea] = useState<string>(''); // 負担面積
@@ -34,6 +36,8 @@ const RainwaterCalculation: React.FC<RainwaterCalculationProps> = ({ defaultTab,
   const [pipeGradient, setPipeGradient] = useState<string>('100'); // 勾配 1/N (入力はN)
 
   // 定数データ
+  // 竪樋・ルーフドレン 1 本の排水能力(L/min)。出典は旧版から記載が無く未確認(SHASE-S 206 の雨水立て管の表より小さめの値)。
+  // 判定はこの値に依存するので、画面に「目安」と出し、メーカーの許容屋根面積表で確かめるよう書く
   const DOWNSPOUT_CAPACITIES: Record<string, number> = { '60': 90, '75': 200, '100': 600, '125': 1000, '150': 1600 };
   const DRAIN_CAPACITIES = {
     vertical: { 50: 80, 65: 150, 75: 250, 100: 600, 125: 1000, 150: 1600 },
@@ -59,21 +63,25 @@ const RainwaterCalculation: React.FC<RainwaterCalculationProps> = ({ defaultTab,
   }, [pipeGradient]);
 
   // --- 計算ロジック: 軒樋システム ---
+  const wallAdd = Math.max(parseFloat(wallArea) || 0, 0) * 0.5;
   const eavesSystemResult = useMemo(() => {
     const area = parseFloat(eavesRoofArea);
     const intensity = parseFloat(rainfallIntensity);
     const dsCount = parseInt(downspoutCount);
-    if (!area || !intensity || !dsCount) return null;
-    
-    const totalRainFlow = (area * intensity) / 60;
+    if (!(area > 0) || !(intensity > 0) || !(dsCount > 0)) return null;
+
+    // 雨量 Q (L/min) = 面積 (m²) × 降雨強度 (mm/h = L/(m²·h)) / 60。屋根の流出係数は 1 とする
+    const totalRainFlow = ((area + wallAdd) * intensity) / 60;
     const capacityPerDownspout = DOWNSPOUT_CAPACITIES[downspoutSize] || 0;
     const totalDrainCapacity = capacityPerDownspout * dsCount;
     const isDrainageSafe = totalDrainCapacity >= totalRainFlow;
     const drainageUsageRate = (totalRainFlow / totalDrainCapacity) * 100;
+    // 竪樋 1 本あたり流量 × 0.6 を軒樋の有効断面積(cm²)とする旧版の係数。出典が確認できないので「参考」扱い
     const requiredSectionArea = (totalRainFlow / dsCount) * 0.6;
+    const perDownspout = totalRainFlow / dsCount;
 
-    return { totalRainFlow, totalDrainCapacity, isDrainageSafe, drainageUsageRate, requiredSectionArea };
-  }, [eavesRoofArea, rainfallIntensity, downspoutSize, downspoutCount]);
+    return { totalRainFlow, totalDrainCapacity, isDrainageSafe, drainageUsageRate, requiredSectionArea, perDownspout, capacityPerDownspout };
+  }, [eavesRoofArea, rainfallIntensity, downspoutSize, downspoutCount, wallAdd]);
 
   // --- 計算ロジック: 陸屋根ルーフドレン ---
   const roofDrainResult = useMemo(() => {
@@ -81,16 +89,16 @@ const RainwaterCalculation: React.FC<RainwaterCalculationProps> = ({ defaultTab,
     const intensity = parseFloat(rainfallIntensity);
     const count = parseInt(drainCount);
     const size = parseInt(drainSize);
-    if (!area || !intensity || !count || !size) return null;
+    if (!(area > 0) || !(intensity > 0) || !(count > 0) || !size) return null;
 
-    const totalFlow = (area * intensity) / 60;
+    const totalFlow = ((area + wallAdd) * intensity) / 60;
     const capacityPerDrain = (DRAIN_CAPACITIES as any)[drainType][size] || 0;
     const totalCapacity = capacityPerDrain * count;
     const isSafe = totalCapacity >= totalFlow;
     const usageRate = (totalFlow / totalCapacity) * 100;
 
-    return { totalFlow, totalCapacity, isSafe, usageRate };
-  }, [drainRoofArea, rainfallIntensity, drainType, drainSize, drainCount]);
+    return { totalFlow, totalCapacity, isSafe, usageRate, count };
+  }, [drainRoofArea, rainfallIntensity, drainType, drainSize, drainCount, wallAdd]);
 
   // --- 計算ロジック: 雨水管渠 (マニング公式) ---
   const pipeCalcResult = useMemo(() => {
@@ -203,19 +211,22 @@ const RainwaterCalculation: React.FC<RainwaterCalculationProps> = ({ defaultTab,
         <div className="bg-gray-50 p-3 rounded border border-gray-200 flex flex-wrap gap-4 items-center">
           <div>
             <label className="block text-[11px] font-bold text-gray-700 mb-1">降雨強度 (mm/h)</label>
-            <select
+            {/* 旧版は 100/120/160/180 の 4 択だけで、地域の値を入れられなかった */}
+            <input
+              type="number"
+              min="0"
+              step="10"
+              list="rain-intensity-presets"
               value={rainfallIntensity}
               onChange={(e) => setRainfallIntensity(e.target.value)}
-              className="text-[12px] border rounded px-2 py-1.5 bg-white w-32 focus:border-blue-500 outline-none"
-            >
-              <option value="100">100 (一般)</option>
-              <option value="120">120 (標準)</option>
-              <option value="160">160 (豪雨)</option>
-              <option value="180">180 (特殊)</option>
-            </select>
+              className="text-[12px] border rounded px-2 py-1.5 bg-white w-32 text-right focus:border-blue-500 outline-none"
+            />
+            <datalist id="rain-intensity-presets">
+              <option value="100" /><option value="120" /><option value="160" /><option value="180" />
+            </datalist>
           </div>
-          <div className="text-[10px] text-gray-500 pt-3">
-            ※地域や設計条件に合わせて選択
+          <div className="text-[10px] text-gray-500 pt-3 max-w-[340px] leading-relaxed">
+            ※ その地域の最大降雨強度を入れます(気象庁の観測値。短時間の強雨を見るなら最大 10 分間降水量 × 6)。自治体・発注者の指定値があればそれを使います。
           </div>
         </div>
 
@@ -245,6 +256,21 @@ const RainwaterCalculation: React.FC<RainwaterCalculationProps> = ({ defaultTab,
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {(activeTab === 'eaves' || activeTab === 'roof') && (
+          <div>
+            <label className="block text-[11px] font-bold text-gray-700 mb-1">屋根に雨を落とす外壁の面積 (m²・任意)</label>
+            <input
+              type="number"
+              min="0"
+              value={wallArea}
+              onChange={(e) => setWallArea(e.target.value)}
+              className="w-40 text-[12px] border rounded px-2 py-1.5 focus:border-blue-500 outline-none"
+              placeholder="例: 20"
+            />
+            <p className="text-[10px] text-gray-500 mt-1">塔屋・上階の外壁など、屋根面に接して立つ壁に吹き付けた雨はその屋根に流れます。壁面積の 50% を屋根面積に足します(SHASE-S 206 の扱い)。</p>
           </div>
         )}
 
@@ -364,8 +390,8 @@ const RainwaterCalculation: React.FC<RainwaterCalculationProps> = ({ defaultTab,
 
         <div className="pt-4 border-t border-gray-100">
           <p className="text-[10px] text-gray-400">
-            ※本ツールはSHASE-S 206やマニング公式を用いた簡易計算です。管渠計算は満管流として算定しています。<br/>
-            ※実施設計では、泥溜まりや合流損失等を考慮し、十分な安全率を見込んでください。
+            ※ 雨量 Q (L/min) = 面積 (m²) × 降雨強度 (mm/h) ÷ 60。屋根・外壁の流出係数は 1 としています。管渠はマニング公式の満流で算定しています。<br/>
+            ※ 実施設計では、泥溜まりや合流損失等を考慮し、十分な安全率を見込んでください。
           </p>
         </div>
         </div>
@@ -381,38 +407,48 @@ const RainwaterCalculation: React.FC<RainwaterCalculationProps> = ({ defaultTab,
           {activeTab === 'eaves' && eavesSystemResult && (
             <>
               <DtResult
-                label="軒樋の必要有効断面積"
-                value={Math.ceil(eavesSystemResult.requiredSectionArea)}
-                unit="cm² 以上"
-                sub={`竪樋の排水能力: ${eavesSystemResult.isDrainageSafe ? 'OK' : '能力不足'}`}
+                label="竪樋の排水能力(目安)"
+                value={eavesSystemResult.isDrainageSafe ? 'OK' : 'NG'}
+                unit={eavesSystemResult.isDrainageSafe ? undefined : '能力不足'}
+                sub={`負荷率 ${eavesSystemResult.drainageUsageRate.toFixed(0)}%(${eavesSystemResult.totalRainFlow.toFixed(0)} / ${eavesSystemResult.totalDrainCapacity} L/min)`}
                 ng={!eavesSystemResult.isDrainageSafe}
               >
-                <ResultRow k="発生雨量" v={`${eavesSystemResult.totalRainFlow.toFixed(1)} L/min`} />
-                <ResultRow k="排水能力" v={`${eavesSystemResult.totalDrainCapacity} L/min`} />
+                <ResultRow k="雨量(屋根 + 外壁 × 0.5)" v={`${eavesSystemResult.totalRainFlow.toFixed(1)} L/min`} />
+                <ResultRow k="竪樋 1 本あたり" v={`${eavesSystemResult.perDownspout.toFixed(1)} / ${eavesSystemResult.capacityPerDownspout} L/min`} />
+                <ResultRow k="軒樋の有効断面積(参考)" v={`${Math.ceil(eavesSystemResult.requiredSectionArea)} cm² 以上`} />
                 <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
                   <div className={`h-full rounded-full transition-all ${eavesSystemResult.isDrainageSafe ? 'bg-green-500' : 'bg-red-500'}`} style={{ width: `${Math.min(eavesSystemResult.drainageUsageRate, 100)}%` }} />
                 </div>
               </DtResult>
               <p className="yy-dt-note">
-                ※竪樋1本あたりへの負荷から算出しています。<br/>
-                ※各メーカーカタログの「有効断面積」と比較して選定してください。
+                ※ 雨が竪樋に均等に分かれる前提です。軒樋の勾配・落とし口の位置で偏る場合は、いちばん負担の大きい竪樋で確かめてください。<br/>
+                ※ 竪樋 1 本の排水能力と軒樋の有効断面積(竪樋 1 本あたり流量 × 0.6)は出典を確認できていない目安です。採用する製品の「許容屋根面積」表(降雨強度ごと)で必ず確かめてください。<br/>
+                ※ 詰まりに備え、1 つの屋根面の竪樋は 2 本以上を推奨します。
               </p>
             </>
           )}
 
           {activeTab === 'roof' && roofDrainResult && (
+            <>
             <DtResult
-              label="判定"
+              label="ルーフドレンの排水能力(目安)"
               value={roofDrainResult.isSafe ? 'OK' : 'NG'}
               unit={roofDrainResult.isSafe ? undefined : '能力不足'}
-              sub={`負荷率 (${roofDrainResult.totalFlow.toFixed(0)} / ${roofDrainResult.totalCapacity} L)`}
+              sub={`負荷率 ${roofDrainResult.usageRate.toFixed(0)}%(${roofDrainResult.totalFlow.toFixed(0)} / ${roofDrainResult.totalCapacity} L/min)`}
               ng={!roofDrainResult.isSafe}
             >
-              <ResultRow k="負荷率" v={`${roofDrainResult.usageRate.toFixed(0)}%`} />
+              <ResultRow k="雨量(屋根 + 外壁 × 0.5)" v={`${roofDrainResult.totalFlow.toFixed(1)} L/min`} />
+              <ResultRow k="排水能力(合計)" v={`${roofDrainResult.totalCapacity} L/min`} />
               <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
                 <div className={`h-full rounded-full transition-all ${roofDrainResult.isSafe ? 'bg-green-500' : 'bg-red-500'}`} style={{ width: `${Math.min(roofDrainResult.usageRate, 100)}%` }} />
               </div>
             </DtResult>
+            <p className="yy-dt-note">
+              ※ ドレン 1 個の排水能力は出典を確認できていない目安です(横引きは縦引きの半分)。採用するドレンのメーカー表(許容屋根面積)で確かめてください。<br/>
+              ※ 1 つの屋根面に 2 個以上のドレンと、パラペットのオーバーフロー管(ドレンが詰まったときの逃げ)を設けるのが一般的です。
+              {roofDrainResult.count < 2 && ' いまドレンが 1 個です。'}
+            </p>
+            </>
           )}
 
           {activeTab === 'pipe' && pipeCalcResult && (
@@ -425,8 +461,9 @@ const RainwaterCalculation: React.FC<RainwaterCalculationProps> = ({ defaultTab,
               >
                 <ResultRow k="流入雨水量" v={`${pipeCalcResult.flowIn_L_min.toFixed(1)} L/min`} />
                 <ResultRow k="管の許容流量" v={`${pipeCalcResult.Capacity_L_min.toFixed(1)} L/min`} />
-                <ResultRow k="流速 (V)" v={`${pipeCalcResult.Velocity_m_s.toFixed(2)} m/s`} />
-                <ResultRow k="充満率" v={`${pipeCalcResult.usageRate.toFixed(1)}%`} />
+                <ResultRow k="満流時の流速 (V)" v={`${pipeCalcResult.Velocity_m_s.toFixed(2)} m/s`} />
+                {/* 旧版は「充満率」と表示していたが、これは流量比(流入 ÷ 満流能力)で、水深の割合ではない */}
+                <ResultRow k="流量比(流入 ÷ 満流能力)" v={`${pipeCalcResult.usageRate.toFixed(1)}%`} />
                 <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
                   <div
                     className={`h-full rounded-full transition-all ${pipeCalcResult.isSafe ? 'bg-green-500' : 'bg-red-500'}`}
@@ -434,7 +471,10 @@ const RainwaterCalculation: React.FC<RainwaterCalculationProps> = ({ defaultTab,
                   />
                 </div>
               </DtResult>
-              <p className="yy-dt-note">※流速は 0.6 〜 3.0 m/s 程度が推奨範囲です</p>
+              <p className="yy-dt-note">
+                ※ 雨水管の流速は 0.8 〜 3.0 m/s が目安です(下水道施設計画・設計指針。0.6 m/s は汚水管の下限)。
+                {(pipeCalcResult.Velocity_m_s < 0.8 || pipeCalcResult.Velocity_m_s > 3.0) && ' いまの流速は目安の範囲外です。'}
+              </p>
             </>
           )}
         </aside>

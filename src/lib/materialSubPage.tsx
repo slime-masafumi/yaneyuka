@@ -59,7 +59,7 @@ export function materialSubPage(category: string) {
     // 「装飾材」「機能性」のように分類をまたいで同じ名前があるので、分類名も入れる
     const title = n ? `${label}(${catLabel})のメーカー一覧・比較 ${n} 社` : `${label}(${catLabel})のメーカー`;
     const description = n
-      ? `${catLabel}「${label}」のメーカー ${n} 社を、カタログ・CAD(${cad} 社)・サンプルの有無で比べられます。${list.slice(0, 5).map((m) => m.name).join('、')}${n > 5 ? ' ほか' : ''}。商品ページ・営業所・問い合わせ先へ直接つながります。`
+      ? `${catLabel}「${label}」のメーカー ${n} 社を、カタログと CAD(${cad} 社)の有無で比べられます。${list.slice(0, 5).map((m) => m.name).join('、')}${n > 5 ? ' ほか' : ''}。商品ページ・営業所・問い合わせ先へ直接つながります。`
       : `${catLabel}「${label}」のメーカー情報。掲載メーカーを募集しています。`;
     return {
       // 分類の layout が題を文字列で決めているため、サイト共通の「 | yaneyuka」が付かない。ここで付ける

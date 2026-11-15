@@ -13,6 +13,7 @@ import {
   type ThicknessSearchResult,
   type ThicknessCheckResult
 } from './glassDesignEngine';
+import { estimateWind, type Roughness } from '@/lib/karte/glass';
 
 interface GlassThicknessProps {
   hideHeader?: boolean;
@@ -45,7 +46,9 @@ const SUPPORT_LABEL: Record<SupportCondition, string> = {
   FOUR_EDGES_SIMPLY_SUPPORTED: '4 辺支持',
   TWO_EDGES_LONG_EDGES_SUPPORTED: '2 辺支持(長辺)',
 };
-const METHOD_LABEL = { NSG_SIMPLE: 'NSG 簡略', KOKUJI_SIMPLE: '告示簡略', KOKUJI_FULL: '告示フル' } as const;
+// KOKUJI_SIMPLE は 2026-11-16 から H12建告1458 の帳壁のピーク風力係数(src/lib/karte/glass.ts の estimateWind)。
+// それまでは q × Cf(一般部 1.0・隅角部 1.5)の置き値で、告示値の 1/2〜1/3 の危険側だった
+const METHOD_LABEL = { NSG_SIMPLE: 'NSG 簡略', KOKUJI_SIMPLE: '告示1458', KOKUJI_FULL: '告示フル' } as const;
 
 /**
  * 図:左に建物の立面と基準高さ・基準風速、右にガラスの立面と寸法・設計風圧(モック gen-x-svg.js の glassSvg を入力値で描く)
@@ -137,7 +140,7 @@ const GlassThickness: React.FC<GlassThicknessProps> = ({ hideHeader, sheet }) =>
   const [regionType, setRegionType] = useState<string>('2');
   const [buildingHeight, setBuildingHeight] = useState<string>('');
   const [basicWindSpeed, setBasicWindSpeed] = useState<string>('34');
-  const [pressureMethod, setPressureMethod] = useState<'KOKUJI_SIMPLE' | 'NSG_SIMPLE' | 'KOKUJI_FULL'>('NSG_SIMPLE');
+  const [pressureMethod, setPressureMethod] = useState<'KOKUJI_SIMPLE' | 'NSG_SIMPLE' | 'KOKUJI_FULL'>('KOKUJI_SIMPLE');
   // 告示(フル)用 係数
   const [gustFactor, setGustFactor] = useState<string>('2.0'); // Gf 初期: 壁で概ね2前後の代表
   const [cpe, setCpe] = useState<string>('-0.8'); // 外圧係数 代表例（負圧）
@@ -230,6 +233,10 @@ const GlassThickness: React.FC<GlassThicknessProps> = ({ hideHeader, sheet }) =>
       const net = q * (cpeNum - cpiNum); // 正味風圧
       // 正味が負になった場合は符号を保持（吸引）しつつ、絶対値で設計する運用もあるが、ここでは絶対値を設計用に採用
       pressure = Math.abs(net);
+    } else if (pressureMethod === 'KOKUJI_SIMPLE') {
+      // 告示1458:帳壁のピーク風力係数。当該部分の高さ Z は建物の頂部(正圧がいちばん大きい位置)とする
+      const r = String(regionTypeNum) as Roughness;
+      pressure = estimateWind({ v0: basicWindSpeedNum, rough: r, H: buildingHeightNum, Z: buildingHeightNum, part: isCorner ? 'corner' : 'general' }).W;
     } else {
       // 簡略: 板硝子協会の平均速度圧レベル（Gfは含めない）
       // q = 0.6 * Er² * V0²（速度圧）
@@ -285,12 +292,16 @@ const GlassThickness: React.FC<GlassThicknessProps> = ({ hideHeader, sheet }) =>
       pressureMethod === 'NSG_SIMPLE'
         ? 'NSG簡略（板硝子協会・実務近似）'
         : pressureMethod === 'KOKUJI_SIMPLE'
-        ? '告示簡略'
+        ? '告示1458（帳壁のピーク風力係数）'
         : '告示フル（Gf・外圧/内圧係数で正味）'
     }`);
     // ★追加: 風力係数の情報をログに追加
-    if (pressureMethod === 'NSG_SIMPLE' || pressureMethod === 'KOKUJI_SIMPLE') {
+    if (pressureMethod === 'NSG_SIMPLE') {
       log.push(`風力係数 Cf: ${isCorner ? '1.5（隅角部）' : '1.0（一般部）'}`);
+    } else if (pressureMethod === 'KOKUJI_SIMPLE') {
+      const hN = parseFloat(buildingHeight);
+      const wr = estimateWind({ v0: parseFloat(basicWindSpeed), rough: String(parseFloat(regionType)) as Roughness, H: hN, Z: hN, part: isCorner ? 'corner' : 'general' });
+      log.push(`ピーク風力係数 Ĉf: 正 ${wr.cPos.toFixed(2)}（Cpe ${wr.kz.toFixed(2)} × Gpe ${wr.gpe.toFixed(2)} + 0.5）/ 負 ${wr.cNeg.toFixed(2)}（${isCorner ? '隅角部' : '一般部'}）→ ${wr.c.toFixed(2)}`);
     }
     log.push(`支持条件: ${supportCondition === 'FOUR_EDGES_SIMPLY_SUPPORTED' ? '四辺単純支持' : '二辺単純支持（長辺支持）'}`);
     log.push(`たわみ制限: L/${deflectionLimitRatio}`);
@@ -419,7 +430,11 @@ const GlassThickness: React.FC<GlassThicknessProps> = ({ hideHeader, sheet }) =>
     const wNum = parseFloat(windPressure);
     const isFull = pressureMethod === 'KOKUJI_FULL';
     const er = !isNaN(rNum) && hNum > 0 ? calculateEr(rNum, hNum) : null;
-    const q = er !== null && v0Num > 0 ? (isFull ? (gfNum > 0 ? 0.6 * er * er * gfNum * v0Num * v0Num : null) : 0.6 * er * er * v0Num * v0Num) : null;
+    const is1458 = pressureMethod === 'KOKUJI_SIMPLE';
+    const w1458 = is1458 && hNum > 0 && v0Num > 0 ? estimateWind({ v0: v0Num, rough: String(rNum) as Roughness, H: hNum, Z: hNum, part: isCorner ? 'corner' : 'general' }) : null;
+    const q = w1458
+      ? w1458.q
+      : er !== null && v0Num > 0 ? (isFull ? (gfNum > 0 ? 0.6 * er * er * gfNum * v0Num * v0Num : null) : 0.6 * er * er * v0Num * v0Num) : null;
     const wOk = wNum > 0;
 
     const res = calculationResult;
@@ -451,8 +466,8 @@ const GlassThickness: React.FC<GlassThicknessProps> = ({ hideHeader, sheet }) =>
             k="風圧算定法"
             v={
               <select value={pressureMethod} onChange={(e) => setPressureMethod(e.target.value as 'KOKUJI_SIMPLE' | 'NSG_SIMPLE' | 'KOKUJI_FULL')} aria-label="風圧算定法">
-                <option value="NSG_SIMPLE">NSG 簡略</option>
-                <option value="KOKUJI_SIMPLE">告示簡略</option>
+                <option value="KOKUJI_SIMPLE">告示1458(帳壁のピーク風力係数)</option>
+                <option value="NSG_SIMPLE">NSG 簡略(参考)</option>
                 <option value="KOKUJI_FULL">告示フル(Gf・Cpe/Cpi)</option>
               </select>
             }
@@ -510,9 +525,9 @@ const GlassThickness: React.FC<GlassThicknessProps> = ({ hideHeader, sheet }) =>
             <KV
               k="ガラスの位置"
               v={
-                <select value={isCorner ? 'corner' : 'general'} onChange={(e) => setIsCorner(e.target.value === 'corner')} aria-label="ガラスの位置" title="隅角部では風力係数 Cf = 1.5、一般部は Cf = 1.0">
-                  <option value="general">一般部 Cf 1.0</option>
-                  <option value="corner">隅角部 Cf 1.5</option>
+                <select value={isCorner ? 'corner' : 'general'} onChange={(e) => setIsCorner(e.target.value === 'corner')} aria-label="ガラスの位置" title={is1458 ? '隅角部 = 壁面の端から a′/10(a′ は平面の短辺と 2H の小さい方)の範囲' : '隅角部では風力係数 Cf = 1.5、一般部は Cf = 1.0'}>
+                  <option value="general">{is1458 ? '一般部' : '一般部 Cf 1.0'}</option>
+                  <option value="corner">{is1458 ? '隅角部' : '隅角部 Cf 1.5'}</option>
                 </select>
               }
             />
@@ -567,9 +582,14 @@ const GlassThickness: React.FC<GlassThicknessProps> = ({ hideHeader, sheet }) =>
               </select>
             }
           />
-          {!isFull && (
+          {is1458 && (
             <p className="glass-sheet__note">
-              簡略計算は<strong>ガスト影響係数 Gf を含みません</strong>。告示に基づく設計用風圧力より小さい値になります。設計値としては「告示フル」で照査してください。
+              H12建告1458 の帳壁の式(閉鎖型の建築物):W = q · Ĉf、q = 0.6 Er² V₀²(粗度 IV は III の値)、正 Ĉf = Cpe · Gpe + 0.5、負 Ĉf = 一般部 −1.8〜−2.4・隅角部 −2.2〜−3.0。当該部分の高さは建物の頂部としています。
+            </p>
+          )}
+          {pressureMethod === 'NSG_SIMPLE' && (
+            <p className="glass-sheet__note">
+              NSG 簡略は q × Cf(1.0 / 1.5)の参考値で、<strong>告示1458 の設計風圧力より小さく出ます</strong>。設計値は「告示1458」で照査してください。
             </p>
           )}
           <p className="glass-sheet__note">W は高さ・風速から自動で入ります。直接入力もできます(風の条件を変えると入れ直します)。</p>
@@ -579,12 +599,17 @@ const GlassThickness: React.FC<GlassThicknessProps> = ({ hideHeader, sheet }) =>
 
         <section className="yy-sheet__block">
           <SecHead no="II" title="計算の過程" right={METHOD_LABEL[pressureMethod]} />
-          <Step n="1" k="平均風速の分布係数" f="Er = 1.7 (H/ZG)^α" v={er !== null ? er.toFixed(3) : '—'} />
+          <Step
+            n="1"
+            k="平均風速の分布係数"
+            f={w1458 && rNum === 4 ? 'Er = 1.7 (H/ZG)^α(粗度 IV は III の値)' : 'Er = 1.7 (H/ZG)^α'}
+            v={w1458 ? w1458.Er.toFixed(3) : er !== null ? er.toFixed(3) : '—'}
+          />
           <Step n="2" k="速度圧" f={isFull ? 'q = 0.6 Er² Gf V₀²' : 'q = 0.6 Er² V₀²'} v={q !== null ? `${fmtInt(q)} N/㎡` : '—'} />
           <Step
             n="3"
             k="設計風圧"
-            f={isFull ? 'W = q · |Cpe − Cpi|' : `W = q · Cf(Cf = ${isCorner ? '1.5' : '1.0'})`}
+            f={isFull ? 'W = q · |Cpe − Cpi|' : w1458 ? `W = q · Ĉf(Ĉf = ${w1458.c.toFixed(2)})` : `W = q · Cf(Cf = ${isCorner ? '1.5' : '1.0'})`}
             v={wOk ? `${fmtInt(wNum)} N/㎡` : '—'}
             strong
           />
@@ -857,13 +882,13 @@ const GlassThickness: React.FC<GlassThicknessProps> = ({ hideHeader, sheet }) =>
                 onChange={(e) => setPressureMethod(e.target.value as 'KOKUJI_SIMPLE' | 'NSG_SIMPLE' | 'KOKUJI_FULL')}
                 className="w-full text-[11px] border rounded px-2 py-1"
               >
-                <option value="NSG_SIMPLE">NSG簡略（板硝子協会・実務近似）</option>
-                <option value="KOKUJI_SIMPLE">告示簡略（従来式）</option>
+                <option value="KOKUJI_SIMPLE">告示1458（帳壁のピーク風力係数）</option>
+                <option value="NSG_SIMPLE">NSG簡略（参考・告示より小さく出る）</option>
                 <option value="KOKUJI_FULL">告示フル（Gf・外圧/内圧係数で正味）</option>
               </select>
-              {pressureMethod !== 'KOKUJI_FULL' && (
+              {pressureMethod === 'NSG_SIMPLE' && (
                 <p className="mt-1 text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
-                  簡略計算は<strong>ガスト影響係数 Gf を含みません</strong>。告示に基づく設計用風圧力より小さい値になります。設計値としては「告示フル」で照査してください。
+                  NSG 簡略は q × Cf(1.0 / 1.5)の参考値で、<strong>告示1458 の設計風圧力より小さく出ます</strong>。設計値は「告示1458」で照査してください。
                 </p>
               )}
             </div>
@@ -941,7 +966,9 @@ const GlassThickness: React.FC<GlassThicknessProps> = ({ hideHeader, sheet }) =>
                   <div>
                     <span className="text-[11px] font-semibold text-gray-800">隅角部（建物の角部）</span>
                     <p className="text-[10px] text-gray-600 mt-0.5">
-                      隅角部では風力係数Cf=1.5として計算します（一般部はCf=1.0）
+                      {pressureMethod === 'KOKUJI_SIMPLE'
+                        ? '隅角部 = 壁面の端から a′/10(a′ は平面の短辺と 2H の小さい方)。負のピーク風力係数が大きくなります'
+                        : '隅角部では風力係数Cf=1.5として計算します（一般部はCf=1.0）'}
                     </p>
                   </div>
                 </label>
@@ -1046,7 +1073,7 @@ const GlassThickness: React.FC<GlassThicknessProps> = ({ hideHeader, sheet }) =>
                         pressureMethod === 'NSG_SIMPLE'
                           ? 'NSG簡略'
                           : pressureMethod === 'KOKUJI_SIMPLE'
-                          ? '告示簡略'
+                          ? '告示1458'
                           : '告示フル'
                       }
                     </p>

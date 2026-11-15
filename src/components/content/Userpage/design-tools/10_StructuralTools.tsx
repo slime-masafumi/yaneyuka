@@ -462,7 +462,8 @@ type HBeamCatalogEntry = {
       callName: 'H-400×400' },
     { series: 'HW', label: 'H-498×432×45×70', H: 498, B: 432, tw: 45, tf: 70, r: 22,
       A_cm2: 770.1, A_cm2_text: '770.1', unitWeightKgPerM: 605, unitWeightKgPerM_text: '605',
-      Ix_cm4: 29800, Ix_cm4_text: '29800', Iy_cm4: 94400, Iy_cm4_text: '94400',
+      // Ix は旧版 29800(桁落ち)。ix 19.7 cm・A 770.1 cm² から Ix = ix²·A ≒ 298,900、Zx 12000 × H/2 24.9 cm ≒ 298,800 で、298000 が正
+      Ix_cm4: 298000, Ix_cm4_text: '298000', Iy_cm4: 94400, Iy_cm4_text: '94400',
       ix_cm: 19.7, ix_cm_text: '19.7', iy_cm: 11.1, iy_cm_text: '11.1',
       Zx_cm3: 12000, Zx_cm3_text: '12000', Zy_cm3: 4370, Zy_cm3_text: '4370',
       ib_sn400: 12.3, ib_sn490: 12.3, ib_text: '12.3',
@@ -1557,18 +1558,37 @@ type HBeamCatalogEntry = {
   const [beamHeight, setBeamHeight] = useState<number>(240); // 梁成 (mm)
   const [beamLoadNpm, setBeamLoadNpm] = useState<number>(2000); // 等分布荷重 (N/m)
   const [useAutoSection, setUseAutoSection] = useState<boolean>(true); // 断面自動計算を使用するか
-  const YOUNG_MODULUS = {
-    CEDAR: 7000,    // 杉
-    CYPRESS: 9000,  // 桧
-    PINE: 10000,    // 米松
-    LVL: 12000,     // LVL等
-    STEEL: 205000,  // 鋼材
-  };
-  const [beamYoungType, setBeamYoungType] = useState<keyof typeof YOUNG_MODULUS>('PINE');
+  // 木造(製材・無等級材)の材料。2026-11-16 監査で差し替え
+  //   Fb・Fs: 平成12年建設省告示第1452号 第五号(無等級材)の表(国交省 告示 PDF で確認。令和8年告示336号の改正は枠組壁工法材のみで無等級材は変わらない)
+  //     べいまつ(あかまつ・くろまつと同じ欄) Fb 28.2 / Fs 2.4、ひのき(からまつ・ひば等と同じ欄) 26.7 / 2.1、すぎ(もみ・えぞまつ等と同じ欄) 22.2 / 1.8
+  //   E: 日本建築学会「木質構造設計規準」の無等級材の値(すぎ 7.0・ひのき 9.0・べいまつ 10.0 kN/mm²)
+  //   旧版は「曲げ許容応力度の目安 22 N/mm²」で判定していたが、22.2 はすぎの基準強度 Fb そのもので、
+  //   長期許容応力度 1.1Fb/3 = 8.1 N/mm² の 2.7 倍。危険側の誤りだった
+  const WOOD_SPECIES = {
+    SUGI: { label: 'すぎ(無等級材)', E: 7000, Fb: 22.2, Fs: 1.8 },
+    HINOKI: { label: 'ひのき(無等級材)', E: 9000, Fb: 26.7, Fs: 2.1 },
+    BEIMATSU: { label: 'べいまつ(無等級材)', E: 10000, Fb: 28.2, Fs: 2.4 },
+  } as const;
+  type WoodKey = keyof typeof WOOD_SPECIES | 'CUSTOM';
+  const [beamWood, setBeamWood] = useState<WoodKey>('BEIMATSU');
+  const [customE, setCustomE] = useState<number>(10000);
+  const [customFb, setCustomFb] = useState<number>(28.2);
+  const [customFs, setCustomFs] = useState<number>(2.4);
+  // 断面性能を直接入れるとき(S造など)の応力度の確認。空欄なら応力度は判定しない
+  const [beamZx, setBeamZx] = useState<string>('');
+  const [beamFb, setBeamFb] = useState<string>('');
+  // 変形増大係数(平成12年建設省告示第1459号): 木造 2、鉄骨造 1
+  const [beamCreep, setBeamCreep] = useState<number>(1);
 
   // N値計算(金物)タブ用のステート
-  const [nValueWall1, setNValueWall1] = useState<number>(2.0); // 壁倍率A
-  const [nValueWall2, setNValueWall2] = useState<number>(0); // 壁倍率B
+  // 告示1460号第二号ただし書の「N値計算法」: N = A1×B1 − L(平屋・2階建ての2階)、N = A1×B1 + A2×B2 − L(2階建ての1階)
+  // A1 = 当該柱の両側の壁倍率の差 + 筋かいの補正値、A2 = 上の 2 階の柱の同じ値
+  const [nValueWall1, setNValueWall1] = useState<number>(2.5); // 当該階 片側の壁倍率
+  const [nValueWall2, setNValueWall2] = useState<number>(0); // 当該階 反対側の壁倍率
+  const [nValueCorr1, setNValueCorr1] = useState<number>(0); // 当該階 筋かいの補正値
+  const [nValueWall3, setNValueWall3] = useState<number>(0); // 2階 片側
+  const [nValueWall4, setNValueWall4] = useState<number>(0); // 2階 反対側
+  const [nValueCorr2, setNValueCorr2] = useState<number>(0); // 2階 補正値
   const [nValuePositionType, setNValuePositionType] = useState<'CORNER' | 'General'>('CORNER'); // 柱の位置
   const [nValueFloorType, setNValueFloorType] = useState<'TOP' | 'OTHER'>('TOP'); // 階層
 
@@ -1579,40 +1599,37 @@ type HBeamCatalogEntry = {
   const [plE, setPlE] = useState<number>(205000); // E (N/mm2)
   const [plI, setPlI] = useState<number>(2000);   // I (cm4)
 
-  // 金物データの定義
+  // 接合部の仕様(平成12年建設省告示第1460号 表三 (い)〜(ぬ))と、N値計算法で各仕様が受け持てる N値の上限
+  // 2026-11-16 監査で差し替え。旧版は記号と金物がずれ((い)を VP/CP-L、(は)を HD-10 としていた)、N≦0 を「不要」としていた。
+  // N値の上限は (財)日本住宅・木材技術センター「木造住宅の接合部の設計」の N値計算法の表。
+  // 計算例(日本木造住宅産業協会の資料: N=3.0→(ち)、1.9→(と)、1.65→(へ)、0.9→(は)、−0.35→(い))で照合
   const HARDWARE_TYPES = [
-    { label: "不要", min: -99, max: 0.0, color: "bg-gray-100" },
-    { label: "(い) VP/CP-L等", min: 0.0, max: 0.65, color: "bg-blue-100" },
-    { label: "(ろ) VP/CP-T等", min: 0.65, max: 1.0, color: "bg-green-100" },
-    { label: "(は) HD-10等", min: 1.0, max: 1.4, color: "bg-yellow-100" },
-    { label: "(に) HD-15等", min: 1.4, max: 1.6, color: "bg-orange-100" },
-    { label: "(ほ) HD-20等", min: 1.6, max: 2.0, color: "bg-red-100" },
-    { label: "(へ) HD-25等", min: 2.0, max: 2.8, color: "bg-red-200" },
-    { label: "(と) HD-35等", min: 2.8, max: 99, color: "bg-red-300" },
+    { label: '(い)', spec: '短ほぞ差し・かすがい打ち', max: 0.0 },
+    { label: '(ろ)', spec: '長ほぞ差し込み栓打ち・かど金物 CP-L', max: 0.65 },
+    { label: '(は)', spec: 'かど金物 CP-T・山形プレート VP', max: 1.0 },
+    { label: '(に)', spec: '羽子板ボルト・短ざく金物(スクリュー釘なし)', max: 1.4 },
+    { label: '(ほ)', spec: '羽子板ボルト・短ざく金物(スクリュー釘あり)', max: 1.6 },
+    { label: '(へ)', spec: '引き寄せ金物 HD-B10・S-HD10(10kN)', max: 1.8 },
+    { label: '(と)', spec: '引き寄せ金物 HD-B15・S-HD15(15kN)', max: 2.8 },
+    { label: '(ち)', spec: '引き寄せ金物 HD-B20・S-HD20(20kN)', max: 3.7 },
+    { label: '(り)', spec: '引き寄せ金物 HD-B25・S-HD25(25kN)', max: 4.7 },
+    { label: '(ぬ)', spec: '引き寄せ金物 HD-B15・S-HD15 × 2 組(30kN)', max: 5.6 },
   ];
 
   // N値計算ロジック
   const nValueResult = useMemo(() => {
-    // 係数Bの設定
-    let coef = 0.5;
-    if (nValuePositionType === "CORNER") {
-      coef = nValueFloorType === "TOP" ? 0.8 : 0.5;
-    } else {
-      coef = nValueFloorType === "TOP" ? 0.5 : 0.5;
-    }
-    
-    // 床補正係数 L
-    const L_correction = nValuePositionType === "CORNER" ? 0.6 : 1.6;
-
-    // 計算: N = (A1 * B1) + (A2 * B2) - L
-    const nVal = (nValueWall1 * coef) + (nValueWall2 * coef) - L_correction;
-    const nValue = Math.max(nVal, 0); // マイナスは0扱い
-    
-    // 金物判定
-    const resultHardware = HARDWARE_TYPES.find(h => nValue > h.min && nValue <= h.max) || HARDWARE_TYPES[HARDWARE_TYPES.length - 1];
-    
-    return { nValue, resultHardware, coef, L_correction };
-  }, [nValueWall1, nValueWall2, nValuePositionType, nValueFloorType]);
+    const corner = nValuePositionType === 'CORNER';
+    const top = nValueFloorType === 'TOP';
+    // B1・B2: 出隅 0.8 / その他 0.5。L: 平屋・最上階 出隅 0.4 / その他 0.6、2階建ての1階 出隅 1.0 / その他 1.6
+    const coef = corner ? 0.8 : 0.5;
+    const L_correction = top ? (corner ? 0.4 : 0.6) : (corner ? 1.0 : 1.6);
+    const f = (v: number) => (Number.isFinite(v) ? v : 0);
+    const A1 = Math.abs(f(nValueWall1) - f(nValueWall2)) + f(nValueCorr1);
+    const A2 = top ? 0 : Math.abs(f(nValueWall3) - f(nValueWall4)) + f(nValueCorr2);
+    const nValue = A1 * coef + (top ? 0 : A2 * coef) - L_correction;
+    const resultHardware = HARDWARE_TYPES.find((h) => nValue <= h.max + 1e-9) ?? null; // 5.6 を超えると告示の仕様に無い
+    return { nValue, resultHardware, coef, L_correction, A1, A2, top };
+  }, [nValueWall1, nValueWall2, nValueCorr1, nValueWall3, nValueWall4, nValueCorr2, nValuePositionType, nValueFloorType]);
 
   // 集中荷重計算ロジック
   const plResults = useMemo(() => {
@@ -1622,6 +1639,9 @@ type HBeamCatalogEntry = {
     const b = l - a;
     const E = plE;
     const I = plI * 10000; // cm4 -> mm4
+    // 荷重点はスパンの内側(0 < a < L)。外れると b が負になり式が成り立たない
+    const valid = [P, l, a, E, I].every(Number.isFinite) && l > 0 && a > 0 && a < l && E > 0 && I > 0;
+    if (!valid) return { RA: NaN, RB: NaN, MC: NaN, deltaC: NaN, deltaMax: NaN, x0: NaN, valid };
 
     const RA = (P * b) / l;
     const RB = (P * a) / l;
@@ -1643,7 +1663,7 @@ type HBeamCatalogEntry = {
       deltaMax = (P * 1000 * b_rev * Math.pow(a_rev * a_rev + 2 * a_rev * b_rev, 1.5)) / (9 * Math.sqrt(3) * E * I * l);
     }
 
-    return { RA, RB, MC: MC / 1000, deltaC, deltaMax, x0 };
+    return { RA, RB, MC: MC / 1000, deltaC, deltaMax, x0, valid };
   }, [plP, plL, plA, plE, plI]);
 
   // --- B. 門型ラーメン (D値法近似) State ---
@@ -1675,17 +1695,19 @@ type HBeamCatalogEntry = {
   }, [useAutoSection, beamWidth, beamHeight]);
 
   // 単一部材計算ロジック
+  const wood = beamWood === 'CUSTOM' ? { label: 'その他', E: customE, Fb: customFb, Fs: customFs } : WOOD_SPECIES[beamWood];
   const beamResults = useMemo(() => {
     const L = beamSpan; // mm
-    const E = useAutoSection ? YOUNG_MODULUS[beamYoungType] : beamE;    // N/mm2
-    const I = useAutoSection && beamSectionResults 
-      ? beamSectionResults.I 
+    const E = useAutoSection ? wood.E : beamE;    // N/mm2
+    const I = useAutoSection && beamSectionResults
+      ? beamSectionResults.I
       : beamIx * 10000; // cm4 -> mm4
-    
+
     // 荷重変換: kN, m -> N, mm
-    // 等分布 w (kN/m) = w (N/mm)
+    // 等分布 w (kN/m) = w (N/mm)。木造(断面自動)の等分布は画面で N/m を入れるので 1/1000 して N/mm
     // 集中 P (kN) = P * 1000 (N)
-    const w = beamLoad; // N/mm (等分布)
+    // 旧版は木造の等分布で N/m 欄(beamLoadNpm)を計算に使わず、隠れた kN/m 欄(既定 10 kN/m)で計算していた
+    const w = useAutoSection && loadType === 'uniform' ? beamLoadNpm / 1000 : beamLoad; // N/mm (等分布)
     const P = beamLoad * 1000; // N (集中)
 
     let Mmax = 0; // N.mm
@@ -1730,26 +1752,42 @@ type HBeamCatalogEntry = {
       }
     }
 
-    // OK/NG判定（単純梁タブ用）
-    const limitDelta = L / 300; // たわみ制限 L/300
-    const limitSigma = 22; // 曲げ許容応力度目安 (N/mm²)
-    const sigma = useAutoSection && beamSectionResults && beamSectionResults.Z > 0
-      ? Mmax / beamSectionResults.Z
-      : 0;
-    
+    // 判定(長期)
+    // たわみ: 平成12年建設省告示第1459号 たわみ × 変形増大係数 / スパン ≦ 1/250(木造 2、鉄骨造 1)
+    //   旧版は係数なしの L/300 で、木造のクリープ(係数 2)を見ていなかった
+    // 曲げ・せん断: 令89条 長期許容応力度 1.1F/3(木材)。せん断応力度は長方形断面で 1.5Q/A
+    const creep = useAutoSection ? 2 : beamCreep;
+    const limitDelta = L / 250 / creep; // 素のたわみで比べる上限
+    const Z = useAutoSection && beamSectionResults ? beamSectionResults.Z : (parseFloat(beamZx) || 0) * 1000; // mm3
+    const fb = useAutoSection ? (1.1 * wood.Fb) / 3 : parseFloat(beamFb) || 0;
+    const fs = useAutoSection ? (1.1 * wood.Fs) / 3 : 0;
+    const sigma = Z > 0 ? Mmax / Z : 0;
+    const tau = useAutoSection && beamWidth > 0 && beamHeight > 0 ? (1.5 * Qmax) / (beamWidth * beamHeight) : 0;
+    const sigmaChecked = Z > 0 && fb > 0;
+    const tauChecked = useAutoSection && fs > 0;
+    const valid = [L, E, I, w, P].every(Number.isFinite) && L > 0 && E > 0 && I > 0;
+
     return {
       M_kNm: Mmax / 1000000,
       Q_kN: Qmax / 1000,
       Delta_mm: Delta,
       sigma: sigma,
+      tau,
       isDeltaSafe: Delta <= limitDelta,
-      isSigmaSafe: sigma <= limitSigma,
+      isSigmaSafe: !sigmaChecked || sigma <= fb,
+      isTauSafe: !tauChecked || tau <= fs,
+      sigmaChecked,
+      tauChecked,
       limitDelta: limitDelta,
-      limitSigma: limitSigma,
+      limitSigma: fb,
+      limitTau: fs,
+      creep,
+      E,
+      valid,
       I: I,
-      Z: useAutoSection && beamSectionResults ? beamSectionResults.Z : 0
+      Z
     };
-  }, [beamSpan, beamLoad, beamE, beamIx, beamSupport, loadType, useAutoSection, beamSectionResults, beamLoadNpm, beamYoungType]);
+  }, [beamSpan, beamLoad, beamE, beamIx, beamSupport, loadType, useAutoSection, beamSectionResults, beamLoadNpm, wood, beamZx, beamFb, beamCreep, beamWidth, beamHeight]);
 
   // ラーメン計算ロジック
   const portalResults = useMemo(() => {
@@ -1760,16 +1798,25 @@ type HBeamCatalogEntry = {
     // 剛比 k_bar = kb / kc
     const k_bar = kb / kc;
 
-    // D値 (Shear distribution coefficient) の計算
-    let a = 0; // 曲げ分配係数的なもの
+    // 1 層 1 スパンの対称な門型は、たわみ角法で解ける(柱・梁の曲げ変形のみ。軸・せん断変形は無視)。2026-11-16 監査で差し替え
+    //   柱脚固定: 柱の水平剛性 = a·12EIc/H³、a = (0.5 + 3k)/(2 + 3k)
+    //             柱脚 M = Qc·H·(1 + 3k)/(1 + 6k)、柱頭 M = Qc·H·3k/(1 + 6k)(和 = Qc·H)
+    //   柱脚ピン: a = 0.5k/(1 + 2k)、柱脚 M = 0、柱頭 M = Qc·H
+    // 2D 骨組の剛性マトリクス解で照合済み(H 3m・L 6m・Ic 10000・Ib 15000 cm⁴・Q 20kN で δ 1.70mm、柱脚 17.7・柱頭 12.3 kN·m)。
+    // 旧版は D値法の a(固定で (0.5+k)/(2+k)、多層骨組向けの略算で 1 層門型では剛性を低く見る)を使い、
+    // 柱脚 M を常に Qc·H/2、柱頭 M を Qc·H·k/(2k+1) としていた(柱頭+柱脚が Qc·H にならない誤り)
+    let a = 0;
+    let aDvalue = 0; // 参考: 武藤の D値法の a
     if (colBase === 'fixed') {
-      a = (0.5 + k_bar) / (2 + k_bar);
+      a = (0.5 + 3 * k_bar) / (2 + 3 * k_bar);
+      aDvalue = (0.5 + k_bar) / (2 + k_bar);
     } else {
       a = (0.5 * k_bar) / (1 + 2 * k_bar);
+      aDvalue = a;
     }
 
     // 柱1本あたりの負担せん断力 Qc
-    const Qc = portalQ / 2; 
+    const Qc = portalQ / 2;
 
     // 層剛性 (2本分)
     const Ic_mm4 = colIx * 10000;
@@ -1782,26 +1829,29 @@ type HBeamCatalogEntry = {
     // モーメント (kNm)
     let Mc_btm = 0;
     let Mc_top = 0;
-
+    const QcH = Qc * (portalH / 1000);
     if (colBase === 'fixed') {
-      const denom = 2 * k_bar + 1;
-      Mc_btm = Qc * (portalH/1000) * ((k_bar + 0.5) / denom);
-      Mc_top = Qc * (portalH/1000) * (k_bar / denom);
+      Mc_btm = QcH * (1 + 3 * k_bar) / (1 + 6 * k_bar);
+      Mc_top = QcH * (3 * k_bar) / (1 + 6 * k_bar);
     } else {
-      // ピン脚: M_btm = 0, M_top = Qc * H
       Mc_btm = 0;
-      Mc_top = Qc * (portalH/1000);
+      Mc_top = QcH;
     }
 
     const Mb_end = Mc_top; // 節点釣り合い
+    // 梁は逆対称に曲がるので、梁のせん断力 = 2·Mb / L、柱の軸力 = ±梁のせん断力(風上側が引張)
+    const Qb = (2 * Mb_end) / (portalL / 1000);
 
     return {
       k_bar,
+      a,
+      aDvalue,
       drift_mm,
       ratio,
       Mc_top,
       Mc_btm,
       Mb_end,
+      Qb,
       Qc
     };
   }, [portalH, portalL, portalQ, colIx, beamIxVal, portalE, colBase]);
@@ -1820,10 +1870,11 @@ type HBeamCatalogEntry = {
     const Vcol_kN = nCols > 0 ? WkN / nCols : 0;
 
     // ブレースが有る場合の簡易軸力: 単一対角（テンションブレース）想定
-    // 角度θ = atan(H/L)。水平力Wはテンションブレース軸力Tの水平成分で抵抗 → T = W / sinθ （単一ブレース）
+    // 角度θ = atan(H/L)(水平からの角度)。水平力 W はブレース軸力 T の水平成分 T·cosθ で抵抗 → T = W / cosθ
+    // (旧版は W / sinθ で、水平成分と鉛直成分を取り違えていた。この計算は画面には出していない)
     const theta = Math.atan2(H, bayL);
-    const sinT = Math.sin(theta);
-    const braceAxial_kN = hasBrace && sinT > 0 ? WkN / sinT : 0;
+    const cosT = Math.cos(theta);
+    const braceAxial_kN = hasBrace && cosT > 0 ? WkN / cosT : 0;
 
     return { driftMm, driftRatio, Vcol_kN, braceAxial_kN, thetaDeg: (theta * 180) / Math.PI };
   }, [storyH, lateralW, nCols, E, Icol, bayL, hasBrace]);
@@ -1859,7 +1910,7 @@ type HBeamCatalogEntry = {
                     : 'bg-gray-600 text-gray-200 hover:bg-gray-500'
                 }`}
               >
-                門型ラーメン (D値法)
+                門型ラーメン (水平力)
               </button>
               <button
                 onClick={() => setActive('beam')}
@@ -2187,11 +2238,17 @@ type HBeamCatalogEntry = {
                     <div className="font-semibold text-sm text-gray-800 mb-1">算出断面（現在）</div>
                     <div>断面積 A: {fmt(sectionResults.areaMm2,0)} mm² ({fmt(sectionResults.areaCm2,2)} cm²)</div>
                     <div>断面二次モーメント Ix: {fmt(sectionResults.IxMm4,0)} mm⁴ ({fmt(sectionResults.IxCm4,0)} cm⁴)</div>
-                    {sectionType!=='circle' && (
-                      <div className="text-[11px] text-gray-600">Iy / Zy はカタログ値または追加設定で入力できます。</div>
-                    )}
+                    <div>断面二次モーメント Iy: {fmt(sectionResults.IyMm4,0)} mm⁴ ({fmt(sectionResults.IyCm4,0)} cm⁴)</div>
                     <div>断面係数 Zx: {fmt(sectionResults.ZxMm3,0)} mm³ ({fmt(sectionResults.ZxCm3,0)} cm³)</div>
-                    <div>鋼の概算重量: {fmt(sectionResults.unitWeightKgPerM,2)} kg/m</div>
+                    <div>断面係数 Zy: {fmt(sectionResults.ZyMm3,0)} mm³ ({fmt(sectionResults.ZyCm3,0)} cm³)</div>
+                    <div>断面二次半径 ix / iy: {fmt(sectionResults.ixCm,2)} / {fmt(sectionResults.iyCm,2)} cm</div>
+                    <div>鋼材とした場合の単位質量: {fmt(sectionResults.unitWeightKgPerM,2)} kg/m <span className="text-[10px] text-gray-500">(7.85 t/m³。木材・RC には使えません)</span></div>
+                    {sectionType==='hshape' && (
+                      <div className="text-[10px] text-gray-500">寸法入力の H 形鋼は、フランジとウェブの長方形の合成です。フィレット r は断面積にだけ入れ、I・Z には入れていません(カタログ値よりわずかに小さく出ます)。</div>
+                    )}
+                    {sectionType==='rectangle' && (
+                      <div className="text-[10px] text-gray-500">x 軸 = h 方向に曲げる軸(Ix = bh³/12)。木材の欠き込み・ボルト孔による欠損は引いていません。</div>
+                    )}
                   </div>
                   <div className="p-3 border rounded bg-gray-50">
                     {hCatalogMode ? (
@@ -2397,22 +2454,30 @@ type HBeamCatalogEntry = {
 
                 {/* Result Area */}
                 <div className="space-y-4">
+                  {Number.isFinite(portalResults.drift_mm) && portalResults.drift_mm > 0 ? (
                   <DtResult
-                    label="解析結果 (D値法近似) · 層間変形 δ"
+                    label="解析結果 (たわみ角法) · 層間変形 δ"
                     value={portalResults.drift_mm.toFixed(2)}
                     unit="mm"
-                    sub={`変形角 1/${portalResults.ratio.toFixed(0)}`}
+                    sub={`層間変形角 1/${portalResults.ratio.toFixed(0)}`}
                   >
-                    <ResultRow k={<>剛比 <span className="font-serif italic">k̄</span> (kb/kc)</>} v={portalResults.k_bar.toFixed(2)} />
-                    <ResultRow k="柱せん断 Qc" v={`${portalResults.Qc.toFixed(1)} kN`} />
-                    <ResultRow k="部材応力 柱頭" v={`${portalResults.Mc_top.toFixed(1)} kN·m`} />
-                    <ResultRow k="部材応力 柱脚" v={`${portalResults.Mc_btm.toFixed(1)} kN·m`} />
-                    <ResultRow k="部材応力 梁端" v={`${portalResults.Mb_end.toFixed(1)} kN·m`} />
+                    <ResultRow k={<>剛比 <span className="font-serif italic">k</span> (梁 Ib/L ÷ 柱 Ic/H)</>} v={portalResults.k_bar.toFixed(2)} />
+                    <ResultRow k="柱の剛性低減 a(参考: D値法の a)" v={`${portalResults.a.toFixed(3)}(${portalResults.aDvalue.toFixed(3)})`} />
+                    <ResultRow k="柱せん断 Qc(1 本)" v={`${portalResults.Qc.toFixed(1)} kN`} />
+                    <ResultRow k="柱頭の曲げ" v={`${portalResults.Mc_top.toFixed(1)} kN·m`} />
+                    <ResultRow k="柱脚の曲げ" v={`${portalResults.Mc_btm.toFixed(1)} kN·m`} />
+                    <ResultRow k="梁端の曲げ" v={`${portalResults.Mb_end.toFixed(1)} kN·m`} />
+                    <ResultRow k="梁のせん断・柱の軸力(±)" v={`${portalResults.Qb.toFixed(1)} kN`} />
                   </DtResult>
-                  
+                  ) : (
+                    <p className="yy-dt-note">階高・スパン・柱と梁の Ix・水平荷重を入れてください。</p>
+                  )}
+
                   <div className="text-[10px] text-gray-400 leading-tight">
-                    ※ 本計算は完全対称な門型ラーメンを想定したD値法による略算です。
-                    <br/>※ 柱・梁の剛性バランス (k̄) に基づいて反曲点高さを補正しています。
+                    ※ 1 層 1 スパン・左右対称の門型に、柱頭の高さで水平力 Q をかけたときの解です(たわみ角法。曲げ変形のみで、軸変形・せん断変形・パネルゾーン・P-Δ は見ていません)。鉛直荷重による応力は含みません。
+                    <br/>※ 柱脚固定は完全固定です。露出柱脚など半固定の柱脚は、柱脚の回転剛性を入れた計算が要ります。
+                    <br/>※ D値法(武藤)の a は多層骨組向けの略算で、1 層の門型では剛性を低めに見ます(参考値として併記)。
+                    <br/>※ 層間変形角の制限 1/200(令82条の2)は地震力(一次設計)に対するものです。
                   </div>
                 </div>
               </div>
@@ -2430,8 +2495,9 @@ type HBeamCatalogEntry = {
                   onChange={e => setUseAutoSection(e.target.checked)}
                   className="rounded"
                 />
-                断面性能を自動計算（梁幅・梁成から算出）
+                木造の製材(長方形断面)で検討する(梁幅・梁成・樹種から算出)
               </label>
+              <p className="text-[10px] text-gray-500 mt-0.5">外すと、E・Ix・Zx を直接入れて検討します(S造など)。</p>
             </div>
 
             <div className="yy-dt-split">
@@ -2473,19 +2539,18 @@ type HBeamCatalogEntry = {
                     </div>
                     {useAutoSection ? (
                       <div>
-                        <label className="block text-[10px] text-gray-500 mb-1">樹種 (ヤング係数 E)</label>
+                        <label className="block text-[10px] text-gray-500 mb-1">樹種</label>
                         <select
-                          value={beamYoungType}
-                          onChange={e => setBeamYoungType(e.target.value as keyof typeof YOUNG_MODULUS)}
+                          value={beamWood}
+                          onChange={e => setBeamWood(e.target.value as WoodKey)}
                           className="w-full px-2 py-1.5 border border-gray-300 rounded text-[11px] bg-white"
                         >
-                          <option value="CEDAR">杉 (E=7000)</option>
-                          <option value="CYPRESS">桧 (E=9000)</option>
-                          <option value="PINE">米松 (E=10000)</option>
-                          <option value="LVL">LVL等 (E=12000)</option>
-                          <option value="STEEL">鋼材 (E=205000)</option>
+                          {(Object.keys(WOOD_SPECIES) as (keyof typeof WOOD_SPECIES)[]).map((k) => (
+                            <option key={k} value={k}>{WOOD_SPECIES[k].label}</option>
+                          ))}
+                          <option value="CUSTOM">その他(E・Fb・Fs を入力)</option>
                         </select>
-                        <div className="text-[9px] text-gray-400 text-right mt-0.5">N/mm²</div>
+                        <div className="text-[9px] text-gray-400 text-right mt-0.5">E {wood.E} · Fb {wood.Fb} · Fs {wood.Fs} N/mm²</div>
                       </div>
                     ) : (
                       <div>
@@ -2528,6 +2593,22 @@ type HBeamCatalogEntry = {
                     </div>
                   )}
 
+                  {useAutoSection && beamWood === 'CUSTOM' && (
+                    <div className="grid grid-cols-3 gap-2 mb-3">
+                      {([
+                        ['E', customE, setCustomE],
+                        ['Fb(曲げ基準強度)', customFb, setCustomFb],
+                        ['Fs(せん断基準強度)', customFs, setCustomFs],
+                      ] as [string, number, (v: number) => void][]).map(([k, v, set]) => (
+                        <div key={k}>
+                          <label className="block text-[10px] text-gray-500 mb-1">{k} N/mm²</label>
+                          <input type="number" value={v} onChange={e => set(parseFloat(e.target.value))} className="w-full px-2 py-1.5 border border-gray-300 rounded text-right focus:border-blue-500 outline-none" />
+                        </div>
+                      ))}
+                      <p className="col-span-3 text-[9px] text-gray-400">集成材・LVL・機械等級材などは、告示1452号・製品の基準強度と E を入れてください。</p>
+                    </div>
+                  )}
+
                   <div className="mb-3">
                     <label className="block text-[10px] text-gray-500 mb-1">荷重条件</label>
                     <div className="flex items-center gap-2 mb-2">
@@ -2565,14 +2646,52 @@ type HBeamCatalogEntry = {
                   </div>
 
                   {!useAutoSection && (
-                    <div>
-                      <label className="block text-[10px] text-gray-500 mb-1">断面二次モーメント Ix (cm⁴)</label>
-                      <input
-                        type="number"
-                        value={beamIx}
-                        onChange={e => setBeamIx(parseFloat(e.target.value))}
-                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-right focus:border-blue-500 outline-none"
-                      />
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[10px] text-gray-500 mb-1">断面二次モーメント Ix (cm⁴)</label>
+                          <input
+                            type="number"
+                            value={beamIx}
+                            onChange={e => setBeamIx(parseFloat(e.target.value))}
+                            className="w-full px-2 py-1.5 border border-gray-300 rounded text-right focus:border-blue-500 outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-gray-500 mb-1">断面係数 Zx (cm³・任意)</label>
+                          <input
+                            type="number"
+                            value={beamZx}
+                            onChange={e => setBeamZx(e.target.value)}
+                            placeholder="入れると曲げ応力度を出す"
+                            className="w-full px-2 py-1.5 border border-gray-300 rounded text-right focus:border-blue-500 outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-gray-500 mb-1">長期許容曲げ応力度 fb (N/mm²・任意)</label>
+                          <input
+                            type="number"
+                            value={beamFb}
+                            onChange={e => setBeamFb(e.target.value)}
+                            placeholder="例: 156"
+                            className="w-full px-2 py-1.5 border border-gray-300 rounded text-right focus:border-blue-500 outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-gray-500 mb-1">変形増大係数(告示1459号)</label>
+                          <select
+                            value={beamCreep}
+                            onChange={e => setBeamCreep(Number(e.target.value))}
+                            className="w-full px-2 py-1.5 border border-gray-300 rounded text-[11px] bg-white"
+                          >
+                            <option value={1}>1(鉄骨造の梁)</option>
+                            <option value={2}>2(木造)</option>
+                          </select>
+                        </div>
+                      </div>
+                      <p className="text-[9px] text-gray-400 leading-relaxed">
+                        fb は横座屈を拘束した SN400・SS400(F = 235)で上限 F/1.5 = 156 N/mm²。圧縮フランジの横補剛間隔が長いときは、鋼構造許容応力度設計規準の式で低減した値を入れてください(このツールは横座屈を計算しません)。
+                      </p>
                     </div>
                   )}
                 </div>
@@ -2580,34 +2699,47 @@ type HBeamCatalogEntry = {
 
               {/* Result Area */}
               <div className="space-y-4">
+                {beamResults.valid ? (
                 <DtResult
-                  label={useAutoSection ? '計算結果 · たわみ δ' : '計算結果 · 最大たわみ δmax'}
+                  label={beamSupport === 'fixed' ? '計算結果 · 中央のたわみ δ' : beamSupport === 'cantilever' ? '計算結果 · 先端のたわみ δ' : '計算結果 · 中央のたわみ δ'}
                   value={beamResults.Delta_mm.toFixed(2)}
                   unit="mm"
-                  ng={useAutoSection && (!beamResults.isDeltaSafe || !beamResults.isSigmaSafe)}
-                  sub={
-                    useAutoSection
-                      ? `許容値: ${beamResults.limitDelta.toFixed(2)} mm (L/300)`
-                      : `たわみ比: 1 / ${beamResults.Delta_mm > 0 ? (beamSpan / beamResults.Delta_mm).toFixed(0) : '—'}`
-                  }
+                  ng={!beamResults.isDeltaSafe || !beamResults.isSigmaSafe || !beamResults.isTauSafe}
+                  sub={`δ × ${beamResults.creep} ≦ L/250 → δ ≦ ${beamResults.limitDelta.toFixed(2)} mm(告示1459号)· δ/L = 1/${beamResults.Delta_mm > 0 ? (beamSpan / beamResults.Delta_mm).toFixed(0) : '—'}`}
                 >
-                  <ResultRow k="最大曲げモーメント Mmax" v={`${beamResults.M_kNm.toFixed(2)} kN·m`} />
+                  <ResultRow k={beamSupport === 'fixed' && loadType === 'uniform' ? '最大曲げモーメント Mmax(端部。中央は 1/2)' : '最大曲げモーメント Mmax'} v={`${beamResults.M_kNm.toFixed(2)} kN·m`} />
                   <ResultRow k="最大せん断力 Qmax" v={`${beamResults.Q_kN.toFixed(2)} kN`} />
-                  {useAutoSection && (
+                  {beamResults.sigmaChecked ? (
                     <ResultRow
-                      k={`曲げ応力度 σ (目安許容値 ${beamResults.limitSigma})`}
-                      v={<span className={beamResults.isSigmaSafe ? undefined : 'text-red-700'}>{beamResults.sigma.toFixed(1)} N/mm²</span>}
+                      k={`曲げ応力度 σb ≦ 長期 fb ${beamResults.limitSigma.toFixed(1)}`}
+                      v={<span className={beamResults.isSigmaSafe ? undefined : 'text-red-700'}>{beamResults.sigma.toFixed(1)} N/mm²(検定比 {(beamResults.sigma / beamResults.limitSigma).toFixed(2)})</span>}
+                    />
+                  ) : (
+                    <ResultRow k="曲げ応力度" v="Zx と fb を入れると判定します" />
+                  )}
+                  {beamResults.tauChecked && (
+                    <ResultRow
+                      k={`せん断応力度 τ = 1.5Q/A ≦ 長期 fs ${beamResults.limitTau.toFixed(2)}`}
+                      v={<span className={beamResults.isTauSafe ? undefined : 'text-red-700'}>{beamResults.tau.toFixed(2)} N/mm²(検定比 {(beamResults.tau / beamResults.limitTau).toFixed(2)})</span>}
                     />
                   )}
-                  {useAutoSection && (
-                    <ResultRow k="たわみ判定" v={<span className={beamResults.isDeltaSafe ? undefined : 'text-red-700'}>{beamResults.isDeltaSafe ? 'OK' : 'NG'}</span>} />
-                  )}
+                  <ResultRow k="たわみ判定" v={<span className={beamResults.isDeltaSafe ? undefined : 'text-red-700'}>{beamResults.isDeltaSafe ? 'OK' : 'NG'}</span>} />
                 </DtResult>
+                ) : (
+                  <p className="yy-dt-note">スパン・荷重・断面を入れてください。</p>
+                )}
                 {useAutoSection && beamSectionResults && (
                   <p className="yy-dt-note">
-                    断面性能： I = {Math.round(beamSectionResults.I).toLocaleString()} mm⁴ / Z = {Math.round(beamSectionResults.Z).toLocaleString()} mm³
+                    断面性能： I = {Math.round(beamSectionResults.I).toLocaleString()} mm⁴ / Z = {Math.round(beamSectionResults.Z).toLocaleString()} mm³ · E = {beamResults.E} N/mm²
                   </p>
                 )}
+                <p className="text-[10px] text-gray-400 leading-relaxed">
+                  ※ 長期(固定 + 積載)の検討です。荷重には梁の自重を含めてください。短期(積雪・地震)は許容応力度が変わります(木材は短期 2F/3。積雪時は長期 ×1.3・短期 ×0.8。令89条)。
+                  {useAutoSection && <><br />※ 木材の長期許容応力度 = 1.1 × 基準強度 / 3(令89条)。基準強度は告示1452号の無等級材。欠き込み・ボルト孔による断面欠損、寸法効果、含水率、めり込み(支点)は見ていません。</>}
+                  <br />※ たわみは告示1459号(たわみ × 変形増大係数 ≦ スパン/250)で判定。告示は梁せい/スパンが一定以下(木造 1/12 など)の梁に適用します。床梁は振動・建具への影響も確認してください。
+                  {beamSupport === 'cantilever' && <><br />※ 片持ち梁は先端たわみを持ち出し長さで割って判定しています。有効長さの扱いは審査機関の運用を確認してください。</>}
+                  {!useAutoSection && <><br />※ 横座屈・局部座屈・ウェブのせん断・継手は見ていません。</>}
+                </p>
                 
                 {/* Diagram Placeholder */}
                 <p className="yy-dt-note font-mono">
@@ -2624,39 +2756,56 @@ type HBeamCatalogEntry = {
             <div className="bg-gray-50 p-4 rounded border border-gray-200">
               <p className="font-bold text-gray-700 mb-3">N値計算（金物選定）簡易ツール</p>
               <p className="text-[11px] text-gray-600 mb-4">
-                告示1460号第2号に基づくN値計算により、必要な金物タイプを判定します。
+                平成12年建設省告示第1460号 第二号ただし書の確認方法のうち「N値計算法」で、柱頭・柱脚の接合部の仕様(表三 (い)〜(ぬ))を選びます。木造軸組の 2 階建てまで。
               </p>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 {/* 壁倍率入力 */}
                 <div className="space-y-4">
-                  <h3 className="font-semibold text-gray-700 text-[12px]">① 柱に取り付く壁倍率</h3>
-                  <div>
-                    <label className="block text-[10px] text-gray-500 mb-1">壁A (倍率)</label>
-                    <input 
-                      type="number" 
-                      step="0.5" 
-                      value={nValueWall1} 
-                      onChange={(e) => setNValueWall1(Number(e.target.value))} 
-                      className="w-full px-2 py-1.5 border border-gray-300 rounded text-right focus:border-blue-500 outline-none"
-                    />
-                    <span className="text-[9px] text-gray-400">例: 筋交い片側=2.0, 構造用合板=2.5</span>
+                  <h3 className="font-semibold text-gray-700 text-[12px]">① 柱の両側の耐力壁(検討する階)</h3>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="block text-[10px] text-gray-500 mb-1">片側の壁倍率</label>
+                      <input type="number" step="0.5" value={nValueWall1} onChange={(e) => setNValueWall1(Number(e.target.value))} className="w-full px-2 py-1.5 border border-gray-300 rounded text-right focus:border-blue-500 outline-none" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-gray-500 mb-1">反対側の壁倍率</label>
+                      <input type="number" step="0.5" value={nValueWall2} onChange={(e) => setNValueWall2(Number(e.target.value))} className="w-full px-2 py-1.5 border border-gray-300 rounded text-right focus:border-blue-500 outline-none" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-gray-500 mb-1">筋かいの補正値</label>
+                      <input type="number" step="0.5" value={nValueCorr1} onChange={(e) => setNValueCorr1(Number(e.target.value))} className="w-full px-2 py-1.5 border border-gray-300 rounded text-right focus:border-blue-500 outline-none" />
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-[10px] text-gray-500 mb-1">壁B (反対側があれば)</label>
-                    <input 
-                      type="number" 
-                      step="0.5" 
-                      value={nValueWall2} 
-                      onChange={(e) => setNValueWall2(Number(e.target.value))} 
-                      className="w-full px-2 py-1.5 border border-gray-300 rounded text-right focus:border-blue-500 outline-none"
-                    />
-                  </div>
+                  <span className="block text-[9px] text-gray-400 leading-relaxed">
+                    壁倍率は柱の左右それぞれ(無ければ 0)。面材と筋かいの併用は倍率を足した値(上限 7 で頭打ちにせず実際の和)。
+                    筋かいの補正値(片筋かい): 45×90・30×90 は筋かいの上端が この柱の柱頭に付くとき +0.5、柱脚に付くとき −0.5、90×90 は ±2.0、15×90・たすき掛けは 0。両側に筋かいがあるときは解説書の表で。
+                  </span>
+                  {nValueFloorType === 'OTHER' && (
+                    <>
+                      <h3 className="font-semibold text-gray-700 text-[12px]">② 上の 2 階の柱の両側の耐力壁</h3>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="block text-[10px] text-gray-500 mb-1">片側の壁倍率</label>
+                          <input type="number" step="0.5" value={nValueWall3} onChange={(e) => setNValueWall3(Number(e.target.value))} className="w-full px-2 py-1.5 border border-gray-300 rounded text-right focus:border-blue-500 outline-none" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-gray-500 mb-1">反対側の壁倍率</label>
+                          <input type="number" step="0.5" value={nValueWall4} onChange={(e) => setNValueWall4(Number(e.target.value))} className="w-full px-2 py-1.5 border border-gray-300 rounded text-right focus:border-blue-500 outline-none" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-gray-500 mb-1">筋かいの補正値</label>
+                          <input type="number" step="0.5" value={nValueCorr2} onChange={(e) => setNValueCorr2(Number(e.target.value))} className="w-full px-2 py-1.5 border border-gray-300 rounded text-right focus:border-blue-500 outline-none" />
+                        </div>
+                      </div>
+                      <span className="block text-[9px] text-gray-400">2 階の柱が 1 階の柱と同じ位置に無いときは、2 階が 0 です(ずれている場合は解説書の按分による)。</span>
+                    </>
+                  )}
                 </div>
 
                 {/* 係数選択 */}
                 <div className="space-y-4">
-                  <h3 className="font-semibold text-gray-700 text-[12px]">② 柱の位置条件</h3>
+                  <h3 className="font-semibold text-gray-700 text-[12px]">柱の位置条件</h3>
                   <div>
                     <label className="block text-[10px] text-gray-500 mb-1">柱の位置</label>
                     <select 
@@ -2664,8 +2813,8 @@ type HBeamCatalogEntry = {
                       onChange={(e) => setNValuePositionType(e.target.value as 'CORNER' | 'General')} 
                       className="w-full px-2 py-1.5 border border-gray-300 rounded text-[11px] bg-white"
                     >
-                      <option value="CORNER">出隅 (建物の角)</option>
-                      <option value="General">一般部 (中柱など)</option>
+                      <option value="CORNER">出隅の柱</option>
+                      <option value="General">その他の柱</option>
                     </select>
                   </div>
                   <div>
@@ -2683,13 +2832,40 @@ type HBeamCatalogEntry = {
               </div>
 
               {/* 結果 */}
-              <div className="max-w-[420px]">
-                <DtResult label={`判定 · 算出 N値 ${nValueResult.nValue.toFixed(2)}`} value={nValueResult.resultHardware.label} text>
-                  <ResultRow k="係数B" v={nValueResult.coef.toFixed(2)} />
-                  <ResultRow k="補正係数L" v={nValueResult.L_correction.toFixed(2)} />
+              <div className="max-w-[460px]">
+                <DtResult
+                  label={`判定 · N値 ${nValueResult.nValue.toFixed(2)}`}
+                  value={nValueResult.resultHardware ? nValueResult.resultHardware.label : '仕様外'}
+                  sub={nValueResult.resultHardware ? nValueResult.resultHardware.spec : 'N > 5.6 は告示の表三に仕様がありません'}
+                  text
+                  ng={!nValueResult.resultHardware}
+                >
+                  <ResultRow
+                    k="式"
+                    v={nValueResult.top
+                      ? `${nValueResult.A1.toFixed(2)} × ${nValueResult.coef} − ${nValueResult.L_correction} = ${nValueResult.nValue.toFixed(2)}`
+                      : `${nValueResult.A1.toFixed(2)} × ${nValueResult.coef} + ${nValueResult.A2.toFixed(2)} × ${nValueResult.coef} − ${nValueResult.L_correction} = ${nValueResult.nValue.toFixed(2)}`}
+                  />
+                  <ResultRow k="B1・B2(出隅 0.8 / その他 0.5)" v={nValueResult.coef.toFixed(2)} />
+                  <ResultRow k={`L(${nValueResult.top ? '平屋・最上階 出隅 0.4 / その他 0.6' : '2階建ての1階 出隅 1.0 / その他 1.6'})`} v={nValueResult.L_correction.toFixed(2)} />
+                  {!nValueResult.resultHardware && <ResultRow k="対応" v="許容応力度計算などで引抜き力を確かめる" />}
                 </DtResult>
-                <p className="yy-dt-note mt-2">
-                  ※あくまで簡易計算です。正式な設計には詳細なN値計算書を使用してください。
+                <table className="w-full text-[10px] mt-3">
+                  <tbody>
+                    {HARDWARE_TYPES.map((h, i) => (
+                      <tr key={h.label} className={`border-t ${nValueResult.resultHardware?.label === h.label ? 'font-bold' : 'text-gray-500'}`}>
+                        <td className="px-1 py-0.5 w-[34px]">{h.label}</td>
+                        <td className="px-1 py-0.5">{h.spec}</td>
+                        <td className="px-1 py-0.5 text-right whitespace-nowrap">{i === 0 ? 'N ≦ 0.0' : `≦ ${h.max}`}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <p className="yy-dt-note mt-2 leading-relaxed">
+                  ※ 金物は表三の仕様と同等以上の性能のもの(Zマーク同等認定品など)を選びます。N値はその柱の柱頭・柱脚の両方に使います。
+                  <br />※ 2025 年 4 月施行の改正で、横架材の上端相互の垂直距離が 3.2 m を超える階は引抜き力の割増(H/2.7)が加わりました。このツールは 3.2 m 以下を前提にしています。
+                  <br />※ 存在壁量に算入した準耐力壁等のうち倍率 1.5 を超えるものは、N値計算の対象に入れます(確認申請・審査マニュアル)。
+                  <br />※ 3 階建て・許容応力度計算をする建物は対象外です。
                 </p>
               </div>
             </div>
@@ -2807,6 +2983,9 @@ type HBeamCatalogEntry = {
                       </div>
                     </div>
 
+                    {!plResults.valid ? (
+                      <p className="yy-dt-note">P・L・E・I を入れ、荷重の位置 a を 0 &lt; a &lt; L にしてください。</p>
+                    ) : (
                     <DtResult
                       label="計算結果 · 荷重直下のたわみ δC"
                       value={plResults.deltaC.toFixed(2)}
@@ -2817,6 +2996,8 @@ type HBeamCatalogEntry = {
                       <ResultRow k="反力 RB" v={`${plResults.RB.toFixed(2)} kN`} />
                       <ResultRow k="最大モーメント MC" v={`${plResults.MC.toFixed(2)} kNm`} />
                     </DtResult>
+                    )}
+                    <p className="text-[10px] text-gray-400">※ 単純支持・弾性・曲げ変形のみ。梁の自重は含みません。</p>
                   </div>
                 </div>
               </div>

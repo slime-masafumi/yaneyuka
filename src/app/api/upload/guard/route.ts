@@ -8,7 +8,7 @@ type GuardRequestBody = {
 };
 
 // config/limits が読めなかった場合のフォールバック（FileTransfer.tsx の既定値と揃える）
-const DEFAULT_MAX_FILE_MB = 100;
+const DEFAULT_MAX_FILE_MB = 2048;
 const DEFAULT_MAX_USER_MONTHLY_MB = 2048;
 
 const MB = 1024 * 1024;

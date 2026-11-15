@@ -271,21 +271,10 @@ const FileTransferTool: React.FC = () => {
     const unsub = onSnapshot(q, {
       next: snap => {
         const list: UploadRecord[] = [];
-        const now = Date.now();
-        const oneWeekInMs = 7 * 24 * 60 * 60 * 1000; // 1週間（ミリ秒）
-
+        // 送付の記録(台帳)は、ファイルの保存期間が過ぎても消さずに残す(いつ誰に何版を送ったかの証跡)。
+        // 2026-11-15 までは期限 + 7 日で一覧から外していて、約 3 週間で台帳と CSV から消えていた
         snap.forEach(docSnap => {
           const data = docSnap.data();
-          const expiresAt = data.expiresAt;
-
-          // 保存期間が過ぎてから1週間以上経過したファイルは除外
-          if (expiresAt) {
-            const expiresAtMs = expiresAt.toDate().getTime();
-            const deletionDeadline = expiresAtMs + oneWeekInMs; // 保存期間 + 1週間
-            if (now > deletionDeadline) {
-              return; // このファイルはスキップ
-            }
-          }
 
           list.push({
             id: docSnap.id,

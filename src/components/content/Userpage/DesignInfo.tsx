@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useAuth } from '@/lib/AuthContext';
 import { designPosts, DesignPost } from '@/data/design-posts';
 import { FiSearch } from 'react-icons/fi';
-import StructureKouzouHari from './design-tools/StructureKouzouHari';
 import { listDesignPostBookmarks, setDesignPostBookmark, deleteDesignPostBookmark } from '@/lib/firebaseUserData';
 import PageHead, { Stat } from '@/components/ui/PageHead';
 import { SecHead } from '@/components/ui/Sheet';
@@ -49,7 +48,6 @@ const DesignInfo: React.FC<{ embedded?: boolean; initialPost?: string | null }> 
   const [posts, setPosts] = useState<DesignPost[]>(designPosts);
   
   // ツール表示のトグル用
-  const [showTool, setShowTool] = useState(false);
   
   // お気に入り管理
   const [bookmarks, setBookmarks] = useState<Record<string, any>>({});
@@ -587,20 +585,17 @@ const DesignInfo: React.FC<{ embedded?: boolean; initialPost?: string | null }> 
               )}
 
               {currentPost.category === '構造設計' && (
+                // 2026-11-15 まで外部サイト(http)の図表を iframe で埋め込んでいた(https では表示されず、他サイトの図版の転載にもなる)。自前の計算ツールへのリンクに替えた
                 <section className="yy-di-tool">
                   <SecHead
-                    title="構造計算ツール：梁のたわみ"
+                    title="構造の計算ツール"
                     right={
-                      <button type="button" className="yy-di-textbtn is-acc" onClick={() => setShowTool(!showTool)}>
-                        {showTool ? '閉じる' : 'ツールを開く'}
-                      </button>
+                      <span className="yy-di-tool__links">
+                        <Link className="yy-di-textbtn is-acc" href="/calc/beam/">梁の検討 ›</Link>{' '}
+                        <Link className="yy-di-textbtn is-acc" href="/calc/formulas/">公式集 ›</Link>
+                      </span>
                     }
                   />
-                  {showTool && (
-                    <div className="yy-di-tool__body">
-                      <StructureKouzouHari />
-                    </div>
-                  )}
                 </section>
               )}
 

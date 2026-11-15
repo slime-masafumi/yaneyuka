@@ -116,9 +116,25 @@ export default function FnbView({ project: p, fnb: f, checks, onChange, onCheck,
 
   /* ── 判定文 ── */
   const occMsg: string[] = [];
-  occMsg.push(c.occ >= 30 ? '30人以上のため防火管理者の選任が必要です。' : '30人未満のため防火管理者の選任は不要です。');
-  occMsg.push(c.hasFire ? '火を使用する設備があるため、面積にかかわらず消火器が必要です（消防令10条）。' : '火を使用する設備がないため、消火器は延べ150m²以上で必要です。');
-  if (c.allArea >= 300) occMsg.push('延べ300m²以上のため自動火災報知設備が必要です。');
+  // 消防法施行令の用途区分(別表第 1)で基準が変わる。2026-11-16 まで全業種を飲食店の基準(30 人・150m²・300m²)で判定していた
+  //   飲食 (3)項ロ・物販 (4)項・無床診療所 (6)項イ(4) = 特定用途 / 事務所・理美容 (15)項 = 非特定用途
+  const isEat = BIZ[f.type].cats.includes('kitchen');
+  const isP15 = f.type === 'office' || f.type === 'salon';
+  const occTh = isP15 ? 50 : 30; // 消防令 1 条の 2 第 3 項 1 号ロ・ハ
+  occMsg.push(
+    c.occ >= occTh
+      ? `区画の収容人員が${occTh}人以上のため、防火管理者の選任が必要です（消防令1条の2。${isP15 ? '非特定用途' : '特定用途'}）。`
+      : `区画の収容人員は${occTh}人未満です。防火管理者の要否は建物全体の収容人員で決まります（消防令1条の2。特定用途30人・非特定用途50人）。`,
+  );
+  const extA = isP15 ? 300 : 150; // 消防令 10 条 1 項 2 号・3 号
+  occMsg.push(
+    isEat && c.hasFire
+      ? '飲食店で火を使用する設備があるため、面積にかかわらず消火器が必要です（消防令10条1項1号ロ）。'
+      : `消火器は、この用途の部分の延べ面積が${extA}m²以上で必要です（消防令10条1項${isP15 ? '3' : '2'}号）。区画 ${fmt(c.allArea)}m²。`,
+  );
+  const afaA = isP15 ? 1000 : 300; // 消防令 21 条 1 項 3 号・(15)項は 1000m²
+  if (c.allArea >= afaA) occMsg.push(`この用途の部分が${afaA}m²以上のため自動火災報知設備が必要です（消防令21条）。`);
+  occMsg.push('建物が複合用途（(16)項イ）で延べ300m²以上なら、建物全体に自動火災報知設備が要ります。');
   if ((+f.floor || 1) < 0) occMsg.push('地階のため内装制限と避難規定が強化されます。');
 
   const steps: Array<[string, boolean, string]> = [

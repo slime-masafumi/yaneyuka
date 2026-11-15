@@ -181,7 +181,9 @@ export default function ItemPanel({ it, project, status, rec, checked, onRec, on
               {calc.fields.length > 0 && (
                 <div className="yy-kt-item__form">
                   {calc.fields.map((f) => (
-                    <Input key={f.k} f={f} value={vals[f.k] ?? ''} onChange={(v) => onRec({ vals: { ...vals, [f.k]: v } })} />
+                    // 手で入れた欄だけを記録する。物件条件から入る初期値(敷地面積・指定建蔽率など)は、
+                    // 条件を直せば追従させる(2026-11-16 まで 1 欄触ると全欄の初期値がその時点で固まっていた)
+                    <Input key={f.k} f={f} value={vals[f.k] ?? ''} onChange={(v) => onRec({ vals: { ...(rec.vals ?? {}), [f.k]: v } })} />
                   ))}
                 </div>
               )}

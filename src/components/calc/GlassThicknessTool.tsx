@@ -81,9 +81,9 @@ export default function GlassThicknessTool({ middle }: Props) {
     const r = estimateWind({ v0: +nv0, rough: nrough, H: +nbh, Z: +nz, part: npart });
     setWind(String(Math.round(r.W)));
     setWindOut(
-      `平均速度圧 q = ${fmtInt(r.q)} N/m²（Er ${r.Er.toFixed(3)}）、kz ${r.kz.toFixed(3)}、` +
+      `平均速度圧 q = ${fmtInt(r.q)} N/m²（Er ${r.Er.toFixed(3)}${nrough === '4' ? '、粗度 IV は III の値' : ''}）、Cpe ${r.kz.toFixed(3)} × Gpe ${r.gpe.toFixed(2)}、` +
         `ピーク風力係数 正圧 ${r.cPos.toFixed(2)} ／ 負圧 ${r.cNeg.toFixed(2)} → 不利側 ${r.c.toFixed(2)}。` +
-        `W = ${fmtInt(r.W)} N/m²。閉鎖型建築物の壁面を前提とした参考値です。`,
+        `W = ${fmtInt(r.W)} N/m²。H12建告1458 の帳壁の式(閉鎖型の建築物)。H は建物の高さで代用(告示は高さと軒高の平均)。`,
     );
   };
 

@@ -484,7 +484,7 @@ export const TEMPLATES: GanttTemplate[] = [
       { name: '基礎躯体', days: 20, color: INK },
       { name: '1 階躯体', days: 20, color: INK },
       { name: '2 階躯体', days: 18, color: INK },
-      { kind: 'milestone', name: '中間検査', after: 7, color: RED },
+      { kind: 'milestone', name: '中間検査（該当時）', after: 7, color: RED },
       { name: '3 階躯体', days: 18, after: 8, color: INK },
       { name: 'R 階躯体・パラペット', days: 12, color: INK },
       { kind: 'milestone', name: '躯体完了', color: RED },

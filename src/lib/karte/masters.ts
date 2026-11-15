@@ -54,6 +54,10 @@ export type Project = {
   bf: number;
   /** 延べ面積 m² */
   area: number;
+  /** 前面道路の幅員 m(2 以上あるときは最大のもの。2 項道路は後退後の 4m)。2026-11-16。無い物件は未入力 */
+  road?: number;
+  /** 高度地区・地区計画・建築協定・景観地区・条例など、カルテで判定しない制限のメモ。2026-11-16 */
+  other?: string;
 };
 
 export const ZONES = [
@@ -148,7 +152,8 @@ export function newProject(id: string): Project {
     addr: '',
     zone: '商業地域',
     fire: '指定なし',
-    H: 20,
+    // 3 階建て(階高 4m 程度)の高さ。2026-11-16 まで 20m で、3 階建てなのに避雷設備などの判定が境目に来ていた
+    H: 12,
     v0: 34,
     rough: '3',
     rain: 100,
@@ -200,12 +205,12 @@ export type RoomType = {
 };
 
 export const ROOM_TYPE: Record<RoomTypeKey, RoomType> = {
-  hall: { label: '客席・ホール', ach: 10, per: 30, seatable: true, ch: 2.6, lw: 15, basis: '令20条の2（1人あたり）と10回/hの大きい方' },
+  hall: { label: '客席・ホール', ach: 10, per: 30, seatable: true, ch: 2.6, lw: 15, basis: '1人30m³/h（実務値。令20条の2の法定最小は20m³/h・人）と10回/hの大きい方' },
   kitchen: { label: '厨房', ach: 40, fire: true, ch: 2.5, lw: 20, basis: '令20条の3（N・K・Q）と40回/hの大きい方' },
-  sales: { label: '売場', ach: 6, per: 30, seatable: true, ch: 2.8, lw: 25, basis: '令20条の2（1人あたり）と6回/hの大きい方' },
-  office: { label: '事務室', ach: 6, per: 30, seatable: true, ch: 2.6, lw: 15, basis: '令20条の2（1人あたり）と6回/hの大きい方' },
-  wait: { label: '待合', ach: 6, per: 30, seatable: true, ch: 2.6, lw: 12, basis: '令20条の2（1人あたり）と6回/hの大きい方' },
-  exam: { label: '診察室・処置室', ach: 6, per: 30, seatable: true, ch: 2.6, lw: 25, basis: '令20条の2（1人あたり）と6回/hの大きい方' },
+  sales: { label: '売場', ach: 6, per: 30, seatable: true, ch: 2.8, lw: 25, basis: '1人30m³/h（実務値。令20条の2の法定最小は20m³/h・人）と6回/hの大きい方' },
+  office: { label: '事務室', ach: 6, per: 30, seatable: true, ch: 2.6, lw: 15, basis: '1人30m³/h（実務値。令20条の2の法定最小は20m³/h・人）と6回/hの大きい方' },
+  wait: { label: '待合', ach: 6, per: 30, seatable: true, ch: 2.6, lw: 12, basis: '1人30m³/h（実務値。令20条の2の法定最小は20m³/h・人）と6回/hの大きい方' },
+  exam: { label: '診察室・処置室', ach: 6, per: 30, seatable: true, ch: 2.6, lw: 25, basis: '1人30m³/h（実務値。令20条の2の法定最小は20m³/h・人）と6回/hの大きい方' },
   treat: { label: '施術室', ach: 10, per: 30, seatable: true, ch: 2.6, lw: 20, basis: '薬剤を扱うため10回/hを確保' },
   shampoo: { label: 'シャンプー室', ach: 10, ch: 2.5, lw: 15, basis: '10回/h（薬剤・湿気）' },
   toilet: { label: '便所', ach: 15, ch: 2.4, lw: 10, basis: '15回/h' },
@@ -395,7 +400,8 @@ export const CHK_COMMON: CheckDef[] = [
   ['design', 'c4', '排煙設備の要否', '令126条の2。区画変更で無窓になっていないか'],
   ['design', 'c5', '消火器の設置本数', '消防令10条。歩行距離20m以内'],
   ['design', 'c6', '自動火災報知設備の感知器', '用途変更・間仕切変更に伴う移設・増設'],
-  ['design', 'c7', '着工届・使用開始届', '消防法17条の14。工事7日前まで'],
+  // 2026-11-16 まで「消防法17条の14。工事7日前まで」。17条の14 は着工の 10 日前(e-Gov 現行)
+  ['design', 'c7', '着工届・使用開始届', '着工届は消防法17条の14(着工の10日前まで)。使用開始届は火災予防条例'],
   ['struct', 's1', '重量機器の集中荷重', '令85条。脚部の集中荷重は平均値では見えません'],
   ['struct', 's2', '躯体の開口補強', 'ダクト・配管の貫通。梁貫通は径と位置に制限があります'],
   ['struct', 's3', '重量物の耐震固定', '什器・機器の転倒防止。吊り天井の耐震も'],
@@ -414,7 +420,8 @@ export const CHK_BIZ: Record<'kitchen' | 'retail' | 'office' | 'salon' | 'clinic
     ['design', 'k2', '食品衛生法の施設基準', 'シンク数・手洗い・更衣。保健所に事前相談'],
     ['design', 'k3', '深夜営業・風営法の該当', '0時以降の酒類提供、照度10lx以下の客席'],
     ['struct', 'k4', '厨房の防水押えとスラブ段差', '躯体段差が要るなら躯体工事に戻ります'],
-    ['mep', 'k5', 'グリスフィルター・280℃防火ダンパー', '火災予防条例。排気ダクト系統に必須'],
+    // 280℃ は排煙ダクトの防火ダンパーの値。厨房排気の防火ダンパーの作動温度は条例・所轄消防の指導による
+    ['mep', 'k5', 'グリスフィルター・防火ダンパー', '火災予防条例。排気フード・ダクトの火炎伝送防止(作動温度は所轄消防に確認)'],
     ['mep', 'k6', '厨房排気ダクトの経路と清掃口', '屋上までの縦シャフトが取れるか'],
     ['mep', 'k7', 'グリストラップの位置と容量', '床スラブ厚・排水勾配。後から動かせません'],
   ],
@@ -437,7 +444,7 @@ export const CHK_BIZ: Record<'kitchen' | 'retail' | 'office' | 'salon' | 'clinic
   ],
   clinic: [
     ['design', 'd1', '診療所の構造設備基準', '医療法施行規則'],
-    ['design', 'd2', 'X線室の遮蔽計算', '医療法施行規則30条。鉛当量'],
+    ['design', 'd2', 'X線室の遮蔽計算', '医療法施行規則30条の4。鉛当量'],
     ['struct', 'd3', 'X線装置・重量機器の荷重', '300kg級。床の補強検討'],
     ['mep', 'd4', '感染対策のゾーニング・換気', '清潔・不潔の分離'],
     ['elec', 'd5', '医用接地と非常電源', 'JIS T 1022'],
@@ -475,7 +482,12 @@ export type ItemDef = {
 
 export const ITEMS: ItemDef[] = [
   /* ── 意匠 ── */
+  // 2026-11-16 追加:用途の制限・接道・防火地域の構造制限・地域地区と条例(実務で最初に確かめるのに無かった)
+  { cat: 'design', label: '用途地域による用途の制限', basis: '法48条・別表第2・法91条' },
+  { cat: 'design', label: '接道・前面道路の確認', basis: '法42条・43条・44条' },
   { cat: 'design', label: '建蔽率・容積率の算定', basis: '法52条・53条' },
+  { cat: 'design', label: '高度地区・地区計画・条例の確認', basis: '法58条・68条の2・69条・条例' },
+  { cat: 'design', label: '防火地域・準防火地域の構造制限', basis: '法61条・令136条の2・法22条・23条・65条' },
   { cat: 'design', label: '高さ制限・斜線の検討', basis: '法55条・56条' },
   { cat: 'design', label: '日影規制の検討', basis: '法56条の2・別表第4' },
   { cat: 'design', label: '採光・換気の検討', basis: '法28条・令19条・20条・20条の2' },
@@ -495,7 +507,7 @@ export const ITEMS: ItemDef[] = [
   {
     cat: 'design',
     label: 'バリアフリー法の適合義務',
-    basis: 'BF法14条',
+    basis: 'BF法14条・BF令5条・9条',
     na: (p) => (p.area < 2000 ? '延べ2000m²未満のため適合義務の対象外（条例の上乗せは要確認）' : null),
   },
   { cat: 'design', label: '確認申請・適合性判定の要否', basis: '法6条・6条の3' },
@@ -553,10 +565,13 @@ export const ITEMS: ItemDef[] = [
     cat: 'mep',
     label: '連結送水管の要否',
     basis: '消防令29条',
-    na: (p) => (p.fl < 7 && p.area < 6000 ? '7階未満かつ6000m²未満のため対象外' : null),
+    // 地階を除く階数 7 以上、または 5 以上で延べ 6000m² 以上(消防令 29 条 1 項 1 号・2 号)。
+    // 2026-11-16 まで「7 階未満かつ 6000m² 未満」で判定し、4 階以下で 6000m² 以上の建物を対象にしていた
+    na: (p) => (p.fl < 5 || (p.fl < 7 && p.area < 6000) ? '地上5階未満、または7階未満で延べ6000m²未満のため対象外（地下街・アーケード等を除く）' : null),
   },
   { cat: 'mep', label: '排煙設備（機械）の検討', basis: '令126条の3' },
-  { cat: 'mep', label: '浄化槽の要否と人槽算定', basis: 'JIS A 3302' },
+  { cat: 'mep', label: '浄化槽の要否と人槽算定', basis: '法31条・令32条・JIS A 3302' },
+  { cat: 'mep', label: '省エネ基準への適合', basis: '建築物省エネ法10条・11条' },
 
   /* ── 電気 ── */
   { cat: 'elec', label: '受電方式・契約電力の判定', basis: '電気事業法・電力会社基準' },
@@ -577,7 +592,7 @@ export const ITEMS: ItemDef[] = [
   {
     cat: 'elec',
     label: '非常用エレベーターの要否',
-    basis: '令129条の13の3',
+    basis: '法34条2項・令129条の13の2・13の3',
     na: (p) => (p.H <= 31 ? '高さ31m以下のため設置義務なし' : null),
   },
   { cat: 'elec', label: '非常電源（自家発・蓄電池）', basis: '消防規則12条ほか' },
@@ -598,6 +613,7 @@ export const DEP_LABEL: Record<string, string> = {
   ex: '厨房排気ルート',
   gas: 'ガス引込口径',
   wsup: '給水引込口径',
+  wv: '風圧の算定式',
 };
 export const DEP_UNIT: Record<string, string> = {
   v0: ' m/s',

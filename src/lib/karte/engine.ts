@@ -8,7 +8,8 @@
  *  3. 照明は室別 W/m² まで。器具レベルの積み上げではない
  *  4. コンセントは面積 × 10VA/m² 固定
  */
-import { ROUGH_LABEL } from './glass';
+import { ROUGH_LABEL, WIND_VER } from './glass';
+import { CALCS, defaults as calcDefaults } from './calcs';
 import {
   AC_LABEL,
   BIZ,
@@ -413,7 +414,10 @@ export type Diff = { k: string; was: string | number; now: string | number };
 /** 保存時のスナップショットと現在の物件条件を突き合わせ、差があれば返す */
 export function staleOf(s: Study, p: Project): Diff[] {
   const diffs: Diff[] = [];
+  // ガラス厚:2026-11-16 に風圧の算定式を告示1458 の値へ直した。旧式の記録は設計風圧力が過小なので要再確認
+  if (s.tool === 'glass' && s.deps.wv !== WIND_VER) diffs.push({ k: 'wv', was: String(s.deps.wv ?? '旧係数(過小)'), now: WIND_VER });
   for (const k of Object.keys(s.deps)) {
+    if (k === 'wv') continue;
     const now = (p as unknown as Record<string, string | number>)[k];
     if (String(s.deps[k]) !== String(now)) diffs.push({ k, was: s.deps[k], now });
   }
@@ -434,8 +438,17 @@ export type ItemStatus = 'na' | 'done' | 'todo' | 'warn';
 export function itemStatus(it: ItemDef, studies: Study[], p: Project, checks: Record<string, boolean>, rec?: ItemRec): ItemStatus {
   if (rec?.na || (it.na && it.na(p))) return 'na';
   const manual = !!checks[itemKey(it)];
-  // その場の判定を記録した項目:不適合なら要確認、それ以外は済
-  if (rec?.res) return rec.res.verdict === 'ng' ? 'warn' : 'done';
+  // その場の判定を記録した項目:不適合なら要確認。記録の後に物件条件か入力が変わって結果が変わったときも要確認
+  // (2026-11-16 まで、記録した時点の結果のまま「済」を出し続けていた)
+  if (rec?.res) {
+    if (rec.res.verdict === 'ng') return 'warn';
+    const calc = CALCS[itemKey(it)];
+    if (calc) {
+      const now = calc.run({ ...calcDefaults(calc, p), ...(rec.vals ?? {}) }, p);
+      if (!now || JSON.stringify(now.lines) !== JSON.stringify(rec.res.lines)) return 'warn';
+    }
+    return 'done';
+  }
   if (!it.tool) return manual ? 'done' : 'todo';
   const st = studies.find((s) => s.tool === it.tool);
   if (!st) return manual ? 'done' : 'todo';

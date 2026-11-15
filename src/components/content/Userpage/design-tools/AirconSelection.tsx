@@ -31,7 +31,8 @@ const AC_SPECS_HOME = [
   { kw: 2.5, label: '8畳用',  minWood: 8,  minRC: 10, volt: '100V' },
   { kw: 2.8, label: '10畳用', minWood: 10, minRC: 12, volt: '100V' },
   { kw: 3.6, label: '12畳用', minWood: 12, minRC: 16, volt: '100V' },
-  { kw: 4.0, label: '14畳用', minWood: 14, minRC: 17, volt: '200V' }, 
+  // 4.0kW は 100V 機と 200V 機の両方がある(機種で違う)。以前は 200V 必須と出していた
+  { kw: 4.0, label: '14畳用', minWood: 14, minRC: 17, volt: '100V / 200V(機種による)' },
   { kw: 5.6, label: '18畳用', minWood: 18, minRC: 23, volt: '200V' },
   { kw: 6.3, label: '20畳用', minWood: 20, minRC: 26, volt: '200V' },
   { kw: 7.1, label: '23畳用', minWood: 23, minRC: 29, volt: '200V' },
@@ -68,6 +69,7 @@ const AirconSelection: React.FC<AirconSelectionProps> = ({ defaultTab, hideTabBa
 
   // 結果ステート
   const [homeResult, setHomeResult] = useState<typeof AC_SPECS_HOME[0] | null>(null);
+  const [homeOver, setHomeOver] = useState(false); // 一番大きい機種でも足りない
   const [bizResult, setBizResult] = useState<{kw: number, hp: number, note: string} | null>(null);
   const [copyFeedback, setCopyFeedback] = useState<string>('');
 
@@ -93,6 +95,7 @@ const AirconSelection: React.FC<AirconSelectionProps> = ({ defaultTab, hideTabBa
         return cap >= reqIndex;
       });
       setHomeResult(found || AC_SPECS_HOME[AC_SPECS_HOME.length - 1]);
+      setHomeOver(!found);
     } else {
       // 業務用計算ロジック
       const loadUnit = COMM_LOADS[commType].unitLoad;
@@ -323,8 +326,10 @@ const AirconSelection: React.FC<AirconSelectionProps> = ({ defaultTab, hideTabBa
             >
               {homeResult && (
                 <>
+                  {homeOver && <ResultRow k="注" v="表の最大(9.0kW)でも足りません。複数台か業務用で検討してください" />}
                   <ResultRow k="電源目安(コンセント電圧)" v={homeResult.volt} />
-                  {homeResult.volt.includes('200V') && <ResultRow k="電源工事" v="※200V工事必要" />}
+                  {homeResult.volt === '200V' && <ResultRow k="電源工事" v="※200V の専用回路・コンセントが必要" />}
+                  {homeResult.volt !== '200V' && <ResultRow k="電源工事" v="専用回路(機種の電圧・電流で確認)" />}
                 </>
               )}
             </ResultPanel>
@@ -342,7 +347,7 @@ const AirconSelection: React.FC<AirconSelectionProps> = ({ defaultTab, hideTabBa
                     k="機器選定の目安"
                     v={
                       bizResult.hp <= 3
-                        ? '3馬力シングル (パッケージエアコン)'
+                        ? `${Math.ceil(bizResult.hp * 2) / 2 <= 1.5 ? '1.5' : Math.ceil(bizResult.hp * 2) / 2}馬力前後のシングル (${bizResult.kw}kW 以上の機種)`
                         : bizResult.hp <= 6
                           ? `${Math.ceil(bizResult.hp)}馬力シングル または ツイン`
                           : bizResult.hp <= 10
@@ -362,6 +367,15 @@ const AirconSelection: React.FC<AirconSelectionProps> = ({ defaultTab, hideTabBa
           >
             <CopyIcon /> {copyFeedback ? 'コピーしました' : '結果をコピー'}
           </button>
+          {mode === 'home' ? (
+            <p className="yy-dt-note">
+              ※ 冷房の「畳数の目安」による概略選定です。南向き・最上階は畳数 × 1.15、キッチンは +2 畳の社内の目安で、法令・規格の値ではありません。寒冷地は暖房能力で決まることが多いので、暖房の畳数の目安・低温時の暖房能力も確認してください。吹抜け・天井の高い部屋、断熱の弱い部屋は熱負荷計算で決めてください。
+            </p>
+          ) : (
+            <p className="yy-dt-note">
+              ※ 床面積 × 負荷原単位の概算です(原単位は社内の目安で、法令・規格の値ではありません)。外気量・ガラス面・発熱機器・在室密度で大きく変わります。冷房と暖房の両方を熱負荷計算で確かめ、寒冷地は暖房・低温時能力で選んでください。馬力は 1 馬力 ≒ 2.8kW の慣用換算です。
+            </p>
+          )}
         </aside>
       </div>
       </div>

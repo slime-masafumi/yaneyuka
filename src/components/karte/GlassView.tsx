@@ -12,6 +12,7 @@ import {
   KIND_ORDER,
   ROUGH_LABEL,
   THICK,
+  WIND_VER,
   estimateWind,
   fmtInt,
   glassCapacity,
@@ -43,7 +44,8 @@ export default function GlassView({ project: p, prefill, onBack, onGotoProject, 
   const [tOther, setTOther] = useState(prefill?.t2 || '6');
   const [w, setW] = useState(prefill?.w || '1800');
   const [h, setH] = useState(prefill?.h || '2000');
-  const [Z, setZ] = useState(prefill?.z || '25');
+  // 当該部分の高さ Z の初期値は建物の頂部(正圧がいちばん大きい位置)。2026-11-16 まで 25m 固定で、低い建物では H を超えていた
+  const [Z, setZ] = useState(prefill?.z || String(p.H || ''));
   const [part, setPart] = useState<WallPart>(prefill?.part === 'corner' ? 'corner' : 'general');
   const [memo, setMemo] = useState('');
 
@@ -57,7 +59,8 @@ export default function GlassView({ project: p, prefill, onBack, onGotoProject, 
     tool: 'glass',
     title: '必要ガラス厚',
     basis: '令82条の4／H12建告1458号',
-    deps: { v0: p.v0, rough: p.rough, H: p.H },
+    // wv = 風圧の算定式の版。2026-11-16 に告示1458 のピーク風力係数へ直した。これより前の記録は要再確認にする
+    deps: { v0: p.v0, rough: p.rough, H: p.H, wv: WIND_VER },
     inputs: {
       ガラス: `${KIND_LABEL[kind]}・${COMP_LABEL[comp]}${comp === 'double' ? `（t₂ ${tOther}mm）` : ''}`,
       見付: `${w}×${h} mm（${A.toFixed(2)} m²）`,
@@ -140,7 +143,7 @@ export default function GlassView({ project: p, prefill, onBack, onGotoProject, 
         <SecHead no="III" title="計算の過程" />
         <Step n="1" k="見付面積" f={`A = ${w} × ${h} mm`} v={`${A.toFixed(2)} m²`} />
         <Step n="2" k="平均速度圧" f={`q = 0.6 Er² V₀²(Er ${wind.Er.toFixed(3)})`} v={`${fmtInt(wind.q)} N/m²`} />
-        <Step n="3" k="ピーク風力係数" f={`正圧 ${wind.cPos.toFixed(2)} · 負圧 ${wind.cNeg.toFixed(2)} の不利側`} v={wind.c.toFixed(2)} />
+        <Step n="3" k="ピーク風力係数" f={`告示1458 正圧 ${wind.kz.toFixed(2)}×${wind.gpe.toFixed(2)}+0.5 = ${wind.cPos.toFixed(2)} · 負圧 ${wind.cNeg.toFixed(2)} の不利側`} v={wind.c.toFixed(2)} />
         <Step n="4" k="設計風圧力" f="W = q · C" v={`${fmtInt(wind.W)} N/m²`} strong />
         <Step n="5" k="許容耐力" f="P = 300 k₁ k₂ ÷ A × (t + t² ÷ 4)" v={pick ? `${fmtInt(pick.v)} N/m²` : '—'} />
         <Step n="6" k="判定" f="P ≧ W となる最小の板厚" v={pick ? `${pick.k} mm` : '適合なし'} strong />

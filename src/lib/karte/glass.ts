@@ -5,8 +5,8 @@
  * 確度: 共有/カルテ機能/yaneyuka_実装指示書.md §5 を参照。
  *  - 固い: 許容耐力 P = 300·k₁·k₂/A × (t + t²/4) と k₁/k₂（H12建告1458）
  *          速度圧 q = 0.6·Er²·V₀²、Er の粗度別パラメータ（H12建告1454）
- *  - 目安: ピーク風力係数（正圧 0.8kz+0.5、負圧 一般部 1.0／隅角部 1.6）、
- *          縦樋の許容屋根面積表（SHASE-S206 原典で要確認）
+ *          帳壁のピーク風力係数(H12建告1458 表8〜11。2026-11-16 に告示の値へ直した)
+ *  - 目安: 縦樋の許容屋根面積表（SHASE-S206 原典で要確認）
  */
 
 export type GlassKind =
@@ -96,11 +96,11 @@ export const ROUGH_DESC: Record<Roughness, string> = {
   '4': 'IV（中高層市街地）',
 };
 
-/** k₂: 構成別係数。複層は当該板 t について計算する */
+/** k₂: 構成別係数。複層は当該板 t について 0.75(1+r³)、r = 対向ガラスの厚さ ÷ 当該ガラスの厚さ(2 を超えるときは 2。告示1458) */
 export function k2For(comp: GlassComp, t: number, tOther: number): number {
   if (comp === 'single') return 1.0;
   if (comp === 'laminated') return 0.75;
-  return 0.75 * (1 + Math.pow(tOther / t, 3));
+  return 0.75 * (1 + Math.pow(Math.min(2, tOther / t), 3));
 }
 
 /**
@@ -133,28 +133,46 @@ export type WindResult = {
   q: number;
   Er: number;
   kz: number;
+  /** 正圧部のガスト影響係数 Gpe(告示1458 表9) */
+  gpe: number;
   cPos: number;
   cNeg: number;
   /** 採用したピーク風力係数（不利側） */
   c: number;
 };
 
+/** 風圧の算定式の版(検討の記録の deps に残す。違えば要再確認) */
+export const WIND_VER = '告示1458';
+
+/** 帳壁の正圧部の Gpe(H12建告1458 表9):[Z ≦ 5m, Z ≧ 40m]。間は直線補間。粗度区分 IV は III の値 */
+const GPE: Record<'1' | '2' | '3', [number, number]> = { '1': [2.2, 1.9], '2': [2.6, 2.1], '3': [3.1, 2.3] };
+
+const lerp = (x: number, x0: number, x1: number, y0: number, y1: number) => (x <= x0 ? y0 : x >= x1 ? y1 : y0 + ((y1 - y0) * (x - x0)) / (x1 - x0));
+
 /**
- * 外装材用の簡易風圧力 W = q × Ĉf、q = 0.6·Er²·V₀²。
- * ピーク風力係数は閉鎖型建築物の壁面を前提にした参考値（目安）。
+ * 屋外に面する帳壁(ガラス)の設計風圧力 W = q × Ĉf(H12建告1458 第1)。閉鎖型の建築物の壁面。
+ *  q  = 0.6·Er²·V₀²。Er は告示1454 の式。粗度区分 IV は III の数値を使う(告示1458 第1)
+ *  正 Ĉf = Cpe·Gpe − Cpi。Cpe = 1.0(H ≦ 5m)/ (max(Z, 5)/H)^2α(表8)、Gpe は表9、Cpi = −0.5(表11)
+ *  負 Ĉf = 表10(一般部 −1.8・隅角部 −2.2(H ≦ 45m)〜 −2.4・−3.0(H ≧ 60m))− Cpi 0
+ *  隅角部 = 壁面の端から a'/10(a' は平面の短辺と 2H の小さい方)の範囲。
+ *  H は告示では「建築物の高さと軒の高さの平均」。ここでは建築物の高さで代用する(安全側)。
+ * 2026-11-16 まで、正圧 0.8kz+0.5・負圧 1.0/1.6 の置き値で計算していた(告示値の 1/2〜1/3 で危険側)。
  */
 export function estimateWind(input: WindInput): WindResult {
-  const [Zb, ZG, al] = ROUGH[input.rough] ?? ROUGH['3'];
+  const r = input.rough === '4' ? '3' : (input.rough ?? '3');
+  const [Zb, ZG, al] = ROUGH[r] ?? ROUGH['3'];
   const H = +input.H || 0;
   const v0 = +input.v0 || 0;
   const Z = +input.Z || 0;
-  const Er = H <= Zb ? 1.7 * Math.pow(Zb / ZG, al) : 1.7 * Math.pow(H / ZG, al);
+  const Er = 1.7 * Math.pow(Math.max(H, Zb) / ZG, al);
   const q = 0.6 * Er * Er * v0 * v0;
-  const kz = H <= Zb ? 1.0 : Math.pow(Math.max(Z, Zb) / H, 2 * al);
-  const cPos = 0.8 * kz + 0.5; // 正圧: 外圧 0.8kz − 内圧(−0.5)
-  const cNeg = input.part === 'corner' ? -1.6 : -1.0; // 負圧: 外圧 − 内圧 0
+  const kz = H <= 5 ? 1.0 : Math.pow(Math.max(Z, 5) / H, 2 * al);
+  const [g5, g40] = GPE[r as '1' | '2' | '3'] ?? GPE['3'];
+  const gpe = lerp(Z, 5, 40, g5, g40);
+  const cPos = kz * gpe + 0.5; // 正圧: Cpe·Gpe − 内圧(−0.5)
+  const cNeg = input.part === 'corner' ? -lerp(H, 45, 60, 2.2, 3.0) : -lerp(H, 45, 60, 1.8, 2.4); // 負圧: − 内圧 0
   const c = Math.max(cPos, Math.abs(cNeg));
-  return { W: q * c, q, Er, kz, cPos, cNeg, c };
+  return { W: q * c, q, Er, kz, gpe, cPos, cNeg, c };
 }
 
 /** 降雨強度 100mm/h における雨水立て管の許容最大屋根面積 [呼び径 mm, m²]（SHASE-S206。目安） */

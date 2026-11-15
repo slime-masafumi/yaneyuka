@@ -114,6 +114,8 @@ export type LoadIn = {
   roofDeg: number;
   snowStop: boolean;
   area: number;
+  /** 特定行政庁が指定する多雪区域(令86条第2項ただし書)。荷重の組合せが変わる(令82条第二号の表) */
+  heavySnow?: boolean;
 };
 
 export type LoadOut = {
@@ -126,6 +128,13 @@ export type LoadOut = {
   seismicUse: number;
   snow: number;
   mu: number;
+  /**
+   * 荷重の組合せ(令82条第二号の表)。P は大ばり・柱・基礎用の(ろ)、地震時は(は)。2026-11-16 監査で追加
+   * 旧版は「固定 + 積雪」だけを出し、積載 P を落としていた(屋上広場・バルコニーでは危険側)
+   */
+  snowLong: number | null; // 多雪区域の長期積雪時 G + P + 0.7S(一般の区域は null)
+  snowShort: number; // 短期積雪時 G + P + S
+  seismicSnow: number | null; // 多雪区域の地震時の鉛直分 G + P(は)+ 0.35S
 };
 
 export function calcLoad(v: LoadIn): LoadOut {
@@ -144,6 +153,9 @@ export function calcLoad(v: LoadIn): LoadOut {
     seismicUse: dl + live.seismic,
     snow,
     mu,
+    snowLong: v.heavySnow ? dl + live.frame + 0.7 * snow : null,
+    snowShort: dl + live.frame + snow,
+    seismicSnow: v.heavySnow ? dl + live.seismic + 0.35 * snow : null,
   };
 }
 

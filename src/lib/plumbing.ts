@@ -6,9 +6,14 @@
  * 排水: 器具排水負荷単位の合計 → 横枝管・立て管の管径(SHASE-S206-2019 の許容最大排水負荷単位)
  *   盛岡市上下水道局「排水設備の設計基準」(R4.4 改訂)表 3-1・表 3-2 で確認。伸頂通気方式・特殊継手には使えない
  * 排水横管の最小勾配: 65mm 以下 1/50・75〜100mm 1/100・125mm 1/150・150mm 以上 1/200
+ * 排水横主管: 勾配ごとの許容最大器具排水負荷単位(DRAIN_MAIN)。横枝管の表を横主管に使わない
  */
 
-export type SupplyFixture = { id: string; label: string; priv: number | null; pub: number | null; valve?: boolean };
+/**
+ * hot = 給湯栓も付く器具(給水・給湯を併用するときは 1 水栓あたり表の値の 3/4 にする対象)。
+ * 便器・水飲み器・散水栓は湯を使わないので 3/4 にしない。浴室一式は大便器を含むので対象外(安全側)
+ */
+export type SupplyFixture = { id: string; label: string; priv: number | null; pub: number | null; valve?: boolean; hot?: boolean };
 
 /** 器具給水負荷単位(私室用 / 公衆用)。null = 表に無い */
 export const SUPPLY: SupplyFixture[] = [
@@ -16,16 +21,16 @@ export const SUPPLY: SupplyFixture[] = [
   { id: 'wc-tank', label: '大便器(洗浄タンク)', priv: 3, pub: 5 },
   { id: 'ur-valve', label: '小便器(洗浄弁)', priv: null, pub: 5 },
   { id: 'ur-tank', label: '小便器(洗浄タンク)', priv: null, pub: 3 },
-  { id: 'lav', label: '洗面器', priv: 1, pub: 2 },
-  { id: 'hand', label: '手洗器', priv: 0.5, pub: 1 },
-  { id: 'med-lav', label: '医療用洗面器', priv: null, pub: 3 },
-  { id: 'office-sink', label: '事務室用流し', priv: null, pub: 3 },
-  { id: 'kitchen-sink', label: '台所流し', priv: 3, pub: null },
-  { id: 'cook-sink', label: '料理場流し', priv: 2, pub: 4 },
-  { id: 'dish-sink', label: '食器洗流し', priv: null, pub: 5 },
-  { id: 'mop-sink', label: '掃除用流し', priv: 3, pub: 4 },
-  { id: 'bathtub', label: '浴槽', priv: 2, pub: 4 },
-  { id: 'shower', label: 'シャワー', priv: 2, pub: 4 },
+  { id: 'lav', label: '洗面器', priv: 1, pub: 2, hot: true },
+  { id: 'hand', label: '手洗器', priv: 0.5, pub: 1, hot: true },
+  { id: 'med-lav', label: '医療用洗面器', priv: null, pub: 3, hot: true },
+  { id: 'office-sink', label: '事務室用流し', priv: null, pub: 3, hot: true },
+  { id: 'kitchen-sink', label: '台所流し', priv: 3, pub: null, hot: true },
+  { id: 'cook-sink', label: '料理場流し', priv: 2, pub: 4, hot: true },
+  { id: 'dish-sink', label: '食器洗流し', priv: null, pub: 5, hot: true },
+  { id: 'mop-sink', label: '掃除用流し', priv: 3, pub: 4, hot: true },
+  { id: 'bathtub', label: '浴槽', priv: 2, pub: 4, hot: true },
+  { id: 'shower', label: 'シャワー', priv: 2, pub: 4, hot: true },
   { id: 'bath-set-valve', label: '浴室一式(大便器が洗浄弁)', priv: 8, pub: null, valve: true },
   { id: 'bath-set-tank', label: '浴室一式(大便器が洗浄タンク)', priv: 6, pub: null },
   { id: 'drinking', label: '水飲み器', priv: 1, pub: 2 },
@@ -134,8 +139,33 @@ export const DRAIN_CAP: [number, number, number, number, number][] = [
   [150, 620, 960, 1900, 350],
   [200, 1400, 2200, 3600, 600],
   [250, 2500, 3800, 5600, 1000],
-  [300, 2900, 6000, 8400, 1500],
+  // 300mm の横枝管は 3,900(以前は 2,900 になっていた。2,900 は横主管の表の 250mm・1/100 の値。
+  // 鹿児島市「排水設備工事施行基準」2024.6 表 3-7(SHASE-S206)で確認 2026-11-15)
+  [300, 3900, 6000, 8400, 1500],
 ];
+
+/**
+ * 排水横主管(と敷地排水管)の許容最大器具排水負荷単位。[管径, 1/200, 1/100, 1/50, 1/25]、null = その勾配では使わない。
+ * SHASE-S206-2009(鹿児島市「排水設備工事施行基準」2024.6 表 3-8 で確認 2026-11-15)。横枝管の表とは別
+ */
+export const DRAIN_MAIN: [number, number | null, number | null, number | null, number | null][] = [
+  [50, null, null, 21, 26],
+  [65, null, null, 24, 31],
+  [75, null, 20, 27, 36],
+  [100, null, 180, 216, 250],
+  [125, null, 390, 480, 575],
+  [150, null, 700, 840, 1000],
+  [200, 1400, 1600, 1920, 2300],
+  [250, 2500, 2900, 3500, 4200],
+  [300, 3900, 4600, 5600, 6700],
+];
+export const MAIN_SLOPES = ['1/200', '1/100', '1/50', '1/25'] as const;
+
+/** 横主管の管径。slope = MAIN_SLOPES の位置(0 = 1/200 … 3 = 1/25) */
+export function drainMainSize(units: number, slope: 0 | 1 | 2 | 3): number | null {
+  if (!(units > 0)) return null;
+  return DRAIN_MAIN.find((r) => (r[slope + 1] ?? -1) >= units)?.[0] ?? null;
+}
 
 export const minSlope = (d: number) => (d <= 65 ? '1/50' : d <= 100 ? '1/100' : d <= 125 ? '1/150' : '1/200');
 

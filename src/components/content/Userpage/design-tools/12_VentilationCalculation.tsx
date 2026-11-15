@@ -41,11 +41,13 @@ const VentilationCalculation: React.FC<VentilationCalculationProps> = ({ default
   //   Q: 燃料消費量（発熱量）
   // ★修正前は V = N × Q と K を掛け忘れており、かつ N（40/30）を「K値」と表示していた。
   //   さらに換気フードⅠ型とⅡ型を区別せず両方 30 にしていた（Ⅱ型は 20）。
+  // 名称は告示どおり「排気フード」。Ⅰ型・Ⅱ型の別はフードの形状要件(告示)で決まるので、メーカーの適合表示で確かめる。
+  // 整流板の有無で決まるわけではない。密閉式燃焼器具だけの室は令20条の3第1項第1号で換気設備が要らない(N=2 は煙突の場合)
   const EXHAUST_TYPES = [
-    { n: 40, label: 'フードなし', note: '排気口・排気筒（換気扇等）' },
-    { n: 30, label: '換気フードⅠ型', note: '一般的なレンジフード' },
-    { n: 20, label: '換気フードⅡ型', note: '整流板付など捕集効率の高いもの' },
-    { n: 2, label: '煙突', note: '密閉式・煙突排気' },
+    { n: 40, label: 'フードなし', note: '排気口・フードの無い排気筒に換気扇等' },
+    { n: 30, label: '排気フードⅠ型', note: '告示のⅠ型の形状を満たすフード' },
+    { n: 20, label: '排気フードⅡ型', note: '告示のⅡ型の形状を満たすフード(適合表示で確認)' },
+    { n: 2, label: '煙突', note: '煙突に換気扇等(半密閉式の器具など)' },
   ] as const;
 
   const FUEL_TYPES = [
@@ -61,6 +63,12 @@ const VentilationCalculation: React.FC<VentilationCalculationProps> = ({ default
   // 居室（人数）用
   const [people, setPeople] = useState<number | ''>('');
   const [perPersonAir, setPerPersonAir] = useState<number>(30);
+  // 令20条の2第1号ロ: V = 20Af/N(Af 居室の床面積、N 1 人当たりの占有面積。特殊建築物の居室は 3、その他は 10 が上限)
+  const [occArea, setOccArea] = useState<number | ''>('');
+  const [occWindow, setOccWindow] = useState<number | ''>(''); // 換気上有効な窓等の面積(特殊建築物の居室以外だけ差し引く)
+  const [special, setSpecial] = useState(false);
+  const [legalV, setLegalV] = useState<number | null>(null);
+  const [practicalV, setPracticalV] = useState<number>(0);
 
   // 計算結果
   const [resultVal, setResultVal] = useState<number>(0);
@@ -96,17 +104,31 @@ const VentilationCalculation: React.FC<VentilationCalculationProps> = ({ default
       sub = `V = N×K×Q = ${hoodType} × ${fuel.k} × ${q}（${typeLabel} / ${fuel.label}）`;
     }
     else if (activeTab === 'occupancy') {
-      // 居室計算
+      // 居室計算: 実務値(人数 × 1 人当たり)と、法定の必要有効換気量 V = 20Af/N の大きい方
       const p = Number(people) || 0;
-      res = p * perPersonAir;
-      sub = `基準: ${perPersonAir} ㎥/h/人`;
+      const practical = p * perPersonAir;
+      const af0 = Number(occArea) || 0;
+      let legal: number | null = null;
+      if (af0 > 0 && p > 0) {
+        const capN = special ? 3 : 10;
+        const N = Math.min(af0 / p, capN);
+        const af = special ? af0 : Math.max(0, af0 - 20 * (Number(occWindow) || 0));
+        legal = (20 * af) / N;
+      }
+      res = Math.max(practical, legal ?? 0);
+      sub =
+        legal === null
+          ? `${p} 人 × ${perPersonAir} ㎥/h(床面積を入れると令20条の2の法定値と比べます)`
+          : `${legal >= practical ? '法定値 V=20Af/N' : `実務値 ${perPersonAir} ㎥/h/人`} で決まる`;
+      setLegalV(legal);
+      setPracticalV(practical);
     }
 
     setResultVal(parseFloat(res.toFixed(1)));
     setReqInletArea(parseFloat(inlet.toFixed(1)));
     setSubResult(sub);
 
-  }, [activeTab, areaM2, height, ach, gasKw, hoodType, fuelIndex, people, perPersonAir]);
+  }, [activeTab, areaM2, height, ach, gasKw, hoodType, fuelIndex, people, perPersonAir, occArea, occWindow, special]);
 
 
 
@@ -154,7 +176,9 @@ const VentilationCalculation: React.FC<VentilationCalculationProps> = ({ default
       const fuel = FUEL_TYPES[fuelIndex] ?? FUEL_TYPES[0];
       text += `■火気使用室(キッチン)  V = N×K×Q（告示1826号）\n燃料: ${fuel.label} (K=${fuel.k})\n燃料消費量 Q: ${gasKw}${fuel.unit}\n排気設備: ${hoodName} (N=${hoodType})\n----------------\n必要換気量: ${resultVal} ㎥/h`;
     } else {
-      text += `■居室人数計算\n収容人数: ${people}人\n設定基準: ${perPersonAir}㎥/h/人\n----------------\n必要換気量: ${resultVal} ㎥/h`;
+      text += `■居室人数計算\n収容人数: ${people}人\n設定基準: ${perPersonAir}㎥/h/人 → ${practicalV.toFixed(1)} ㎥/h\n`;
+      if (legalV !== null) text += `床面積: ${occArea}㎡${special ? '(特殊建築物の居室)' : occWindow ? ` 換気上有効な開口 ${occWindow}㎡` : ''}\n法定 V=20Af/N(令20条の2): ${legalV.toFixed(1)} ㎥/h\n`;
+      text += `----------------\n必要換気量: ${resultVal} ㎥/h`;
     }
 
     
@@ -290,15 +314,30 @@ const VentilationCalculation: React.FC<VentilationCalculationProps> = ({ default
                   onChange={(e) => setHeight(parseFloat(e.target.value))} 
                   className="flex-1 h-2 bg-gray-200 rounded-lg cursor-pointer accent-blue-600" 
                 />
-                <input 
-                  type="number" 
-                  value={height} 
-                  onChange={(e) => setHeight(parseFloat(e.target.value))} 
-                  className="w-16 px-2 py-1.5 border border-gray-300 rounded text-right font-mono text-[12px]" 
-                  step="0.1" 
+                <input
+                  type="number"
+                  value={height}
+                  onChange={(e) => setHeight(e.target.value === '' ? '' : parseFloat(e.target.value))}
+                  className="w-16 px-2 py-1.5 border border-gray-300 rounded text-right font-mono text-[12px]"
+                  step="0.1"
                 />
                 <span className="text-[11px] text-gray-500 whitespace-nowrap">m</span>
               </div>
+            </div>
+
+            {/* 換気回数(令20条の8: 住宅等の居室 0.5、その他の居室 0.3。0.7 は令20条の7 の表で内装の制限を緩めるとき) */}
+            <div>
+              <label className="block text-xs font-bold text-gray-500 mb-1">換気回数 n(回/h)</label>
+              <select
+                value={ach}
+                onChange={(e) => setAch(Number(e.target.value))}
+                className="w-full px-2 py-1.5 border border-gray-300 rounded bg-white text-[12px]"
+              >
+                <option value={0.5}>0.5 — 住宅等の居室(住宅・共同住宅・寄宿舎など)</option>
+                <option value={0.3}>0.3 — 住宅等以外の居室(事務所・店舗・学校など)</option>
+                <option value={0.7}>0.7 — 令20条の7 の表で「0.7 回/h 以上」として内装の建材面積を出す場合</option>
+              </select>
+              <p className="text-[10px] text-gray-400 mt-1">※ 令20条の8 の必要有効換気量 Vr = n × A × h。1 台の換気設備が複数の居室を受け持つときは各室の合計以上(同条第1号イ(2))。廊下など居室と一体で換気する部分の扱いは告示・審査機関の運用で確認してください。</p>
             </div>
           </div>
         )}
@@ -332,7 +371,7 @@ const VentilationCalculation: React.FC<VentilationCalculationProps> = ({ default
                 placeholder="例: 10.5"
                 step="0.1"
               />
-              <p className="text-[10px] text-gray-400 mt-1">※3口コンロで約9~10kW程度</p>
+              <p className="text-[10px] text-gray-400 mt-1">※ 同じ室にある火を使う器具(密閉式を除く)のガス消費量 kW を銘板・カタログで合計。家庭用 3 口コンロ+グリルで 10kW 前後が多い</p>
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 mb-2">排気設備の種類（定数 N）</label>
@@ -347,6 +386,11 @@ const VentilationCalculation: React.FC<VentilationCalculationProps> = ({ default
                   </button>
                 ))}
               </div>
+            </div>
+            <div className="text-[10px] text-gray-500 leading-relaxed space-y-1">
+              <p>※ 換気設備が要らない室(令20条の3第1項): ① 密閉式燃焼器具等だけの室 ② 床面積 100㎡ 以内の住宅・住戸の調理室で、発熱量の合計 12kW 以下、かつ調理室の床面積の 1/10(0.8㎡ 未満なら 0.8㎡)以上の有効開口面積の窓等があるもの ③ 発熱量の合計 6kW 以下で換気上有効な開口部がある室(調理室を除く)。</p>
+              <p>※ 給気口は天井高の 1/2 以下(換気扇等・煙突を設けるときは適当な位置)、排気口は天井か天井から 80cm 以内(令20条の3第2項第1号イ)。12kW を超える器具や風呂釜には煙突が要ります(同(5))。</p>
+              <p>※ 業務用厨房は火災予防条例のフード・ダクトの基準(排気量・板厚・グリスフィルター)も確認してください。</p>
             </div>
           </div>
         )}
@@ -365,17 +409,47 @@ const VentilationCalculation: React.FC<VentilationCalculationProps> = ({ default
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1">1人あたりの必要換気量</label>
-              <select 
-                value={perPersonAir} 
-                onChange={(e) => setPerPersonAir(Number(e.target.value))} 
+              <label className="block text-xs font-bold text-gray-500 mb-1">1人あたりの必要換気量(実務値)</label>
+              <select
+                value={perPersonAir}
+                onChange={(e) => setPerPersonAir(Number(e.target.value))}
                 className="w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-green-500 outline-none bg-white text-[12px]"
               >
-                <option value={20}>20 ㎥/h (建築基準法 事務所等)</option>
-                <option value={25}>25 ㎥/h (ゆとり設定)</option>
-                <option value={30}>30 ㎥/h (推奨・成人男性静座)</option>
+                <option value={20}>20 ㎥/h(令20条の2 の式の係数と同じ値)</option>
+                <option value={25}>25 ㎥/h(設計者が決める中間値)</option>
+                <option value={30}>30 ㎥/h(CO₂ 1000ppm 以下を保つ実務の目安)</option>
               </select>
             </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs font-bold text-gray-500 mb-1">居室の床面積 Af(㎡)</label>
+                <input
+                  type="number"
+                  value={occArea}
+                  onChange={(e) => setOccArea(e.target.value === '' ? '' : parseFloat(e.target.value))}
+                  className="w-full px-2 py-1.5 border border-gray-300 rounded outline-none text-right font-mono text-[12px]"
+                  placeholder="法定値を出すとき"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 mb-1">換気上有効な窓等(㎡)</label>
+                <input
+                  type="number"
+                  value={occWindow}
+                  disabled={special}
+                  onChange={(e) => setOccWindow(e.target.value === '' ? '' : parseFloat(e.target.value))}
+                  className="w-full px-2 py-1.5 border border-gray-300 rounded outline-none text-right font-mono text-[12px] disabled:bg-gray-100"
+                  placeholder="0"
+                />
+              </div>
+            </div>
+            <label className="flex items-center gap-2 text-[11px]">
+              <input type="checkbox" checked={special} onChange={(e) => setSpecial(e.target.checked)} />
+              特殊建築物の居室(劇場・映画館・集会場など。法28条3項)
+            </label>
+            <p className="text-[10px] text-gray-400 leading-relaxed">
+              ※ 令20条の2第1号ロ: V = 20 × Af ÷ N。N は 1 人当たりの占有面積(床面積 ÷ 人数)で、特殊建築物の居室は 3㎡、その他は 10㎡ を上限とします。特殊建築物の居室以外は、換気上有効な窓等の面積 × 20 を床面積から差し引きます。
+            </p>
           </div>
         )}
 
@@ -391,8 +465,20 @@ const VentilationCalculation: React.FC<VentilationCalculationProps> = ({ default
                 <ResultRow k="100φ(約35c㎡)" v={`× ${Math.ceil(reqInletArea / 35)} 個`} />
               </>
             )}
-            <ResultRow k="100φパイプファン(約50㎥/h)" v={`${Math.ceil(resultVal / 50)} 台`} />
-            <ResultRow k="150φシロッコ(約300㎥/h)" v={`${(resultVal / 300).toFixed(1)} 台分`} />
+            {activeTab === 'occupancy' && (
+              <>
+                <ResultRow k={`実務値(人数 × ${perPersonAir})`} v={`${practicalV.toFixed(1)} ㎥/h`} />
+                <ResultRow k="法定 V=20Af/N(令20条の2)" v={legalV === null ? '床面積と人数を入れると出ます' : `${legalV.toFixed(1)} ㎥/h`} />
+              </>
+            )}
+            {activeTab === 'fire' ? (
+              <ResultRow k="選ぶ換気扇・レンジフード" v="この風量以上(ダクト・フードの静圧を見込んだ風量で)" />
+            ) : (
+              <>
+                <ResultRow k="100φパイプファン(約50㎥/h)" v={`${Math.ceil(resultVal / 50)} 台`} />
+                <ResultRow k="150φシロッコ(約300㎥/h)" v={`${(resultVal / 300).toFixed(1)} 台分`} />
+              </>
+            )}
           </ResultPanel>
           <button type="button" onClick={copyResult} disabled={resultVal === 0} className="yy-btn">
             <CopyIcon /> {copyFeedback ? 'コピーしました' : '結果をコピー'}
@@ -407,7 +493,7 @@ const VentilationCalculation: React.FC<VentilationCalculationProps> = ({ default
               ※給気口は「必要換気量×2.0」による概算です。法令・規格に基づく値ではありません。実際は給気口の有効開口率と設計圧力差からメーカー資料で確認してください。
             </p>
           )}
-          <p className="yy-dt-note">※換気扇の台数は選定の目安です。</p>
+          <p className="yy-dt-note">※換気扇の台数は選定の目安です。換気扇の風量は、ダクト・外部フード・給気口の圧力損失を見込んだ静圧での値(カタログの風量—静圧曲線)で確かめてください。</p>
         </aside>
       </div>
       </div>

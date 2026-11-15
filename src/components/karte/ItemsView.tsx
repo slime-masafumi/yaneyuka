@@ -57,7 +57,7 @@ export default function ItemsView({ cat, project, studies, checks, recs, onOpen,
           const notes = [
             rec.res && `判定 ${rec.res.summary}`,
             rec.memo?.trim() && 'メモあり',
-            CALCS[key] && !rec.res && 'その場で判定できます',
+            CALCS[key] && !rec.res && (CALCS[key].fields.length ? '値を入れるとその場で判定' : '物件条件から判定(開いて記録)'),
           ].filter(Boolean);
           return (
             <li key={key} className={`is-${st}${isOpen ? ' is-open' : ''}`}>
@@ -93,8 +93,9 @@ export default function ItemsView({ cat, project, studies, checks, recs, onOpen,
         })}
       </ol>
       <p className="yy-kt-note">
-        * 項目を押すと、確かめること・必要な値・根拠・関係する記事が出ます。建蔽率・採光・階段・歩行距離・照度・電圧降下などはその場で判定して記録でき、メモも残せます。
-        計算ツールのある項目（ガラス厚・縦樋・内装）は、ツールで計算してカルテに残すと済になります。
+        * 項目を押すと、確かめること・必要な値・根拠・関係する記事が出ます。接道・建蔽率・採光・階段・歩行距離・照度・電圧降下などはその場で判定して記録でき、メモも残せます。
+        防火地域の構造制限・確認申請の区分・構造計算ルートなどは物件条件から判定するので、条件を保存してから開いてください。記録した後に条件が変わると「要確認」に戻ります。
+        計算ツールのある項目（ガラス厚・縦樋・内装）は、ツールで計算してカルテに残すと済になります。判定のない項目は、確かめたら「確かめた(済にする)」に印を付けます。
       </p>
     </section>
   );

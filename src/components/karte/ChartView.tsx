@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import ProjectForm from './ProjectForm';
 import { KV, SecHead } from '@/components/ui/Sheet';
 import { depShow, staleOf, stamp, type Study } from '@/lib/karte/engine';
@@ -19,8 +19,6 @@ type Props = {
  * 記録は「番号 / 検討名 / 結果（明朝）/ 日時」の 1 行と、その下に入力値を「項目 ……… 値」で。
  */
 export default function ChartView({ project, studies, onSaveProject, onReopen, onDelete }: Props) {
-  const [shareNote, setShareNote] = useState(false);
-
   return (
     <>
       <ProjectForm key={project.id} project={project} onSave={onSaveProject} />
@@ -88,19 +86,9 @@ export default function ChartView({ project, studies, onSaveProject, onReopen, o
                 );
               })}
             </ol>
-            <div className="yy-kt-acts">
-              <button type="button" className="yy-btn" onClick={() => setShareNote(true)}>
-                共有リンクを作る
-              </button>
-              <button type="button" className="yy-btn" onClick={() => window.print()}>
-                印刷・PDFで出す
-              </button>
-              {shareNote && (
-                <span className="yy-kt-note" style={{ marginTop: 0 }}>
-                  共有リンク（施主・工務店・審査機関に読み取り専用で渡す限定URL）は準備中です。いまは「印刷・PDF」でお渡しください。
-                </span>
-              )}
-            </div>
+            {/* 2026-11-16 まで「共有リンクを作る」があったが、押すと「準備中」と出るだけの行き止まりだったので外した。
+                渡すときは案件の帯の「確認書 PDF / Excel」を使う */}
+            <p className="yy-kt-note">相手に渡すときは、上の案件の帯の「確認書 PDF」「確認書 Excel」で全項目の状態・判定・メモと一緒に出せます。</p>
           </>
         )}
       </section>

@@ -223,7 +223,11 @@ const UnitVolumeCalculation: React.FC<UnitVolumeCalculationProps> = ({ defaultTa
                 >
                   <ResultRow k="体積" v={`${weightResult.volume.toFixed(4)} m³`} />
                   <ResultRow k="面積 (WxD)" v={`${weightResult.area.toFixed(2)} m²`} />
-                  <ResultRow k="単位重量" v={`${weightResult.unitWeight} t/m³`} />
+                  <ResultRow k="密度" v={`${weightResult.unitWeight} t/m³`} />
+                  {/* 荷重計算では重さを力で使うので、重力加速度 9.80665 m/s² で kN に直して並べる */}
+                  <ResultRow k="単位体積重量" v={`${(weightResult.unitWeight * 9.80665).toFixed(1)} kN/m³`} />
+                  <ResultRow k="重量(力)" v={`${(weightResult.weightTon * 9.80665).toFixed(2)} kN`} />
+                  <ResultRow k="面積あたり(固定荷重)" v={`${(weightResult.area > 0 ? (weightResult.weightTon * 9.80665 * 1000) / weightResult.area : 0).toFixed(0)} N/m²`} />
                 </DtResult>
               ) : (
                 <div className="yy-dt-soon">
@@ -261,6 +265,7 @@ const UnitVolumeCalculation: React.FC<UnitVolumeCalculationProps> = ({ defaultTa
 
             <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-[10px] text-yellow-800 leading-relaxed">
               <strong>※注意:</strong> 本ツールの数値は一般的な目安（気乾比重など）です。含水率、配合、産地により実際の重量は変動します。<br/>
+              数値は密度(t/m³)です。荷重に使う単位体積重量(kN/m³)は約 9.8 倍(例: 鉄筋コンクリート 2.45 t/m³ ≒ 24 kN/m³)。<br/>
               構造計算や積載制限の確認には、必ずミルシートや公的資料の数値を参照してください。
             </div>
           </div>
