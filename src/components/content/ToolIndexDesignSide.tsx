@@ -109,7 +109,7 @@ export function DesignIndexSide({ onOpen }: { onOpen: (sub: string) => void }) {
   if (mode === 'case' && currentCase) {
     return (
       <aside className="yy-tix__side">
-        <div className="yy-gray">
+        <div className="yy-gray yy-gray--case">
           <span className="yy-label">case — 案件</span>
           <span className="yy-gray__title">{currentCase.name}</span>
           {currentCase.sub && <span className="yy-gray__text">{currentCase.sub}</span>}
@@ -191,7 +191,7 @@ export function DesignIndexSide({ onOpen }: { onOpen: (sub: string) => void }) {
           ))}
         </ol>
       </section>
-      <div className="yy-gray">
+      <div className="yy-gray yy-gray--case">
         <span className="yy-label">case — 案件を選ぶと</span>
         <span className="yy-gray__text">要るツールだけに絞り、カルテの項目と 済 · 未着手 · 対象外 が並ぶ</span>
         {cases.length ? (

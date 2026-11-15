@@ -191,7 +191,7 @@ export default function KarteApp() {
       <KarteGuide />
 
       {/* ══ 案件の帯（灰色） ══ */}
-      <div className="yy-gray yy-kt-case">
+      <div className="yy-gray yy-gray--case yy-kt-case">
         <span className="yy-label">case — 案件</span>
         <select className="yy-kt-case__name" aria-label="物件" value={db.current} onChange={(e) => selectProject(e.target.value)}>
           {db.projects.map((p) => (

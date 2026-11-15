@@ -165,7 +165,7 @@ export function MaterialSide({ category, subcategory }: { category: string; subc
   const label = subcategoryLabel(subcategory);
   return (
     <aside className="yy-matpage__side">
-      <div className="yy-gray">
+      <div className="yy-gray yy-gray--case">
         <span className="yy-label">case — 案件で使う</span>
         {proj === undefined ? null : proj ? (
           <>

@@ -228,7 +228,7 @@ export default function GlassThicknessTool({ middle }: Props) {
           />
         )}
       </div>
-      <div className="yy-gray">
+      <div className="yy-gray yy-gray--case">
         <span className="yy-label">case — 物件カルテ</span>
         <span className="yy-gray__text">物件の風速・粗度・高さを一度入れると、以後の検討で再入力が不要になります。</span>
         <Link className="yy-pill" href={karteHref}>

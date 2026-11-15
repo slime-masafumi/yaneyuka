@@ -186,7 +186,7 @@ export function CaseSave({ tool, result, ok }: { tool: string; result: string; o
   }, [tool, result]);
   if (!cases.length) {
     return (
-      <div className="yy-gray">
+      <div className="yy-gray yy-gray--case">
         <span className="yy-label">case — 保存先の案件</span>
         <span className="yy-gray__text">物件カルテで案件を作ると、この結果を案件に控えておけます</span>
         <a className="yy-pill" href="/karte/">物件カルテを開く</a>
@@ -194,7 +194,7 @@ export function CaseSave({ tool, result, ok }: { tool: string; result: string; o
     );
   }
   return (
-    <div className="yy-gray">
+    <div className="yy-gray yy-gray--case">
       <span className="yy-label">case — 保存先の案件</span>
       <div className="yy-casepick">
         {cases.map((c) => {

@@ -279,3 +279,18 @@ a.yy-di-entry__main { text-decoration: none; }
 /* 以前の 3 段配置の grid-area が新しい 2 段配置に当たらないように */
 .yy-di-read > .yy-di-article, .yy-di-read > .yy-info-side, .yy-di-home > .yy-info-side { grid-area: auto; }
 .yy-di-read > .yy-di-article { justify-self: stretch; width: auto; }
+
+/* ── 題と本文の見分け(2026-11-15)──────────────────────────
+   目録・記事・早見表で、題が本文と同じ太さ・同じ明朝で並んでいて見分けにくかった。
+   題と見出しはゴシックの太字(700)、本文は細いまま、書き出しは灰色で一段下げる。番号は差し色 */
+.yy-di-entry__main { padding: 12px 0; }
+.yy-di-entry__t { font-family: inherit; font-size: 15px; font-weight: 700; line-height: 1.5; letter-spacing: 0; color: var(--yy-ink); }
+.yy-di-entry__lead { font-size: 12px; font-weight: 400; color: var(--yy-t3); }
+.yy-di-entry__no { color: var(--yy-acc-ink); }
+.yy-di-title { font-family: inherit; font-size: 22px; font-weight: 700; line-height: 1.5; letter-spacing: -0.01em; }
+.yy-di-ch { font-family: inherit; font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
+.yy-di-chno { color: var(--yy-acc-ink); font-weight: 700; }
+.yy-di-sub { font-family: inherit; font-size: 15px; font-weight: 700; }
+.yy-mi .yy-mi-ch { font-family: inherit; font-size: 16px; font-weight: 700; }
+.yy-mi .yy-mi-ch::before { color: var(--yy-acc-ink); font-weight: 700; }
+.yy-di-tbl th { font-weight: 700; }

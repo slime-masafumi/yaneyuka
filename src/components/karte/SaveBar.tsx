@@ -24,7 +24,7 @@ export default function SaveBar({ id, memo, onMemo, placeholder, onSave, caseNam
     window.setTimeout(() => setSaved(false), 2200);
   };
   return (
-    <div className="yy-gray yy-kt-save">
+    <div className="yy-gray yy-gray--case yy-kt-save">
       <span className="yy-label">case — 保存先の案件</span>
       {caseName && <span className="yy-gray__title">{caseName}</span>}
       <label htmlFor={id} className="yy-gray__text">

@@ -122,7 +122,7 @@ export default function CalcIndexPage() {
           </section>
         </div>
         <aside className="yy-kt-side">
-          <div className="yy-gray">
+          <div className="yy-gray yy-gray--case">
             <span className="yy-label">case — 物件カルテ</span>
             <span className="yy-gray__text">物件の条件を一度入れると、以後の検討で再入力が不要。根拠つきの記録が貯まり、条件が変わると要再確認が付きます。</span>
             <Link className="yy-pill" href="/karte/">物件カルテを開く</Link>
