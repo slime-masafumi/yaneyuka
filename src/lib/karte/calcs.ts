@@ -6,7 +6,8 @@
  * 判定は法令の「一般的な場合」だけを見る。特定行政庁の指定・条例・告示の緩和は判定の外で、
  * 画面の注記(note)に書く。
  */
-import { ZONES, type Project } from './masters';
+import { type Project } from './masters';
+import { isIndustrialZone, isResidentialZone, partsOf, weightedLimits, type FireRating } from './site';
 
 export type Field =
   | { k: string; label: string; kind: 'num'; unit?: string; step?: number; def?: (p: Project) => string; hint?: string }
@@ -36,9 +37,9 @@ const f2 = (x: number) => (Number.isFinite(x) ? x.toFixed(2) : '—');
 const left = (x: number) => (x < 0 ? `${f1(-x)} m² 超過` : `${f1(x)} m²`);
 const pct = (x: number) => `${f1(x * 100)} %`;
 
-/** 住居系の用途地域(ZONES の先頭 7 つ。法 52 条 2 項の 0.4、令 20 条の 6・1.4 の側) */
-const isResidential = (zone: string) => ZONES.indexOf(zone) >= 0 && ZONES.indexOf(zone) <= 6;
-const isIndustrial = (zone: string) => ['準工業地域', '工業地域', '工業専用地域'].includes(zone);
+/** 住居系の用途地域(法 52 条 2 項の 0.4、令 20 条の 6・1.4 の側)。田園住居地域を含む(2026-11-15 まで ZONES の並び順で判定していた) */
+const isResidential = isResidentialZone;
+const isIndustrial = isIndustrialZone;
 
 /** 初期値:物件の条件から引ける値だけ */
 export function defaults(spec: CalcSpec, p: Project): Vals {
@@ -51,11 +52,11 @@ export function defaults(spec: CalcSpec, p: Project): Vals {
 const coverage: CalcSpec = {
   title: '建蔽率・容積率の判定',
   fields: [
-    { k: 'site', label: '敷地面積', kind: 'num', unit: 'm²', step: 0.01 },
+    { k: 'site', label: '敷地面積', kind: 'num', unit: 'm²', step: 0.01, def: (p) => { const a = partsOf(p).reduce((s, x) => s + (x.area > 0 ? x.area : 0), 0); return a > 0 ? String(a) : ''; } },
     { k: 'bldg', label: '建築面積', kind: 'num', unit: 'm²', step: 0.01 },
     { k: 'floor', label: '容積対象の延べ面積', kind: 'num', unit: 'm²', step: 0.01, def: (p) => (p.area ? String(p.area) : ''), hint: '駐車場・備蓄倉庫・共同住宅の共用廊下などの不算入分を除いた面積' },
-    { k: 'bc', label: '指定建蔽率', kind: 'num', unit: '%', step: 10 },
-    { k: 'far', label: '指定容積率', kind: 'num', unit: '%', step: 10 },
+    { k: 'bc', label: '指定建蔽率', kind: 'num', unit: '%', step: 10, def: (p) => { const x = partsOf(p); return x.length === 1 && x[0].bc > 0 ? String(x[0].bc) : ''; }, hint: '敷地が 2 以上の地域にわたるときは、物件条件の地域ごとの値を使う' },
+    { k: 'far', label: '指定容積率', kind: 'num', unit: '%', step: 10, def: (p) => { const x = partsOf(p); return x.length === 1 && x[0].far > 0 ? String(x[0].far) : ''; } },
     { k: 'road', label: '前面道路の幅員(最大のもの)', kind: 'num', unit: 'm', step: 0.1 },
     { k: 'corner', label: '角地の緩和(特定行政庁の指定)', kind: 'bool' },
     {
@@ -70,8 +71,11 @@ const coverage: CalcSpec = {
     },
   ],
   note:
-    '前面道路が 12m 未満のときは、幅員 × 0.4(住居系)/ 0.6(その他)と指定容積率の小さい方。特定行政庁が別の係数を定めた区域、特定道路による緩和(法 52 条 9 項)、地区計画は判定の外です。',
+    '前面道路が 12m 未満のときは、幅員 × 0.4(住居系)/ 0.6(その他)と指定容積率の小さい方。特定行政庁が別の係数を定めた区域、特定道路による緩和(法 52 条 9 項)、地区計画は判定の外です。敷地が 2 以上の用途地域・防火指定にわたるときは、物件条件の「敷地の地域」に部分ごとの面積と指定値を入れると、部分ごとの限度(緩和を含む)を面積で加重平均します(法 52 条 7 項・53 条 2 項・7 項・8 項)。',
   run(v, p) {
+    // 敷地が 2 以上の地域にわたる(物件条件に面積と指定建蔽率を入れた部分が 2 つ以上)→ 面積で加重平均
+    const multi = partsOf(p).filter((x) => x.area > 0 && x.bc > 0);
+    if (multi.length >= 2) return coverageMulti(v, multi);
     const site = n(v, 'site');
     const bldg = n(v, 'bldg');
     const floor = n(v, 'floor');
@@ -135,6 +139,46 @@ const coverage: CalcSpec = {
     };
   },
 };
+
+/** 敷地が 2 以上の用途地域・防火指定にわたるとき(法 52 条 7 項・53 条 2 項・7 項・8 項) */
+function coverageMulti(v: Vals, parts: ReturnType<typeof partsOf>): CalcOut | null {
+  const bldg = n(v, 'bldg');
+  const floor = n(v, 'floor');
+  if (!(bldg >= 0)) return null;
+  const road = n(v, 'road');
+  const fr = (v.fr || 'none') as FireRating;
+  const w = weightedLimits(parts, { road: road > 0 ? road : 0, fr, corner: on(v, 'corner') });
+  const lines: CalcLine[] = [];
+  for (const r of w.rows) {
+    lines.push({
+      k: `${r.part.zone}・${r.part.fire}`,
+      v: `${f1(r.part.area)} m²(${pct(r.part.area / w.site)})· 建蔽率 ${r.bcLimit >= 100 ? '制限なし' : `${f1(r.bcLimit)} %`}${r.bcNote ? `(${r.bcNote})` : ''} · 容積率 ${r.farLimit > 0 ? `${f1(r.farLimit)} %(${r.farNote})` : '未入力'}`,
+    });
+  }
+  if (w.deemed) lines.push({ k: '防火のみなし', v: `敷地の全部を${w.deemed}とみなして緩和を適用(法 53 条 ${w.deemed === '防火地域' ? 7 : 8} 項)` });
+  const bcNow = (bldg / w.site) * 100;
+  const bcNg = bcNow > w.bc + 1e-9;
+  lines.push({ k: '建蔽率', v: `${f1(bcNow)} %(建築面積 ${f1(bldg)} ÷ 敷地 ${f1(w.site)})` });
+  lines.push({ k: '建蔽率の上限(加重平均)', v: `${f1(w.bc)} %`, ng: bcNg });
+  let farNg = false;
+  const hasFar = w.rows.every((r) => r.farLimit > 0);
+  if (hasFar && floor >= 0) {
+    const farNow = (floor / w.site) * 100;
+    farNg = farNow > w.far + 1e-9;
+    lines.push({ k: '容積率', v: `${f1(farNow)} %(延べ ${f1(floor)} ÷ 敷地 ${f1(w.site)})` });
+    lines.push({ k: '容積率の上限(加重平均)', v: `${f1(w.far)} %`, ng: farNg });
+    lines.push({ k: '残りの延べ面積', v: left((w.far / 100) * w.site - floor) });
+  } else {
+    lines.push({ k: '容積率', v: '物件条件の地域ごとに指定容積率を入れると判定します' });
+  }
+  lines.push({ k: '残りの建築面積', v: left((w.bc / 100) * w.site - bldg) });
+  const ng = bcNg || farNg;
+  return {
+    verdict: ng ? 'ng' : 'ok',
+    summary: `${ng ? `超過(${[bcNg && '建蔽率', farNg && '容積率'].filter(Boolean).join('・')})` : '適合'} · ${parts.length} 地域の加重平均`,
+    lines,
+  };
+}
 
 /* ───────── 採光・換気(法 28 条・令 19 条・20 条) ───────── */
 const daylight: CalcSpec = {

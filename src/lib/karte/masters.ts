@@ -6,6 +6,7 @@
  * 数値の確度は 共有/カルテ機能/yaneyuka_実装指示書.md §5 を参照。
  * 機器の代表値・質量・脚数、業種別原単位は「目安」。実施設計では機器表で上書きする。
  */
+import type { SitePart } from './site';
 import type { Roughness } from './glass';
 
 /* ══════ 物件 ══════ */
@@ -18,8 +19,12 @@ export type Project = {
   id: string;
   name: string;
   addr: string;
+  /** 用途の制限に使う用途地域(敷地が 2 以上にわたるときは過半の地域。法 91 条)。parts から決まる */
   zone: string;
+  /** 建築物に適用する防火の指定(建築物が 2 以上にわたるときは厳しい方。法 65 条)。parts から決まる */
   fire: string;
+  /** 敷地の部分ごとの用途地域・防火指定・面積・指定建蔽率・指定容積率(2026-11-15。無い物件は zone / fire の 1 区画) */
+  parts?: SitePart[];
   /** 建築物の高さ m */
   H: number;
   /** 基準風速 m/s */
@@ -54,6 +59,7 @@ export type Project = {
 export const ZONES = [
   '第一種低層住居専用地域',
   '第二種低層住居専用地域',
+  '田園住居地域',
   '第一種中高層住居専用地域',
   '第二種中高層住居専用地域',
   '第一種住居地域',
@@ -64,6 +70,7 @@ export const ZONES = [
   '準工業地域',
   '工業地域',
   '工業専用地域',
+  '用途地域の指定のない区域',
 ];
 export const FIRE_ZONES = ['指定なし', '法22条区域', '準防火地域', '防火地域'];
 export const USE_LABEL: Record<UseType, string> = {

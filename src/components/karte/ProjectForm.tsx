@@ -18,16 +18,27 @@ import {
   type StructureType,
   type UseType,
 } from '@/lib/karte/masters';
+import { effectiveFire, heightNotes, majorityZone, partsOf, siteAreaOf, type SitePart } from '@/lib/karte/site';
+import { ZONE_GUIDES } from '@/lib/zoneGuide';
 
 type Props = {
   project: Project;
   onSave: (p: Project) => void;
 };
 
-type Form = { [K in keyof Project]: string };
+type Form = { [K in Exclude<keyof Project, 'parts'>]: string };
 
 const toForm = (p: Project): Form =>
-  Object.fromEntries(Object.entries(p).map(([k, v]) => [k, String(v ?? '')])) as Form;
+  Object.fromEntries(Object.entries(p).filter(([k]) => k !== 'parts').map(([k, v]) => [k, String(v ?? '')])) as Form;
+
+/** 指定建蔽率・指定容積率の選択肢(法 53 条 1 項・52 条 1 項)。用途地域の指定のない区域は 53 条 1 項 6 号・52 条 1 項 8 号 */
+const NONE_ZONE = '用途地域の指定のない区域';
+function ratioOptions(zone: string): { bc: number[]; far: number[] } {
+  if (zone === NONE_ZONE) return { bc: [30, 40, 50, 60, 70], far: [50, 80, 100, 200, 300, 400] };
+  const g = ZONE_GUIDES.find((z) => z.name === zone);
+  return g ? { bc: g.bcr, far: g.far } : { bc: [], far: [] };
+}
+const f1 = (x: number) => (Math.round(x * 10) / 10).toLocaleString('ja-JP');
 
 const num = (s: string, fallback = 0) => {
   const n = Number(s);
@@ -58,8 +69,18 @@ function numField(p: {
  */
 export default function ProjectForm({ project, onSave }: Props) {
   const [f, setF] = useState<Form>(() => toForm(project));
+  // 敷地の部分(用途地域・防火指定・面積・指定建蔽率・指定容積率)。2 以上にわたる敷地のため行を足せる
+  const [parts, setParts] = useState<SitePart[]>(() => partsOf(project).map((x) => ({ ...x })));
+  const setPart = (i: number, patch: Partial<SitePart>) => setParts((prev) => prev.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+  const addPart = () =>
+    setParts((prev) => [...prev, { zone: prev[prev.length - 1]?.zone ?? ZONES[0], fire: prev[prev.length - 1]?.fire ?? FIRE_ZONES[0], area: 0, bc: 0, far: 0, bldg: true }]);
+  const removePart = (i: number) => setParts((prev) => (prev.length > 1 ? prev.filter((_, j) => j !== i) : prev));
+  const major = majorityZone(parts);
+  const fireRule = effectiveFire(parts);
+  const siteArea = siteAreaOf(parts);
+  const hNotes = heightNotes(parts);
   const [saved, setSaved] = useState(false);
-  const set = (k: keyof Project) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+  const set = (k: keyof Form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setF((prev) => ({ ...prev, [k]: e.target.value }));
 
   const save = () => {
@@ -67,8 +88,9 @@ export default function ProjectForm({ project, onSave }: Props) {
       id: project.id,
       name: f.name.trim() || '無題',
       addr: f.addr,
-      zone: f.zone,
-      fire: f.fire,
+      zone: major.zone,
+      fire: fireRule.fire,
+      parts: parts.map((x) => ({ ...x, area: Number(x.area) || 0, bc: Number(x.bc) || 0, far: Number(x.far) || 0 })),
       H: num(f.H, project.H),
       v0: num(f.v0, project.v0),
       rough: (f.rough as Roughness) || '3',
@@ -93,7 +115,7 @@ export default function ProjectForm({ project, onSave }: Props) {
 
   // コンポーネントではなく関数呼び出しにする（レンダーごとに別コンポーネントになると
   // 入力欄が作り直されてフォーカスが飛ぶ）
-  const Num = ({ id, k, unit, step, min, max }: { id: string; k: keyof Project; unit: string; step?: number; min?: number; max?: number }) =>
+  const Num = ({ id, k, unit, step, min, max }: { id: string; k: keyof Form; unit: string; step?: number; min?: number; max?: number }) =>
     numField({ id, value: f[k], unit, step, min, max, onChange: set(k) });
 
   const L = (id: string, t: string) => <label htmlFor={id}>{t}</label>;
@@ -105,14 +127,6 @@ export default function ProjectForm({ project, onSave }: Props) {
         <div className="yy-kt-form">
           <KV k={L('p-name', '物件名')} v={<input id="p-name" className="is-text" value={f.name} onChange={set('name')} />} />
           <KV k={L('p-addr', '所在地')} v={<input id="p-addr" className="is-text" value={f.addr} onChange={set('addr')} />} />
-          <KV
-            k={L('p-zone', '用途地域')}
-            v={
-              <select id="p-zone" value={f.zone} onChange={set('zone')}>
-                {ZONES.map((z) => <option key={z}>{z}</option>)}
-              </select>
-            }
-          />
           <KV
             k={L('p-use', '主用途')}
             v={
@@ -126,14 +140,6 @@ export default function ProjectForm({ project, onSave }: Props) {
             v={
               <select id="p-str" value={f.str} onChange={set('str')}>
                 {(Object.keys(STR_LABEL) as StructureType[]).map((s) => <option key={s} value={s}>{STR_LABEL[s]}</option>)}
-              </select>
-            }
-          />
-          <KV
-            k={L('p-fire', '防火指定')}
-            v={
-              <select id="p-fire" value={f.fire} onChange={set('fire')}>
-                {FIRE_ZONES.map((z) => <option key={z}>{z}</option>)}
               </select>
             }
           />
@@ -153,6 +159,115 @@ export default function ProjectForm({ project, onSave }: Props) {
           <KV k={L('p-rain', '設計用降雨強度')} v={Num({ id: 'p-rain', k: 'rain', unit: 'mm/h', min: 50, step: 5 })} />
           <KV k={L('p-z', '地震地域係数 Z')} v={Num({ id: 'p-z', k: 'z', unit: '', min: 0.7, max: 1.0, step: 0.1 })} />
           <KV k={L('p-snow', '垂直積雪量')} v={Num({ id: 'p-snow', k: 'snow', unit: 'cm', min: 0, step: 5 })} />
+        </div>
+        <div className="yy-kt-parts">
+          <div className="yy-kt-parts__head">
+            <span className="yy-kt-parts__title">敷地の地域</span>
+            <span className="yy-kt-parts__hint">敷地が 2 以上の用途地域・防火指定にわたるときは、行を足して部分ごとの面積を入れる</span>
+          </div>
+          <div className="yy-kt-parts__scroll">
+            <table className="yy-kt-parts__tbl">
+              <thead>
+                <tr>
+                  <th>用途地域</th>
+                  <th>防火指定</th>
+                  <th>面積(m²)</th>
+                  <th>指定建蔽率</th>
+                  <th>指定容積率</th>
+                  <th>建物がかかる</th>
+                  <th aria-label="削除" />
+                </tr>
+              </thead>
+              <tbody>
+                {parts.map((x, i) => {
+                  const opt = ratioOptions(x.zone);
+                  return (
+                    <tr key={i}>
+                      <td>
+                        <select aria-label={`${i + 1} 行目の用途地域`} value={x.zone} onChange={(e) => setPart(i, { zone: e.target.value, bc: 0, far: 0 })}>
+                          {ZONES.map((z) => <option key={z}>{z}</option>)}
+                        </select>
+                      </td>
+                      <td>
+                        <select aria-label={`${i + 1} 行目の防火指定`} value={x.fire} onChange={(e) => setPart(i, { fire: e.target.value })}>
+                          {FIRE_ZONES.map((z) => <option key={z}>{z}</option>)}
+                        </select>
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          aria-label={`${i + 1} 行目の面積`}
+                          min={0}
+                          step={0.01}
+                          value={x.area || ''}
+                          placeholder={parts.length === 1 ? '敷地面積' : ''}
+                          onChange={(e) => setPart(i, { area: Number(e.target.value) })}
+                        />
+                      </td>
+                      <td>
+                        <select aria-label={`${i + 1} 行目の指定建蔽率`} value={x.bc || ''} onChange={(e) => setPart(i, { bc: Number(e.target.value) })}>
+                          <option value="">—</option>
+                          {opt.bc.map((n) => <option key={n} value={n}>{n}%</option>)}
+                        </select>
+                      </td>
+                      <td>
+                        <select aria-label={`${i + 1} 行目の指定容積率`} value={x.far || ''} onChange={(e) => setPart(i, { far: Number(e.target.value) })}>
+                          <option value="">—</option>
+                          {opt.far.map((n) => <option key={n} value={n}>{n}%</option>)}
+                        </select>
+                      </td>
+                      <td className="is-c">
+                        <input type="checkbox" aria-label={`${i + 1} 行目に建物がかかる`} checked={x.bldg} onChange={(e) => setPart(i, { bldg: e.target.checked })} />
+                      </td>
+                      <td className="is-c">
+                        {parts.length > 1 && (
+                          <button type="button" className="yy-kt-parts__del" onClick={() => removePart(i)} aria-label={`${i + 1} 行目を消す`}>
+                            ×
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <button type="button" className="yy-kt-parts__add" onClick={addPart}>
+            ＋ 地域を足す(敷地が 2 以上にわたるとき)
+          </button>
+          <dl className="yy-kt-parts__rule">
+            {siteArea > 0 && (
+              <>
+                <dt>敷地面積</dt>
+                <dd>{f1(siteArea)} m²</dd>
+              </>
+            )}
+            <dt>用途の制限</dt>
+            <dd>
+              {major.multi
+                ? major.majority
+                  ? `${major.zone}(敷地の ${f1(major.share * 100)}%)の規定を、建物と敷地の全部に適用(法 91 条)`
+                  : `過半を占める地域がありません。最も広いのは${major.zone}(${f1(major.share * 100)}%)。特定行政庁に扱いを確認`
+                : major.zone}
+            </dd>
+            <dt>防火</dt>
+            <dd>
+              {fireRule.spans
+                ? `建物が${fireRule.fire}と${fireRule.lower}にわたるので、建物の全部に${fireRule.fire}の規定(法 65 条)。${fireRule.lower}の側を防火壁で区画すれば、その外側は${fireRule.lower === '準防火地域' ? '準防火地域の規定' : '防火・準防火の規定の外'}`
+                : fireRule.fire}
+            </dd>
+            {major.multi && (
+              <>
+                <dt>建蔽率・容積率</dt>
+                <dd>部分ごとの限度を面積で加重平均(法 53 条 2 項・52 条 7 項)。カルテの「建蔽率・容積率の判定」はこの表の値で計算します</dd>
+              </>
+            )}
+          </dl>
+          {hNotes.length > 0 && (
+            <ul className="yy-kt-parts__notes">
+              {hNotes.map((t) => <li key={t}>{t}</li>)}
+            </ul>
+          )}
         </div>
         <p className="yy-kt-note">
           ここに入れた条件が、意匠・構造・設備・電気の各検討で共通に使われます。関係のない項目は自動でグレーになります。V₀・粗度区分・Z・垂直積雪量は告示および自治体規則で地域ごとに定まります。所在地からの自動取得は今後の対応です。

@@ -5,6 +5,7 @@
  * 端末の中だけで作る(サーバーへ送らない)。
  */
 import { itemStatus, stamp, type DB, type ItemStatus } from './engine';
+import { partsSummary } from './site';
 import { CATS, ITEMS, STR_LABEL, USE_LABEL, itemKey, type Project } from './masters';
 
 const ST_LABEL: Record<ItemStatus, string> = { done: '済', todo: '未着手', warn: '要確認', na: '対象外' };
@@ -65,8 +66,8 @@ export function buildReport(db: DB): Report {
     ['構造・階数', `${STR_LABEL[p.str] ?? ''} 地上 ${p.fl} 階${p.bf ? ` · 地下 ${p.bf} 階` : ''}`],
     ['延べ面積', p.area ? `${p.area.toLocaleString('ja-JP')} m²` : '—'],
     ['高さ', `${p.H} m`],
-    ['用途地域', p.zone],
-    ['防火地域', p.fire],
+    ['用途地域', partsSummary(p).zone],
+    ['防火地域', partsSummary(p).fire],
   ];
   return {
     project: p,

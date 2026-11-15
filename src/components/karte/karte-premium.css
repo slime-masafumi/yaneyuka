@@ -360,3 +360,29 @@
 .yy-kt-form .yy-kv__v input:hover, .yy-kt-form .yy-kv__v select:hover { border-color: var(--yy-t2); }
 .yy-kt-form .yy-kv__v input:focus, .yy-kt-form .yy-kv__v select:focus { outline: 0; border-color: var(--yy-acc); box-shadow: 0 0 0 2px var(--yy-acc-bg); background: #ffffff; }
 .yy-kt-form .yy-kv__v .yy-kt-unit { color: var(--yy-t2); }
+
+/* ── 敷地の地域(2 以上の用途地域・防火指定にわたる敷地。2026-11-15)── */
+.yy-kt-parts { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--yy-ink); }
+.yy-kt-parts__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; margin-bottom: 8px; }
+.yy-kt-parts__title { font-size: 14px; font-weight: 700; color: var(--yy-ink); }
+.yy-kt-parts__hint { font-size: 11.5px; color: var(--yy-t2); }
+.yy-kt-parts__scroll { overflow-x: auto; }
+.yy-kt-parts__tbl { width: 100%; min-width: 720px; border-collapse: collapse; font-size: 12.5px; }
+.yy-kt-parts__tbl th { padding: 0 8px 6px 0; text-align: left; font-family: var(--font-mono), monospace; font-size: 10px; font-weight: 400; letter-spacing: 0.06em; color: var(--yy-t3); border-bottom: 1px solid var(--yy-line); white-space: nowrap; }
+.yy-kt-parts__tbl td { padding: 6px 8px 6px 0; border-bottom: 1px solid var(--yy-line); vertical-align: middle; }
+.yy-kt-parts__tbl td.is-c { text-align: center; }
+.yy-kt-parts__tbl select, .yy-kt-parts__tbl input[type='number'] {
+  height: 32px; padding: 0 8px; border: 1px solid #c9c9c3; border-radius: 0; background: #fcfcfa; font-size: 12.5px; color: var(--yy-ink);
+}
+.yy-kt-parts__tbl select { width: 100%; min-width: 120px; }
+.yy-kt-parts__tbl td:nth-child(3) input { width: 110px; }
+.yy-kt-parts__tbl td:nth-child(4) select, .yy-kt-parts__tbl td:nth-child(5) select { min-width: 84px; }
+.yy-kt-parts__tbl select:focus, .yy-kt-parts__tbl input:focus { outline: 0; border-color: var(--yy-acc); box-shadow: 0 0 0 2px var(--yy-acc-bg); }
+.yy-kt-parts__tbl input[type='checkbox'] { width: 16px; height: 16px; accent-color: var(--yy-acc-ink); }
+.yy-kt-parts__del { width: 26px; height: 26px; border: 1px solid var(--yy-line); background: transparent; color: var(--yy-t2); cursor: pointer; }
+.yy-kt-parts__del:hover { border-color: var(--yy-ink); color: var(--yy-ink); }
+.yy-kt-parts__add { margin-top: 8px; padding: 0; border: 0; background: none; font-size: 12.5px; font-weight: 700; color: var(--yy-acc-ink); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.yy-kt-parts__rule { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 6px 12px; margin: 14px 0 0; padding: 10px 12px; background: var(--yy-acc-bg); font-size: 12.5px; line-height: 1.6; }
+.yy-kt-parts__rule dt { font-weight: 700; color: var(--yy-ink); }
+.yy-kt-parts__rule dd { margin: 0; color: var(--yy-ink); }
+.yy-kt-parts__notes { margin: 8px 0 0; padding-left: 1.2em; font-size: 11.5px; line-height: 1.7; color: var(--yy-t2); }
