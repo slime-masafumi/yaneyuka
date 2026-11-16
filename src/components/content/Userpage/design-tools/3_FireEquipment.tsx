@@ -1,328 +1,32 @@
 import React, { useMemo, useState } from 'react';
+import {
+  USES,
+  EQ,
+  floorLabel,
+  head,
+  is16,
+  judge,
+  judgeWithFloors,
+  labelOfUse,
+  shortUse,
+  type FireIn,
+  type FloorIn,
+  type FloorResult,
+  type PartResult,
+  type Row,
+  type Status,
+  type Structure,
+  type UseCode,
+} from '@/lib/fireEquipment';
 
 /**
- * 消防用設備等の設置の目安(消防法施行令 第 10 条〜第 29 条の 2・別表第一)。
+ * 消防用設備等の設置の目安(消防法施行令 第 9 条〜第 29 条の 2・別表第一)。
+ * 判定は src/lib/fireEquipment.ts(条文との照合の経緯もそこに書いてある)。
  *
- * 2026-11-16 に e-Gov の消防法施行令の現行本文と照合して作り直した。それまでの誤り:
- *   - 消火器の延べ面積の基準を「耐火なら 2 倍」にしていた(倍読みは消火器の基準面積にはない。令 10 条は 150 / 300㎡ と用途で決まる)
- *   - 屋内消火栓の基準を「特定 700㎡ / 非特定 1,400㎡」にしていた((1)項 500、(2)〜(10)(12)(14)項 700、(11)(15)項 1,000㎡。倍読みは 2 倍・3 倍、令 11 条 2 項)
- *   - スプリンクラーを「(1)(2)項 3,000㎡」「(6)項ロ 275㎡」にしていた(平屋建以外で 6,000㎡、(4)項・(6)項イ(1)〜(3)は 3,000㎡。(6)項ロ(1)(3)は面積によらず)
- *   - 自動火災報知設備の (11)(15)項を 500㎡ にしていた(1,000㎡)、(6)項を一律「面積によらず」にしていた
- *   - 誘導灯を全用途「原則設置」、消防用水を「延べ 7,000㎡〜」としていた(条文に無い数値)
- *   - 用途区分に (16)項(複合用途)が無かった、収容人員が未入力でも「対象外の可能性」と出ていた
- * 地階・無窓階・各階の床面積で決まる基準は、入力した「最大の階の床面積」で判定する(どの階にかかるかは階ごとに確かめる)。
+ * 階の床面積の入れ方は 2 通り:
+ *   - 最大の階だけ入れる(従来どおり。地階・無窓階・3 階以上・4〜10 階のうち最大の階の床面積で判定)
+ *   - 階ごとに表で入れる(延べ面積・階数は表の合計から出し、地階・無窓階・階の位置で決まる基準は階ごとに当てる)
  */
-
-type UseCode =
-  | '1i' | '1ro' | '2i' | '2ro' | '2ha' | '2ni' | '3i' | '3ro' | '4' | '5i' | '5ro'
-  | '6i1' | '6i2' | '6i3' | '6i4' | '6ro1' | '6ro2' | '6ro3' | '6ro4' | '6ro5' | '6ha' | '6ni'
-  | '7' | '8' | '9i' | '9ro' | '10' | '11' | '12i' | '12ro' | '13i' | '13ro' | '14' | '15'
-  | '16i' | '16ro' | '16-2' | '17';
-
-const USES: { group: string; items: [UseCode, string][] }[] = [
-  {
-    group: '特定防火対象物',
-    items: [
-      ['1i', '(1)項イ 劇場・映画館・演芸場・観覧場'],
-      ['1ro', '(1)項ロ 公会堂・集会場'],
-      ['2i', '(2)項イ キャバレー・ナイトクラブ等'],
-      ['2ro', '(2)項ロ 遊技場・ダンスホール'],
-      ['2ha', '(2)項ハ 性風俗関連特殊営業の店舗等'],
-      ['2ni', '(2)項ニ カラオケボックス・個室ネットカフェ等'],
-      ['3i', '(3)項イ 待合・料理店等'],
-      ['3ro', '(3)項ロ 飲食店'],
-      ['4', '(4)項 物品販売店舗・展示場'],
-      ['5i', '(5)項イ 旅館・ホテル・宿泊所'],
-      ['6i1', '(6)項イ(1) 病院(特定診療科・療養/一般病床あり)'],
-      ['6i2', '(6)項イ(2) 有床診療所(特定診療科・4 床以上)'],
-      ['6i3', '(6)項イ(3) 上記以外の病院・有床診療所・入所助産所'],
-      ['6i4', '(6)項イ(4) 無床診療所・無入所の助産所'],
-      ['6ro1', '(6)項ロ(1) 特養・老健・認知症グループホーム等'],
-      ['6ro2', '(6)項ロ(2) 救護施設'],
-      ['6ro3', '(6)項ロ(3) 乳児院'],
-      ['6ro4', '(6)項ロ(4) 障害児入所施設'],
-      ['6ro5', '(6)項ロ(5) 障害者支援施設等(避難が困難な障害者等)'],
-      ['6ha', '(6)項ハ 老人デイサービス・保育所・障害福祉施設等'],
-      ['6ni', '(6)項ニ 幼稚園・特別支援学校'],
-      ['9i', '(9)項イ 蒸気浴場・熱気浴場'],
-      ['16i', '(16)項イ 複合用途(特定用途を含む)'],
-      ['16-2', '(16の2)項 地下街'],
-    ],
-  },
-  {
-    group: '非特定防火対象物',
-    items: [
-      ['5ro', '(5)項ロ 寄宿舎・下宿・共同住宅'],
-      ['7', '(7)項 学校'],
-      ['8', '(8)項 図書館・博物館・美術館'],
-      ['9ro', '(9)項ロ 一般公衆浴場'],
-      ['10', '(10)項 車両の停車場・船舶/航空機の発着場'],
-      ['11', '(11)項 神社・寺院・教会'],
-      ['12i', '(12)項イ 工場・作業場'],
-      ['12ro', '(12)項ロ 映画スタジオ・テレビスタジオ'],
-      ['13i', '(13)項イ 自動車車庫・駐車場'],
-      ['13ro', '(13)項ロ 航空機の格納庫'],
-      ['14', '(14)項 倉庫'],
-      ['15', '(15)項 事務所等(前各項に該当しない事業場)'],
-      ['16ro', '(16)項ロ 複合用途(特定用途を含まない)'],
-      ['17', '(17)項 重要文化財等の建造物'],
-    ],
-  },
-];
-
-const labelOfUse = (u: UseCode) => USES.flatMap((g) => g.items).find(([c]) => c === u)?.[1] ?? u;
-/** 項の頭(1i → 1、6ro2 → 6、16-2 → 16-2) */
-const head = (u: UseCode) => (u === '16-2' ? '16-2' : u.replace(/[a-z]+\d?$/, ''));
-const inHead = (u: UseCode, heads: string[]) => heads.includes(head(u));
-const isIn = (u: UseCode, codes: UseCode[]) => codes.includes(u);
-const range = (a: number, b: number) => Array.from({ length: b - a + 1 }, (_, i) => String(a + i));
-/** 特定用途((1)〜(4)、(5)イ、(6)、(9)イ) */
-const isTokutei = (u: UseCode) => inHead(u, range(1, 4)) || u === '5i' || head(u) === '6' || u === '9i';
-
-type Structure = 'fr' | 'qfr' | 'other';
-
-export type FireIn = {
-  use: UseCode;
-  total: number;
-  above: number;
-  below: number;
-  /** 地階・無窓階のうち最大の階の床面積(無ければ 0) */
-  bwMax: number;
-  /** 3 階以上の階のうち最大の床面積 */
-  up3Max: number;
-  /** 4 階以上 10 階以下の階のうち最大の床面積 */
-  up4Max: number;
-  /** 地階の床面積の合計 */
-  basementTotal: number;
-  /** 1 階と 2 階の床面積の合計(平屋は 1 階) */
-  f12: number;
-  site: number;
-  height: number;
-  structure: Structure;
-  interiorNonComb: boolean;
-  /** 収容人員(NaN = 未入力) */
-  cap: number;
-  capBW: number;
-  /** 避難器具: 2 階以上の階(避難階・11 階以上を除く)と地階のうち最大の収容人員 */
-  capFloor: number;
-  lowerTokutei: boolean;
-  /** 避難階以外の階から避難階・地上へ直通する階段が 2 以上ない(屋外階段等なら 1) */
-  stairsLack: boolean;
-  fireUse: boolean;
-  assisted: boolean;
-  lodging: boolean;
-};
-
-type Status = 'req' | 'part' | 'no' | 'check';
-type Row = { name: string; status: Status; text: string; law: string };
-
-const has = (n: number) => Number.isFinite(n);
-
-export function judge(v: FireIn): Row[] {
-  const u = v.use;
-  const A = v.total;
-  const bw = v.bwMax || 0;
-  const up3 = v.above >= 3 ? v.up3Max || 0 : 0;
-  const up4 = v.above >= 4 ? v.up4Max || 0 : 0;
-  const is16 = u === '16i' || u === '16ro';
-  const perPart = '複合用途は用途ごとに 1 つの防火対象物とみなして判定する(令 9 条)。用途ごとの床面積で、この表を選び直して確かめる';
-  const rows: Row[] = [];
-
-  // ---- 消火器具(令 10 条)
-  {
-    const all: UseCode[] = ['1i', '2i', '2ro', '2ha', '2ni', '6i1', '6i2', '6i3', '6ro1', '6ro2', '6ro3', '6ro4', '6ro5', '16-2', '17'];
-    const g150: UseCode[] = ['1ro', '4', '5i', '5ro', '6i4', '6ha', '6ni', '9i', '9ro', '12i', '12ro', '13i', '13ro', '14'];
-    const g300: UseCode[] = ['7', '8', '10', '11', '15'];
-    const name = '消火器具';
-    if (is16) rows.push({ name, status: 'check', text: `${perPart}。地階・無窓階・3 階以上の階で床面積 50㎡ 以上なら必要`, law: '令 10 条・9 条' });
-    else if (isIn(u, all)) rows.push({ name, status: 'req', text: '延べ面積にかかわらず必要', law: '令 10 条 1 項 1 号イ' });
-    else if (head(u) === '3' && v.fireUse) rows.push({ name, status: 'req', text: '火を使用する設備・器具がある (3)項は延べ面積にかかわらず必要(防火上有効な措置を講じたものを除く)', law: '令 10 条 1 項 1 号ロ' });
-    else if ((isIn(u, g150) || head(u) === '3') && A >= 150) rows.push({ name, status: 'req', text: `延べ面積 ${A}㎡ ≥ 150㎡`, law: '令 10 条 1 項 2 号' });
-    else if (isIn(u, g300) && A >= 300) rows.push({ name, status: 'req', text: `延べ面積 ${A}㎡ ≥ 300㎡`, law: '令 10 条 1 項 3 号' });
-    else if (bw >= 50 || up3 >= 50) rows.push({ name, status: 'part', text: '地階・無窓階・3 階以上の階で床面積 50㎡ 以上の階に必要', law: '令 10 条 1 項 5 号' });
-    else rows.push({ name, status: 'no', text: `延べ ${A}㎡ は基準未満(${isIn(u, g300) ? 300 : 150}㎡)。少量危険物・指定可燃物を扱うなら必要(4 号)`, law: '令 10 条' });
-  }
-
-  // ---- 屋内消火栓設備(令 11 条)
-  {
-    const name = '屋内消火栓設備';
-    const m = v.structure === 'fr' ? (v.interiorNonComb ? 3 : 2) : v.structure === 'qfr' && v.interiorNonComb ? 2 : 1;
-    const mTxt = m > 1 ? `(倍読み ${m} 倍・令 11 条 2 項)` : '';
-    let base = 0;
-    let item = '';
-    if (head(u) === '1') [base, item] = [500, '1 号'];
-    else if (inHead(u, range(2, 10)) || inHead(u, ['12', '14'])) [base, item] = [700, '2 号'];
-    else if (inHead(u, ['11', '15'])) [base, item] = [1000, '3 号'];
-    else if (u === '16-2') [base, item] = [150, '4 号'];
-    const fl = head(u) === '1' ? 100 : inHead(u, ['11', '15']) ? 200 : 150;
-    // 令 12 条 1 項 1 号の防火対象物((6)項イ(1)(2)・ロ)に 2 号を当てるときは、倍読みの値と「1,000㎡ + 総務省令の部分」の小さいほう
-    const sp1 = isIn(u, ['6i1', '6i2', '6ro1', '6ro2', '6ro3', '6ro4', '6ro5']);
-    let th = base * m;
-    let thNote = '';
-    if (sp1 && m > 1) {
-      th = Math.min(th, 1000);
-      thNote = '(令 12 条 1 項 1 号の対象なので、倍読みの値と「1,000㎡ + 総務省令で定める部分」の小さいほう。ここでは省令の部分を 0 で計算)';
-    }
-    if (is16) rows.push({ name, status: 'check', text: perPart, law: '令 11 条・9 条' });
-    else if (head(u) === '13' || u === '17') rows.push({ name, status: 'no', text: '(13)(17)項は延べ面積の基準の対象外(指定可燃物を 750 倍以上扱うなら必要)', law: '令 11 条 1 項' });
-    else if (A >= th) rows.push({ name, status: 'req', text: `延べ面積 ${A}㎡ ≥ ${th}㎡${mTxt}${thNote}`, law: `令 11 条 1 項 ${item}` });
-    else if (u !== '16-2' && (bw >= fl * m || up4 >= fl * m)) rows.push({ name, status: 'part', text: `地階・無窓階・4 階以上の階で床面積 ${fl * m}㎡ 以上の階に必要${mTxt}`, law: '令 11 条 1 項 6 号' });
-    else rows.push({ name, status: 'no', text: `延べ ${A}㎡ < ${th}㎡${mTxt}。地階・無窓階・4 階以上の階の床面積も ${fl * m}㎡ 未満`, law: '令 11 条' });
-  }
-
-  // ---- スプリンクラー設備(令 12 条)
-  {
-    const name = 'スプリンクラー設備';
-    const t3 = isTokutei(u) || u === '16i';
-    const big = isIn(u, ['4', '6i1', '6i2', '6i3']) ? 3000 : 6000;
-    if (isIn(u, ['6i1', '6i2', '6ro1', '6ro3'])) rows.push({ name, status: 'req', text: '延べ面積にかかわらず必要(延焼を抑制する構造として総務省令で定めるものを除く)', law: '令 12 条 1 項 1 号' });
-    else if (isIn(u, ['6ro2', '6ro4', '6ro5']) && (v.assisted || A >= 275))
-      rows.push({ name, status: 'req', text: v.assisted ? '介助がなければ避難できない者を主として入所させるので面積にかかわらず必要' : `延べ面積 ${A}㎡ ≥ 275㎡`, law: '令 12 条 1 項 1 号ハ' });
-    else if (t3 && v.above >= 11) rows.push({ name, status: 'req', text: `地階を除く階数 ${v.above} ≥ 11(総務省令で定める部分を除く)`, law: '令 12 条 1 項 3 号' });
-    else if (isTokutei(u) && v.above >= 2 && A >= big)
-      rows.push({ name, status: 'req', text: `平屋建以外で床面積の合計 ${A}㎡ ≥ ${big}㎡(総務省令で定める部分を除いた面積で判定)`, law: '令 12 条 1 項 4 号' });
-    else if (u === '16-2' && A >= 1000) rows.push({ name, status: 'req', text: `地下街で延べ面積 ${A}㎡ ≥ 1,000㎡`, law: '令 12 条 1 項 6 号' });
-    else if (u === '16i') rows.push({ name, status: 'check', text: '特定用途部分の床面積の合計が 3,000㎡ 以上なら、その部分がある階に必要(10 号)。地階・無窓階・4〜10 階の特定用途部分の床面積でも判定(11 号ハ)', law: '令 12 条 1 項 10 号・11 号ハ' });
-    else {
-      const g1: boolean = head(u) === '1' || head(u) === '3' || u === '5i' || head(u) === '6' || u === '9i';
-      const g2: boolean = head(u) === '2' || u === '4';
-      const partHit = (g1 && (bw >= 1000 || up4 >= 1500)) || (g2 && (bw >= 1000 || up4 >= 1000));
-      if (partHit) rows.push({ name, status: 'part', text: g1 ? '地階・無窓階で 1,000㎡ 以上、4〜10 階で 1,500㎡ 以上の階に必要' : '地階・無窓階・4〜10 階で床面積 1,000㎡ 以上の階に必要', law: '令 12 条 1 項 11 号' });
-      else if (v.above >= 11) rows.push({ name, status: 'part', text: '11 階以上の階に必要', law: '令 12 条 1 項 12 号' });
-      else if (head(u) === '1') rows.push({ name, status: 'check', text: '舞台部の床面積が 500㎡ 以上(地階・無窓階・4 階以上にある舞台は 300㎡ 以上)なら必要', law: '令 12 条 1 項 2 号' });
-      else if (u === '14') rows.push({ name, status: 'check', text: '天井の高さ 10m 超・延べ 700㎡ 以上のラック式倉庫なら必要', law: '令 12 条 1 項 5 号' });
-      else rows.push({ name, status: 'no', text: '用途・規模・階数の基準に当たらない(指定可燃物を 1,000 倍以上扱うなら必要)', law: '令 12 条' });
-    }
-  }
-
-  // ---- 屋外消火栓設備(令 19 条)
-  {
-    const name = '屋外消火栓設備';
-    const th = v.structure === 'fr' ? 9000 : v.structure === 'qfr' ? 6000 : 3000;
-    if (is16 || u === '16-2') rows.push({ name, status: 'check', text: is16 ? perPart : '(16の2)項は対象の用途に無い', law: '令 19 条' });
-    else if (!(v.f12 > 0)) rows.push({ name, status: 'check', text: '1 階・2 階の床面積の合計が未入力', law: '令 19 条 1 項' });
-    else if (v.f12 >= th) rows.push({ name, status: 'req', text: `1・2 階の床面積の合計 ${v.f12}㎡ ≥ ${th}㎡`, law: '令 19 条 1 項' });
-    else rows.push({ name, status: 'no', text: `1・2 階の床面積の合計 ${v.f12}㎡ < ${th}㎡(同一敷地の耐火・準耐火以外の建物が近接するときは合算・同条 2 項)`, law: '令 19 条' });
-  }
-
-  // ---- 自動火災報知設備(令 21 条)
-  {
-    const name = '自動火災報知設備';
-    const all: UseCode[] = ['2ni', '5i', '6i1', '6i2', '6i3', '6ro1', '6ro2', '6ro3', '6ro4', '6ro5', '13ro', '17'];
-    const g300: UseCode[] = ['1i', '1ro', '2i', '2ro', '2ha', '3i', '3ro', '4', '6i4', '6ni', '16i', '16-2'];
-    const g500: UseCode[] = ['5ro', '7', '8', '9ro', '10', '12i', '12ro', '13i', '14'];
-    const specUpper = (isTokutei(u) || u === '16i') && (v.above >= 2 || v.below >= 1);
-    if (isIn(u, all) || (u === '6ha' && v.lodging)) rows.push({ name, status: 'req', text: '延べ面積にかかわらず必要', law: '令 21 条 1 項 1 号' });
-    else if (u === '9i' && A >= 200) rows.push({ name, status: 'req', text: `延べ面積 ${A}㎡ ≥ 200㎡`, law: '令 21 条 1 項 2 号' });
-    else if ((isIn(u, g300) || u === '6ha') && A >= 300) rows.push({ name, status: 'req', text: `延べ面積 ${A}㎡ ≥ 300㎡`, law: '令 21 条 1 項 3 号' });
-    else if (isIn(u, g500) && A >= 500) rows.push({ name, status: 'req', text: `延べ面積 ${A}㎡ ≥ 500㎡`, law: '令 21 条 1 項 4 号' });
-    else if (inHead(u, ['11', '15']) && A >= 1000) rows.push({ name, status: 'req', text: `延べ面積 ${A}㎡ ≥ 1,000㎡`, law: '令 21 条 1 項 6 号' });
-    else if (specUpper && v.stairsLack) rows.push({ name, status: 'req', text: '特定用途が避難階以外の階にあり、直通階段が 2 以上ない(いわゆる小規模特定用途複合等)', law: '令 21 条 1 項 7 号' });
-    else if ((isIn(u, ['2i', '2ro', '2ha', '3i', '3ro']) || u === '16i') && bw >= 100) rows.push({ name, status: 'part', text: '地階・無窓階で床面積 100㎡ 以上の階に必要((16)項イは (2)(3)項の部分の合計)', law: '令 21 条 1 項 10 号' });
-    else if (bw >= 300 || up3 >= 300) rows.push({ name, status: 'part', text: '地階・無窓階・3 階以上の階で床面積 300㎡ 以上の階に必要', law: '令 21 条 1 項 11 号' });
-    else if (v.above >= 11) rows.push({ name, status: 'part', text: '11 階以上の階に必要', law: '令 21 条 1 項 14 号' });
-    else if (is16) rows.push({ name, status: 'check', text: `建物全体では基準未満。${perPart}((2)項ニ・(5)項イ・(6)項イ(1)〜(3)・ロ等の部分は面積によらず必要)`, law: '令 21 条・9 条' });
-    else rows.push({ name, status: 'no', text: '用途・延べ面積・階の基準に当たらない。地階・2 階以上の駐車部分 200㎡ 以上(13 号)、通信機器室 500㎡ 以上(15 号)は別に確かめる', law: '令 21 条' });
-  }
-
-  // ---- 非常警報器具・非常警報設備(令 24 条)
-  {
-    const name = '非常警報器具・設備';
-    const cap = v.cap;
-    const s3 =
-      u === '16-2' ||
-      v.above >= 11 ||
-      v.below >= 3 ||
-      (u === '16i' && has(cap) && cap >= 500) ||
-      ((inHead(u, range(1, 4)) || u === '5i' || head(u) === '6' || u === '9i') && has(cap) && cap >= 300) ||
-      (inHead(u, ['5ro', '7', '8']) || u === '5ro') && has(cap) && cap >= 800;
-    if (s3) rows.push({ name, status: 'req', text: '非常ベル + 放送設備(または自動式サイレン + 放送設備)。地下街・地上 11 階以上・地階 3 以上・収容人員の基準による', law: '令 24 条 3 項' });
-    else if (!has(cap)) rows.push({ name, status: 'check', text: '収容人員が未入力のため判定できない(収容人員は消防法施行規則 1 条の 3 で算定)', law: '令 24 条' });
-    else if ((u === '5i' || (head(u) === '6' && u.startsWith('6i')) || u === '9i') && cap >= 20) rows.push({ name, status: 'req', text: `収容人員 ${cap} 人 ≥ 20 人 → 非常ベル・自動式サイレン・放送設備のいずれか(自火報を設置した有効範囲は不要)`, law: '令 24 条 2 項 1 号' });
-    else if (cap >= 50 || (has(v.capBW) && v.capBW >= 20)) rows.push({ name, status: 'req', text: `収容人員 50 人以上、または地階・無窓階の収容人員 20 人以上 → 非常ベル等(自火報の有効範囲は不要)`, law: '令 24 条 2 項 2 号' });
-    else if ((u === '4' || isIn(u, ['6ro1', '6ro2', '6ro3', '6ro4', '6ro5', '6ha', '6ni']) || u === '9ro' || head(u) === '12') && cap >= 20) rows.push({ name, status: 'req', text: `収容人員 ${cap} 人(20 人以上 50 人未満)→ 非常警報器具(自火報・非常警報設備の有効範囲は不要)`, law: '令 24 条 1 項' });
-    else rows.push({ name, status: 'no', text: `収容人員 ${cap} 人は基準未満`, law: '令 24 条' });
-  }
-
-  // ---- 避難器具(令 25 条)
-  {
-    const name = '避難器具';
-    const c = v.capFloor;
-    const upper = v.above >= 2 || v.below >= 1;
-    const low10 = v.lowerTokutei;
-    if (!upper) rows.push({ name, status: 'no', text: '平屋で地階が無い(避難階以外の階が無い)', law: '令 25 条' });
-    else if (is16) rows.push({ name, status: 'check', text: `${perPart}。3 階(2 階に (2)(3)項の部分があれば 2 階)以上で直通階段が 2 以上ない階は収容人員 10 人以上で必要(5 号)`, law: '令 25 条・9 条' });
-    else if (!has(c)) rows.push({ name, status: 'check', text: '階ごとの収容人員が未入力のため判定できない', law: '令 25 条' });
-    else {
-      let hit = '';
-      if (head(u) === '6' && c >= (low10 ? 10 : 20)) hit = `(6)項の 2 階以上・地階で収容人員 ${low10 ? 10 : 20} 人以上(1 号)`;
-      else if (head(u) === '5' && c >= (low10 ? 10 : 30)) hit = `(5)項の 2 階以上・地階で収容人員 ${low10 ? 10 : 30} 人以上(2 号)`;
-      else if ((inHead(u, range(1, 4)) || inHead(u, range(7, 11))) && c >= 50) hit = `2 階以上・地階で収容人員 50 人以上(3 号。特定主要構造部を耐火構造とした建築物の 2 階を除く)`;
-      else if (inHead(u, ['12', '15']) && (v.above >= 3 || v.below >= 1) && c >= 100) hit = `3 階以上・地階で収容人員 150 人以上(3 階以上の無窓階・地階は 100 人以上)(4 号)`;
-      const g5floor = inHead(u, ['2', '3']) ? 2 : 3;
-      if (!hit && v.stairsLack && v.above >= g5floor && c >= 10) hit = `${g5floor} 階以上で直通階段が 2 以上ない階、収容人員 10 人以上(5 号)`;
-      if (hit && inHead(u, ['12', '15']) && c < 150 && !hit.includes('5 号')) rows.push({ name, status: 'check', text: `${hit}。収容人員 ${c} 人は 100〜149 人なので、その階が無窓階・地階かで決まる`, law: '令 25 条 1 項 4 号' });
-      else if (hit) rows.push({ name, status: 'part', text: `${hit}に当たる階に必要(避難階・11 階以上の階を除く)`, law: '令 25 条 1 項' });
-      else rows.push({ name, status: 'no', text: `最大の階の収容人員 ${c} 人は基準未満`, law: '令 25 条' });
-    }
-  }
-
-  // ---- 誘導灯(令 26 条)
-  {
-    const name = '誘導灯(避難口・通路)';
-    const all = inHead(u, range(1, 4)) || u === '5i' || head(u) === '6' || head(u) === '9' || u === '16i' || u === '16-2';
-    if (all) rows.push({ name, status: 'req', text: `必要(避難が容易なものとして総務省令で定めるものを除く)${head(u) === '1' ? '。客席誘導灯も必要' : ''}`, law: '令 26 条 1 項 1 号・2 号' });
-    else if (u === '17') rows.push({ name, status: 'no', text: '(17)項は誘導灯・誘導標識の対象に無い', law: '令 26 条' });
-    else if (v.below >= 1 || bw > 0 || v.above >= 11) rows.push({ name, status: 'part', text: '地階・無窓階・11 階以上の部分に必要。それ以外の部分は誘導標識', law: '令 26 条 1 項 1 号・2 号・4 号' });
-    else rows.push({ name, status: 'no', text: '誘導灯は不要の見込み。誘導標識は必要((1)〜(16)項)', law: '令 26 条 1 項 4 号' });
-  }
-
-  // ---- 排煙設備(令 28 条)
-  {
-    const name = '排煙設備';
-    if (u === '16-2' && A >= 1000) rows.push({ name, status: 'req', text: `地下街で延べ面積 ${A}㎡ ≥ 1,000㎡`, law: '令 28 条 1 項 1 号' });
-    else if (inHead(u, ['2', '4', '10', '13']) && bw >= 1000) rows.push({ name, status: 'part', text: '地階・無窓階で床面積 1,000㎡ 以上の階に必要', law: '令 28 条 1 項 3 号' });
-    else if (head(u) === '1') rows.push({ name, status: 'check', text: '舞台部の床面積が 500㎡ 以上なら必要', law: '令 28 条 1 項 2 号' });
-    else if (is16) rows.push({ name, status: 'check', text: perPart, law: '令 28 条・9 条' });
-    else rows.push({ name, status: 'no', text: '消防法の排煙設備は不要の見込み(建築基準法 126 条の 2 の排煙設備は別に確かめる)', law: '令 28 条' });
-  }
-
-  // ---- 消防用水(令 27 条)
-  {
-    const name = '消防用水';
-    const th = v.structure === 'fr' ? 15000 : v.structure === 'qfr' ? 10000 : 5000;
-    const above = A - (v.basementTotal || 0);
-    if (v.height > 31 && above >= 25000) rows.push({ name, status: 'req', text: `高さ ${v.height}m > 31m かつ延べ面積(地階を除く)${above}㎡ ≥ 25,000㎡`, law: '令 27 条 1 項 2 号' });
-    else if (!(v.site > 0)) rows.push({ name, status: 'check', text: '敷地面積が未入力(敷地 20,000㎡ 以上で 1・2 階の床面積の合計が基準以上なら必要)', law: '令 27 条 1 項 1 号' });
-    else if (!is16 && u !== '16-2' && v.site >= 20000 && v.f12 >= th) rows.push({ name, status: 'req', text: `敷地 ${v.site}㎡ ≥ 20,000㎡ かつ 1・2 階の床面積の合計 ${v.f12}㎡ ≥ ${th}㎡`, law: '令 27 条 1 項 1 号' });
-    else if (is16) rows.push({ name, status: 'check', text: perPart, law: '令 27 条・9 条' });
-    else rows.push({ name, status: 'no', text: `敷地 20,000㎡ 以上かつ 1・2 階の床面積 ${th}㎡ 以上、または高さ 31m 超かつ延べ 25,000㎡ 以上に当たらない`, law: '令 27 条' });
-  }
-
-  // ---- 連結散水設備(令 28 条の 2)
-  {
-    const name = '連結散水設備';
-    const b = u === '16-2' ? A : v.basementTotal || 0;
-    if (b >= 700 && u !== '16ro' && u !== '16i') rows.push({ name, status: 'req', text: `${u === '16-2' ? '延べ面積' : '地階の床面積の合計'} ${b}㎡ ≥ 700㎡(スプリンクラー等を設けた有効範囲は不要)`, law: '令 28 条の 2' });
-    else if (is16 && b >= 700) rows.push({ name, status: 'check', text: `地階の床面積の合計 ${b}㎡ ≥ 700㎡。${perPart}`, law: '令 28 条の 2・9 条' });
-    else rows.push({ name, status: 'no', text: `地階の床面積の合計 ${b}㎡ < 700㎡`, law: '令 28 条の 2' });
-  }
-
-  // ---- 連結送水管(令 29 条)・非常コンセント設備(令 29 条の 2)
-  {
-    const name = '連結送水管';
-    if (v.above >= 7) rows.push({ name, status: 'req', text: `地階を除く階数 ${v.above} ≥ 7`, law: '令 29 条 1 項 1 号' });
-    else if (v.above >= 5 && A >= 6000) rows.push({ name, status: 'req', text: `地階を除く階数 5 以上かつ延べ面積 ${A}㎡ ≥ 6,000㎡`, law: '令 29 条 1 項 2 号' });
-    else if (u === '16-2' && A >= 1000) rows.push({ name, status: 'req', text: `地下街で延べ面積 ${A}㎡ ≥ 1,000㎡`, law: '令 29 条 1 項 3 号' });
-    else rows.push({ name, status: 'no', text: '階数・延べ面積の基準に当たらない', law: '令 29 条' });
-    const nc = '非常コンセント設備';
-    if (v.above >= 11) rows.push({ name: nc, status: 'req', text: `地階を除く階数 ${v.above} ≥ 11`, law: '令 29 条の 2 第 1 項 1 号' });
-    else if (u === '16-2' && A >= 1000) rows.push({ name: nc, status: 'req', text: `地下街で延べ面積 ${A}㎡ ≥ 1,000㎡`, law: '令 29 条の 2 第 1 項 2 号' });
-    else rows.push({ name: nc, status: 'no', text: '地上 11 階未満', law: '令 29 条の 2' });
-  }
-
-  return rows;
-}
 
 interface FireEquipmentProps {
   hideHeader?: boolean;
@@ -331,6 +35,7 @@ interface FireEquipmentProps {
 const numOr = (s: string) => (s.trim() === '' ? NaN : Number(s));
 
 const inp = 'w-full p-2 border border-gray-300 rounded text-xs';
+const cell = 'w-full p-1 border border-gray-300 rounded text-xs';
 const lab = 'block text-xs font-bold text-gray-700 mb-1';
 
 /** 数値の入力欄(コンポーネントの外に置く。中で定義すると入力のたびに作り直されてフォーカスが外れる) */
@@ -343,6 +48,19 @@ function Field({ k, v, set, hint, ph }: { k: string; v: string; set: (s: string)
     </label>
   );
 }
+
+function Check({ checked, set, children }: { checked: boolean; set: (b: boolean) => void; children: React.ReactNode }) {
+  return (
+    <label className="flex items-start gap-1 text-[11px]">
+      <input type="checkbox" checked={checked} onChange={(e) => set(e.target.checked)} className="mt-0.5" /> <span>{children}</span>
+    </label>
+  );
+}
+
+/** 階の表の 1 行(入力中の文字列のまま持つ) */
+type FloorRowState = { id: number; level: number; area: string; use: UseCode | ''; windowless: boolean; cap: string; evac: boolean };
+
+const fmt = (n: number) => n.toLocaleString('ja-JP');
 
 const FireEquipment: React.FC<FireEquipmentProps> = ({ hideHeader }) => {
   const [use, setUse] = useState<UseCode | ''>('');
@@ -366,15 +84,63 @@ const FireEquipment: React.FC<FireEquipmentProps> = ({ hideHeader }) => {
   const [fireUse, setFireUse] = useState(false);
   const [assisted, setAssisted] = useState(false);
   const [lodging, setLodging] = useState(false);
+  // 2026-11-16 追加: ガス漏れ・漏電・通報と (16)項イ・(16の3)項の特定用途部分
+  const [tokuteiArea, setTokuteiArea] = useState('');
+  const [basementTokutei, setBasementTokutei] = useState('');
+  const [lath, setLath] = useState(false);
+  const [ampere, setAmpere] = useState('');
+  const [fuelGas, setFuelGas] = useState(false);
+  const [hotSpring, setHotSpring] = useState(false);
+  const [nearStation, setNearStation] = useState(false);
+  // 階ごとの表
+  const [floorMode, setFloorMode] = useState(false);
+  const [floors, setFloors] = useState<FloorRowState[]>([]);
+  const [nextId, setNextId] = useState(1);
+
+  const u = use as UseCode;
+  const c16 = is16(use);
+
+  /** 表を開いたとき、地上階数・地階の階数から行を作る */
+  const openFloors = () => {
+    setFloorMode(true);
+    if (floors.length) return;
+    const a = Math.max(1, Math.floor(Number(above)) || 1);
+    const b = Math.max(0, Math.floor(Number(below)) || 0);
+    const levels = [...Array.from({ length: a }, (_, i) => a - i), ...Array.from({ length: b }, (_, i) => -(i + 1))];
+    setFloors(levels.map((level, i) => ({ id: i + 1, level, area: '', use: '', windowless: false, cap: '', evac: level === 1 })));
+    setNextId(levels.length + 1);
+  };
+  const addFloor = (up: boolean) => {
+    const top = Math.max(0, ...floors.map((f) => f.level));
+    const bottom = Math.min(0, ...floors.map((f) => f.level));
+    const level = up ? top + 1 : bottom - 1;
+    const row: FloorRowState = { id: nextId, level, area: '', use: '', windowless: false, cap: '', evac: level === 1 };
+    setFloors((fs) => [...fs, row].sort((x, y) => y.level - x.level));
+    setNextId((n) => n + 1);
+  };
+  const patchFloor = (id: number, p: Partial<FloorRowState>) => setFloors((fs) => fs.map((f) => (f.id === id ? { ...f, ...p } : f)));
+  const removeFloor = (id: number) => setFloors((fs) => fs.filter((f) => f.id !== id));
+
+  const floorIn: FloorIn[] = useMemo(
+    () => floors.map((f) => ({ level: f.level, area: numOr(f.area), use: f.use, windowless: f.level > 0 && f.windowless, cap: numOr(f.cap), evac: f.evac })),
+    [floors],
+  );
+  const floorSum = floorIn.reduce((s, f) => s + (Number.isFinite(f.area) && f.area > 0 ? f.area : 0), 0);
+  const floorAbove = Math.max(0, ...floorIn.filter((f) => f.area > 0 && f.level > 0).map((f) => f.level));
+  const floorBelow = Math.max(0, ...floorIn.filter((f) => f.area > 0 && f.level < 0).map((f) => -f.level));
 
   const missing: string[] = [];
   if (!use) missing.push('用途');
-  if (!(Number(total) > 0)) missing.push('延べ面積');
-  if (!(Number(above) > 0)) missing.push('地上階数');
+  if (floorMode) {
+    if (!(floorSum > 0) || !(floorAbove > 0)) missing.push('地上階の床面積');
+  } else {
+    if (!(Number(total) > 0)) missing.push('延べ面積');
+    if (!(Number(above) > 0)) missing.push('地上階数');
+  }
 
-  const results = useMemo(() => {
-    if (!use || !(Number(total) > 0) || !(Number(above) > 0)) return null;
-    return judge({
+  const out = useMemo((): { rows: Row[]; floors: FloorResult[]; parts: PartResult[] } | null => {
+    if (!use) return null;
+    const base: FireIn = {
       use,
       total: Number(total),
       above: Math.floor(Number(above)),
@@ -396,8 +162,30 @@ const FireEquipment: React.FC<FireEquipmentProps> = ({ hideHeader }) => {
       fireUse,
       assisted,
       lodging,
-    });
-  }, [use, total, above, below, bwMax, up3Max, up4Max, basementTotal, f12, site, height, structure, interior, cap, capBW, capFloor, lowerTokutei, stairsLack, fireUse, assisted, lodging]);
+      tokuteiArea: numOr(tokuteiArea),
+      basementTokutei: numOr(basementTokutei),
+      lath,
+      ampere: numOr(ampere),
+      fuelGas,
+      hotSpring,
+      nearStation,
+    };
+    if (floorMode) {
+      if (!(floorSum > 0) || !(floorAbove > 0)) return null;
+      // 表の行で階の値を決めるので、「最大の階」の欄は使わない(収容人員の地階・無窓階・最大の階も表から出す)
+      // (16)項イの特定用途部分は表の用途から出す(欄は隠しているので、残った値を使わない)
+      const t16 = use === '16i' ? { tokuteiArea: NaN, basementTokutei: NaN } : {};
+      const r = judgeWithFloors({ ...base, ...t16, bwMax: 0, up3Max: 0, up4Max: 0, basementTotal: 0, f12: 0, capBW: NaN, capFloor: NaN }, floorIn);
+      return { rows: r.rows, floors: r.floors, parts: r.parts };
+    }
+    if (!(Number(total) > 0) || !(Number(above) > 0)) return null;
+    return { rows: judge(base), floors: [], parts: [] };
+  }, [
+    use, total, above, below, bwMax, up3Max, up4Max, basementTotal, f12, site, height, structure, interior, cap, capBW, capFloor,
+    lowerTokutei, stairsLack, fireUse, assisted, lodging, tokuteiArea, basementTokutei, lath, ampere, fuelGas, hotSpring, nearStation,
+    floorMode, floorIn, floorSum, floorAbove,
+  ]);
+  const results = out?.rows ?? null;
 
   const STATUS: Record<Status, React.ReactNode> = {
     req: (
@@ -416,6 +204,11 @@ const FireEquipment: React.FC<FireEquipmentProps> = ({ hideHeader }) => {
     no: <span className="text-gray-400">不要の見込み</span>,
   };
 
+  /** 階の表の結果: 建物全体で必要なものは除き、その階で要るものだけ */
+  const wholeReq = new Set((results ?? []).filter((r) => r.status === 'req').map((r) => r.name));
+  const partNeeds = (label: string) =>
+    (out?.parts ?? []).filter((p) => p.floors.includes(label)).flatMap((p) => p.rows.filter((r) => r.status === 'req' && !wholeReq.has(r.name)).map((r) => ({ p, r })));
+
   return (
     <div className="w-full bg-white">
       {!hideHeader && (
@@ -425,9 +218,9 @@ const FireEquipment: React.FC<FireEquipmentProps> = ({ hideHeader }) => {
       )}
       <div className="p-4">
         <div className="grid grid-cols-1 lg:grid-cols-[360px_minmax(0,1fr)] gap-7 items-start">
-          <div>
+          <div className="min-w-0">
             <div className="mb-5 p-3 bg-red-50 border border-red-200 rounded text-[11px] leading-relaxed text-red-800">
-              <strong>重要:</strong> 消防法施行令の設置基準による目安です。無窓階の判定(規則 5 条の 3)・収容人員の算定(規則 1 条の 3)・特例(令 32 条)・市町村の火災予防条例の上乗せで結果は変わります。必ず所轄消防署の事前相談で確かめてください。
+              <strong>重要:</strong> 消防法施行令の設置基準による目安です。無窓階の判定(規則 5 条の 5)・収容人員の算定(規則 1 条の 3)・特例(令 32 条)・市町村の火災予防条例の上乗せで結果は変わります。必ず所轄消防署の事前相談で確かめてください。
             </div>
 
             <div className="space-y-4">
@@ -445,41 +238,125 @@ const FireEquipment: React.FC<FireEquipmentProps> = ({ hideHeader }) => {
                     </optgroup>
                   ))}
                 </select>
-                {use && head(use as UseCode) === '3' && (
-                  <label className="flex items-start gap-1 text-[11px] mt-1">
-                    <input type="checkbox" checked={fireUse} onChange={(e) => setFireUse(e.target.checked)} className="mt-0.5" /> 火を使用する設備・器具(厨房のガスこんろ等)を設けている
-                  </label>
+                {use && head(u) === '3' && (
+                  <Check checked={fireUse} set={setFireUse}>
+                    火を使用する設備・器具(厨房のガスこんろ等)を設けている
+                  </Check>
                 )}
                 {(use === '6ro2' || use === '6ro4' || use === '6ro5') && (
-                  <label className="flex items-start gap-1 text-[11px] mt-1">
-                    <input type="checkbox" checked={assisted} onChange={(e) => setAssisted(e.target.checked)} className="mt-0.5" /> 介助がなければ避難できない者を主として入所させる
-                  </label>
+                  <Check checked={assisted} set={setAssisted}>
+                    介助がなければ避難できない者を主として入所させる
+                  </Check>
                 )}
                 {use === '6ha' && (
-                  <label className="flex items-start gap-1 text-[11px] mt-1">
-                    <input type="checkbox" checked={lodging} onChange={(e) => setLodging(e.target.checked)} className="mt-0.5" /> 利用者を入居させ、または宿泊させる
-                  </label>
+                  <Check checked={lodging} set={setLodging}>
+                    利用者を入居させ、または宿泊させる
+                  </Check>
                 )}
               </div>
 
               <div>
                 <label className={lab}>2. 規模</label>
-                <div className="grid grid-cols-3 gap-2">
-                  <Field k="延べ面積(㎡)" v={total} set={setTotal} ph="必須" />
-                  <Field k="地上階数" v={above} set={setAbove} ph="必須" />
-                  <Field k="地階の階数" v={below} set={setBelow} />
-                </div>
+                {floorMode ? (
+                  <p className="text-[11px] text-gray-600">
+                    階の表から: 延べ面積 {fmt(floorSum)}㎡ / 地上 {floorAbove} 階 / 地階 {floorBelow} 階
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-3 gap-2">
+                    <Field k="延べ面積(㎡)" v={total} set={setTotal} ph="必須" />
+                    <Field k="地上階数" v={above} set={setAbove} ph="必須" />
+                    <Field k="地階の階数" v={below} set={setBelow} />
+                  </div>
+                )}
               </div>
 
               <div className="p-3 bg-gray-50 rounded border border-gray-200 space-y-2">
                 <label className={lab}>3. 階ごとの床面積(階で決まる基準に使う)</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <Field k="地階・無窓階のうち最大の階の床面積(㎡)" v={bwMax} set={setBwMax} hint="無ければ 0。無窓階は消防法施行規則 5 条の 3 で判定" />
-                  <Field k="地階の床面積の合計(㎡)" v={basementTotal} set={setBasementTotal} />
-                  <Field k="3 階以上の階のうち最大の床面積(㎡)" v={up3Max} set={setUp3Max} />
-                  <Field k="4〜10 階の階のうち最大の床面積(㎡)" v={up4Max} set={setUp4Max} />
-                  <Field k="1 階と 2 階の床面積の合計(㎡)" v={f12} set={setF12} hint="平屋は 1 階。屋外消火栓・消防用水(令 19 条)" />
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px]">
+                  <label className="flex items-center gap-1">
+                    <input type="radio" name="fe-floor-mode" checked={!floorMode} onChange={() => setFloorMode(false)} /> 最大の階だけ入れる
+                  </label>
+                  <label className="flex items-center gap-1">
+                    <input type="radio" name="fe-floor-mode" checked={floorMode} onChange={openFloors} /> 階ごとに表で入れる
+                  </label>
                 </div>
+                {floorMode ? (
+                  <div className="space-y-2">
+                    <div className="overflow-x-auto">
+                      <table className="yy-tbl min-w-[300px]">
+                        <thead>
+                          <tr>
+                            <th className="pr-1">階</th>
+                            <th className="pr-1">床面積㎡</th>
+                            {c16 && <th className="pr-1">用途</th>}
+                            <th className="pr-1">無窓階</th>
+                            <th className="pr-1">避難階</th>
+                            <th className="pr-1">収容人員</th>
+                            <th />
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {floors.map((f) => (
+                            <tr key={f.id}>
+                              <td className="pr-1 whitespace-nowrap text-[11px]">{floorLabel(f.level)}</td>
+                              <td className="pr-1 w-[72px]">
+                                <input type="number" min="0" value={f.area} onChange={(e) => patchFloor(f.id, { area: e.target.value })} className={cell} />
+                              </td>
+                              {c16 && (
+                                <td className="pr-1 min-w-[120px]">
+                                  <select value={f.use} onChange={(e) => patchFloor(f.id, { use: e.target.value as UseCode | '' })} className={cell}>
+                                    <option value="">選ぶ</option>
+                                    {USES.flatMap((g) => g.items)
+                                      .filter(([c]) => !is16(c) && c !== '16-2' && c !== '16-3')
+                                      .map(([c, l]) => (
+                                        <option key={c} value={c}>
+                                          {l}
+                                        </option>
+                                      ))}
+                                  </select>
+                                </td>
+                              )}
+                              <td className="pr-1 text-center">
+                                {f.level > 0 ? <input type="checkbox" checked={f.windowless} onChange={(e) => patchFloor(f.id, { windowless: e.target.checked })} /> : <span className="text-[10px] text-gray-400">地階</span>}
+                              </td>
+                              <td className="pr-1 text-center">
+                                <input type="checkbox" checked={f.evac} onChange={(e) => patchFloor(f.id, { evac: e.target.checked })} />
+                              </td>
+                              <td className="pr-1 w-[64px]">
+                                <input type="number" min="0" value={f.cap} onChange={(e) => patchFloor(f.id, { cap: e.target.value })} className={cell} placeholder="未入力" />
+                              </td>
+                              <td className="text-right">
+                                <button type="button" className="text-[10px] text-gray-500 underline" onClick={() => removeFloor(f.id)}>
+                                  消す
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button type="button" className="yy-btn" onClick={() => addFloor(true)}>
+                        上の階を足す
+                      </button>
+                      <button type="button" className="yy-btn" onClick={() => addFloor(false)}>
+                        地階を足す
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-gray-400 leading-relaxed">
+                      無窓階は消防法施行規則 5 条の 5 で判定。避難階は直接地上へ通じる出入口のある階(初期値は 1 階)。収容人員は規則 1 条の 3 で階ごとに算定(避難器具・地階と無窓階の非常警報に使う)。
+                      {c16 && '(16)項は階ごとに主な用途を選ぶ。1 つの階に複数の用途があるときは、部分ごとの面積で所轄に確かめる。'}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    <Field k="地階・無窓階のうち最大の階の床面積(㎡)" v={bwMax} set={setBwMax} hint="無ければ 0。無窓階は消防法施行規則 5 条の 5 で判定" />
+                    <Field k="地階の床面積の合計(㎡)" v={basementTotal} set={setBasementTotal} />
+                    <Field k="3 階以上の階のうち最大の床面積(㎡)" v={up3Max} set={setUp3Max} />
+                    <Field k="4〜10 階の階のうち最大の床面積(㎡)" v={up4Max} set={setUp4Max} />
+                    <Field k="1 階と 2 階の床面積の合計(㎡)" v={f12} set={setF12} hint="平屋は 1 階。屋外消火栓・消防用水(令 19 条)" />
+                  </div>
+                )}
               </div>
 
               <div className="p-3 bg-gray-50 rounded border border-gray-200 space-y-2">
@@ -489,9 +366,9 @@ const FireEquipment: React.FC<FireEquipmentProps> = ({ hideHeader }) => {
                   <option value="qfr">準耐火建築物(建築基準法 2 条 9 号の 3 イ・ロ)</option>
                   <option value="other">その他</option>
                 </select>
-                <label className="flex items-start gap-1 text-[11px]">
-                  <input type="checkbox" checked={interior} onChange={(e) => setInterior(e.target.checked)} className="mt-0.5" /> 壁・天井の室内に面する部分の仕上げが難燃材料(屋内消火栓の倍読みに使う)
-                </label>
+                <Check checked={interior} set={setInterior}>
+                  壁・天井の室内に面する部分の仕上げが難燃材料(屋内消火栓の倍読みに使う)
+                </Check>
                 <div className="grid grid-cols-2 gap-2">
                   <Field k="敷地面積(㎡)" v={site} set={setSite} hint="消防用水(令 27 条)" />
                   <Field k="建物の高さ(m)" v={height} set={setHeight} />
@@ -500,24 +377,53 @@ const FireEquipment: React.FC<FireEquipmentProps> = ({ hideHeader }) => {
 
               <div className="p-3 bg-gray-50 rounded border border-gray-200 space-y-2">
                 <label className={lab}>5. 収容人員・避難(消防法施行規則 1 条の 3 で算定)</label>
-                <div className="grid grid-cols-3 gap-2">
-                  <Field k="建物全体(人)" v={cap} set={setCap} ph="未入力" />
-                  <Field k="地階・無窓階(人)" v={capBW} set={setCapBW} ph="未入力" />
-                  <Field k="2 階以上・地階で最大の階(人)" v={capFloor} set={setCapFloor} ph="未入力" />
+                {floorMode ? (
+                  <Field k="建物全体(人)" v={cap} set={setCap} ph="空なら階の合計" hint="地階・無窓階と各階の収容人員は表から" />
+                ) : (
+                  <div className="grid grid-cols-3 gap-2">
+                    <Field k="建物全体(人)" v={cap} set={setCap} ph="未入力" />
+                    <Field k="地階・無窓階(人)" v={capBW} set={setCapBW} ph="未入力" />
+                    <Field k="2 階以上・地階で最大の階(人)" v={capFloor} set={setCapFloor} ph="未入力" />
+                  </div>
+                )}
+                <Check checked={lowerTokutei} set={setLowerTokutei}>
+                  下の階に (1)〜(4)・(9)・(12)イ・(13)イ・(14)・(15)項の用途がある(避難器具の基準が 10 人に下がる){floorMode && c16 ? '。表の用途からも判定する' : ''}
+                </Check>
+                <Check checked={stairsLack} set={setStairsLack}>
+                  避難階以外の階から避難階・地上へ直通する階段が 2 以上ない(屋外階段・特別避難階段等なら 1 で可)
+                </Check>
+              </div>
+
+              <div className="p-3 bg-gray-50 rounded border border-gray-200 space-y-2">
+                <label className={lab}>6. 警報・通報の条件</label>
+                {(use === '16-3' || (use === '16i' && !floorMode)) && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <Field k="特定用途部分の床面積の合計(㎡)" v={tokuteiArea} set={setTokuteiArea} ph="未入力" hint="(1)〜(4)・(5)イ・(6)・(9)イ項の部分" />
+                    {use === '16i' && <Field k="うち地階にある部分(㎡)" v={basementTokutei} set={setBasementTokutei} ph="未入力" hint="ガス漏れ(令 21 条の 2 第 1 項 5 号)" />}
+                  </div>
+                )}
+                <Check checked={fuelGas} set={setFuelGas}>
+                  燃料用ガス(都市ガス等)を使う。液化石油ガス販売事業による LP ガスは除く(ガス漏れ火災警報設備・規則 24 条の 2 の 2)
+                </Check>
+                <Check checked={hotSpring} set={setHotSpring}>
+                  建物の内部に温泉の採取のための設備がある(令 21 条の 2 第 1 項 3 号)
+                </Check>
+                <Check checked={lath} set={setLath}>
+                  間柱・下地を準不燃材料以外で造った鉄網入りの壁・床・天井がある(ラスモルタル等。漏電火災警報器・令 22 条)
+                </Check>
+                <div className="grid grid-cols-2 gap-2">
+                  <Field k="契約電流容量(A)" v={ampere} set={setAmpere} ph="未入力" hint="50A 超で漏電火災警報器(令 22 条 1 項 7 号)" />
                 </div>
-                <label className="flex items-start gap-1 text-[11px]">
-                  <input type="checkbox" checked={lowerTokutei} onChange={(e) => setLowerTokutei(e.target.checked)} className="mt-0.5" /> 下の階に (1)〜(4)・(9)・(12)イ・(13)イ・(14)・(15)項の用途がある(避難器具の基準が 10 人に下がる)
-                </label>
-                <label className="flex items-start gap-1 text-[11px]">
-                  <input type="checkbox" checked={stairsLack} onChange={(e) => setStairsLack(e.target.checked)} className="mt-0.5" /> 避難階以外の階から避難階・地上へ直通する階段が 2 以上ない(屋外階段・特別避難階段等なら 1 で可)
-                </label>
+                <Check checked={nearStation} set={setNearStation}>
+                  消防機関(消防署・出張所)からの歩行距離が 500m 以下(令 23 条ただし書・規則 25 条)
+                </Check>
               </div>
             </div>
           </div>
 
           {/* 結果表示(索引の組み方。設置が必要な行は薄い緑) */}
-          <div>
-            <h2 className="yy-dt-sec">判定結果{use ? ` — ${labelOfUse(use as UseCode)}` : ''}</h2>
+          <div className="min-w-0">
+            <h2 className="yy-dt-sec">判定結果{use ? ` — ${labelOfUse(u)}` : ''}</h2>
             {results ? (
               <>
                 <table className="w-full text-[12px]">
@@ -534,8 +440,62 @@ const FireEquipment: React.FC<FireEquipmentProps> = ({ hideHeader }) => {
                     ))}
                   </tbody>
                 </table>
+
+                {floorMode && out && out.floors.length > 0 && (
+                  <>
+                    <h2 className="yy-dt-sec mt-6">階ごとの判定</h2>
+                    <p className="yy-dt-note pb-2">建物全体で「設置が必要」の設備({wholeReq.size ? Array.from(wholeReq).join('・') : 'なし'})は全部の階に要るので、ここには出さない。</p>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-[12px]">
+                        <tbody>
+                          {out.floors.map((fr) => {
+                            const pn = partNeeds(fr.label);
+                            const hits = fr.hits.filter((h) => !wholeReq.has(h.name) && !pn.some((x) => x.r.name === h.name));
+                            const tags = [
+                              fr.floor.level < 0 ? '地階' : fr.floor.windowless ? '無窓階' : '',
+                              (fr.floor.evac === undefined ? fr.floor.level === 1 : fr.floor.evac) ? '避難階' : '',
+                              fr.floor.level >= 11 ? '11 階以上' : '',
+                              c16 && fr.floor.use ? shortUse(fr.floor.use as UseCode) : '',
+                            ].filter(Boolean);
+                            const any = hits.length > 0 || pn.length > 0;
+                            return (
+                              <tr key={fr.label} className={`border-b${hits.some((h) => h.status === 'part') || pn.length ? ' yy-dt-hi' : ''}`}>
+                                <td className="py-2 pr-3 align-top whitespace-nowrap text-gray-800">{fr.label}</td>
+                                <td className="py-2 pr-3 align-top whitespace-nowrap text-[11px] text-gray-600">
+                                  {fmt(fr.floor.area)}㎡
+                                  {tags.length > 0 && <span className="block text-[10px] text-gray-400">{tags.join('・')}</span>}
+                                </td>
+                                <td className="py-2 align-top text-[11px] leading-snug text-gray-600">
+                                  {!any && <span className="text-gray-400">この階だけで要るものは無い</span>}
+                                  {hits.map((h, i) => (
+                                    <span key={`${h.name}${i}`} className="block">
+                                      {h.status === 'check' ? <span className="text-[#b4402f]">要確認 </span> : null}
+                                      {h.name}: {h.why}
+                                      <span className="yy-fmt ml-2 whitespace-nowrap">{h.law}</span>
+                                    </span>
+                                  ))}
+                                  {pn.map(({ p, r }) => (
+                                    <span key={`${p.use}${r.name}`} className="block">
+                                      {r.name}: {shortUse(p.use)}の部分(計 {fmt(p.area)}㎡)
+                                      <span className="yy-fmt ml-2 whitespace-nowrap">{r.law}・令 9 条</span>
+                                    </span>
+                                  ))}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+
                 <p className="yy-dt-note pt-3 leading-relaxed">
-                  判定していないもの: ガス漏れ火災警報設備(令 21 条の 2)、漏電火災警報器(令 22 条。ラスモルタル等の構造)、消防機関へ通報する火災報知設備(令 23 条)、水噴霧・泡・不活性ガス等の消火設備(令 13 条。駐車場・電気室等)、無線通信補助設備(令 29 条の 3)、総合操作盤・防火対象物の点検。地階・無窓階・各階の床面積で決まる基準は、入れた「最大の階」で見ているので、どの階にかかるかは階ごとに確かめてください。
+                  判定していないもの: 水噴霧・泡・不活性ガス等の消火設備(令 13 条。駐車場・電気室等)、無線通信補助設備(令 29 条の 3)、自動火災報知設備の駐車部分(令 21 条 1 項 13 号)・通信機器室(同 15 号)・道路部分(同 12 号)、総合操作盤・防火対象物の点検。地下街と一体の地階の指定(令 9 条の 2)は所轄に確かめてください。
+                  {floorMode
+                    ? ' 階の表では、1 つの階を 1 つの用途として判定しています。'
+                    : ` 地階・無窓階・各階の床面積で決まる基準は、入れた「最大の階」で見ているので、どの階にかかるかは「階ごとに表で入れる」か、階ごとに確かめてください。`}
+                  {` ${EQ.gas}は燃料用ガスの使用、${EQ.leak}は鉄網入りの壁等の有無で決まります(入力欄 6)。`}
                 </p>
               </>
             ) : (
