@@ -72,6 +72,8 @@ const PATH_LABEL: Record<string, string> = {
   materials: '建材',
   material: '材料情報',
   zone: '用途地域',
+  bukken: '物件',
+  office: '事務所',
 };
 
 function buildCrumbs(

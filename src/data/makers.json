@@ -883,28 +883,6 @@
       "contact": "https://www.naka-kogyo.co.jp/contact/",
       "sample": "",
       "cad": "https://cad.naka-kogyo.co.jp/index.php"
-    },
-    {
-      "name": "ダイケン",
-      "pages": [],
-      "group": "",
-      "products": "https://www.daiken.ne.jp/product/",
-      "catalog": "https://www.daiken.ne.jp/catalog/",
-      "office": "https://www.daiken.ne.jp/company/office/",
-      "contact": "https://www.daiken.ne.jp/contact/",
-      "sample": "",
-      "cad": ""
-    },
-    {
-      "name": "フクビ化学",
-      "pages": [],
-      "group": "",
-      "products": "https://www.fukuvi.co.jp/product/",
-      "catalog": "https://www.fukuvi.co.jp/catalog/",
-      "office": "https://www.fukuvi.co.jp/company/base/",
-      "contact": "https://www.fukuvi.co.jp/contact/",
-      "sample": "",
-      "cad": "https://www.fukuvi.co.jp/contact/cad"
     }
   ],
   "防水": [
@@ -1381,50 +1359,6 @@
       "pages": [
         "防水その他"
       ],
-      "group": "",
-      "products": "https://www.nitta.co.jp/product/",
-      "catalog": "",
-      "office": "https://www.nitta.co.jp/company/office/",
-      "contact": "https://www.nitta.co.jp/contact/",
-      "sample": "",
-      "cad": ""
-    },
-    {
-      "name": "シーカ・ジャパン",
-      "pages": [],
-      "group": "",
-      "products": "https://jpn.sika.com/ja/construction/roofing.html",
-      "catalog": "",
-      "office": "https://jpn.sika.com/ja/about-us/sika-japan/offices.html",
-      "contact": "https://jpn.sika.com/ja/contact.html",
-      "sample": "",
-      "cad": ""
-    },
-    {
-      "name": "日新工業",
-      "pages": [],
-      "group": "",
-      "products": "https://www.nisshinkogyo.co.jp/products/",
-      "catalog": "",
-      "office": "https://www.nisshinkogyo.co.jp/company/office/",
-      "contact": "https://www.nisshinkogyo.co.jp/contact/",
-      "sample": "",
-      "cad": "https://www.nisshinkogyo.co.jp/document/cad/"
-    },
-    {
-      "name": "日本特殊塗料",
-      "pages": [],
-      "group": "",
-      "products": "https://www.nittoku.co.jp/products/",
-      "catalog": "",
-      "office": "https://www.nittoku.co.jp/company/base/",
-      "contact": "https://www.nittoku.co.jp/contact/",
-      "sample": "",
-      "cad": ""
-    },
-    {
-      "name": "ニッタ化工品",
-      "pages": [],
       "group": "",
       "products": "https://www.nitta.co.jp/product/",
       "catalog": "",
@@ -1947,61 +1881,6 @@
       "pages": [
         "家具金物"
       ],
-      "group": "",
-      "products": "https://www.kawajun.jp/products/",
-      "catalog": "",
-      "office": "https://www.kawajun.jp/company/",
-      "contact": "https://www.kawajun.jp/contact/",
-      "sample": "",
-      "cad": ""
-    },
-    {
-      "name": "スガツネ工業",
-      "pages": [],
-      "group": "",
-      "products": "https://www.sugatsune.co.jp/products/",
-      "catalog": "https://www.sugatsune.co.jp/catalog/",
-      "office": "https://www.sugatsune.co.jp/company/base/",
-      "contact": "https://www.sugatsune.co.jp/contact/",
-      "sample": "",
-      "cad": ""
-    },
-    {
-      "name": "シブタニ",
-      "pages": [],
-      "group": "",
-      "products": "https://www.shibutani.co.jp/products/",
-      "catalog": "",
-      "office": "https://www.shibutani.co.jp/company/",
-      "contact": "https://www.shibutani.co.jp/contact/",
-      "sample": "",
-      "cad": ""
-    },
-    {
-      "name": "ベスト",
-      "pages": [],
-      "group": "",
-      "products": "https://www.bestlock.co.jp/products/",
-      "catalog": "https://www.bestlock.co.jp/catalog/",
-      "office": "https://www.bestlock.co.jp/company/",
-      "contact": "https://www.bestlock.co.jp/contact/",
-      "sample": "",
-      "cad": ""
-    },
-    {
-      "name": "ロイヤル",
-      "pages": [],
-      "group": "",
-      "products": "https://www.royal-co.net/products/",
-      "catalog": "https://www.royal-co.net/catalog/",
-      "office": "https://www.royal-co.net/company/",
-      "contact": "https://www.royal-co.net/contact/",
-      "sample": "",
-      "cad": ""
-    },
-    {
-      "name": "カワジュン",
-      "pages": [],
       "group": "",
       "products": "https://www.kawajun.jp/products/",
       "catalog": "",
@@ -2635,61 +2514,6 @@
       "contact": "https://www.nichi-bei.co.jp/contact/",
       "sample": "",
       "cad": ""
-    },
-    {
-      "name": "サンゲツ",
-      "pages": [],
-      "group": "家具（屋外）",
-      "products": "https://www.sangetsu.co.jp/product/",
-      "catalog": "https://www.sangetsu.co.jp/catalog/",
-      "office": "https://www.sangetsu.co.jp/company/base/",
-      "contact": "https://www.sangetsu.co.jp/contact/",
-      "sample": "",
-      "cad": ""
-    },
-    {
-      "name": "リリカラ",
-      "pages": [],
-      "group": "家具（屋外）",
-      "products": "https://www.lilycolor.co.jp/interior/",
-      "catalog": "https://www.lilycolor.co.jp/catalog/",
-      "office": "https://www.lilycolor.co.jp/company/base/",
-      "contact": "https://www.lilycolor.co.jp/contact/",
-      "sample": "",
-      "cad": ""
-    },
-    {
-      "name": "川島織物セルコン",
-      "pages": [],
-      "group": "家具（屋外）",
-      "products": "https://www.kawashimaselkon.co.jp/curtain/",
-      "catalog": "",
-      "office": "https://www.kawashimaselkon.co.jp/company/base/",
-      "contact": "https://www.kawashimaselkon.co.jp/contact/",
-      "sample": "",
-      "cad": ""
-    },
-    {
-      "name": "タチカワブラインド",
-      "pages": [],
-      "group": "家具（屋外）",
-      "products": "https://www.blind.co.jp/products/",
-      "catalog": "https://www.blind.co.jp/catalog/",
-      "office": "https://www.blind.co.jp/company/base/",
-      "contact": "https://www.blind.co.jp/contact/",
-      "sample": "",
-      "cad": ""
-    },
-    {
-      "name": "ニチベイ",
-      "pages": [],
-      "group": "家具（屋外）",
-      "products": "https://www.nichi-bei.co.jp/products/",
-      "catalog": "https://www.nichi-bei.co.jp/catalog/",
-      "office": "https://www.nichi-bei.co.jp/company/base/",
-      "contact": "https://www.nichi-bei.co.jp/contact/",
-      "sample": "",
-      "cad": ""
     }
   ],
   "電気設備": [
@@ -3254,83 +3078,6 @@
       "cad": ""
     },
     {
-      "name": "パナソニック",
-      "pages": [],
-      "group": "",
-      "products": "https://www2.panasonic.biz/jp/lighting/",
-      "catalog": "https://www2.panasonic.biz/jp/catalog/",
-      "office": "https://www2.panasonic.biz/jp/company/",
-      "contact": "https://www2.panasonic.biz/jp/contact/",
-      "sample": "",
-      "cad": "https://www2.panasonic.biz/jp/ai/cad/download/"
-    },
-    {
-      "name": "コイズミ照明",
-      "pages": [],
-      "group": "",
-      "products": "https://www.koizumi-lt.co.jp/product/",
-      "catalog": "https://www.koizumi-lt.co.jp/catalog/",
-      "office": "https://www.koizumi-lt.co.jp/company/",
-      "contact": "https://www.koizumi-lt.co.jp/contact/",
-      "sample": "",
-      "cad": ""
-    },
-    {
-      "name": "大光電機",
-      "pages": [],
-      "group": "",
-      "products": "https://www.lighting-daiko.co.jp/product/",
-      "catalog": "https://www.lighting-daiko.co.jp/catalog/",
-      "office": "https://www.lighting-daiko.co.jp/company/base/",
-      "contact": "https://www.lighting-daiko.co.jp/contact/",
-      "sample": "",
-      "cad": ""
-    },
-    {
-      "name": "オーデリック",
-      "pages": [],
-      "group": "",
-      "products": "https://www.odelic.co.jp/products/",
-      "catalog": "https://www.odelic.co.jp/catalog/",
-      "office": "https://www.odelic.co.jp/company/",
-      "contact": "https://www.odelic.co.jp/contact/",
-      "sample": "",
-      "cad": ""
-    },
-    {
-      "name": "遠藤照明",
-      "pages": [],
-      "group": "",
-      "products": "https://www.endo-lighting.co.jp/products/",
-      "catalog": "",
-      "office": "https://www.endo-lighting.co.jp/company/base/",
-      "contact": "https://www.endo-lighting.co.jp/contact/",
-      "sample": "",
-      "cad": ""
-    },
-    {
-      "name": "東芝ライテック",
-      "pages": [],
-      "group": "",
-      "products": "https://www.tlt.co.jp/tlt/products/",
-      "catalog": "",
-      "office": "https://www.tlt.co.jp/tlt/company/base/",
-      "contact": "https://www.tlt.co.jp/tlt/contact/",
-      "sample": "",
-      "cad": ""
-    },
-    {
-      "name": "岩崎電気",
-      "pages": [],
-      "group": "",
-      "products": "https://www.iwasaki.co.jp/lighting/products/",
-      "catalog": "",
-      "office": "https://www.iwasaki.co.jp/company/base/",
-      "contact": "https://www.iwasaki.co.jp/contact/",
-      "sample": "",
-      "cad": ""
-    },
-    {
       "name": "日東工業",
       "pages": [
         "電気設備その他"
@@ -3562,7 +3309,7 @@
       "group": "",
       "products": "https://www.mitsubishielectric.co.jp/home/kirigamine/",
       "catalog": "https://www.mitsubishielectric.co.jp/catalog/",
-      "office": "https://www.mitsubishielectric.co.jp/contact/",
+      "office": "",
       "contact": "https://www.mitsubishielectric.co.jp/contact/",
       "sample": "",
       "cad": ""
@@ -4048,39 +3795,6 @@
       "catalog": "",
       "office": "https://www.nipponsteel.com/company/domestic/",
       "contact": "https://www.nipponsteel.com/contact/",
-      "sample": "",
-      "cad": ""
-    },
-    {
-      "name": "奥岡製作所",
-      "pages": [],
-      "group": "",
-      "products": "https://www.okuoka.co.jp/product/",
-      "catalog": "https://www.okuoka.co.jp/catalog/",
-      "office": "https://www.okuoka.co.jp/company/",
-      "contact": "https://www.okuoka.co.jp/contact/",
-      "sample": "",
-      "cad": ""
-    },
-    {
-      "name": "ダイクレ",
-      "pages": [],
-      "group": "",
-      "products": "https://www.daikure.co.jp/products/",
-      "catalog": "",
-      "office": "https://www.daikure.co.jp/network/",
-      "contact": "https://www.daikure.co.jp/contact/",
-      "sample": "",
-      "cad": ""
-    },
-    {
-      "name": "中部コーポレーション",
-      "pages": [],
-      "group": "",
-      "products": "https://www.chubu-corp.co.jp/products/",
-      "catalog": "",
-      "office": "https://www.chubu-corp.co.jp/company/",
-      "contact": "https://www.chubu-corp.co.jp/contact/",
       "sample": "",
       "cad": ""
     },
@@ -4848,7 +4562,7 @@
       "group": "",
       "products": "https://sadoshima.com/products/?e-filter-e0d4cad-products_cat=sadoshima-original",
       "catalog": "",
-      "office": "https://sadoshima.com/services/#seihin",
+      "office": "",
       "contact": "https://sadoshima.com/contact/",
       "sample": "",
       "cad": ""
@@ -5056,7 +4770,7 @@
       "group": "横葺",
       "products": "https://sadoshima.com/products/?e-filter-e0d4cad-products_cat=sadoshima-original",
       "catalog": "",
-      "office": "https://sadoshima.com/services/#seihin",
+      "office": "",
       "contact": "https://sadoshima.com/contact/",
       "sample": "",
       "cad": ""
@@ -7167,10 +6881,10 @@
       ],
       "group": "",
       "products": "https://www.nagoya-mosaic.com/products/",
-      "catalog": "https://www.nagoya-mosaic.com/products/",
-      "office": "https://www.nagoya-mosaic.co.jp/catalogue/2024.html",
-      "contact": "https://www.nagoya-mosaic.co.jp/companyguide/branch.html",
-      "sample": "https://www.nagoya-mosaic.co.jp/secure/contact/contactfrm2?nonlogin",
+      "catalog": "https://www.nagoya-mosaic.co.jp/catalogue/2024.html",
+      "office": "https://www.nagoya-mosaic.co.jp/companyguide/branch.html",
+      "contact": "https://www.nagoya-mosaic.co.jp/secure/contact/contactfrm2?nonlogin",
+      "sample": "",
       "cad": ""
     },
     {
@@ -7260,7 +6974,7 @@
       "products": "https://www.toyo-kogyo.co.jp/exterior/product-selection.html",
       "catalog": "https://www.toyo-kogyo.co.jp/webcatalog/",
       "office": "https://www.toyo-kogyo.co.jp/company/branch.html",
-      "contact": "https://www.toyo-kogyo.co.jp/catalog/",
+      "contact": "https://www.toyo-kogyo.co.jp/contact/",
       "sample": "",
       "cad": ""
     },
@@ -7613,7 +7327,7 @@
       "products": "https://www.swan-group.co.jp/product/line.php",
       "catalog": "",
       "office": "https://www.swan-group.co.jp/company/",
-      "contact": "https://www.swan-group.co.jp/company/",
+      "contact": "",
       "sample": "",
       "cad": "https://www.swan-group.co.jp/cad/"
     },
@@ -7975,7 +7689,7 @@
       ],
       "group": "オーニング",
       "products": "http://www.ozawatent.co.jp/product.html#awning",
-      "catalog": "http://www.ozawatent.co.jp/company.html",
+      "catalog": "",
       "office": "http://www.ozawatent.co.jp/company.html",
       "contact": "",
       "sample": "",
@@ -8003,7 +7717,7 @@
       "products": "http://www.awningkyushu.co.jp/",
       "catalog": "",
       "office": "http://www.awningkyushu.co.jp/message_company.html",
-      "contact": "http://www.awningkyushu.co.jp/message_company.html",
+      "contact": "",
       "sample": "",
       "cad": ""
     },
@@ -8497,10 +8211,10 @@
       ],
       "group": "",
       "products": "https://www.howdy-inc.com/lineup/floor/howdy-floor",
-      "catalog": "",
-      "office": "https://www.howdy-inc.com/catalog#shouhin",
-      "contact": "https://www.howdy-inc.com/room",
-      "sample": "https://www.howdy-inc.com/contact",
+      "catalog": "https://www.howdy-inc.com/catalog#shouhin",
+      "office": "https://www.howdy-inc.com/room",
+      "contact": "https://www.howdy-inc.com/contact",
+      "sample": "",
       "cad": ""
     },
     {
@@ -8708,8 +8422,8 @@
       "catalog": "https://forest.toppan.com/catalog/",
       "office": "https://forest.toppan.com/divison/office-list/",
       "contact": "https://forest.toppan.com/form/contact_jp_privacy.html",
-      "sample": "",
-      "cad": "https://forest.toppan.com/sample-search/"
+      "sample": "https://forest.toppan.com/sample-search/",
+      "cad": ""
     },
     {
       "name": "サンゲツ",
@@ -8862,7 +8576,7 @@
       "group": "タイルカーペット",
       "products": "https://www.tuntex-carpet.com/ja/product",
       "catalog": "",
-      "office": "https://www.tuntex-carpet.com/ja/contact",
+      "office": "",
       "contact": "https://www.tuntex-carpet.com/ja/contact",
       "sample": "",
       "cad": ""
@@ -10035,10 +9749,10 @@
       ],
       "group": "金属パネル",
       "products": "https://www.kikukawa.com/citytexture-top/",
-      "catalog": "https://www.kikukawa.com/studio-k/sample-list/",
+      "catalog": "",
       "office": "https://www.kikukawa.com/about/company/",
       "contact": "https://www.kikukawa.com/contact/",
-      "sample": "",
+      "sample": "https://www.kikukawa.com/studio-k/sample-list/",
       "cad": ""
     },
     {
@@ -11065,7 +10779,7 @@
       ],
       "group": "システム天井",
       "products": "https://www.kal-ten.jp/products.php",
-      "catalog": "https://inquiry.teijin.co.jp/form/contact_kr_jp.html",
+      "catalog": "",
       "office": "https://www2.teijin-frontier.com/company/office/",
       "contact": "https://inquiry.teijin.co.jp/form/contact_kr_jp.html",
       "sample": "",
@@ -11105,7 +10819,7 @@
       "group": "",
       "products": "https://www.rwa.gr.jp/",
       "catalog": "",
-      "office": "https://www.rwa.gr.jp/",
+      "office": "",
       "contact": "",
       "sample": "",
       "cad": ""

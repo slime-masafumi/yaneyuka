@@ -82,12 +82,16 @@ const GROUPS: Array<{ no: string; label: string; items: Entry[] }> = [
     no: '02',
     label: '使う',
     items: [
+      // 物件ハブ: 物件の共通台帳から、宿題・メモ・メール・チームのタスクを 1 画面で(2026-11-16)
+      { label: '物件', icon: FiFolder, href: '/bukken/', active: (_c, p) => p.startsWith('/bukken') },
       { label: '物件カルテ', icon: FiBookmark, href: '/karte/', active: (_c, p) => p.startsWith('/karte') },
       menu(INDEX_MENUS.design, '設計ツール', FiPenTool, (c) => c === INDEX_MENUS.design || c === 'design-tools'),
       menu(INDEX_MENUS.general, '一般ツール', FiGrid, (c) => GENERAL_TOOL_MENU_IDS.has(c)),
       // 設計情報・材料情報は「建築の調べもの」の中のタブにした(2026-11-14)
       { label: '建築の調べもの', icon: FiCompass, href: '/lookup/', active: (c, p) => p.startsWith('/lookup') || p.startsWith('/calc') || c === 'design-info' || c === 'material-info' },
       menu(INDEX_MENUS.external, '外部ツール', FiExternalLink),
+      // 事務所: 予定・連絡先・工数を所内で共有する(2026-11-16)
+      { label: '事務所', icon: FiUsers, href: '/office/', active: (_c, p) => p.startsWith('/office') },
     ],
   },
   {

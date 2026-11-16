@@ -126,6 +126,44 @@ export function matchProject(mail: MailLike, projects: ProjectRule[]): string | 
 }
 
 // ---------------------------------------------------------------------------
+// このブラウザの台帳とクラウドの台帳の差
+// ---------------------------------------------------------------------------
+
+/** 物件名の比較用（全角/半角・空白・括弧の違いを吸収）。projectRegistry.projectKey と同じ規則 */
+const nameKey = (name: string) =>
+  name.normalize('NFKC').replace(/\s+/g, '').replace(/[()（）【】「」]/g, '').toLowerCase();
+
+/**
+ * ログインした端末で、クラウドにもう台帳があるときに「このブラウザにだけあるもの」を出す。
+ * 以前はクラウドに 1 件でもあると、このブラウザで取り込んだメールは黙って置き去りだった。
+ *
+ *   mails      … クラウドに同じ id（Message-ID から作る）が無いメール。閉じたもの（dismissed）は除く
+ *   projects   … クラウドに同じ id も同じ名前（表記ゆれ込み）も無い物件
+ *   projectMap … このブラウザの物件 id → クラウドの物件 id（同じ名前の物件があればそちらへ寄せる。
+ *                無いものは同じ id のまま足すので、自分自身へ写す）
+ */
+export function localOnlyEntries<P extends { id: string; name: string }, M extends { id: string; projectId: string | null }>(
+  local: { projects: P[]; mails: M[] },
+  cloud: { projects: { id: string; name: string }[]; mails: { id: string }[] },
+  dismissed: Set<string> = new Set(),
+): { mails: M[]; projects: P[]; projectMap: Map<string, string> } {
+  const cloudMailIds = new Set(cloud.mails.map((m) => m.id));
+  const projectMap = new Map<string, string>();
+  const projects: P[] = [];
+  for (const p of local.projects) {
+    const byId = cloud.projects.find((c) => c.id === p.id);
+    const byName = byId ?? cloud.projects.find((c) => nameKey(c.name) === nameKey(p.name));
+    if (byName) projectMap.set(p.id, byName.id);
+    else {
+      projectMap.set(p.id, p.id);
+      if (!dismissed.has(p.id)) projects.push(p);
+    }
+  }
+  const mails = local.mails.filter((m) => !cloudMailIds.has(m.id) && !dismissed.has(m.id));
+  return { mails, projects, projectMap };
+}
+
+// ---------------------------------------------------------------------------
 // その他
 // ---------------------------------------------------------------------------
 

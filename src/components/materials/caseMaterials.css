@@ -1,0 +1,31 @@
+/* 建材ページ右列「案件で使う建材」(src/components/materials/CaseMaterials.tsx)。
+   濃い緑の帯(.yy-gray--case)の中。区切りは 1px の線、件数・番号は等幅の小さな文字 */
+.yy-case2 { align-items: stretch; gap: 8px; }
+.yy-case2 .yy-label { align-self: flex-start; }
+.yy-case2 .yy-projpick { width: 100%; flex-wrap: wrap; gap: 4px 8px; }
+.yy-case2 .yy-projpick input { flex: 1 1 auto; width: auto; height: 28px; background: transparent; border: 0; border-bottom: 1px solid rgba(255, 255, 255, 0.45); padding: 0 2px; font-size: 13px; }
+.yy-case2 .yy-projpick input:focus { box-shadow: none; border-bottom-color: var(--yy-acc); }
+.yy-case2 .yy-projpick input::placeholder { color: var(--yy-deep-t2); }
+.yy-case2 .yy-projpick__add, .yy-case2 .yy-projpick__ok { color: var(--yy-acc); }
+
+.yy-case2__k { font-family: var(--font-mono), ui-monospace, monospace; font-size: 10px; letter-spacing: 0.08em; color: var(--yy-deep-t2); text-transform: uppercase; }
+.yy-case2__form { display: flex; flex-direction: column; gap: 6px; padding-top: 4px; }
+.yy-case2__sub { display: flex; align-items: baseline; gap: 8px; font-size: 12px; color: #ffffff; }
+.yy-case2__form input[type='text'] { width: 100%; height: 26px; padding: 0 2px; border: 0; border-bottom: 1px solid rgba(255, 255, 255, 0.45); border-radius: 0; background: transparent; font-size: 12px; }
+.yy-case2__form input[type='text']:focus { outline: 0; border-bottom-color: var(--yy-acc) !important; }
+.yy-case2__form input::placeholder { color: var(--yy-deep-t2); }
+.yy-case2__form .yy-pill { align-self: flex-start; margin-top: 2px; }
+
+.yy-case2__head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-top: 4px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, 0.18); }
+.yy-case2__csv { padding: 0; border: 0; background: none; font-family: var(--font-mono), ui-monospace, monospace; font-size: 10px; letter-spacing: 0.1em; color: var(--yy-acc); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.yy-case2__csv:hover { color: #ffffff; }
+
+.yy-case2__list { margin: 0; padding: 0; list-style: none; max-height: 280px; overflow-y: auto; }
+.yy-case2__list li { display: flex; align-items: flex-start; gap: 8px; padding: 5px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.12); }
+.yy-case2__no { flex: 0 0 auto; padding-top: 2px; font-family: var(--font-mono), ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.06em; color: var(--yy-deep-t2); }
+.yy-case2__list li.is-here .yy-case2__no { color: var(--yy-acc); }
+.yy-case2__body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.yy-case2__what { font-size: 12px; color: #ffffff; overflow-wrap: anywhere; }
+.yy-case2__spec { font-size: 11px; line-height: 1.5; color: var(--yy-deep-t); overflow-wrap: anywhere; }
+.yy-case2__del { flex: 0 0 auto; padding: 0 2px; border: 0; background: none; font-size: 13px; line-height: 1; color: var(--yy-deep-t2); cursor: pointer; }
+.yy-case2__del:hover { color: #ffffff; }

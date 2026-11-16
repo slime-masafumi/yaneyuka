@@ -22,6 +22,20 @@ import { isMailFile, parseMailFile } from './yymail/parseMail';
 import { cloudStore, localStore, migrateLocalToCloud, type LedgerState, type LedgerStore, type MailRecord, type Project } from './yymail/ledgerStore';
 import { collectDrawings, CompareModal, revLabel, shortDate, Transmittal, type DrawingGroup, type DrawingVersion } from './yymail/DrawingViews';
 import { FiCheckSquare, FiFileText, FiInbox, FiPaperclip, FiPlus, FiTrash2, FiUpload } from 'react-icons/fi';
+import ProjectPicker from '@/components/ui/ProjectPicker';
+import { projectKey, useProjectRegistry } from '@/lib/projectRegistry';
+import { localOnlyEntries } from '@/lib/mailLedger';
+
+/** 「このブラウザに N 件あります」を「今はしない」で閉じたメールの id（同じものを毎回出さない） */
+const offerDismissKey = (uid: string) => `yymail:localOfferDismissed:${uid}`;
+const readDismissed = (uid: string): Set<string> => {
+  try {
+    const v = JSON.parse(localStorage.getItem(offerDismissKey(uid)) || '[]');
+    return new Set(Array.isArray(v) ? v.filter((x) => typeof x === 'string') : []);
+  } catch {
+    return new Set();
+  }
+};
 
 const ALL = '__all__';
 const UNSORTED = '__unsorted__';
@@ -54,6 +68,7 @@ export default function YyMail() {
     migratedFor.current = uid;
     if (state.mails.length || state.projects.length) return;
     setMigrateMsg('このブラウザで取り込んだ台帳をアカウントへ移しています…');
+    migrating.current = uid;
     migrateLocalToCloud(uid, store)
       .then((n) => setMigrateMsg(n ? `このブラウザで取り込んだメール ${n} 件をアカウントへ移しました。ほかの端末でも見られます。` : ''))
       .catch((e) => {
@@ -61,6 +76,108 @@ export default function YyMail() {
         setMigrateMsg('このブラウザの台帳をアカウントへ移せませんでした。ログアウトすると手元の台帳はそのまま見られます。');
       });
   }, [uid, store, state.kind, state.ready, state.error, state.mails.length, state.projects.length]);
+
+  /**
+   * クラウドにもう台帳があるのに、このブラウザ（ログイン前の IndexedDB）にだけあるメール。
+   * ★以前は上の移行が「クラウドが空のときだけ」で、1 件でもあると黙って置き去りにしていた。
+   * Myカレンダー・Myタスクと同じく「このブラウザに N 件あります → 追加」を出す（押されたときだけ足す）。
+   * 手元の IndexedDB は消さない（ログアウトすればまた見える）。
+   */
+  const migrating = useRef<string | null>(null);
+  const offerChecked = useRef<string | null>(null);
+  const [localOffer, setLocalOffer] = useState<{ mails: MailRecord[]; projects: Project[]; allProjects: Project[]; projectMap: Map<string, string> } | null>(null);
+  const [offerBusy, setOfferBusy] = useState(false);
+  useEffect(() => {
+    if (!uid || !store || store.kind !== 'cloud' || state.kind !== 'cloud' || !state.ready || state.error) return;
+    if (!state.mails.length && !state.projects.length) return; // 空なら上の移行が受け持つ
+    if (offerChecked.current === uid || migrating.current === uid) return;
+    offerChecked.current = uid;
+    if (typeof indexedDB === 'undefined') return;
+    const cloud = { projects: state.projects, mails: state.mails };
+    let off: (() => void) | null = null;
+    let done = false;
+    try {
+      const local = localStore();
+      off = local.subscribe((s) => {
+        if (done) return;
+        done = true;
+        const r = localOnlyEntries(s, cloud, readDismissed(uid));
+        if (r.mails.length || r.projects.length) setLocalOffer({ ...r, allProjects: s.projects });
+        setTimeout(() => off?.(), 0);
+      });
+    } catch {
+      /* このブラウザに台帳が無い・開けない */
+    }
+    return () => { if (done) off?.(); };
+  }, [uid, store, state.kind, state.ready, state.error, state.mails, state.projects]);
+
+  const addLocalNow = async () => {
+    if (!uid || !store || store.kind !== 'cloud' || !localOffer) return;
+    setOfferBusy(true);
+    const local = localStore();
+    const cloudIds = new Set(state.projects.map((p) => p.id));
+    // 物件: クラウドに無いもの（同じ名前も無いもの）を足す。足すメールが指している物件も足す
+    const used = new Set(localOffer.mails.map((m) => (m.projectId ? localOffer.projectMap.get(m.projectId) : null)).filter(Boolean) as string[]);
+    const toPut = localOffer.allProjects.filter((p) => localOffer.projectMap.get(p.id) === p.id && !cloudIds.has(p.id) && (used.has(p.id) || localOffer.projects.some((x) => x.id === p.id)));
+    const cloudProjects: Project[] = [...state.projects];
+    for (const p of toPut) {
+      try {
+        await store.putProject(p);
+        cloudProjects.push(p);
+      } catch (e) {
+        console.error('[yymail] 物件を足せませんでした', e);
+      }
+    }
+    let ok = 0;
+    const failed: string[] = [];
+    for (const m of localOffer.mails) {
+      try {
+        const files: { path: string; data: Uint8Array; mime: string }[] = [];
+        const attachments: MailRecord['attachments'] = [];
+        for (const [i, a] of m.attachments.entries()) {
+          const path = `userUploads/${uid}/mail-${m.id}-${i}`;
+          try {
+            const blob = await (await fetch(await local.fileUrl(a.path))).blob();
+            files.push({ path, data: new Uint8Array(await blob.arrayBuffer()), mime: a.mime || blob.type });
+          } catch {
+            /* このブラウザに添付の中身が無い（台帳の行だけ足す） */
+          }
+          attachments.push({ ...a, path });
+        }
+        const mapped = m.projectId ? localOffer.projectMap.get(m.projectId) ?? null : null;
+        const pid =
+          mapped && cloudProjects.some((p) => p.id === mapped)
+            ? mapped
+            : m.manualProject
+              ? null
+              : matchProject({ subject: m.subject, text: m.text, from: `${m.from.name} ${m.from.address}`, to: m.to.map((x) => x.address), cc: m.cc.map((x) => x.address) }, cloudProjects);
+        await store.putMail({ ...m, projectId: pid, attachments }, files);
+        ok++;
+      } catch (e) {
+        console.error('[yymail] このブラウザのメールを足せませんでした', e);
+        failed.push(m.subject || m.id);
+      }
+    }
+    setOfferBusy(false);
+    setLocalOffer(null);
+    setMigrateMsg(
+      `このブラウザのメール ${ok} 件をアカウントに追加しました。` +
+        (failed.length ? ` 追加できなかったもの ${failed.length} 件（通信を確かめて、開き直すともう一度出ます）。` : ''),
+    );
+    if (failed.length) offerChecked.current = null;
+  };
+  const dismissOffer = () => {
+    if (uid && localOffer) {
+      const ids = readDismissed(uid);
+      localOffer.mails.forEach((m) => ids.add(m.id));
+      localOffer.projects.forEach((p) => ids.add(p.id));
+      try { localStorage.setItem(offerDismissKey(uid), JSON.stringify([...ids])); } catch { /* 次に開いたらまた出るだけ */ }
+    }
+    setLocalOffer(null);
+  };
+
+  // 物件の台帳（src/lib/projectRegistry.ts）。yymail の物件は台帳から選び、新しく作った物件は台帳にも入れる
+  const registry = useProjectRegistry();
 
   const [projectId, setProjectId] = useState<string>(ALL);
   const [tab, setTab] = useState<'mail' | 'drawing'>('mail');
@@ -186,11 +303,27 @@ export default function YyMail() {
 
   const saveProject = async (p: Project) => {
     if (!store) return;
-    await store.putProject(p);
-    await resort([...projects.filter((x) => x.id !== p.id), p]);
+    // 物件の台帳の書き方にそろえ、台帳に無ければ登録する（ほかのツール・物件ハブでも同じ物件になる）
+    const known = registry.find(p.name);
+    const name = known?.name ?? p.name;
+    const next: Project = name === p.name ? p : { ...p, name, keywords: p.keywords.includes(name) ? p.keywords : [name, ...p.keywords] };
+    if (!known) void registry.add(name);
+    await store.putProject(next);
+    await resort([...projects.filter((x) => x.id !== next.id), next]);
     setEditing(null);
-    setProjectId(p.id);
+    setProjectId(next.id);
   };
+
+  /** 台帳の物件を yymail の物件にする（仕分けの言葉は物件名から始める） */
+  const addFromRegistry = async (name: string) => {
+    const hit = projects.find((p) => projectKey(p.name) === projectKey(name));
+    if (hit) return hit.id;
+    const p: Project = { id: `p-${Date.now()}`, name, keywords: [name], createdAt: Date.now() };
+    await saveProject(p);
+    return p.id;
+  };
+  // 台帳にあって、まだ yymail の物件になっていないもの
+  const registryOnly = registry.active.filter((rp) => !projects.some((p) => projectKey(p.name) === projectKey(rp.name)));
 
   const deleteProject = async (p: Project) => {
     if (!store || !confirm(`物件「${p.name}」を削除しますか？\nメールは消さず、未仕分けに戻します。`)) return;
@@ -298,6 +431,18 @@ export default function YyMail() {
         {headNotice && <p className="mt-2 text-[11px] text-gray-600" role="status">{headNotice}</p>}
         {store?.kind === 'local' && <GuestNote className="mt-2 !mb-0">このブラウザに保存しています（添付も端末の中だけ）。ログインすると端末間で同期します。</GuestNote>}
         {migrateMsg && <p className="mt-2 text-[11px] text-gray-700" role="status">{migrateMsg}</p>}
+        {localOffer && (
+          <p className="mt-2 text-[11px] text-gray-600 border-l border-[#52AA96] pl-2" role="status">
+            このブラウザに、ログイン前に取り込んだ{localOffer.mails.length ? `メールが ${localOffer.mails.length} 件` : ''}
+            {localOffer.mails.length && localOffer.projects.length ? '・' : ''}
+            {localOffer.projects.length ? `物件が ${localOffer.projects.length} 件` : ''}あります（アカウントの台帳にはまだ無いもの）。{' '}
+            <button type="button" disabled={offerBusy} className="underline underline-offset-2 font-bold text-gray-900 disabled:opacity-50" onClick={() => void addLocalNow()}>
+              {offerBusy ? '追加しています…' : 'アカウントに追加'}
+            </button>
+            {' / '}
+            <button type="button" disabled={offerBusy} className="underline underline-offset-2" onClick={dismissOffer}>今はしない</button>
+          </p>
+        )}
         {state.error && <p className="mt-2 text-[11px] text-red-600" role="alert">台帳を読み込めませんでした。通信状態を確かめて、開き直してください。</p>}
 
         <div className={`mt-2 bg-white border overflow-hidden flex flex-col md:flex-row md:flex-1 md:min-h-0 ${dragging ? 'border-[#52AA96] outline outline-1 outline-[#52AA96]' : 'border-[#3b3b3b]'}`}>
@@ -360,6 +505,23 @@ export default function YyMail() {
               <button type="button" onClick={() => setEditing('new')} className="w-full px-2 py-1.5 text-left text-gray-600 hover:bg-gray-100 flex items-center gap-1">
                 <FiPlus /> 物件を追加
               </button>
+              {/* 物件の台帳（ほかのツールと共通）にあって、まだ yymail の物件になっていないもの */}
+              {registryOnly.length > 0 && (
+                <div className="mt-1 pt-1 border-t border-gray-200">
+                  <div className="px-2 py-0.5 text-[10px] text-gray-500">物件の台帳から</div>
+                  {registryOnly.map((rp) => (
+                    <button
+                      key={rp.id}
+                      type="button"
+                      onClick={() => void addFromRegistry(rp.name)}
+                      className="w-full px-2 py-1 text-left text-gray-600 hover:bg-gray-100 flex items-center gap-1 text-[11px]"
+                      title="yymail の物件にする（物件名で仕分け。言葉はあとで足せます）"
+                    >
+                      <FiPlus className="shrink-0 text-gray-400" /> <span className="truncate">{rp.name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {(() => {
@@ -369,9 +531,17 @@ export default function YyMail() {
                 <div className="p-2 border-t text-[11px] space-y-1">
                   <div className="text-gray-500">仕分けの言葉</div>
                   <div className="text-gray-800 break-words">{p.keywords.join('、') || '（なし）'}</div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <button type="button" className="underline" onClick={() => setEditing(p)}>変更</button>
                     <button type="button" className="underline text-red-600" onClick={() => void deleteProject(p)}>削除</button>
+                    {registry.ready && !registry.find(p.name) && (
+                      <button type="button" className="underline text-[#2f7f6d]" onClick={() => void registry.add(p.name)} title="物件の台帳に登録すると、Myタスク・メモ・Teamタスク・物件ハブでも同じ物件として扱えます">
+                        台帳に登録
+                      </button>
+                    )}
+                    {registry.find(p.name) && (
+                      <a className="underline text-gray-600" href={`/bukken/?p=${encodeURIComponent(registry.find(p.name)!.id)}`}>物件ハブ</a>
+                    )}
                   </div>
                 </div>
               );
@@ -489,9 +659,14 @@ export default function YyMail() {
                 key={mail.id}
                 mail={mail}
                 projects={projects}
+                registryOnly={registryOnly.map((rp) => rp.name)}
                 thread={state.mails.filter((x) => x.subjectKey === mail.subjectKey && x.id !== mail.id).sort((a, b) => a.date.localeCompare(b.date))}
                 onSelect={setMailId}
-                onMove={(pid) => void store?.updateMail(mail.id, { projectId: pid, manualProject: true })}
+                onMove={async (pid) => {
+                  // 「台帳から」を選んだら、その物件を yymail の物件にしてから付け替える
+                  const target = pid && pid.startsWith('reg:') ? await addFromRegistry(pid.slice(4)) : pid;
+                  await store?.updateMail(mail.id, { projectId: target, manualProject: true });
+                }}
                 onDelete={async () => {
                   if (!store || !confirm('このメールを台帳から削除しますか？（添付も消えます）')) return;
                   await store.deleteMail(mail);
@@ -581,6 +756,7 @@ export default function YyMail() {
 function MailDetail({
   mail,
   projects,
+  registryOnly = [],
   thread,
   onSelect,
   onMove,
@@ -591,9 +767,11 @@ function MailDetail({
 }: {
   mail: MailRecord;
   projects: Project[];
+  /** 台帳にあって yymail の物件にまだなっていない物件名（選ぶと物件を作って付け替える） */
+  registryOnly?: string[];
   thread: MailRecord[];
   onSelect: (id: string) => void;
-  onMove: (projectId: string | null) => void;
+  onMove: (projectId: string | null) => void | Promise<void>;
   onDelete: () => void;
   onOpen: (path: string) => void;
   previousOf: (i: number) => { older: DrawingVersion; newer: DrawingVersion } | null;
@@ -633,11 +811,18 @@ function MailDetail({
       </div>
       <label className="flex items-center gap-2 text-[11px]">
         <span className="text-gray-500">物件</span>
-        <select value={mail.projectId ?? ''} onChange={(e) => onMove(e.target.value || null)} className="px-2 py-1 text-[11px]">
+        <select value={mail.projectId ?? ''} onChange={(e) => void onMove(e.target.value || null)} className="px-2 py-1 text-[11px]">
           <option value="">未仕分け</option>
           {projects.map((p) => (
             <option key={p.id} value={p.id}>{p.name}</option>
           ))}
+          {registryOnly.length > 0 && (
+            <optgroup label="物件の台帳から">
+              {registryOnly.map((n) => (
+                <option key={`reg:${n}`} value={`reg:${n}`}>{n}</option>
+              ))}
+            </optgroup>
+          )}
         </select>
         {mail.manualProject && <span className="text-[10px] text-gray-400">手で付け替え済み</span>}
       </label>
@@ -755,8 +940,10 @@ function ProjectEditor({ project, onSave, onCancel }: { project: Project | null;
       >
         <div className="font-bold">{project ? '物件を変更' : '物件を追加'}</div>
         <label className="block">
-          <span className="text-[11px] text-gray-600">物件名</span>
-          <input value={name} onChange={(e) => setName(e.target.value)} className="w-full px-2 py-1" autoFocus placeholder="A邸新築工事" />
+          <span className="text-[11px] text-gray-600">物件名（物件の台帳から選ぶ。無ければ保存したときに台帳にも入ります）</span>
+          <span className="block mt-0.5">
+            <ProjectPicker value={name} onChange={setName} placeholder="A邸新築工事" label="物件名" autoRegister={false} className="w-full flex-wrap [&_input]:!w-full [&_input]:!h-7 [&_input]:!text-[12px]" />
+          </span>
         </label>
         <label className="block">
           <span className="text-[11px] text-gray-600">仕分けの言葉（1行に1つ）</span>

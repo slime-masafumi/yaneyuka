@@ -1,7 +1,7 @@
 // firestore.rules の検証用スクリプト（使い捨て。検証後に削除する）
 import { initializeApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { getFirestore, connectFirestoreEmulator, doc, setDoc, updateDoc, deleteDoc, getDoc, getDocs, collection, query, where } from 'firebase/firestore';
+import { getFirestore, connectFirestoreEmulator, doc, setDoc, updateDoc, deleteDoc, getDoc, getDocs, collection, query, where, writeBatch, arrayUnion, arrayRemove } from 'firebase/firestore';
 
 const app = initializeApp({ apiKey: 'fake-api-key', projectId: 'testsite-7f2a6' });
 const auth = getAuth(app);
@@ -332,6 +332,146 @@ await check('部外者: 他人のリンクを消す', 'deny', () => deleteDoc(do
 await check('部外者: 元の工程表（本人だけ）を読む', 'deny', () => getDoc(doc(db, 'users', uidG, 'ganttProjects', 'p1')));
 await as('gantt-owner@example.com');
 await check('持ち主: リンクを止める', 'allow', () => deleteDoc(doc(db, 'publicGantts', 'g-slug-1')));
+
+// ===== 事務所（offices / officeInvites / userOffice） =====
+console.log('\n--- 事務所 ---');
+const OFF = 'office-a';
+const uidOm = await as('office-member@example.com');
+const uidOx = await as('office-outsider@example.com');
+const uidOo = await as('office-owner@example.com');
+const createOffice = (id, owner) => {
+  const b = writeBatch(db);
+  b.set(doc(db, 'offices', id), { name: 'A設計事務所', ownerUid: owner, memberUids: [owner], createdAt: new Date() });
+  b.set(doc(db, 'userOffice', owner), { officeId: id, joinedAt: new Date() });
+  return b.commit();
+};
+await check('オーナー: 事務所を作る（userOffice と同時）', 'allow', () => createOffice(OFF, uidOo));
+await check('オーナー: 2 つ目の事務所は作れない（1 人 1 事務所）', 'deny', () => createOffice('office-b', uidOo));
+await check('オーナー: userOffice の付け替え', 'deny', () => setDoc(doc(db, 'userOffice', uidOo), { officeId: 'office-b', joinedAt: new Date() }));
+await check('オーナー: メンバーを直接足す（招待の承諾を経ない）', 'deny', () =>
+  updateDoc(doc(db, 'offices', OFF), { memberUids: arrayUnion(uidOm) }));
+await check('オーナー: 招待を出す', 'allow', () =>
+  setDoc(doc(db, 'officeInvites', `${OFF}_${uidOm}`), { officeId: OFF, officeName: 'A設計事務所', inviteeUid: uidOm, ownerUid: uidOo, invitedByName: 'owner', createdAt: new Date() }));
+await check('オーナー: 事務所の名前を変える', 'allow', () => updateDoc(doc(db, 'offices', OFF), { name: 'A設計' }));
+await check('オーナー: 予定を入れる', 'allow', () =>
+  setDoc(doc(db, 'offices', OFF, 'events', 'e1'), { title: '現場定例', date: '2026-11-20', allDay: false, startHour: '10', startMinute: '00', endHour: '11', endMinute: '00', category: '', color: '#52AA96', details: '', createdBy: uidOo, createdAt: Date.now(), updatedAt: Date.now(), updatedBy: uidOo }));
+await check('オーナー: 自分の工数を入れる', 'allow', () =>
+  setDoc(doc(db, 'offices', OFF, 'workHours', `${uidOo}_2026-11-16_r1`), { uid: uidOo, date: '2026-11-16', project: '山田邸', hours: 3, task: '実施設計', updatedAt: Date.now() }));
+
+// 部外者（招待なし）
+await as('office-outsider@example.com');
+await check('部外者: 事務所を読む', 'deny', () => getDoc(doc(db, 'offices', OFF)));
+await check('部外者: 事務所を一覧', 'deny', () => getDocs(collection(db, 'offices')));
+await check('部外者: メンバー検索で一覧', 'deny', () => getDocs(query(collection(db, 'offices'), where('memberUids', 'array-contains', uidOo))));
+await check('部外者: 共有の予定を読む', 'deny', () => getDocs(collection(db, 'offices', OFF, 'events')));
+await check('部外者: 共有の連絡先を読む', 'deny', () => getDocs(collection(db, 'offices', OFF, 'contacts')));
+await check('部外者: 工数を読む', 'deny', () => getDocs(collection(db, 'offices', OFF, 'workHours')));
+await check('部外者: 工数を書き込む', 'deny', () =>
+  setDoc(doc(db, 'offices', OFF, 'workHours', `${uidOx}_2026-11-16_r1`), { uid: uidOx, date: '2026-11-16', project: 'x', hours: 1, task: '', updatedAt: Date.now() }));
+await check('部外者: 招待なしで自分を足す', 'deny', () => {
+  const b = writeBatch(db);
+  b.update(doc(db, 'offices', OFF), { memberUids: arrayUnion(uidOx) });
+  b.set(doc(db, 'userOffice', uidOx), { officeId: OFF, joinedAt: new Date() });
+  return b.commit();
+});
+await check('部外者: 他人宛ての招待を読む', 'deny', () => getDoc(doc(db, 'officeInvites', `${OFF}_${uidOm}`)));
+await check('部外者: 他人の事務所の名前で招待を出す', 'deny', () =>
+  setDoc(doc(db, 'officeInvites', `${OFF}_${uidOx}`), { officeId: OFF, officeName: 'A設計事務所', inviteeUid: uidOx, ownerUid: uidOx, createdAt: new Date() }));
+
+// 招待された本人
+await as('office-member@example.com');
+await check('招待された本人: 自分宛ての招待を一覧', 'allow', () => getDocs(query(collection(db, 'officeInvites'), where('inviteeUid', '==', uidOm))));
+await check('招待された本人: 自分と一緒に部外者も足す', 'deny', () => {
+  const b = writeBatch(db);
+  b.update(doc(db, 'offices', OFF), { memberUids: arrayUnion(uidOm, uidOx) });
+  b.set(doc(db, 'userOffice', uidOm), { officeId: OFF, joinedAt: new Date() });
+  return b.commit();
+});
+await check('招待された本人: 承諾する（自分を足す + userOffice + 招待を消す）', 'allow', () => {
+  const b = writeBatch(db);
+  b.update(doc(db, 'offices', OFF), { memberUids: arrayUnion(uidOm) });
+  b.set(doc(db, 'userOffice', uidOm), { officeId: OFF, joinedAt: new Date() });
+  b.delete(doc(db, 'officeInvites', `${OFF}_${uidOm}`));
+  return b.commit();
+});
+await check('メンバー: 事務所を読む', 'allow', () => getDoc(doc(db, 'offices', OFF)));
+await check('メンバー: 共有の予定を読む', 'allow', () => getDocs(collection(db, 'offices', OFF, 'events')));
+await check('メンバー: 共有の予定を書き換える', 'allow', () =>
+  updateDoc(doc(db, 'offices', OFF, 'events', 'e1'), { title: '現場定例（変更）', updatedAt: Date.now(), updatedBy: uidOm }));
+await check('メンバー: 予定の作成者を自分に付け替え', 'deny', () =>
+  updateDoc(doc(db, 'offices', OFF, 'events', 'e1'), { createdBy: uidOm, updatedAt: Date.now(), updatedBy: uidOm }));
+await check('メンバー: オーナーの予定を消す', 'deny', () => deleteDoc(doc(db, 'offices', OFF, 'events', 'e1')));
+await check('メンバー: 連絡先を共有する', 'allow', () =>
+  setDoc(doc(db, 'offices', OFF, 'contacts', 'c1'), { company: '○○建材', name: '佐藤', createdBy: uidOm, createdAt: Date.now(), updatedAt: Date.now(), updatedBy: uidOm }));
+await check('メンバー: 連絡先に余計な項目', 'deny', () =>
+  setDoc(doc(db, 'offices', OFF, 'contacts', 'c2'), { company: 'x', secret: 1, createdBy: uidOm, createdAt: Date.now(), updatedAt: Date.now(), updatedBy: uidOm }));
+await check('メンバー: 全員の工数を読む', 'allow', () => getDocs(collection(db, 'offices', OFF, 'workHours')));
+await check('メンバー: 自分の工数を入れる', 'allow', () =>
+  setDoc(doc(db, 'offices', OFF, 'workHours', `${uidOm}_2026-11-16_r1`), { uid: uidOm, date: '2026-11-16', project: '山田邸', hours: 2.5, task: '図面', updatedAt: Date.now() }));
+await check('メンバー: 他人の工数を書き換える', 'deny', () =>
+  updateDoc(doc(db, 'offices', OFF, 'workHours', `${uidOo}_2026-11-16_r1`), { hours: 10 }));
+await check('メンバー: 他人の工数を自分の行にする', 'deny', () =>
+  setDoc(doc(db, 'offices', OFF, 'workHours', `${uidOo}_2026-11-16_r1`), { uid: uidOm, date: '2026-11-16', project: '山田邸', hours: 1, task: '', updatedAt: Date.now() }));
+await check('メンバー: 他人名義の行を作る', 'deny', () =>
+  setDoc(doc(db, 'offices', OFF, 'workHours', `${uidOo}_2026-11-17_r9`), { uid: uidOo, date: '2026-11-17', project: '山田邸', hours: 1, task: '', updatedAt: Date.now() }));
+await check('メンバー: 他人の工数を消す', 'deny', () => deleteDoc(doc(db, 'offices', OFF, 'workHours', `${uidOo}_2026-11-16_r1`)));
+await check('メンバー: 1 日 24 時間を超える行', 'deny', () =>
+  setDoc(doc(db, 'offices', OFF, 'workHours', `${uidOm}_2026-11-16_r2`), { uid: uidOm, date: '2026-11-16', project: '山田邸', hours: 25, task: '', updatedAt: Date.now() }));
+await check('メンバー: 日付の形が違う行', 'deny', () =>
+  setDoc(doc(db, 'offices', OFF, 'workHours', `${uidOm}_x_r3`), { uid: uidOm, date: '11/16', project: '山田邸', hours: 1, task: '', updatedAt: Date.now() }));
+await check('メンバー（オーナー以外）: メンバーを足す', 'deny', () =>
+  updateDoc(doc(db, 'offices', OFF), { memberUids: arrayUnion(uidOx) }));
+await check('メンバー（オーナー以外）: 他のメンバーを外す', 'deny', () =>
+  updateDoc(doc(db, 'offices', OFF), { memberUids: arrayRemove(uidOo) }));
+await check('メンバー（オーナー以外）: オーナーを自分に付け替え', 'deny', () =>
+  updateDoc(doc(db, 'offices', OFF), { ownerUid: uidOm }));
+await check('メンバー（オーナー以外）: 招待を出す', 'deny', () =>
+  setDoc(doc(db, 'officeInvites', `${OFF}_${uidOx}`), { officeId: OFF, officeName: 'A設計', inviteeUid: uidOx, ownerUid: uidOm, createdAt: new Date() }));
+await check('メンバー: 抜けずに userOffice だけ消す', 'deny', () => deleteDoc(doc(db, 'userOffice', uidOm)));
+await check('メンバー: 事務所を消す', 'deny', () => deleteDoc(doc(db, 'offices', OFF)));
+
+// オーナー
+await as('office-owner@example.com');
+await check('オーナー: メンバーの工数を消す', 'allow', () => deleteDoc(doc(db, 'offices', OFF, 'workHours', `${uidOm}_2026-11-16_r1`)));
+await check('オーナー: メンバーの工数を書き換える', 'deny', () =>
+  setDoc(doc(db, 'offices', OFF, 'workHours', `${uidOm}_2026-11-16_r1`), { uid: uidOm, date: '2026-11-16', project: '山田邸', hours: 9, task: '', updatedAt: Date.now() }));
+await check('オーナー: メンバーがいるうちは解散できない', 'deny', () => deleteDoc(doc(db, 'offices', OFF)));
+await check('オーナー: 自分を外す', 'deny', () => updateDoc(doc(db, 'offices', OFF), { memberUids: [uidOm] }));
+await check('オーナー: メンバーを外す（userOffice も消す）', 'allow', () => {
+  const b = writeBatch(db);
+  b.update(doc(db, 'offices', OFF), { memberUids: arrayRemove(uidOm) });
+  b.delete(doc(db, 'userOffice', uidOm));
+  return b.commit();
+});
+await as('office-member@example.com');
+await check('外された人: 事務所を読む', 'deny', () => getDoc(doc(db, 'offices', OFF)));
+await check('外された人: 工数を読む', 'deny', () => getDocs(collection(db, 'offices', OFF, 'workHours')));
+
+// 抜ける（招待 → 承諾 → 抜ける）
+await as('office-owner@example.com');
+await check('オーナー: もう一度招待', 'allow', () =>
+  setDoc(doc(db, 'officeInvites', `${OFF}_${uidOm}`), { officeId: OFF, officeName: 'A設計', inviteeUid: uidOm, ownerUid: uidOo, createdAt: new Date() }));
+await as('office-member@example.com');
+await check('招待された本人: 承諾', 'allow', () => {
+  const b = writeBatch(db);
+  b.update(doc(db, 'offices', OFF), { memberUids: arrayUnion(uidOm) });
+  b.set(doc(db, 'userOffice', uidOm), { officeId: OFF, joinedAt: new Date() });
+  b.delete(doc(db, 'officeInvites', `${OFF}_${uidOm}`));
+  return b.commit();
+});
+await check('メンバー: 抜ける（自分を外す + userOffice を消す）', 'allow', () => {
+  const b = writeBatch(db);
+  b.update(doc(db, 'offices', OFF), { memberUids: arrayRemove(uidOm) });
+  b.delete(doc(db, 'userOffice', uidOm));
+  return b.commit();
+});
+await as('office-owner@example.com');
+await check('オーナー: 1 人になったら解散できる（userOffice も消す）', 'allow', () => {
+  const b = writeBatch(db);
+  b.delete(doc(db, 'offices', OFF));
+  b.delete(doc(db, 'userOffice', uidOo));
+  return b.commit();
+});
 
 const failed = results.filter((r) => !r.pass).length;
 console.log(`\n${results.length - failed}/${results.length} 件成功`);

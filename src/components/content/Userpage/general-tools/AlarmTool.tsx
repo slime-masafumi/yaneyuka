@@ -9,6 +9,7 @@ import {
 import { useAuth } from '@/lib/AuthContext';
 import { PHASES, NO_PHASE, periodPreset, projectStats, toCsv, yen, type WorkEntry, type WorkProject } from '@/lib/workLog';
 import { useWorkLogSync } from './useWorkLogSync';
+import OfficeHoursShare from '@/components/office/OfficeHoursShare';
 import ToolHeader from '../ToolHeader';
 import GuestNote from './GuestNote';
 
@@ -733,6 +734,8 @@ const AlarmTool: React.FC = () => {
                     <span className="flex items-center gap-1.5 text-gray-500 text-[10px] px-2 py-1.5"><FiSave className="w-3 h-3" /> 自動保存</span>
                   </div>
                 </div>
+                {/* 事務所に入っていれば、この日の工数を事務所の工数集計へ送れる（押したときだけ） */}
+                <OfficeHoursShare date={trackerDate} entries={entries} projects={projects} />
               </div>
             )}
 

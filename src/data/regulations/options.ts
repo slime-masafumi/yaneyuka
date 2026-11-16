@@ -16,6 +16,12 @@ export const WORK_TYPES: { id: WorkType; label: string }[] = [
  * specialBuilding は建築基準法 第2条第二号の特殊建築物に当たりうるもの(工場・火葬場等を含む広い定義)。
  * beppyo1 は建築基準法 別表第一(い)欄の用途(令第115条の3で類するものを含む)。確認申請(法6条1項一号)はこちらで判定する。
  *   無床診療所・長屋・事務所・工場・火葬場・危険物の貯蔵場は別表第一に無い。
+ * beppyoKou は別表第一(い)欄の項(法27条・法21条1項三号の判定に使う)。2026-11-16 に e-Gov の別表第一・令115条の3で確かめた。
+ *   (一)劇場・集会場等 (二)病院・有床診療所・ホテル・共同住宅・寄宿舎・児童福祉施設等(令19条1項: 助産所・老人福祉施設・有料老人ホーム等を含む)
+ *   (三)学校・体育館・博物館・美術館・図書館・スポーツの練習場等 (四)物販店舗・飲食店・展示場・遊技場・公衆浴場等
+ *   (五)倉庫 (六)自動車車庫・自動車修理工場・映画スタジオ等。
+ *   幼稚園・保育所・認定こども園は、幼稚園なら(三)、保育所・幼保連携型認定こども園なら(二)なので両方を持たせる。
+ *   研修所は「学校」に当たらない場合がある(専修学校・各種学校は(三))。
  * barrierFreeSpecial はバリアフリー法の特別特定建築物(令第5条)に当たりうるもの。
  * barrierFreeGeneral は同法の特定建築物(令第4条、努力義務)に当たるもの。
  * hygieneSpecified は建築物衛生法の特定用途(令第1条第一号〜第四号: 興行場・百貨店・集会場・図書館・博物館・美術館・
@@ -24,47 +30,47 @@ export const WORK_TYPES: { id: WorkType; label: string }[] = [
 export const USE_OPTIONS: UseOption[] = [
   // 住宅系
   { id: 'detachedHouse', label: '戸建住宅', group: '住宅', specialBuilding: false },
-  { id: 'apartment', label: '共同住宅', group: '住宅', specialBuilding: true, beppyo1: true, barrierFreeGeneral: true },
+  { id: 'apartment', label: '共同住宅', group: '住宅', specialBuilding: true, beppyo1: true, beppyoKou: [2], barrierFreeGeneral: true },
   { id: 'rowHouse', label: '長屋', group: '住宅', specialBuilding: false },
-  { id: 'dormitory', label: '寄宿舎・下宿', group: '住宅', specialBuilding: true, beppyo1: true, barrierFreeGeneral: true },
+  { id: 'dormitory', label: '寄宿舎・下宿', group: '住宅', specialBuilding: true, beppyo1: true, beppyoKou: [2], barrierFreeGeneral: true },
 
   // 業務・商業系
   { id: 'office', label: '事務所', group: '業務・商業', specialBuilding: false, barrierFreeGeneral: true, hygieneSpecified: true },
   { id: 'publicOffice', label: '官公署(保健所・税務署等)', group: '業務・商業', specialBuilding: false, barrierFreeSpecial: true, hygieneSpecified: true },
-  { id: 'retailStore', label: '物販店舗', group: '業務・商業', specialBuilding: true, beppyo1: true, barrierFreeSpecial: true, hygieneSpecified: true, retail: true },
-  { id: 'restaurant', label: '飲食店', group: '業務・商業', specialBuilding: true, beppyo1: true, barrierFreeSpecial: true, hygieneSpecified: true },
-  { id: 'exhibition', label: '展示場', group: '業務・商業', specialBuilding: true, beppyo1: true, barrierFreeSpecial: true },
-  { id: 'hotel', label: 'ホテル・旅館', group: '業務・商業', specialBuilding: true, beppyo1: true, barrierFreeSpecial: true, hygieneSpecified: true },
-  { id: 'amusement', label: '遊技場(ぱちんこ店等)', group: '業務・商業', specialBuilding: true, beppyo1: true, barrierFreeSpecial: true, hygieneSpecified: true },
+  { id: 'retailStore', label: '物販店舗', group: '業務・商業', specialBuilding: true, beppyo1: true, beppyoKou: [4], barrierFreeSpecial: true, hygieneSpecified: true, retail: true },
+  { id: 'restaurant', label: '飲食店', group: '業務・商業', specialBuilding: true, beppyo1: true, beppyoKou: [4], barrierFreeSpecial: true, hygieneSpecified: true },
+  { id: 'exhibition', label: '展示場', group: '業務・商業', specialBuilding: true, beppyo1: true, beppyoKou: [4], barrierFreeSpecial: true },
+  { id: 'hotel', label: 'ホテル・旅館', group: '業務・商業', specialBuilding: true, beppyo1: true, beppyoKou: [2], barrierFreeSpecial: true, hygieneSpecified: true },
+  { id: 'amusement', label: '遊技場(ぱちんこ店等)', group: '業務・商業', specialBuilding: true, beppyo1: true, beppyoKou: [4], barrierFreeSpecial: true, hygieneSpecified: true },
   { id: 'barber', label: '理容所', group: '業務・商業', specialBuilding: false, barrierFreeSpecial: true },
   { id: 'beauty', label: '美容所', group: '業務・商業', specialBuilding: false, barrierFreeSpecial: true },
   { id: 'laundry', label: 'クリーニング所', group: '業務・商業', specialBuilding: false, barrierFreeSpecial: true },
-  { id: 'pharmacy', label: '薬局・医薬品販売業', group: '業務・商業', specialBuilding: true, beppyo1: true, barrierFreeSpecial: true, hygieneSpecified: true, retail: true },
+  { id: 'pharmacy', label: '薬局・医薬品販売業', group: '業務・商業', specialBuilding: true, beppyo1: true, beppyoKou: [4], barrierFreeSpecial: true, hygieneSpecified: true, retail: true },
 
   // 医療・福祉系
-  { id: 'hospital', label: '病院', group: '医療・福祉', specialBuilding: true, beppyo1: true, barrierFreeSpecial: true },
-  { id: 'clinicWithBeds', label: '有床診療所', group: '医療・福祉', specialBuilding: true, beppyo1: true, barrierFreeSpecial: true },
+  { id: 'hospital', label: '病院', group: '医療・福祉', specialBuilding: true, beppyo1: true, beppyoKou: [2], barrierFreeSpecial: true },
+  { id: 'clinicWithBeds', label: '有床診療所', group: '医療・福祉', specialBuilding: true, beppyo1: true, beppyoKou: [2], barrierFreeSpecial: true },
   { id: 'clinicNoBeds', label: '無床診療所', group: '医療・福祉', specialBuilding: true, barrierFreeSpecial: true },
-  { id: 'midwifery', label: '助産所', group: '医療・福祉', specialBuilding: true, beppyo1: true },
+  { id: 'midwifery', label: '助産所', group: '医療・福祉', specialBuilding: true, beppyo1: true, beppyoKou: [2] },
   { id: 'dentalLab', label: '歯科技工所', group: '医療・福祉', specialBuilding: false },
-  { id: 'elderlyFacility', label: '老人ホーム・福祉施設', group: '医療・福祉', specialBuilding: true, beppyo1: true, barrierFreeSpecial: true },
-  { id: 'childWelfare', label: '児童福祉施設等', group: '医療・福祉', specialBuilding: true, beppyo1: true, barrierFreeSpecial: true },
+  { id: 'elderlyFacility', label: '老人ホーム・福祉施設', group: '医療・福祉', specialBuilding: true, beppyo1: true, beppyoKou: [2], barrierFreeSpecial: true },
+  { id: 'childWelfare', label: '児童福祉施設等', group: '医療・福祉', specialBuilding: true, beppyo1: true, beppyoKou: [2], barrierFreeSpecial: true },
 
   // 教育・文化系
-  { id: 'school', label: '学校(学校教育法1条校)', group: '教育・文化', specialBuilding: true, beppyo1: true, barrierFreeSpecial: true, hygieneSchool: true },
-  { id: 'otherSchool', label: '専修学校・各種学校・研修所', group: '教育・文化', specialBuilding: true, beppyo1: true, barrierFreeGeneral: true, hygieneSpecified: true },
-  { id: 'kindergarten', label: '幼稚園・保育所・認定こども園', group: '教育・文化', specialBuilding: true, beppyo1: true, barrierFreeGeneral: true, hygieneSchool: true },
-  { id: 'library', label: '図書館・博物館・美術館', group: '教育・文化', specialBuilding: true, beppyo1: true, barrierFreeSpecial: true, hygieneSpecified: true },
-  { id: 'assemblyHall', label: '集会場・公会堂', group: '教育・文化', specialBuilding: true, beppyo1: true, barrierFreeSpecial: true, hygieneSpecified: true },
-  { id: 'theater', label: '劇場・映画館・演芸場', group: '教育・文化', specialBuilding: true, beppyo1: true, barrierFreeSpecial: true, hygieneSpecified: true },
-  { id: 'gym', label: '体育館・スポーツ施設', group: '教育・文化', specialBuilding: true, beppyo1: true, barrierFreeSpecial: true },
-  { id: 'publicBath', label: '公衆浴場', group: '教育・文化', specialBuilding: true, beppyo1: true, barrierFreeSpecial: true },
+  { id: 'school', label: '学校(学校教育法1条校)', group: '教育・文化', specialBuilding: true, beppyo1: true, beppyoKou: [3], barrierFreeSpecial: true, hygieneSchool: true },
+  { id: 'otherSchool', label: '専修学校・各種学校・研修所', group: '教育・文化', specialBuilding: true, beppyo1: true, beppyoKou: [3], barrierFreeGeneral: true, hygieneSpecified: true },
+  { id: 'kindergarten', label: '幼稚園・保育所・認定こども園', group: '教育・文化', specialBuilding: true, beppyo1: true, beppyoKou: [2, 3], barrierFreeGeneral: true, hygieneSchool: true },
+  { id: 'library', label: '図書館・博物館・美術館', group: '教育・文化', specialBuilding: true, beppyo1: true, beppyoKou: [3], barrierFreeSpecial: true, hygieneSpecified: true },
+  { id: 'assemblyHall', label: '集会場・公会堂', group: '教育・文化', specialBuilding: true, beppyo1: true, beppyoKou: [1], barrierFreeSpecial: true, hygieneSpecified: true },
+  { id: 'theater', label: '劇場・映画館・演芸場', group: '教育・文化', specialBuilding: true, beppyo1: true, beppyoKou: [1], barrierFreeSpecial: true, hygieneSpecified: true },
+  { id: 'gym', label: '体育館・スポーツ施設', group: '教育・文化', specialBuilding: true, beppyo1: true, beppyoKou: [3], barrierFreeSpecial: true },
+  { id: 'publicBath', label: '公衆浴場', group: '教育・文化', specialBuilding: true, beppyo1: true, beppyoKou: [4], barrierFreeSpecial: true },
 
   // 生産・保管系
   { id: 'factory', label: '工場', group: '生産・保管', specialBuilding: true, factory: true },
-  { id: 'carRepair', label: '自動車修理工場', group: '生産・保管', specialBuilding: true, beppyo1: true },
-  { id: 'warehouse', label: '倉庫', group: '生産・保管', specialBuilding: true, beppyo1: true },
-  { id: 'garage', label: '自動車車庫', group: '生産・保管', specialBuilding: true, beppyo1: true, barrierFreeSpecial: true },
+  { id: 'carRepair', label: '自動車修理工場', group: '生産・保管', specialBuilding: true, beppyo1: true, beppyoKou: [6] },
+  { id: 'warehouse', label: '倉庫', group: '生産・保管', specialBuilding: true, beppyo1: true, beppyoKou: [5] },
+  { id: 'garage', label: '自動車車庫', group: '生産・保管', specialBuilding: true, beppyo1: true, beppyoKou: [6], barrierFreeSpecial: true },
   { id: 'dangerousGoods', label: '危険物の貯蔵・処理施設', group: '生産・保管', specialBuilding: true },
 
   // その他
@@ -93,6 +99,16 @@ export const ZONING_OPTIONS = [
   '工業専用地域',
   '用途地域の指定のない区域',
 ];
+
+/** 別表第一(い)欄の項の見出し(法27条の入力欄と結果に使う) */
+export const BEPPYO_KOU_LABEL: Record<1 | 2 | 3 | 4 | 5 | 6, string> = {
+  1: '(一)項 劇場・映画館・集会場等',
+  2: '(二)項 病院・有床診療所・ホテル・共同住宅・寄宿舎・児童福祉施設等',
+  3: '(三)項 学校・体育館・図書館等',
+  4: '(四)項 物販店舗・飲食店・展示場・遊技場等',
+  5: '(五)項 倉庫',
+  6: '(六)項 自動車車庫・自動車修理工場等',
+};
 
 /** 構造 */
 export const STRUCTURE_OPTIONS = [

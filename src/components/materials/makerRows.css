@@ -1,0 +1,35 @@
+/* 建材のメーカー表の追加分(2026-11-16)。表の本体は globals.css の .yy-mk。
+   - 要更新: 週次の検査で 404 だったリンク。押すと会社トップ。等幅の小さな文字 + 点線の下線で知らせる
+   - is-nosample: 表のどの行にもサンプルが無いときはサンプルの列ごと出さない(リンク 5 列) */
+
+/* ── 要更新 ── */
+.yy-mklink.is-stale { display: inline-flex; align-items: baseline; gap: 3px; text-decoration: none; color: var(--yy-t3) !important; }
+.yy-mklink.is-stale:hover { color: var(--yy-ink) !important; }
+.yy-mklink__arrow { font-size: 12px; }
+.yy-mklink__stale {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  white-space: nowrap;
+  padding-bottom: 1px;
+  border-bottom: 1px dotted currentColor;
+}
+.yy-mklink.is-text { color: inherit; }
+.yy-mklink.is-text .yy-mklink__stale { margin-left: 4px; }
+/* スマホの 28px の列には文字が入らない。矢印の右肩に点だけ出す(題に理由) */
+@media (max-width: 767px) {
+  .yy-mk__cell .yy-mklink__stale { width: 4px; height: 4px; padding: 0; border: 0; border-radius: 50%; background: currentColor; font-size: 0; align-self: flex-start; }
+}
+
+/* ── サンプル列なし ── */
+.yy-mk.is-nosample .yy-mk__row { grid-template-columns: 44px 32px minmax(0, 1.5fr) minmax(0, 1.1fr) repeat(5, 52px) 40px; }
+.yy-mk.is-nopic.is-nosample .yy-mk__row { grid-template-columns: 44px minmax(0, 1.5fr) minmax(0, 1.1fr) repeat(5, 52px) 40px; }
+@media (max-width: 1023px) {
+  .yy-mk.is-nosample .yy-mk__row { grid-template-columns: 38px 30px minmax(0, 1fr) repeat(5, 40px) 32px; }
+  .yy-mk.is-nopic.is-nosample .yy-mk__row { grid-template-columns: 38px minmax(0, 1fr) repeat(5, 40px) 32px; }
+}
+@media (max-width: 767px) {
+  .yy-mk.is-nosample .yy-mk__row { grid-template-columns: 30px 26px minmax(0, 1fr) repeat(5, 28px) 26px; }
+  .yy-mk.is-nopic.is-nosample .yy-mk__row { grid-template-columns: 30px minmax(0, 1fr) repeat(5, 28px) 26px; }
+}

@@ -8,6 +8,9 @@ import { useAuth } from '@/lib/AuthContext';
 import { ProjectView, DoneHistory } from './myTasks/MyTaskViews';
 import { useGuestTasks, useGuestTaskMigration } from './myTasks/guestTasks';
 import GuestNote from './general-tools/GuestNote';
+import ProjectPicker from '@/components/ui/ProjectPicker';
+import { useProjectRegistry } from '@/lib/projectRegistry';
+import { projectOf, sameProjectKey, withProject } from '@/lib/myTaskView';
 
 interface Task {
   id: string;
@@ -121,6 +124,42 @@ export default function MyTasks() {
   const [newTaskContents, setNewTaskContents] = useState<{[key: string]: { content: string; dueDate?: string | null }}>({});
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [tempTaskContent, setTempTaskContent] = useState<string>('');
+  // 編集中のタスクの物件（【】）。触ったときだけ本文の【】を付け替える（本文で直接【】を直した人の手を戻さない）
+  const [tempTaskProject, setTempTaskProject] = useState<{ name: string; touched: boolean }>({ name: '', touched: false });
+  // 物件の台帳（src/lib/projectRegistry.ts）。【物件名】の書き方は変えず、選ぶ元と束ね方だけを台帳にそろえる
+  const registry = useProjectRegistry();
+  // 追加するタスクに付ける物件（空なら付けない）。「物件で絞る」で物件を選ぶとそれに合わせる
+  const [addProject, setAddProject] = useState('');
+  // 物件で絞る。null = すべて / '' = 物件なし / それ以外 = 物件名
+  const [projFilter, setProjFilter] = useState<string | null>(null);
+  /** 追加する本文。物件を選んでいて、本文にまだ【】が無ければ頭に付ける */
+  const contentFor = (content: string) => {
+    const p = addProject.trim();
+    return p && !projectOf(content).project ? withProject(content, registry.find(p)?.name ?? p) : content;
+  };
+  const matchesProjFilter = (content: string) => {
+    if (projFilter === null) return true;
+    const p = projectOf(content).project;
+    if (projFilter === '') return !p;
+    return !!p && sameProjectKey(p) === sameProjectKey(projFilter);
+  };
+  // 絞り込みの候補: 台帳の物件 + タスクにだけある物件名（台帳に無いものは「台帳に登録」できる）
+  const projectChoices = (() => {
+    const out: { name: string; known: boolean; n: number }[] = registry.active.map((p) => ({ name: p.name, known: true, n: 0 }));
+    for (const c of categories) {
+      for (const t of c.tasks) {
+        if (t.completed) continue;
+        const p = projectOf(t.content).project;
+        if (!p) continue;
+        const k = sameProjectKey(p);
+        const hit = out.find((o) => sameProjectKey(o.name) === k);
+        if (hit) hit.n++;
+        else out.push({ name: registry.find(p)?.name ?? p, known: !!registry.find(p), n: 1 });
+      }
+    }
+    return out;
+  })();
+  const filterUnknown = projFilter ? !registry.find(projFilter) : false;
   // 期日順に並べ替えるか。既定は登録順のまま（並びを覚えている人がいるので）。
   const [sortByDue, setSortByDue] = useState(false);
   const [taskNotice, setTaskNotice] = useState('');
@@ -188,12 +227,19 @@ export default function MyTasks() {
   const startEditingTask = (taskId: string, currentContent: string) => {
     setEditingTaskId(taskId);
     setTempTaskContent(currentContent);
+    setTempTaskProject({ name: projectOf(currentContent).project ?? '', touched: false });
   };
 
   const saveTaskEdit = (categoryId: string, taskId: string) => {
-    if (!tempTaskContent.trim()) return;
+    if (editingTaskId !== taskId) return;
+    let content = tempTaskContent.trim();
+    if (tempTaskProject.touched) {
+      const n = tempTaskProject.name.trim();
+      content = withProject(content, n ? registry.find(n)?.name ?? n : '');
+    }
+    if (!content.trim()) return;
     const task = categories.find(c => c.id === categoryId)?.tasks.find(t => t.id === taskId);
-    void updateTask(categoryId, taskId, tempTaskContent.trim(), task?.dueDate ?? null);
+    if (task && task.content !== content) void updateTask(categoryId, taskId, content, task?.dueDate ?? null);
     setEditingTaskId(null);
   };
 
@@ -360,6 +406,55 @@ export default function MyTasks() {
           })()}
         </div>
       </div>
+      {/* 物件: 追加するタスクに【物件名】を付ける / 物件で絞る。物件は台帳（ほかのツールと共通）から選ぶ */}
+      <div className="mb-3 flex items-center gap-x-3 gap-y-2 flex-wrap text-xs">
+        <label className="flex items-center gap-1.5 min-w-0">
+          <span className="yy-mono text-[10px] tracking-[0.12em] uppercase text-gray-500 shrink-0">Project</span>
+          <span className="text-gray-600 shrink-0">追加する物件</span>
+          <ProjectPicker
+            value={addProject}
+            onChange={setAddProject}
+            placeholder="なし（【】を付けない）"
+            label="追加するタスクの物件"
+            className="[&_input]:!h-7 [&_input]:!w-[200px] [&_input]:!text-[12px]"
+          />
+        </label>
+        <label className="flex items-center gap-1.5">
+          <span className="text-gray-600">物件で絞る</span>
+          <select
+            className="text-xs border px-2 py-1 max-w-[220px]"
+            value={projFilter === null ? '__all__' : projFilter === '' ? '__none__' : projFilter}
+            onChange={(e) => {
+              const v = e.target.value;
+              const next = v === '__all__' ? null : v === '__none__' ? '' : v;
+              setProjFilter(next);
+              // 物件を選んだら、追加するタスクもその物件に付ける（A 邸を見ながら足したものは A 邸）
+              if (next) setAddProject(next);
+            }}
+          >
+            <option value="__all__">すべて</option>
+            {projectChoices.map((p) => (
+              <option key={p.name} value={p.name}>{p.name}{p.n ? `（${p.n}）` : ''}{p.known ? '' : ' ・台帳なし'}</option>
+            ))}
+            <option value="__none__">物件なし</option>
+          </select>
+        </label>
+        {projFilter && filterUnknown && (
+          <button
+            type="button"
+            className="underline underline-offset-2 text-[#2f7f6d]"
+            onClick={() => void registry.add(projFilter)}
+            title="物件の台帳に登録すると、メモ・yymail・Teamタスク・物件ハブでも同じ物件として扱えます"
+          >
+            「{projFilter}」を台帳に登録
+          </button>
+        )}
+        {projFilter && !filterUnknown && registry.find(projFilter) && (
+          <a className="underline underline-offset-2 text-gray-600" href={`/bukken/?p=${encodeURIComponent(registry.find(projFilter)!.id)}`}>
+            物件ハブで見る
+          </a>
+        )}
+      </div>
       <div className="flex items-center gap-0 mb-2 border-b border-gray-300">
         {([['sheets', 'シート'], ['projects', '物件別'], ['done', '完了の履歴']] as const).map(([k, label]) => (
           <button
@@ -374,7 +469,7 @@ export default function MyTasks() {
       </div>
       {view === 'projects' && (
         <div className="border border-[#3b3b3b] p-3">
-          <ProjectView categories={categories} today={ymd(new Date())} onToggle={toggleTaskComplete} />
+          <ProjectView categories={categories} today={ymd(new Date())} onToggle={toggleTaskComplete} only={projFilter ?? undefined} />
         </div>
       )}
       {view === 'done' && (
@@ -463,7 +558,7 @@ export default function MyTasks() {
                       const content = newTaskContents[category.id]?.content || '';
                       const dueDate = newTaskContents[category.id]?.dueDate || null;
                       if (content.trim()) {
-                        addTask(category.id, content, dueDate);
+                        addTask(category.id, contentFor(content.trim()), dueDate);
                         setNewTaskContents(prev => ({ ...prev, [category.id]: { content: '', dueDate: '' } }));
                       }
                     }}
@@ -484,7 +579,8 @@ export default function MyTasks() {
               <div className="flex items-center gap-1 min-w-0">
                 <input
                   type="text"
-                  placeholder="Add task"
+                  placeholder={addProject.trim() ? `【${addProject.trim()}】Add task` : 'Add task'}
+                  title={addProject.trim() ? `頭に【${addProject.trim()}】を付けて追加します（上の「追加する物件」）` : undefined}
                   value={newTaskContents[category.id]?.content || ''}
                   onChange={(e) => updateNewTaskContent(category.id, { ...newTaskContents[category.id], content: e.target.value })}
                   onKeyPress={(e) => {
@@ -492,7 +588,7 @@ export default function MyTasks() {
                       const content = newTaskContents[category.id]?.content || '';
                       const dueDate = newTaskContents[category.id]?.dueDate || null;
                       if (content.trim()) {
-                        addTask(category.id, content, dueDate);
+                        addTask(category.id, contentFor(content.trim()), dueDate);
                         setNewTaskContents(prev => ({ ...prev, [category.id]: { content: '', dueDate: '' } }));
                       }
                     }
@@ -537,7 +633,7 @@ export default function MyTasks() {
             <div className="max-h-[360px] overflow-y-auto divide-y divide-black/5"
               style={category.color.startsWith('#') ? { backgroundColor: category.color } : {}}
             >
-              {(sortByDue ? [...category.tasks].sort(byDueDate) : category.tasks).filter(task => !(hideCompleted && task.completed)).map(task => (
+              {(sortByDue ? [...category.tasks].sort(byDueDate) : category.tasks).filter(task => !(hideCompleted && task.completed) && matchesProjFilter(task.content)).map(task => (
                 <div
                   key={task.id}
                   className="px-3 py-2 flex items-start gap-2"
@@ -549,15 +645,40 @@ export default function MyTasks() {
                     className="mt-1 rounded border-black/20"
                   />
                   {editingTaskId === task.id ? (
-                    <input
-                      type="text"
-                      value={tempTaskContent}
-                      onChange={(e) => setTempTaskContent(e.target.value)}
-                      onBlur={() => saveTaskEdit(category.id, task.id)}
-                      onKeyPress={(e) => e.key === 'Enter' && saveTaskEdit(category.id, task.id)}
-                      className={`flex-1 text-[12px] bg-transparent border-b border-black/10 focus:outline-none ${isDarkColor(category.color) ? 'text-white placeholder-white/80' : 'text-gray-800'}`}
-                      autoFocus
-                    />
+                    // 本文と物件（【】）をまとめて直す。欄の外へ出たら保存（物件の欄・登録ボタンへ移るだけなら保存しない）
+                    <div
+                      className="flex-1 min-w-0 space-y-1"
+                      onBlur={(e) => {
+                        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) saveTaskEdit(category.id, task.id);
+                      }}
+                    >
+                      <input
+                        type="text"
+                        value={tempTaskContent}
+                        onChange={(e) => setTempTaskContent(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.nativeEvent.isComposing) saveTaskEdit(category.id, task.id);
+                          if (e.key === 'Escape') setEditingTaskId(null);
+                        }}
+                        className={`w-full text-[12px] bg-transparent border-b border-black/10 focus:outline-none ${isDarkColor(category.color) ? 'text-white placeholder-white/80' : 'text-gray-800'}`}
+                        autoFocus
+                      />
+                      <div
+                        className="flex items-center gap-1 min-w-0"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.nativeEvent.isComposing && (e.target as HTMLElement).tagName === 'INPUT') saveTaskEdit(category.id, task.id);
+                        }}
+                      >
+                        <span className={`text-[10px] shrink-0 ${isDarkColor(category.color) ? 'text-white/70' : 'text-black/50'}`}>物件</span>
+                        <ProjectPicker
+                          value={tempTaskProject.name}
+                          onChange={(name) => setTempTaskProject({ name, touched: true })}
+                          placeholder="なし"
+                          label="このタスクの物件"
+                          className="min-w-0 flex-wrap [&_input]:!h-6 [&_input]:!w-full [&_input]:!text-[11px] [&_input]:!px-1"
+                        />
+                      </div>
+                    </div>
                   ) : (
                     <div className="flex-1 flex items-start justify-between min-w-0 gap-1">
                       <span className={`text-xs min-w-0 break-words ${task.completed ? (isDarkColor(category.color) ? 'line-through text-white/60' : 'line-through text-black/40') : (isDarkColor(category.color) ? 'text-white' : 'text-gray-800')}`}>

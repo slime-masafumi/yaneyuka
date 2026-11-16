@@ -53,8 +53,60 @@ svg { display: block; }
   else setTimeout(run, 100);
 }
 
+/**
+ * 式インジェクション対策。= + - @ で始まるセル(タブ・CR で始まるものも)は、Excel などが式として
+ * 実行しないよう先頭に ' を付ける。空け日数の -2 のような数値だけのセルは数値のまま残す
+ * (付けると読み込み直したときに数値として読めなくなる)。
+ */
+const FORMULA_HEAD = /^[=+\-@\t\r]/;
+const NUMBER_ONLY = /^-?\d+(\.\d+)?$/;
+const csvEscape = (s: string) => (/[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+
+export function neutralizeCsvCell(s: string): string {
+  return FORMULA_HEAD.test(s) && !NUMBER_ONLY.test(s) ? `'${s}` : s;
+}
+
+/** CSV の文字列を行と列に分けて、各セルに neutralizeCsvCell をかけて組み直す(BOM と CRLF は保つ) */
+export function neutralizeCsv(text: string): string {
+  const bom = text.startsWith('﻿') ? '﻿' : '';
+  const src = bom ? text.slice(1) : text;
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cell = '';
+  let q = false;
+  for (let i = 0; i < src.length; i++) {
+    const c = src[i];
+    if (q) {
+      if (c === '"' && src[i + 1] === '"') {
+        cell += '"';
+        i++;
+      } else if (c === '"') q = false;
+      else cell += c;
+    } else if (c === '"') q = true;
+    else if (c === ',') {
+      row.push(cell);
+      cell = '';
+    } else if (c === '\n' || c === '\r') {
+      if (c === '\r' && src[i + 1] === '\n') i++;
+      row.push(cell);
+      rows.push(row);
+      row = [];
+      cell = '';
+    } else cell += c;
+  }
+  if (cell || row.length) {
+    row.push(cell);
+    rows.push(row);
+  }
+  const eol = /\r\n/.test(src) ? '\r\n' : '\n';
+  const trailing = /\r?\n$/.test(src) ? eol : '';
+  return bom + rows.map((r) => r.map((c) => csvEscape(neutralizeCsvCell(c))).join(',')).join(eol) + trailing;
+}
+
 export function downloadText(text: string, filename: string, type: string) {
-  const blob = new Blob([text], { type });
+  // CSV は保存の直前に式インジェクション対策をかける(工程名・メモに = や @ で始まる文字が入ることがある)
+  const body = /csv/i.test(type) || /\.csv$/i.test(filename) ? neutralizeCsv(text) : text;
+  const blob = new Blob([body], { type });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

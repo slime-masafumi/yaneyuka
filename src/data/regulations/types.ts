@@ -45,6 +45,30 @@ export type Confidence = 'definite' | 'likely' | 'check';
 /** 構造種別 */
 export type StructureType = 'wood' | 'steel' | 'rc' | 'src' | 'other';
 
+/** 建築基準法 別表第一(い)欄の項 */
+export type BeppyoKou = 1 | 2 | 3 | 4 | 5 | 6;
+
+/**
+ * 法27条の判定に使う、別表第一の項ごとの入力。未入力は undefined / null。
+ * 床面積は「その項の用途に供する部分の床面積の合計」(同じ項の用途は合算)。
+ */
+export interface FireUseInput {
+  /** その用途に供する最も上の階(地上の階。地階だけなら 0) */
+  topFloor?: number | null;
+  /** その用途に供する部分の床面積の合計 m2 */
+  area?: number | null;
+  /** うち 2 階の部分の床面積 m2((二)(四)項の法27条1項二号) */
+  area2F?: number | null;
+  /** うち 3 階以上の部分の床面積の合計 m2((五)項の法27条2項一号) */
+  area3FUp?: number | null;
+  /** 客席の床面積の合計 m2((一)項の法27条1項二号。屋外観覧席を除く) */
+  seatArea?: number | null;
+  /** 屋外観覧席の床面積の合計 m2((一)項。1,000m2 以上で法27条1項二号) */
+  outdoorSeatArea?: number | null;
+  /** 劇場・映画館・演芸場の主階が1階にない(法27条1項四号)。null は未入力 */
+  mainFloorNot1F?: boolean | null;
+}
+
 /** 用途に紐づく属性。1つの用途が複数の法令のトリガになるため属性で持つ */
 export interface UseOption {
   id: string;
@@ -61,6 +85,11 @@ export interface UseOption {
    * 工場・無床診療所・長屋・事務所・火葬場・危険物の貯蔵場は含まれない。
    */
   beppyo1?: boolean;
+  /**
+   * 別表第一(い)欄の項番号(1〜6)。法27条・法21条1項三号の判定に使う。
+   * 幼稚園・保育所・認定こども園は (二)(保育所・幼保連携型認定こども園。令115条の3第一号)と (三)(幼稚園)の両方に当たりうるので 2 つ持つ。
+   */
+  beppyoKou?: BeppyoKou[];
   /** バリアフリー法の特別特定建築物(適合義務の対象になりうる) */
   barrierFreeSpecial?: boolean;
   /** バリアフリー法の特定建築物(努力義務) */
@@ -99,10 +128,11 @@ export interface ProjectInput {
   floorsBelow: number;
   /** 最高高さ m */
   maxHeight: number;
-  structure: StructureType;
+  /** 構造。'' は未入力 */
+  structure: StructureType | '';
   zoning: string;
-  /** 都市計画区域等の内か */
-  inCityPlanningArea: boolean;
+  /** 都市計画区域等の内か。null は未入力 */
+  inCityPlanningArea: boolean | null;
   /** 市街化調整区域か */
   urbanizationControlArea: boolean;
   /** 店舗面積 m2(物販のとき) */
@@ -114,6 +144,13 @@ export interface ProjectInput {
   /** 解体部分の床面積 m2 */
   demolitionArea: number;
   siteFlags: string[];
+  /**
+   * 空欄のまま判定に回した数値の項目(ProjectInput のキー)。空欄は 0 として渡すので、
+   * 「0 を入れた」と「入れていない」をここで分ける。無い(古い呼び出し元)ときは 0 以下を未入力とみなす。
+   */
+  blank?: string[];
+  /** 法27条の判定に使う、別表第一の項ごとの階・床面積 */
+  fireUses?: Partial<Record<BeppyoKou, FireUseInput>>;
 }
 
 /** 出典 */

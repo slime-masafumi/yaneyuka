@@ -5,14 +5,14 @@ import {
   MUNICIPAL_CATEGORIES,
   MUNICIPALITY_OPTIONS,
 } from '@/data/regulations/municipalities';
-import { USE_OPTIONS, SITE_FLAGS, WORK_TYPES, STRUCTURE_OPTIONS } from '@/data/regulations/options';
+import { BEPPYO_KOU_LABEL, USE_OPTIONS, SITE_FLAGS, WORK_TYPES, STRUCTURE_OPTIONS } from '@/data/regulations/options';
 import {
   formatIsoDate,
   formatLawDate,
   getSourceAlerts,
   SOURCE_STATUS_GENERATED_AT,
 } from '@/data/regulations/sourceStatus';
-import type { Confidence, ProjectInput, RegulationRule, RuleHit } from '@/data/regulations/types';
+import type { BeppyoKou, Confidence, ProjectInput, RegulationRule, RuleHit } from '@/data/regulations/types';
 
 export { MUNICIPALITY_OPTIONS, SOURCE_STATUS_GENERATED_AT, formatIsoDate, formatLawDate };
 
@@ -133,23 +133,48 @@ export function describeInput(input: ProjectInput): { label: string; value: stri
   const uses = input.useIds.map((id) => label(USE_OPTIONS, id)).join('・') || '未選択';
   const works = input.workTypes.map((id) => label(WORK_TYPES, id)).join('・') || '未選択';
   const flags = input.siteFlags.map((id) => label(SITE_FLAGS, id)).join(' / ') || 'なし';
+  // 空欄のまま判定に回した数値は「未入力」と書く(0 と区別する)
+  const blank = (k: keyof ProjectInput) => (input.blank ? input.blank.includes(k) : false);
+  const val = (k: keyof ProjectInput, v: number, unit: string) => (blank(k) ? '未入力' : `${v.toLocaleString()}${unit}`);
+  const area =
+    input.inCityPlanningArea === null ? '都市計画区域等の内外は未入力' : input.inCityPlanningArea ? '都市計画区域等の内' : '都市計画区域外';
   const rows: { label: string; value: string }[] = [
     { label: '建設地', value: label(MUNICIPALITY_OPTIONS, input.municipalityId) },
     { label: '工事種別', value: works },
     { label: '用途', value: uses },
     { label: '用途地域', value: input.zoning },
-    { label: '区域', value: `${input.inCityPlanningArea ? '都市計画区域等の内' : '都市計画区域外'}${input.urbanizationControlArea ? ' / 市街化調整区域' : ''}` },
-    { label: '敷地面積', value: `${input.siteArea.toLocaleString()} m2` },
-    { label: '建築面積', value: `${input.buildingArea.toLocaleString()} m2` },
-    { label: '延べ面積', value: `${input.totalFloorArea.toLocaleString()} m2` },
-    { label: '階数', value: `地上 ${input.floorsAbove} / 地下 ${input.floorsBelow}` },
-    { label: '最高高さ', value: `${input.maxHeight} m` },
-    { label: '構造', value: label(STRUCTURE_OPTIONS, input.structure) },
+    { label: '区域', value: `${area}${input.urbanizationControlArea ? ' / 市街化調整区域' : ''}` },
+    { label: '敷地面積', value: val('siteArea', input.siteArea, ' m2') },
+    { label: '建築面積', value: val('buildingArea', input.buildingArea, ' m2') },
+    { label: '延べ面積', value: val('totalFloorArea', input.totalFloorArea, ' m2') },
+    { label: '階数', value: `地上 ${val('floorsAbove', input.floorsAbove, '')} / 地下 ${val('floorsBelow', input.floorsBelow, '')}` },
+    { label: '最高高さ', value: val('maxHeight', input.maxHeight, ' m') },
+    { label: '構造', value: input.structure === '' ? '未入力' : label(STRUCTURE_OPTIONS, input.structure) },
   ];
   if (input.storeArea > 0) rows.push({ label: '店舗面積', value: `${input.storeArea.toLocaleString()} m2` });
   if (input.demolitionArea > 0) rows.push({ label: '解体部分の床面積', value: `${input.demolitionArea.toLocaleString()} m2` });
   if (input.formChangeArea > 0) rows.push({ label: '土地の形質変更面積', value: `${input.formChangeArea.toLocaleString()} m2` });
   if (input.contractAmountManYen > 0) rows.push({ label: '請負金額', value: `${input.contractAmountManYen.toLocaleString()} 万円` });
+  // 法27条の項ごとの入力
+  if (input.fireUses) {
+    (Object.keys(input.fireUses) as unknown as BeppyoKou[]).forEach((key) => {
+      const k = Number(key) as BeppyoKou;
+      const d = input.fireUses?.[k];
+      if (!d) return;
+      const parts: string[] = [];
+      const num = (x: number | null | undefined, l: string, unit: string) => {
+        if (typeof x === 'number' && Number.isFinite(x)) parts.push(`${l} ${x.toLocaleString()}${unit}`);
+      };
+      num(d.topFloor, '最上階', ' 階');
+      num(d.area, '床面積', ' m2');
+      num(d.area2F, '2階の部分', ' m2');
+      num(d.area3FUp, '3階以上の部分', ' m2');
+      num(d.seatArea, '客席', ' m2');
+      num(d.outdoorSeatArea, '屋外観覧席', ' m2');
+      if (d.mainFloorNot1F != null) parts.push(d.mainFloorNot1F ? '主階が1階にない' : '主階は1階');
+      if (parts.length) rows.push({ label: `法27条 ${BEPPYO_KOU_LABEL[k]}`, value: parts.join(' / ') });
+    });
+  }
   rows.push({ label: '立地条件', value: flags });
   return rows;
 }

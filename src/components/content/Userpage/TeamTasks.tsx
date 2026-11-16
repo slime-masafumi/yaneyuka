@@ -11,6 +11,15 @@ import TeamGantt from './teamTasks/TeamGantt';
 import { dueStatus, matchesFilter, ROLES, sortTasks, type TaskFilter, cascadeDelays } from '@/lib/teamTaskView';
 import GuestNote from './general-tools/GuestNote';
 import { clearGuestBoard, GUEST_BOARD_LIMIT, guestTaskId, readGuestBoard, uploadGuestBoard, writeGuestBoard } from './teamTasks/guestBoard';
+import ProjectPicker from '@/components/ui/ProjectPicker';
+import { useProjectRegistry } from '@/lib/projectRegistry';
+
+/**
+ * 自分が作れるボードの数。以前は 4 枚で、5 人の事務所で物件を並行すると足りなかった。
+ * 終わった物件は「竣工済み」に移せば、カードと工程表からは外れる（消さずに残る）。
+ * 数えるのは自分がオーナーのボードだけ（招待されたボードは数えない・隠さない）。
+ */
+const BOARD_LIMIT = 50;
 
 interface Project {
   id: string;
@@ -18,6 +27,10 @@ interface Project {
   description?: string;
   color?: string;
   ownerUid?: string;
+  /** 竣工済み（カード・工程表に出さない。タスクは残る） */
+  archived?: boolean;
+  /** 物件の台帳（src/lib/projectRegistry.ts）の物件名。ボードを作るときに選ぶ */
+  projectName?: string | null;
 }
 
 interface Task {
@@ -73,13 +86,21 @@ const TeamTasks: React.FC = () => {
   const gridRef = useRef<HTMLDivElement>(null);
   const createInputRef = useRef<HTMLInputElement>(null);
   const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
+  // 進行中のボード（竣工済みはカード・工程表・遅れの波及・期限切れの数から外す）
+  const liveProjects = projects.filter((p) => !p.archived);
+  const archivedProjects = projects.filter((p) => p.archived);
+  const liveTasks: Record<string, Task[]> = Object.fromEntries(liveProjects.map((p) => [p.id, tasksByProject[p.id] || []]));
+  const ownedCount = projects.filter((p) => guestMode || p.ownerUid === currentUser?.uid).length;
+  const [showArchived, setShowArchived] = useState(false);
+  // 物件の台帳。ボードの名前は物件から選ぶ（台帳に無ければ登録できる）
+  const registry = useProjectRegistry();
   // 遅れの波及（プロジェクトごと。前のタスクは同じプロジェクトの中から選ぶ）
-  const slips = new Map(Object.values(tasksByProject).flatMap((list) => [...cascadeDelays(list, today)]));
+  const slips = new Map(Object.values(liveTasks).flatMap((list) => [...cascadeDelays(list, today)]));
   const pendingShifts = [...slips.entries()].filter(([, s]) => s.cause);
   const applyShifts = async () => {
     if (!pendingShifts.length) return;
     if (!confirm(`前のタスクの遅れに合わせて、後ろの ${pendingShifts.length} 件の開始日・期限をずらします。よろしいですか？`)) return;
-    for (const [pid, list] of Object.entries(tasksByProject)) {
+    for (const [pid, list] of Object.entries(liveTasks)) {
       const moves = list.filter((t) => slips.get(t.id)?.cause);
       if (!moves.length) continue;
       for (const t of moves) {
@@ -136,7 +157,8 @@ const TeamTasks: React.FC = () => {
   }, [guestMode]);
   useEffect(() => {
     if (!guestMode || !guestLoaded) return;
-    writeGuestBoard({ projects: projects.map(({ id, name, color }) => ({ id, name, color })), tasks: tasksByProject });
+    // 竣工済み・物件名も残す（以前は id・名前・色だけを書いていた）
+    writeGuestBoard({ projects: projects.map(({ id, name, color, archived, projectName }) => ({ id, name, color, ...(archived ? { archived } : {}), ...(projectName ? { projectName } : {}) })), tasks: tasksByProject });
   }, [guestMode, guestLoaded, projects, tasksByProject]);
 
   // ログインしたら、このブラウザのボードをアカウントのボードとして作れるようにする（共有の場所なので押されたときだけ）
@@ -150,8 +172,8 @@ const TeamTasks: React.FC = () => {
   const uploadGuest = async () => {
     const g = readGuestBoard();
     if (!currentUser || !g) return;
-    const room = 4 - projects.length;
-    if (room <= 0) { setTeamNotice('ボードは 4 枚までです。1 枚消してから、もう一度押してください。'); return; }
+    const room = BOARD_LIMIT - ownedCount;
+    if (room <= 0) { setTeamNotice(`自分で作れるボードは ${BOARD_LIMIT} 枚までです。竣工済みのボードを 1 枚消してから、もう一度押してください。`); return; }
     try {
       const r = await uploadGuestBoard(currentUser.uid, g, room);
       clearGuestBoard();
@@ -170,12 +192,13 @@ const TeamTasks: React.FC = () => {
   };
 
   React.useEffect(() => {
-    if (!projects.length) {
+    const live = projects.filter(p => !p.archived);
+    if (!live.length) {
       setDeleteTargetId('');
       return;
     }
-    if (!deleteTargetId || !projects.find(p => p.id === deleteTargetId)) {
-      setDeleteTargetId(projects[0].id);
+    if (!deleteTargetId || !live.find(p => p.id === deleteTargetId)) {
+      setDeleteTargetId(live[0].id);
     }
   }, [projects]);
 
@@ -189,7 +212,7 @@ const TeamTasks: React.FC = () => {
       if (cachedBoards) {
         const arr = JSON.parse(cachedBoards) as any[]
         setProjects(arr)
-        arr.slice(0,4).forEach((b, i) => {
+        arr.filter((b) => !b.archived).forEach((b, i) => {
           try {
             const t = localStorage.getItem(`teamTasks:${currentUser.uid}:${b.id}`)
             if (t) setTasksByProject(prev => ({ ...prev, [b.id]: JSON.parse(t) }))
@@ -204,27 +227,31 @@ const TeamTasks: React.FC = () => {
     const memberQ = query(collection(db, 'boards'), where('memberUids', 'array-contains', currentUser.uid))
 
     const handleBoards = (lists: any[][]) => {
-      // マージして最大4件に
+      // マージする。以前は 4 件で切っていて、5 枚目以降（招待されたボードを含む）は黙って見えなくなっていた
       const map: Record<string, any> = {}
       lists.flat().forEach((d) => { map[d.id] = d })
-      const merged = Object.values(map).slice(0,4)
+      // 並びと色（色の無いボードは並び順で色を振る）は以前のまま
+      const merged = Object.values(map)
       const normalized = merged.map((b: any, i: number) => ({
         id: b.id!,
         name: b.name,
         description: '',
         color: b.color || getColor(i),
-        ownerUid: b.ownerUid
+        ownerUid: b.ownerUid,
+        archived: !!b.archived,
+        projectName: b.projectName ?? null,
       }))
       setProjects(normalized)
       try { localStorage.setItem(`teamBoards:${currentUser.uid}`, JSON.stringify(normalized)) } catch {}
 
-      // ボードごとのタスク購読をセット
-      const currentIds = new Set(merged.map((b: any) => b.id))
+      // ボードごとのタスク購読をセット（竣工済みのボードは購読しない。戻すとまた購読する）
+      const live = merged.filter((b: any) => !b.archived)
+      const currentIds = new Set(live.map((b: any) => b.id))
       // 解除対象
       Object.keys(tasksUnsubsRef.current).forEach(id => {
         if (!currentIds.has(id)) { tasksUnsubsRef.current[id](); delete tasksUnsubsRef.current[id] }
       })
-      merged.forEach((b: any) => {
+      live.forEach((b: any) => {
         if (!tasksUnsubsRef.current[b.id]) {
           const col = collection(db, 'boards', b.id, 'tasks')
           tasksUnsubsRef.current[b.id] = onSnapshot(
@@ -312,30 +339,30 @@ const TeamTasks: React.FC = () => {
   const handleCreateProject = async () => {
     if (!newProjectName.trim()) return;
     setError(null);
+    // 物件の台帳にある名前なら台帳の書き方にそろえ、そのボードを物件に紐づける（物件ハブ・メモの宿題から引ける）
+    const typed = newProjectName.trim();
+    const known = registry.find(typed);
+    const name = known?.name ?? typed;
+    const projectName = known ? known.name : null;
     if (guestMode) {
       if (projects.length >= GUEST_BOARD_LIMIT) {
-        setTeamNotice('ログインしていない間は、このブラウザに自分用のボードを 1 枚だけ作れます。ログインすると 4 枚まで作れ、メンバーと共有できます。');
+        setTeamNotice(`ログインしていない間は、このブラウザに自分用のボードを 1 枚だけ作れます。ログインすると ${BOARD_LIMIT} 枚まで作れ、メンバーと共有できます。`);
         return;
       }
       const id = `guest-${guestTaskId()}`;
-      setProjects(prev => [...prev, { id, name: newProjectName.trim(), color: getColor(prev.length) }]);
+      setProjects(prev => [...prev, { id, name, color: getColor(prev.length), projectName }]);
       setTasksByProject(prev => ({ ...prev, [id]: [] }));
       setNewProjectName('');
       setTeamNotice('');
       return;
     }
     if (!currentUser) return;
-    if (projects.length >= 4) { setTeamNotice('ボードは 4 枚までです。'); return }
+    if (ownedCount >= BOARD_LIMIT) { setTeamNotice(`自分で作れるボードは ${BOARD_LIMIT} 枚までです。竣工済みのボードを消すと作れます。`); return }
     try {
-      // 先にサーバで作成してID確定 → その後UIへ追加（同時多発による5枚目表示を防ぐ）
-      const currentCount = projects.length
-      if (currentCount >= 4) { setTeamNotice('ボードは 4 枚までです。'); return }
-      const boardId = await createBoard(currentUser.uid, newProjectName)
-      setProjects(prev => {
-        const capped = prev.length >= 4 ? prev.slice(0, 4) : prev
-        if (capped.length >= 4) return capped
-        return [...capped, { id: boardId, name: newProjectName, color: getColor(capped.length), ownerUid: currentUser.uid }]
-      })
+      // 先にサーバで作成してID確定 → その後UIへ追加
+      const boardId = await createBoard(currentUser.uid, name)
+      if (projectName) { try { await updateBoard(boardId, { projectName } as any) } catch {} }
+      setProjects(prev => prev.some(p => p.id === boardId) ? prev : [...prev, { id: boardId, name, color: getColor(prev.length), ownerUid: currentUser.uid, projectName }])
       setTasksByProject(prev => ({ ...prev, [boardId]: [] }))
       setNewProjectName('')
       fetchTasks(boardId)
@@ -343,6 +370,32 @@ const TeamTasks: React.FC = () => {
       setError('プロジェクト作成に失敗しました')
     }
   };
+
+  /** 竣工済みにする / 進行中に戻す。オーナーだけ（ボードの書き換えはオーナーだけのルール） */
+  const setArchived = async (project: Project, archived: boolean) => {
+    setProjects(prev => prev.map(p => p.id === project.id ? { ...p, archived } : p));
+    if (guestMode) return;
+    try {
+      await updateBoard(project.id, { archived } as any);
+      setTeamNotice(archived
+        ? `「${project.name}」を竣工済みにしました。カードと工程表から外れ、下の「竣工済み」に残ります（タスクは消えません）。`
+        : `「${project.name}」を進行中に戻しました。`);
+    } catch {
+      setProjects(prev => prev.map(p => p.id === project.id ? { ...p, archived: !archived } : p));
+      setTeamNotice('切り替えられませんでした。ボードのオーナーだけが竣工済みにできます。通信の状態も確かめてください。');
+    }
+  };
+
+  /** ボードを物件の台帳の物件に紐づける（オーナーだけ） */
+  const linkProject = async (project: Project, projectName: string | null) => {
+    setProjects(prev => prev.map(p => p.id === project.id ? { ...p, projectName } : p));
+    if (guestMode) return;
+    try { await updateBoard(project.id, { projectName } as any) } catch {
+      setProjects(prev => prev.map(p => p.id === project.id ? { ...p, projectName: project.projectName ?? null } : p));
+      setTeamNotice('物件を紐づけられませんでした。ボードのオーナーだけが変えられます。');
+    }
+  };
+  const canManage = (project: Project) => guestMode || project.ownerUid === currentUser?.uid;
 
   // プロジェクト名編集
   const startEditingProject = (project: Project) => {
@@ -474,7 +527,7 @@ const TeamTasks: React.FC = () => {
         no="14"
         code="TEAM TASKS"
         title="Teamタスク"
-        description="物件ごとのボードをチームで共有し、担当・役割・期限を付けて工程表で見る。前の遅れは後ろへ伝わる。ボードは 4 枚まで。"
+        description="物件ごとのボードをチームで共有し、担当・役割・期限を付けて工程表で見る。前の遅れは後ろへ伝わる。終わった物件のボードは「竣工済み」へ。"
         features={[
           {
             label: '工程表',
@@ -556,22 +609,28 @@ const TeamTasks: React.FC = () => {
       </div>
       {error && <div className="mb-2 text-red-600 font-bold">{error}</div>}
       <div className="mb-3 flex gap-2 items-center flex-wrap">
-        <label className="text-xs text-gray-700">プロジェクト名称</label>
-        <input
-          ref={createInputRef}
-          className="border px-2 py-1 h-7 text-[12px] min-w-0 flex-1 sm:flex-none"
-          placeholder="新規プロジェクト名"
-          value={newProjectName}
-          onChange={e => setNewProjectName(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) void handleCreateProject() }}
-        />
+        <label className="text-xs text-gray-700">プロジェクト名称（物件）</label>
+        {/* 物件の台帳から選ぶ。台帳の物件で作ったボードは物件に紐づき、物件ハブ・メモの宿題から引ける */}
+        <span
+          ref={(el) => { (createInputRef as React.MutableRefObject<HTMLInputElement | null>).current = el?.querySelector('input') ?? null }}
+          className="min-w-0 flex-1 sm:flex-none"
+          onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing && (e.target as HTMLElement).tagName === 'INPUT') void handleCreateProject() }}
+        >
+          <ProjectPicker
+            value={newProjectName}
+            onChange={setNewProjectName}
+            placeholder="物件を選ぶ・新規プロジェクト名"
+            label="新しいボードの物件"
+            className="flex-wrap [&_input]:!h-7 [&_input]:!text-[12px]"
+          />
+        </span>
         <button
           className="yy-btn yy-btn--primary !px-2 !py-1"
           onClick={handleCreateProject}
         >
           作成
         </button>
-        {projects.length > 0 && (
+        {liveProjects.length > 0 && (
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -591,13 +650,16 @@ const TeamTasks: React.FC = () => {
               value={deleteTargetId}
               onChange={e => setDeleteTargetId(e.target.value)}
             >
-              {projects.map(p => (
+              {liveProjects.map(p => (
                 <option key={p.id} value={p.id}>{p.name || p.id}</option>
               ))}
             </select>
           </div>
         )}
       </div>
+      {liveProjects.length === 0 && archivedProjects.length > 0 && (
+        <p className="text-[11px] text-gray-500 mb-4">進行中のボードはありません（竣工済み {archivedProjects.length} 枚は下にあります）。</p>
+      )}
       {projects.length === 0 && (
         <p className="text-[11px] text-gray-500 mb-4">
           まだボードがありません。{' '}
@@ -638,7 +700,7 @@ const TeamTasks: React.FC = () => {
           <option value="priority">重要度の高い順</option>
         </select>
         {(() => {
-          const overdue = Object.values(tasksByProject).flat().filter((t) => dueStatus(t, today).status === 'overdue').length;
+          const overdue = Object.values(liveTasks).flat().filter((t) => dueStatus(t, today).status === 'overdue').length;
           return overdue ? (
             <button type="button" onClick={() => setFilter({ ...filter, state: 'overdue' })} className="text-red-600 font-bold underline">
               期限切れ {overdue} 件
@@ -653,7 +715,7 @@ const TeamTasks: React.FC = () => {
           slips={slips}
           pendingShifts={pendingShifts.length}
           onApplyShifts={() => void applyShifts()}
-          groups={projects.map((p) => ({
+          groups={liveProjects.map((p) => ({
             id: p.id,
             name: p.name,
             tasks: visibleTasks(p.id).map((t) => ({ ...t, assigneeLabel: (membersByProject[p.id] || []).find((m) => m.uid === t.assigneeId)?.label })),
@@ -663,7 +725,7 @@ const TeamTasks: React.FC = () => {
 
       {/* .team-task-grid（globals.css）の display:flex が Tailwind の hidden に勝ち、工程表の下にカードも出ていた。style で隠す */}
       <div ref={gridRef} className="team-task-grid border border-[#3b3b3b] p-3 scroll-mt-3" style={view === 'gantt' ? { display: 'none' } : undefined}>
-        {projects.map((project, idx) => {
+        {liveProjects.map((project, idx) => {
           const cols = narrow ? 1 : columnMode;
           const flexBasis = `calc((100% - ${(cols - 1)} * 0.75rem) / ${cols})`;
           const cardStyle: React.CSSProperties = {
@@ -700,10 +762,35 @@ const TeamTasks: React.FC = () => {
                       onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); saveProjectName(project, tempProjectName) }}
                       onClick={(e) => { e.preventDefault(); e.stopPropagation(); saveProjectName(project, tempProjectName) }}
                     >決定</button>
+                    {/* 物件の台帳の物件に紐づける（オーナーだけ） */}
+                    {canManage(project) && (
+                      <select
+                        className="text-[11px] h-7 px-1 bg-white text-gray-800 border max-w-[140px]"
+                        value={project.projectName ?? ''}
+                        onChange={(e) => void linkProject(project, e.target.value || null)}
+                        title="このボードの物件（物件の台帳から）"
+                      >
+                        <option value="">物件: なし</option>
+                        {project.projectName && !registry.find(project.projectName) && <option value={project.projectName}>{project.projectName}</option>}
+                        {registry.active.map((rp) => <option key={rp.id} value={rp.name}>{rp.name}</option>)}
+                      </select>
+                    )}
                   </div>
                 ) : (
                   <div className="flex-1">
-                    <span className={`block text-[11px] leading-none mb-1 ${isDarkColor(project.color || '') ? 'text-white/80' : 'text-gray-600'}`}>プロジェクト</span>
+                    <span className={`block text-[11px] leading-none mb-1 ${isDarkColor(project.color || '') ? 'text-white/80' : 'text-gray-600'}`}>
+                      プロジェクト
+                      {(() => {
+                        // 物件ハブへ（紐づけた物件か、ボード名が台帳の物件のとき）
+                        const rp = registry.find(project.projectName || project.name);
+                        if (!rp) return project.projectName ? <span className="ml-1">· {project.projectName}</span> : null;
+                        return (
+                          <a href={`/bukken/?p=${encodeURIComponent(rp.id)}`} className="ml-1 underline underline-offset-2" title="この物件のタスク・メモ・メール・ボードを 1 画面で見る">
+                            · 物件ハブ{rp.name !== project.name ? `（${rp.name}）` : ''}
+                          </a>
+                        );
+                      })()}
+                    </span>
                     <div className="flex items-center gap-2">
                       <h3 className={`text-[12px] font-bold ${isDarkColor(project.color || '') ? 'text-white' : 'text-gray-800'}`}>{project.name}</h3>
                       <button
@@ -742,6 +829,20 @@ const TeamTasks: React.FC = () => {
                   >
                     AC
                   </button>
+                  {canManage(project) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const open = (tasksByProject[project.id] || []).filter(t => !t.completed).length;
+                        if (!window.confirm(`「${project.name}」を竣工済みにします。\nカードと工程表から外れ、下の「竣工済み」に残ります（タスク・メンバーは消えません）。${open ? `\n未完了のタスクが ${open} 件あります。` : ''}`)) return;
+                        void setArchived(project, true);
+                      }}
+                      title="竣工済みにする（消さずにしまう。いつでも戻せる）"
+                      className={`ml-1 text-[10px] ${isDarkColor(project.color || '') ? 'text-white/70 hover:text-white' : 'text-black/40 hover:text-black/60'}`}
+                    >
+                      竣工
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -1079,6 +1180,51 @@ const TeamTasks: React.FC = () => {
         );
         })}
       </div>
+      {/* 竣工済み。消さずにしまっておく（タスクは残る）。戻すとカードと工程表にまた出る */}
+      {archivedProjects.length > 0 && (
+        <section className="mt-4 border-t border-[#3b3b3b] pt-2 text-[11px]">
+          <button type="button" onClick={() => setShowArchived(v => !v)} className="flex items-center gap-2 text-gray-700">
+            <span className="yy-mono text-[10px] tracking-[0.12em] uppercase text-gray-500">Archive</span>
+            <span className="font-bold">竣工済み</span>
+            <span className="yy-mono text-[10px] text-gray-500">{archivedProjects.length}</span>
+            <span className="text-gray-400">{showArchived ? '閉じる' : '開く'}</span>
+          </button>
+          {showArchived && (
+            <ul className="mt-2 divide-y divide-gray-200 border-y border-gray-200">
+              {archivedProjects.map((p) => {
+                const rp = registry.find(p.projectName || p.name);
+                const n = (tasksByProject[p.id] || []).length;
+                return (
+                  <li key={p.id} className="flex items-center gap-3 py-1.5 flex-wrap">
+                    <span className="font-bold text-gray-800 min-w-0 break-words">{p.name}</span>
+                    {p.projectName && p.projectName !== p.name && <span className="text-gray-500">{p.projectName}</span>}
+                    {n > 0 && <span className="yy-mono text-[10px] text-gray-400">{n} 件</span>}
+                    {!canManage(p) && <span className="text-[10px] text-gray-400">オーナーがしまったボード</span>}
+                    <span className="ml-auto flex items-center gap-3">
+                      {rp && <a href={`/bukken/?p=${encodeURIComponent(rp.id)}`} className="underline underline-offset-2 text-gray-600">物件ハブ</a>}
+                      {canManage(p) && (
+                        <>
+                          <button type="button" className="underline underline-offset-2 font-bold text-gray-900" onClick={() => void setArchived(p, false)}>進行中に戻す</button>
+                          <button
+                            type="button"
+                            className="underline underline-offset-2 text-gray-500 hover:text-red-600"
+                            onClick={async () => {
+                              if (!window.confirm(`「${p.name}」ボードを削除します。\nボードとタスクはメンバー全員から消え、元に戻せません。`)) return;
+                              await removeBoard(p.id);
+                            }}
+                          >
+                            削除
+                          </button>
+                        </>
+                      )}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      )}
       {/* 共有ユーザー管理UIはここに追加可能 */}
     </div>
   );

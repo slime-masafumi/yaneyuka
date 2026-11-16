@@ -16,7 +16,7 @@
  *   const { projects, active, add, rename, setStatus, ready } = useProjectRegistry();
  *   add('（仮）神田オフィスビル') → 既にあれば既存の id を返す
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
 import { collection, doc, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from './firebaseClient';
 import { useAuth } from './AuthContext';
@@ -37,6 +37,7 @@ export type RegProject = {
 const LOCAL_KEY = 'yy-project-registry';
 const KARTE_KEY = 'yaneyuka.karte';
 const EVENT = 'yy-project-registry';
+const EMPTY: RegProject[] = [];
 
 /** 表記ゆれをそろえた比較用の名前(全角/半角・空白・括弧の違いを吸収) */
 export const projectKey = (name: string) =>
@@ -98,64 +99,91 @@ function mergeIn(base: RegProject[], extra: { name: string; addr?: string; karte
   return out;
 }
 
+/*
+ * 読み込みはページ全体で 1 回だけにする(共有の入れ物)。2026-11-16
+ * 以前はこのフックを使う部品ごとに読み込み・初回の取り込みをしていたので、同じ画面に物件の入力欄が
+ * 2 つあると、初回の取り込みが 2 回走って同じ物件が別の id で 2 件できることがあった。
+ */
+type Snap = { uid: string | null; projects: RegProject[]; ready: boolean };
+let snap: Snap = { uid: null, projects: [], ready: false };
+let startedFor: string | undefined;
+let stopCurrent: (() => void) | null = null;
+const subscribers = new Set<() => void>();
+const emit = (next: Partial<Snap>) => {
+  snap = { ...snap, ...next };
+  subscribers.forEach((fn) => fn());
+};
+const subscribe = (fn: () => void) => {
+  subscribers.add(fn);
+  return () => {
+    subscribers.delete(fn);
+  };
+};
+const getSnap = () => snap;
+const setShared = (fn: (prev: RegProject[]) => RegProject[]) => emit({ projects: fn(snap.projects) });
+
+function startRegistry(uid: string | null) {
+  const key = uid ?? '';
+  if (startedFor === key) return;
+  stopCurrent?.();
+  startedFor = key;
+  emit({ uid, projects: [], ready: false });
+  if (!uid) {
+    const sync = () => {
+      const local = readLocal();
+      const merged = mergeIn(local, karteProjects().map((k) => ({ name: k.name, addr: k.addr, karteId: k.id })));
+      // カルテから足した物件は保存して id を固定する(足すものが無ければ書かないので、通知の往復は 1 回で止まる)
+      if (merged.length !== local.length || merged.some((p, i) => p.karteId !== local[i]?.karteId)) writeLocal(merged);
+      emit({ projects: merged, ready: true });
+    };
+    sync();
+    window.addEventListener(EVENT, sync);
+    window.addEventListener('storage', sync);
+    stopCurrent = () => {
+      window.removeEventListener(EVENT, sync);
+      window.removeEventListener('storage', sync);
+    };
+    return;
+  }
+  let first = true;
+  stopCurrent = onSnapshot(
+    collection(db, 'users', uid, 'projectRegistry'),
+    (qs) => {
+      const list = qs.docs.map((d) => ({ ...(d.data() as Omit<RegProject, 'id'>), id: d.id }));
+      if (first) {
+        first = false;
+        // このブラウザの物件とカルテの案件を、まだ台帳に無ければ足す(読み込みごとに 1 回だけ)
+        const merged = mergeIn(list, [
+          ...readLocal().map((p) => ({ name: p.name, addr: p.addr, karteId: p.karteId })),
+          ...karteProjects().map((k) => ({ name: k.name, addr: k.addr, karteId: k.id })),
+        ]);
+        for (const p of merged) {
+          const before = list.find((x) => x.id === p.id);
+          if (!before || before.karteId !== p.karteId) {
+            const { id, ...data } = p;
+            void setDoc(doc(db, 'users', uid, 'projectRegistry', id), JSON.parse(JSON.stringify(data)), { merge: true }).catch(() => {});
+          }
+        }
+        emit({ projects: merged, ready: true });
+      } else {
+        emit({ projects: list, ready: true });
+      }
+    },
+    () => emit({ projects: readLocal(), ready: true }),
+  );
+}
+
 export function useProjectRegistry() {
   const { currentUser, authReady } = useAuth();
   const uid = currentUser?.uid ?? null;
-  const [projects, setProjects] = useState<RegProject[]>([]);
-  const [ready, setReady] = useState(false);
-
-  // 読み込み
   useEffect(() => {
-    if (!authReady) return;
-    if (!uid) {
-      const sync = () => {
-        const local = readLocal();
-        const merged = mergeIn(local, karteProjects().map((k) => ({ name: k.name, addr: k.addr, karteId: k.id })));
-        // カルテから足した物件は保存して id を固定する(足すものが無ければ書かないので、通知の往復は 1 回で止まる)
-        if (merged.length !== local.length || merged.some((p, i) => p.karteId !== local[i]?.karteId)) writeLocal(merged);
-        setProjects(merged);
-        setReady(true);
-      };
-      sync();
-      window.addEventListener(EVENT, sync);
-      window.addEventListener('storage', sync);
-      return () => {
-        window.removeEventListener(EVENT, sync);
-        window.removeEventListener('storage', sync);
-      };
-    }
-    let first = true;
-    const unsub = onSnapshot(
-      collection(db, 'users', uid, 'projectRegistry'),
-      (snap) => {
-        const list = snap.docs.map((d) => ({ ...(d.data() as Omit<RegProject, 'id'>), id: d.id }));
-        if (first) {
-          first = false;
-          // このブラウザの物件とカルテの案件を、まだ台帳に無ければ足す(1 回だけ)
-          const merged = mergeIn(list, [
-            ...readLocal().map((p) => ({ name: p.name, addr: p.addr, karteId: p.karteId })),
-            ...karteProjects().map((k) => ({ name: k.name, addr: k.addr, karteId: k.id })),
-          ]);
-          for (const p of merged) {
-            const before = list.find((x) => x.id === p.id);
-            if (!before || before.karteId !== p.karteId) {
-              const { id, ...data } = p;
-              void setDoc(doc(db, 'users', uid, 'projectRegistry', id), JSON.parse(JSON.stringify(data)), { merge: true }).catch(() => {});
-            }
-          }
-          setProjects(merged);
-        } else {
-          setProjects(list);
-        }
-        setReady(true);
-      },
-      () => {
-        setProjects(readLocal());
-        setReady(true);
-      },
-    );
-    return () => unsub();
+    if (authReady) startRegistry(uid);
   }, [uid, authReady]);
+  const shared = useSyncExternalStore(subscribe, getSnap, getSnap);
+  const mine = shared.uid === uid;
+  const projects = mine ? shared.projects : EMPTY;
+  const ready = mine && shared.ready;
+  const setProjects = setShared;
 
   const persist = useCallback(
     async (p: RegProject) => {

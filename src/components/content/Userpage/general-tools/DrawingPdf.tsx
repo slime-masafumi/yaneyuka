@@ -7,6 +7,7 @@ import { loadPdfjs } from '@/lib/pdfjs';
 import ToolHeader from '../ToolHeader';
 import CropEditor, { type PageCrop } from './pdf/CropEditor';
 import { A_SERIES_PT, nearestPaper, ptToMm } from './pdf/paper';
+import { convertedScale, fitScale, paperRatio, parseScaleDenom, type ConvertedScale } from './pdf/scale';
 
 /**
  * 図面PDFの整備。
@@ -64,7 +65,7 @@ const generateId = () =>
  */
 function textToPng(
   text: string,
-  options: { fontSize: number; color: string; bold?: boolean },
+  options: { fontSize: number; color: string; bold?: boolean; background?: string },
 ): { dataUrl: string; width: number; height: number } | null {
   if (!text.trim()) return null;
   const scale = 3; // PDF に置いたとき粗く見えないよう、大きめに描いて縮める
@@ -73,18 +74,28 @@ function textToPng(
   const font = `${options.bold ? 'bold ' : ''}${options.fontSize * scale}px sans-serif`;
   probe.font = font;
   const metrics = probe.measureText(text);
-  const width = Math.ceil(metrics.width) + 8;
-  const height = Math.ceil(options.fontSize * scale * 1.4);
+  // 地を敷くときは枠と文字の間を空ける
+  const padX = options.background ? Math.round(options.fontSize * scale * 0.5) : 4;
+  const width = Math.ceil(metrics.width) + padX * 2;
+  const height = Math.ceil(options.fontSize * scale * (options.background ? 1.7 : 1.4));
 
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
+  if (options.background) {
+    // 図面の線の上に載せても読めるよう、地を敷いて細い枠で囲む
+    ctx.fillStyle = options.background;
+    ctx.fillRect(0, 0, width, height);
+    ctx.strokeStyle = options.color;
+    ctx.lineWidth = scale;
+    ctx.strokeRect(scale / 2, scale / 2, width - scale, height - scale);
+  }
   ctx.font = font;
   ctx.textBaseline = 'middle';
   ctx.fillStyle = options.color;
-  ctx.fillText(text, 4, height / 2);
+  ctx.fillText(text, padX, height / 2);
 
   return { dataUrl: canvas.toDataURL('image/png'), width: width / scale, height: height / scale };
 }
@@ -230,6 +241,31 @@ const DrawingPdf: React.FC = () => {
   const [numberStart, setNumberStart] = useState(1);
   const [addNumbers, setAddNumbers] = useState(false);
   const [splitPerPage, setSplitPerPage] = useState(false);
+  // 用紙を変えるときの縮尺。元の縮尺を聞いて、変換後の縮尺を各図面に入れる
+  const [origScale, setOrigScale] = useState('');
+  /** 元の用紙。auto はページの大きさから判定し、実際に掛けた倍率で計算する */
+  const [origPaper, setOrigPaper] = useState('auto');
+  const [scalePos, setScalePos] = useState<'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'>('bottom-right');
+
+  const origDenom = parseScaleDenom(origScale);
+  /** このページを用紙サイズ変換したときの縮尺(変換しないページ・縮尺未入力は null) */
+  const scaleFor = (item: PageItem): ConvertedScale | null => {
+    if (paperSize === 'keep' || item.crop || !origDenom) return null;
+    const [tw, th] = PAPER_SIZES[paperSize];
+    if (origPaper === 'auto') {
+      const { scale } = fitScale(item.width, item.height, tw, th);
+      return convertedScale(nearestPaper(item.width, item.height).name, origDenom, paperSize, scale);
+    }
+    // 元の用紙を指定したときは用紙どうしの比で決める(A1 の図面を A3 に縮めて PDF にしたものでも正しく出る)
+    const r = paperRatio(origPaper, paperSize);
+    return r ? convertedScale(origPaper, origDenom, paperSize, r) : null;
+  };
+  const scalePreview = (() => {
+    const first = pages.find((p) => !p.crop);
+    if (paperSize === 'keep' || !origDenom) return null;
+    if (first) return scaleFor(first);
+    return null;
+  })();
 
   const [busy, setBusy] = useState('');
   const [isDragging, setIsDragging] = useState(false);
@@ -441,10 +477,9 @@ const DrawingPdf: React.FC = () => {
           if (paperSize !== 'keep' && !item.crop) {
             const [targetW, targetH] = PAPER_SIZES[paperSize];
             const { width, height } = page.getSize();
-            // 横長のページには用紙も横で当てる
-            const [fitW, fitH] = width > height ? [targetH, targetW] : [targetW, targetH];
-            // 内容は比率を保ったまま。図面は縦横比が崩れると寸法が読めなくなる
-            const scale = Math.min(fitW / width, fitH / height);
+            // 横長のページには用紙も横で当てる。内容は比率を保ったまま
+            // (図面は縦横比が崩れると寸法が読めなくなる)
+            const { scale, fitW, fitH } = fitScale(width, height, targetW, targetH);
             page.scaleContent(scale, scale);
             page.setSize(fitW, fitH);
             // 縮めた内容を中央へ寄せる
@@ -484,6 +519,7 @@ const DrawingPdf: React.FC = () => {
             }
           }
 
+          let numberTop = 0;
           if (addNumbers) {
             const label = `${numberPrefix}${numberStart + i}`;
             const png = textToPng(label, { fontSize: 12, color: '#000000', bold: true });
@@ -495,6 +531,22 @@ const DrawingPdf: React.FC = () => {
                 width: png.width,
                 height: png.height,
               });
+              numberTop = 18 + png.height;
+            }
+          }
+
+          // 変換後の縮尺。縮めた図面に元の「1/100」が残ったままだと、そのまま測られる
+          const sc = scaleFor(item);
+          if (sc) {
+            const png = textToPng(sc.label, { fontSize: 10, color: '#000000', bold: true, background: '#ffffff' });
+            if (png) {
+              const image = await out.embedPng(png.dataUrl);
+              const right = scalePos.endsWith('right');
+              const top = scalePos.startsWith('top');
+              const u = right ? viewW - png.width - 24 : 24;
+              // 右下に図面番号があるときはその上に積む
+              const v = top ? viewH - png.height - 18 : right && numberTop ? numberTop + 4 : 18;
+              page.drawImage(image, { ...place(u, v, 0), width: png.width, height: png.height });
             }
           }
 
@@ -563,7 +615,7 @@ const DrawingPdf: React.FC = () => {
           { label: '結合・ページごとに分割', onClick: () => scrollTo(exportRef) },
           { label: '一括回転', onClick: () => scrollTo(opsRef) },
           { label: '縮尺を保ったトリミング', onClick: openCrop, active: !!cropId, hint: '範囲を囲んで切り出す。拡大縮小しないので縮尺はそのまま' },
-          { label: '用紙サイズ変換', onClick: () => scrollTo(paperRef) },
+          { label: '用紙サイズ変換', onClick: () => scrollTo(paperRef), hint: '元の縮尺を入れると、変換後の縮尺（A3 1/200 など）を各図面に入れる' },
           { label: '透かし・図面番号', onClick: () => scrollTo(paperRef) },
         ]}
       />
@@ -634,6 +686,48 @@ const DrawingPdf: React.FC = () => {
                     <p className="text-[10px] text-gray-500 mt-0.5">トリミングした {croppedCount} ページは対象外（縮尺を保つため）。</p>
                   )}
                 </div>
+
+                {paperSize !== 'keep' && (
+                  <div className="border-l border-[#3b3b3b] pl-2 space-y-1.5">
+                    <label className="block text-[10px] text-gray-500">元の縮尺（変換後の縮尺を各図面に入れる）</label>
+                    <div className="flex gap-2">
+                      <select value={origPaper} onChange={(e) => setOrigPaper(e.target.value)}
+                        className="w-28 p-1.5 text-[11px] bg-white" aria-label="元の用紙">
+                        <option value="auto">用紙はページから</option>
+                        {['A0', 'A1', 'A2', 'A3', 'A4'].map((k) => <option key={k} value={k}>{k}</option>)}
+                      </select>
+                      <input type="text" inputMode="numeric" value={origScale} onChange={(e) => setOrigScale(e.target.value)}
+                        placeholder="1/100" aria-label="元の縮尺"
+                        className="flex-1 min-w-0 p-1.5 text-[11px]" />
+                    </div>
+                    {origScale.trim() && !origDenom && (
+                      <p className="text-[10px] text-red-700">縮尺は「1/100」「1:100」「100」の形で入れてください。</p>
+                    )}
+                    {scalePreview && (
+                      <p className="text-[10px] text-gray-700 leading-relaxed">
+                        {scalePreview.note}
+                      </p>
+                    )}
+                    {origDenom && pages.length === 0 && (
+                      <p className="text-[10px] text-gray-500">PDF を読み込むと、変換後の縮尺をここに出します。</p>
+                    )}
+                    {origDenom && (
+                      <div className="flex items-center gap-2">
+                        <label className="text-[10px] text-gray-500 shrink-0">入れる位置</label>
+                        <select value={scalePos} onChange={(e) => setScalePos(e.target.value as typeof scalePos)}
+                          className="flex-1 p-1 text-[11px] bg-white">
+                          <option value="bottom-right">右下（表題欄の上）</option>
+                          <option value="bottom-left">左下</option>
+                          <option value="top-right">右上</option>
+                          <option value="top-left">左上</option>
+                        </select>
+                      </div>
+                    )}
+                    <p className="text-[10px] text-gray-500 leading-relaxed">
+                      A1→A3・A2→A4 は 1/2 でそのまま言えます。A2→A3・A1→A2 などは 1/√2（約 0.71 倍）で半端になるので、数字の縮尺は書かず「A3 縮小（A2 1/100）」と入れます。図面の中の「1/100」の文字はそのまま残ります（スケールバーは一緒に縮むので正しいまま）。
+                    </p>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-[10px] text-gray-500 mb-1">透かし</label>

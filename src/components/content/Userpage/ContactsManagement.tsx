@@ -1,7 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { FiLock, FiUnlock, FiTrash2, FiX, FiPlus, FiChevronDown, FiChevronRight } from 'react-icons/fi';
+import { FiLock, FiUnlock, FiTrash2, FiX, FiPlus, FiChevronDown, FiChevronRight, FiShare2 } from 'react-icons/fi';
+import OfficeContacts from '@/components/office/OfficeContacts';
+import { addOfficeContact, useMyOffice } from '@/lib/office';
 import ToolHeader from './ToolHeader';
 import GuestNote from './general-tools/GuestNote';
 import { useAuth } from '@/lib/AuthContext';
@@ -81,6 +83,8 @@ const csvCell = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
 
 const ContactsManagement: React.FC = () => {
   const { currentUser, isLoggedIn } = useAuth();
+  // 事務所（入っていれば、共有の連絡先を下に出し、個人のカードを写せる）
+  const myOffice = useMyOffice();
   // 担当者連絡先の状態
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [currentSortOrder, setCurrentSortOrder] = useState<string>('input-desc');
@@ -247,6 +251,22 @@ const ContactsManagement: React.FC = () => {
     if (!target._draft && !confirm(`「${target.company || target.name || 'この連絡先'}」を削除してもよろしいですか？`)) return;
     setList(prev => prev.filter(c => c.id !== id));
     if (currentUser && !target._draft) { try { await deleteDoc(doc(db, 'users', currentUser.uid, 'contacts', id)) } catch {} }
+  };
+
+  /** 個人のカードを事務所の共有の連絡先へ写す（写したあとは別々のカード。やり取りの履歴は写さない） */
+  const shareToOffice = async (id: string) => {
+    const target = contactsRef.current.find(c => c.id === id);
+    if (!target || !currentUser || !myOffice.office) return;
+    if (!confirm(`「${target.company || target.name || 'この連絡先'}」を事務所「${myOffice.office.name}」のメンバー全員に共有しますか？（やり取りの履歴は共有しません）`)) return;
+    try {
+      await addOfficeContact(myOffice.office.id, currentUser.uid, currentUser.username, {
+        company: target.company, dept: target.dept, role: target.role, name: target.name,
+        phone: target.phone, email: target.email, project: target.project ?? '', memo: target.memo,
+      });
+      flash('事務所の共有の連絡先に写しました（下の「事務所で共有」）');
+    } catch {
+      flash('共有できませんでした。時間をおいてもう一度お試しください');
+    }
   };
 
   const toggleLock = async (id: string) => {
@@ -538,6 +558,16 @@ const ContactsManagement: React.FC = () => {
                       className="!border-0 bg-transparent focus:outline-none w-full font-bold text-[12px] text-[#141414] placeholder-gray-400 disabled:!bg-transparent disabled:text-[#141414]"
                     />
                     <div className="flex gap-2 items-center ml-2">
+                      {myOffice.office && !contact._draft && (
+                        <button
+                          onClick={() => void shareToOffice(cid)}
+                          title={`事務所「${myOffice.office.name}」に共有（写しを作る）`}
+                          aria-label="事務所に共有"
+                          className="flex-shrink-0 text-[13px] text-gray-300 hover:text-[#52AA96]"
+                        >
+                          <FiShare2 />
+                        </button>
+                      )}
                       <button
                         onClick={() => toggleLock(cid)}
                         title={contact.locked ? 'ロック解除' : 'ロック（書き換え・削除を防ぐ）'}
@@ -655,8 +685,14 @@ const ContactsManagement: React.FC = () => {
           </div>
         </div>
       </div>
+      {/* 事務所に入っていれば、共有の連絡先（メンバー全員が読み書き）を個人の一覧の下に出す */}
+      {currentUser && myOffice.office && view === 'cards' && (
+        <div>
+          <OfficeContacts my={myOffice} uid={currentUser.uid} userName={currentUser.username} search={selectedCompany ?? contactSearchTerm} />
+        </div>
+      )}
     </div>
   );
 };
 
-export default ContactsManagement; 
+export default ContactsManagement;

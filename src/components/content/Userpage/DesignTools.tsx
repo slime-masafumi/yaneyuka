@@ -22,6 +22,7 @@ import PavementDesign from '@/components/content/Userpage/design-tools/PavementD
 import SlopeCalc from '@/components/content/Userpage/design-tools/SlopeCalc';
 import LoadCalc from '@/components/content/Userpage/design-tools/LoadCalc';
 import SetbackCalc from '@/components/content/Userpage/design-tools/SetbackCalc';
+import VolumeStudy from '@/components/content/Userpage/design-tools/VolumeStudy';
 import ShadowCalc from '@/components/content/Userpage/design-tools/ShadowCalc';
 import IlluminationCalc from '@/components/content/Userpage/design-tools/IlluminationCalc';
 import TrunkSizeCalc from '@/components/content/Userpage/design-tools/TrunkSizeCalc';
@@ -73,6 +74,7 @@ const TOOL_COMPONENTS: Record<string, React.ReactNode> = {
   'jpma-search': <ColorProposal defaultTab="jpma" hideTabBar />,
   'shadow-regulation': <ShadowCalc />,
   'setback-regulation': <SetbackCalc />,
+  'volume-study': <VolumeStudy />,
   'glass-thickness': <GlassThickness hideHeader sheet />,
   'condensation': <MultiLayerCondensation hideHeader sheet />,
   'building-rainwater': <RainwaterCalculation mode="building" hideTabBar />,

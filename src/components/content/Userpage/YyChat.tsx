@@ -22,6 +22,7 @@ import { getUsersByUids, listBoardsForUser, addBoardTask, type BoardDoc } from '
 import { findUserByExactEmail, getPublicProfiles, setOwnAvatar } from '@/lib/userDirectory';
 import { useTaskContext } from '@/components/providers/TaskProvider';
 import { searchTerms, matchesAll, snippet, splitHits, parseDueHint, mentionsIn, taskTextFrom, minutesHtml, formatTaken } from '@/lib/chatTools';
+import { compressForChat, fitsInMessage, shrinkDataUrl, utf8Bytes } from './yyChatImage';
 
 // --- Types Expansion ---
 interface ExtendedChatMessage extends ChatMessage {
@@ -106,40 +107,7 @@ const formatMessageDate = (date: Date) => {
   return `${year}/${month}/${day} ${timeStr}`;
 };
 
-const compressImage = async (file: File): Promise<string> => {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 500;
-        const MAX_HEIGHT = 500;
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > MAX_WIDTH) {
-            height *= MAX_WIDTH / width;
-            width = MAX_WIDTH;
-          }
-        } else {
-          if (height > MAX_HEIGHT) {
-            width *= MAX_HEIGHT / height;
-            height = MAX_HEIGHT;
-          }
-        }
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx?.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/jpeg', 0.5));
-      };
-      img.src = e.target?.result as string;
-    };
-    reader.readAsDataURL(file);
-  });
-};
+// 写真の縮め方は yyChatImage.ts(長辺 1600px・画質 0.75 から、1 文書 1MiB に収まるまで落とす)
 
 // --- Main Component ---
 
@@ -205,6 +173,9 @@ const YyChat: React.FC = () => {
   // 見出し帯の「できること」用。使い方が分からない機能を押したときの一言と、検索欄へのフォーカス
   const [chatNotice, setChatNotice] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
+  /** 写真を原寸で見る(一覧では高さを抑えて出す。配筋・ひび割れは拡大して見る) */
+  const [viewImage, setViewImage] = useState<{ src: string; takenAt?: string | null } | null>(null);
+  const [imageBusy, setImageBusy] = useState(false);
 
   // --- Effects ---
 
@@ -507,6 +478,11 @@ const YyChat: React.FC = () => {
     const content = inputValue.trim();
     const imageToSend = inputImage;
     const takenAt = imageToSend ? inputPhotoTaken : null;
+    // 写真は発言の文書に入れるので、本文と合わせて 1MiB を超えると Firestore が受け付けない
+    if (!fitsInMessage(imageToSend, content)) {
+      setChatNotice('写真と本文を合わせると 1 件に入りきりません。本文を短くするか、本文を別の発言に分けてください。');
+      return;
+    }
 
     setInputValue('');
     setInputImage(null);
@@ -568,13 +544,20 @@ const YyChat: React.FC = () => {
   const handleSelectImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith('image/')) {
+    const heic = /\.(heic|heif)$/i.test(file.name);
+    if (!file.type.startsWith('image/') && !heic) {
       alert('画像ファイルを選択してください');
+      e.target.value = '';
       return;
     }
+    setImageBusy(true);
     try {
-      const compressed = await compressImage(file);
-      setInputImage(compressed);
+      const compressed = await compressForChat(file);
+      if (!compressed) {
+        setChatNotice('この写真は小さくしても 1 件に入りきりませんでした。別の写真か、トリミングしてから送ってください。');
+        return;
+      }
+      setInputImage(compressed.dataUrl);
       // 撮影日時（縮小すると EXIF が消えるので、元のファイルから読む）
       setInputPhotoTaken(null);
       try {
@@ -588,8 +571,10 @@ const YyChat: React.FC = () => {
     } catch (err) {
       console.error(err);
       alert('画像の読み込みに失敗しました');
+    } finally {
+      setImageBusy(false);
+      e.target.value = '';
     }
-    e.target.value = '';
   };
 
   const handleImageSelect = (file: File) => {
@@ -777,9 +762,26 @@ const YyChat: React.FC = () => {
   /** 選んだ発言をメモの議事録にする（フォルダは物件名、無ければ「議事録」） */
   const saveMinutes = async () => {
     if (!currentUser || !selectedRoom || !selectedIds.size) return;
-    const lines = messages.filter((m) => selectedIds.has(m.id) && !m.id.startsWith('temp-'));
+    // 写真は議事録用に小さく描き直す。メモも 1 文書 1MiB までで、送った写真(最大 約 900KB)を
+    // そのまま貼ると 2 枚で保存できなくなる。原寸はチャットの発言に残っている
+    const picked = messages.filter((m) => selectedIds.has(m.id) && !m.id.startsWith('temp-'));
     const label = roomLabel(selectedRoom);
-    const html = minutesHtml({ room: label, lines, nameOf: getDisplayName, decisions: decisionIds });
+    const build = async (long: number | null) => {
+      const lines = await Promise.all(
+        picked.map(async (m) =>
+          m.imageUrl ? { ...m, imageUrl: long ? await shrinkDataUrl(m.imageUrl, long, 0.55) : undefined } : m,
+        ),
+      );
+      return minutesHtml({ room: label, lines, nameOf: getDisplayName, decisions: decisionIds });
+    };
+    // 写真が多くて入らなければ、さらに小さく → それでも入らなければ写真なし(本文だけ)
+    let html = await build(640);
+    let photoNote = '';
+    if (utf8Bytes(html) > 1_000_000) html = await build(320);
+    if (utf8Bytes(html) > 1_000_000) {
+      html = await build(null);
+      photoNote = '（写真が多く入りきらないため、写真はチャットにだけ残しました）';
+    }
     const now = Date.now();
     const folder = selectedRoom.project || '議事録';
     await addDoc(collection(db, 'users', currentUser.uid, 'memos'), {
@@ -787,7 +789,7 @@ const YyChat: React.FC = () => {
       content: html, category: folder, tags: ['yychat'],
       createdAt: now, updatedAt: now, isFavorite: false, isLocked: false, order: -now,
     });
-    setMinutesDone(`メモの「${folder}」に ${lines.length} 件の議事録を作りました`);
+    setMinutesDone(`メモの「${folder}」に ${picked.length} 件の議事録を作りました${photoNote}`);
     setSelectMode(false);
     setSelectedIds(new Set());
     setDecisionIds(new Set());
@@ -1413,7 +1415,9 @@ const YyChat: React.FC = () => {
                       }`}>
                         {m.imageUrl && (
                           <div className="mb-1 overflow-hidden border border-black/10">
-                            <img src={m.imageUrl} alt="添付画像" className="max-w-full h-auto object-cover" />
+                            <button type="button" className="block w-full cursor-zoom-in" onClick={() => setViewImage({ src: m.imageUrl!, takenAt: m.photoTakenAt })} title="原寸で見る">
+                              <img src={m.imageUrl} alt="添付画像" loading="lazy" className="max-w-full max-h-72 h-auto object-contain" />
+                            </button>
                             {m.photoTakenAt && (
                               <div className={`yy-mono text-[10px] px-1.5 py-0.5 ${isMe ? 'bg-[#141414] text-gray-300' : 'bg-gray-50 text-gray-500'}`}>撮影 {m.photoTakenAt}</div>
                             )}
@@ -1520,6 +1524,7 @@ const YyChat: React.FC = () => {
                    <div className="ml-2 text-xs text-gray-400">画像を送信します{inputPhotoTaken ? `（撮影 ${inputPhotoTaken}）` : ''}</div>
                 </div>
               )}
+              {imageBusy && <div className="px-2 pb-2 text-xs text-gray-400" role="status">写真を準備中…</div>}
 
               <div className="flex gap-2 items-end bg-white p-1.5 border border-gray-300 focus-within:border-[#3b3b3b] transition-colors">
                 <button 
@@ -1533,7 +1538,7 @@ const YyChat: React.FC = () => {
                   type="file" 
                   ref={fileInputRef} 
                   className="hidden" 
-                  accept="image/*"
+                  accept="image/*,.heic,.heif"
                   onChange={handleSelectImage}
                 />
 
@@ -1680,10 +1685,39 @@ const YyChat: React.FC = () => {
             </div>
           </div>
         )}
+        {viewImage && (
+          // 原寸で見る。画面に合わせて出し、押すと原寸(はみ出した分はスクロール)に切り替える
+          <div className="fixed inset-0 bg-black/85 z-[9999] flex flex-col" role="dialog" aria-label="写真を原寸で見る" onClick={() => setViewImage(null)}>
+            <div className="flex items-center justify-between px-3 py-2 text-[11px] text-gray-200 shrink-0" onClick={(e) => e.stopPropagation()}>
+              <span className="yy-mono tracking-[0.08em]">{viewImage.takenAt ? `撮影 ${viewImage.takenAt}` : '写真'}</span>
+              <span className="flex items-center gap-3">
+                <a href={viewImage.src} download={`yychat_${Date.now()}.jpg`} className="underline underline-offset-2">保存</a>
+                <button type="button" onClick={() => setViewImage(null)} aria-label="閉じる" className="text-gray-200 hover:text-white"><FiX className="w-4 h-4" /></button>
+              </span>
+            </div>
+            <ZoomableImage src={viewImage.src} />
+          </div>
+        )}
       </ModalPortal>
       </div>
     </div>
   );
 };
+
+/** 押すたびに「画面に合わせる」と「原寸」を切り替える */
+function ZoomableImage({ src }: { src: string }) {
+  const [actual, setActual] = useState(false);
+  return (
+    <div className={`flex-1 min-h-0 overflow-auto ${actual ? '' : 'flex items-center justify-center'}`} onClick={(e) => e.stopPropagation()}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt="添付画像(原寸)"
+        onClick={() => setActual((v) => !v)}
+        className={actual ? 'max-w-none cursor-zoom-out' : 'max-w-full max-h-full object-contain cursor-zoom-in'}
+      />
+    </div>
+  );
+}
 
 export default YyChat;

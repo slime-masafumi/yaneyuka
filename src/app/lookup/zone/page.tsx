@@ -93,6 +93,7 @@ export default function ZoneIndexPage() {
             <SecHead no="I" title="計算ツール" />
             <ul className="yy-info-toc">
               {[
+                ['/calc/volume-study/', 'ボリューム検討', '何階まで'],
                 ['/calc/use-zone/', '用途地域', '建てられるもの'],
                 ['/calc/building-regulations/', '建蔽率・容積率', '面積'],
                 ['/calc/setback-regulation/', '斜線制限', '高さ'],

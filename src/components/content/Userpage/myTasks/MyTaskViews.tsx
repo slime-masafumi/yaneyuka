@@ -3,33 +3,67 @@
  * Myタスクの別の見え方: 物件でまとめる / 完了の履歴。
  * どちらもシートをまたいで並べるだけで、保存先はシートのまま。
  */
-import React from 'react';
+import React, { useState } from 'react';
 import { groupByProject, completedHistory } from '@/lib/myTaskView';
 import type { TaskCategory, Task } from '@/components/providers/TaskProvider';
+import { useProjectRegistry } from '@/lib/projectRegistry';
 
 const md = (s: string) => {
   const [, m, d] = s.split('-').map(Number);
   return `${m}/${d}`;
 };
 
+/**
+ * 物件別。【】の物件名は物件の台帳（src/lib/projectRegistry.ts）の名前にそろえて束ねる
+ * （「A邸」「Ａ邸」「A 邸」が別の束にならない）。台帳に無い名前には「台帳に登録」を出す。
+ * only を渡すとその物件だけ（Myタスクの「物件で絞る」）。
+ */
 export function ProjectView({
   categories,
   today,
   onToggle,
+  only,
 }: {
   categories: TaskCategory[];
   today: string;
   onToggle: (categoryId: string, taskId: string) => void;
+  only?: string;
 }) {
-  const groups = groupByProject(categories, today);
+  const { find, add, ready } = useProjectRegistry();
+  const [busy, setBusy] = useState('');
+  const canon = (name: string) => find(name)?.name ?? name;
+  const all = groupByProject(categories, today, false, canon);
+  const groups = only === undefined ? all : all.filter((g) => (only === '' ? g.project === '' : g.project === canon(only)));
   if (!groups.length) return <p className="py-2 text-[11px] text-gray-500">未完了のタスクはありません</p>;
   return (
     <div className="grid gap-3 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
       {groups.map((g) => (
         <section key={g.project || '__none'} className="border border-gray-300 bg-white">
-          <div className="px-3 py-1.5 border-b border-gray-200 flex items-baseline justify-between">
-            <h3 className={`text-[12px] font-bold ${g.project ? '' : 'text-gray-400'}`}>{g.project || '物件なし'}</h3>
-            <span className="text-[11px] text-gray-500">
+          <div className="px-3 py-1.5 border-b border-gray-200 flex items-baseline justify-between gap-2">
+            <h3 className={`text-[12px] font-bold min-w-0 break-words ${g.project ? '' : 'text-gray-400'}`}>
+              {g.project || '物件なし'}
+              {g.project && ready && !find(g.project) && (
+                <button
+                  type="button"
+                  disabled={busy === g.project}
+                  onClick={async () => {
+                    setBusy(g.project);
+                    await add(g.project);
+                    setBusy('');
+                  }}
+                  className="ml-2 text-[10px] font-normal underline underline-offset-2 text-[#2f7f6d]"
+                  title="物件の台帳に登録すると、メモ・yymail・Teamタスク・物件ハブでも同じ物件として扱えます"
+                >
+                  台帳に登録
+                </button>
+              )}
+              {g.project && find(g.project) && (
+                <a href={`/bukken/?p=${encodeURIComponent(find(g.project)!.id)}`} className="ml-2 text-[10px] font-normal underline underline-offset-2 text-gray-500" title="この物件のタスク・メモ・メール・ボードを 1 画面で見る">
+                  物件ハブ
+                </a>
+              )}
+            </h3>
+            <span className="text-[11px] text-gray-500 shrink-0">
               {g.open} 件{g.overdue ? <span className="ml-1 bg-red-600 text-white font-bold px-1">超過 {g.overdue}</span> : null}
             </span>
           </div>

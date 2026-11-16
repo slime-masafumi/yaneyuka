@@ -44,6 +44,7 @@ const ALL_MENU: DesignToolCategory[] = [
       { id: 'jpma-search', label: '日塗工番号検索', title: '日塗工番号検索', description: '日塗工番号から近似色・マンセル値を検索' },
       { id: 'shadow-regulation', label: '日影規制', title: '日影規制', description: '直方体の建物の日影時間を冬至日の真太陽時で数え、別表第 4 の規制時間(5m・10m の線)と比べる' },
       { id: 'setback-regulation', label: '斜線制限', title: '斜線制限', description: '道路斜線・隣地斜線・北側斜線で、建物の面で許される高さを出す(法 56 条・別表第 3。後退距離の緩和つき)' },
+      { id: 'volume-study', label: 'ボリューム検討', title: 'ボリューム検討', description: '敷地条件を 1 回入れるだけで、建蔽率・容積率・斜線・絶対高さ・日影の目安から、建てられる延べ面積と階数、どの制限が効くかを出す' },
     ],
   },
   {

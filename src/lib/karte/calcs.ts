@@ -727,6 +727,164 @@ const fireStruct: CalcSpec = {
   },
 };
 
+/* ───────── 耐火建築物等としなければならない特殊建築物(法 27 条・別表第 1・令 110 条〜110 条の 5・令 115 条の 3・115 条の 4) ─────────
+ * 2026-11-16 に e-Gov の現行条文で確かめた。告示(平成 27 年国交告第 255 号)は国交省の公開 PDF(制定時・令和 2 年改正)で確かめた。 */
+const KOU_OPTS: Array<[string, string]> = [
+  ['0', '別表第 1 の用途ではない(事務所・無床診療所・工場・長屋など)'],
+  ['1', '(1) 劇場・映画館・演芸場・観覧場・公会堂・集会場'],
+  ['2', '(2) 病院・有床診療所・ホテル・旅館・共同住宅・寄宿舎・児童福祉施設等'],
+  ['3', '(3) 学校・体育館・博物館・図書館・スポーツの練習場など'],
+  ['4', '(4) 物販店舗・飲食店・展示場・遊技場・公衆浴場など'],
+  ['5', '(5) 倉庫'],
+  ['6', '(6) 自動車車庫・自動車修理工場・映画スタジオなど'],
+];
+/** 物件の用途から別表第 1 の項の初期値(診療所は有床か、工場・倉庫はどちらかで変わるので選ばせる) */
+const kouDef = (p: Project) => ({ shop: '4', rest: '4', house: '2', hotel: '2', school: '3', office: '0' } as Record<string, string>)[p.use] ?? '';
+/** 欄が空なら NaN */
+const nb = (v: Vals, k: string) => (v[k] === undefined || v[k] === '' ? NaN : n(v, k));
+
+const art27: CalcSpec = {
+  title: '法 27 条の耐火要求の判定',
+  fields: [
+    { k: 'kou', label: '用途(別表第 1 の項)', kind: 'sel', options: KOU_OPTS, def: kouDef, hint: '複合用途は項ごとに判定する。診療所は患者の収容施設(病床)があれば (2)。幼稚園は (3)、保育所・幼保連携型認定こども園は (2)' },
+    { k: 'top', label: 'その用途に供する最も上の階', kind: 'num', unit: '階', step: 1, def: (p) => (p.fl > 0 ? String(p.fl) : '') },
+    { k: 'area', label: 'その用途に供する部分の床面積の合計', kind: 'num', unit: 'm²', step: 1, def: (p) => (p.area > 0 ? String(p.area) : ''), hint: '初期値は物件の延べ面積。複合用途ならその項の用途の部分だけ' },
+    { k: 'a2', label: 'うち 2 階の部分の床面積((2)(4) 項)', kind: 'num', unit: 'm²', step: 1, def: (p) => (p.fl > 0 && p.fl < 2 ? '0' : ''), hint: '病院・診療所は患者の収容施設がある部分だけ' },
+    { k: 'a3', label: 'うち 3 階以上の部分の床面積((5) 項)', kind: 'num', unit: 'm²', step: 1, def: (p) => (p.fl > 0 && p.fl < 3 ? '0' : '') },
+    { k: 'seat', label: '客席の床面積((1) 項。屋外観覧席は 1,000m² 以上で対象)', kind: 'num', unit: 'm²', step: 1 },
+    { k: 'main', label: '劇場・映画館・演芸場で主階が 1 階にない', kind: 'bool' },
+    { k: 'alarm', label: '令 110 条の 5 の警報設備を設ける((2) 項で階数 3・延べ 200m² 未満のとき)', kind: 'bool' },
+    {
+      k: 'plan',
+      label: '計画している建物の防火性能',
+      kind: 'sel',
+      options: [
+        ['taika', '耐火建築物'],
+        ['jun', '準耐火建築物'],
+        ['none', 'その他'],
+      ],
+    },
+  ],
+  note:
+    '防火地域の指定(法 61 条)とは別に効きます。1 項は、特定主要構造部を特定避難時間(在館者全員が地上まで避難を終えるまでの時間)に基づく基準(令 110 条)に適合させ、外壁開口部の延焼のおそれのあるもの(令 110 条の 2)に 20 分の防火設備(令 110 条の 3)を設ける。耐火建築物はこれを満たします。構造方法は平成 27 年国交告第 255 号(特定避難時間に応じた避難時倒壊防止構造・1 項 2 号だけに当たるものの準耐火構造・地上 3 階の共同住宅等や学校等の 1 時間準耐火構造など。令和 2 年改正で号が繰り下がっているので号番号は原文で確認)。2 項は耐火建築物、3 項は耐火建築物か準耐火建築物((6) 項は令 115 条の 4 の外壁耐火型の準耐火建築物を除く)。危険物の貯蔵場・処理場(令 116 条の数量超)は判定の外です。火熱遮断壁等(令 109 条の 8)で区画した部分は別の建築物とみなします(法 27 条 4 項)。',
+  run(v, p) {
+    const k = v.kou;
+    if (!k) return { verdict: 'info', summary: '用途の項を選ぶ', lines: [{ k: '別表第 1', v: '物件の用途から項が決まらないので、欄で選んでください' }] };
+    if (k === '0') return { verdict: 'ok', summary: '法 27 条の対象外', lines: [{ k: '別表第 1', v: '別表第 1(い)欄の用途ではないため、法 27 条の耐火要求はかからない(防火地域の構造制限・法 21 条は別に確かめる)' }] };
+    const kou = Number(k);
+    const top = nb(v, 'top');
+    const area = nb(v, 'area');
+    const a2 = nb(v, 'a2');
+    const a3 = nb(v, 'a3');
+    const seat = nb(v, 'seat');
+    const all = (+p.fl || 0) + (+p.bf || 0);
+    const A = +p.area || 0;
+    const lines: CalcLine[] = [];
+    const hits: Array<{ para: 1 | 2 | 3; text: string }> = [];
+    const blank: string[] = [];
+    const chk = (x: number, label: string) => {
+      if (Number.isNaN(x)) blank.push(label);
+      return x;
+    };
+    if (kou <= 4) {
+      // 1 項 1 号:3 階以上の階(階数 3・延べ 200m² 未満を除く。(2) 項は警報設備が条件)
+      if (chk(top, '最も上の階') >= 3) {
+        const small = all === 3 && A < 200 && (kou !== 2 || on(v, 'alarm'));
+        if (small) lines.push({ k: '1 項 1 号の除外', v: `階数 3・延べ ${f1(A)} m²(200m² 未満)${kou === 2 ? '・警報設備あり' : ''}のため除外` });
+        else hits.push({ para: 1, text: `1 項 1 号:${top} 階(3 階以上の階)に置く` });
+      }
+      // 1 項 2 号:(は) 欄
+      const [x, T, what]: [number, number, string] =
+        kou === 1 ? [seat, 200, '客席'] : kou === 2 ? [a2, 300, '2 階の部分'] : kou === 3 ? [area, 2000, 'その用途の部分'] : [a2, 500, '2 階の部分'];
+      if (chk(x, what) >= T) hits.push({ para: 1, text: `1 項 2 号:${what} ${f1(x)} m² が ${T.toLocaleString('ja-JP')} m² 以上` });
+      if (kou === 4 && chk(area, 'その用途の床面積') >= 3000) hits.push({ para: 1, text: `1 項 3 号:${f1(area)} m² が 3,000 m² 以上` });
+      if (kou === 1 && on(v, 'main') && !(all <= 3 && A < 200)) hits.push({ para: 1, text: '1 項 4 号:劇場・映画館・演芸場で主階が 1 階にない' });
+    }
+    if (kou === 5) {
+      if (chk(a3, '3 階以上の部分') >= 200) hits.push({ para: 2, text: `2 項 1 号:3 階以上の部分 ${f1(a3)} m² が 200 m² 以上` });
+      if (chk(area, 'その用途の床面積') >= 1500) hits.push({ para: 3, text: `3 項 1 号:${f1(area)} m² が 1,500 m² 以上` });
+    }
+    if (kou === 6) {
+      if (chk(top, '最も上の階') >= 3) hits.push({ para: 2, text: `2 項 2 号:${top} 階(3 階以上の階)に置く` });
+      if (chk(area, 'その用途の床面積') >= 150) hits.push({ para: 3, text: `3 項 1 号:${f1(area)} m² が 150 m² 以上` });
+    }
+    hits.forEach((h, i) => lines.push({ k: `該当 ${i + 1}`, v: h.text }));
+    const paras = new Set(hits.map((h) => h.para));
+    const need = paras.has(2) ? 'taika' : paras.has(1) ? 'taika1' : paras.has(3) ? 'jun' : '';
+    const needLabel =
+      need === 'taika'
+        ? '耐火建築物(法 27 条 2 項)'
+        : need === 'taika1'
+          ? '耐火建築物か、令 110 条の基準(特定避難時間)に適合する建築物(法 27 条 1 項)'
+          : need === 'jun'
+            ? `耐火建築物か準耐火建築物(法 27 条 3 項${kou === 6 ? '。令 115 条の 4 の外壁耐火型の準耐火建築物を除く' : ''})`
+            : '';
+    if (needLabel) lines.push({ k: '求められる構造', v: needLabel });
+    if (blank.length) lines.push({ k: '未入力', v: `${[...new Set(blank)].join('・')}が空欄のため、その号は判定していません` });
+    // 計画の防火性能と突き合わせる
+    const plan = v.plan;
+    let verdict: Verdict = 'info';
+    if (need && plan) {
+      if (plan === 'taika') verdict = 'ok';
+      else if (plan === 'none') verdict = 'ng';
+      else if (need === 'jun') verdict = 'ok';
+      else if (need === 'taika') verdict = 'ng';
+      else lines.push({ k: '準耐火建築物で足りるか', v: '1 項は告示第 255 号の仕様(特定避難時間に応じた避難時倒壊防止構造・1 時間準耐火構造など)に当たるかで決まる' });
+      if (verdict === 'ng') lines.push({ k: '計画との照合', v: '計画の防火性能では足りません', ng: true });
+    } else if (!need && !blank.length) verdict = 'ok';
+    const summary = need
+      ? `${need === 'taika' ? '耐火建築物' : need === 'taika1' ? '耐火建築物等(1 項)' : '耐火か準耐火建築物'}${verdict === 'ng' ? '(計画が不足)' : ''}`
+      : blank.length
+        ? '一部未判定'
+        : '法 27 条の耐火要求なし';
+    return { verdict, summary, lines };
+  },
+};
+
+/* ───────── 大規模の建築物の主要構造部(法 21 条・令 109 条の 4〜109 条の 8)。2026-11-16 に e-Gov の現行条文で確かめた ───────── */
+const art21: CalcSpec = {
+  title: '法 21 条(大規模の木造建築物等)の判定',
+  fields: [
+    { k: 'comb', label: '主要構造部(床・屋根・階段を除く)の自重・積載荷重を支える部分に木材などの可燃材料を使う', kind: 'bool', def: (p) => (p.str === 'w' ? '1' : ''), hint: '初期値は物件の構造が木造のとき。鉄骨造・RC 造でも柱・梁の一部に木材を使えば対象(令 109 条の 4)' },
+    { k: 'fl', label: '地上階数', kind: 'num', unit: '階', step: 1, def: (p) => (p.fl > 0 ? String(p.fl) : '') },
+    { k: 'H', label: '建築物の高さ', kind: 'num', unit: 'm', step: 0.1, def: (p) => (p.H > 0 ? String(p.H) : '') },
+    { k: 'area', label: '延べ面積', kind: 'num', unit: 'm²', step: 1, def: (p) => (p.area > 0 ? String(p.area) : '') },
+    { k: 'kou56', label: '倉庫・自動車車庫など別表第 1 (5)(6) 項の特殊建築物', kind: 'bool' },
+    { k: 'yard', label: '周囲に延焼防止上有効な空地がある(各部分から空地の反対側の境界線までの水平距離が、その部分の高さ以上。令 109 条の 6)', kind: 'bool' },
+  ],
+  note:
+    '平成 30 年改正(令和元年 6 月施行)で、耐火構造に限らず通常火災終了時間に基づく準耐火構造(火災時倒壊防止構造。令 109 条の 5 第 1 号、45 分間未満なら 45 分間)を選べるようになりました。構造方法は令和元年国交告第 193 号(制定時:地上 4 階以下で 75 分間準耐火構造+200m² 区画・スプリンクラー・周囲 3m の通路・用途地域内など、倉庫・車庫以外で地上 3 階以下は 1 時間準耐火構造+周囲 3m の通路等、地上 2 階以下は令 115 条の 2 第 1 項の基準など。令和 2 年改正で通常火災終了時間を計算して決める方法に広げられた。現行の号番号は原文で確認)。耐火構造・耐火性能検証(令 109 条の 5 第 2 号)でもよい。延べ 3,000m² 超は令 109 条の 7(周辺高火熱面積を大臣が定める規模以下にする構造か、特定主要構造部を令 109 条の 5 の基準)。火熱遮断壁等(令 109 条の 8)で区画した部分は別の建築物とみなします(法 21 条 3 項)。',
+  run(v) {
+    if (!on(v, 'comb')) return { verdict: 'ok', summary: '法 21 条の対象外', lines: [{ k: '主要構造部', v: '自重・積載荷重を支える主要構造部に可燃材料を使わないため対象外' }] };
+    const fl = nb(v, 'fl');
+    const H = nb(v, 'H');
+    const A = nb(v, 'area');
+    if (Number.isNaN(fl) && Number.isNaN(H) && Number.isNaN(A)) return null;
+    const lines: CalcLine[] = [];
+    const go: string[] = [];
+    if (fl >= 4) go.push(`1 号:地上 ${fl} 階(4 以上)`);
+    if (H > 16) go.push(`2 号:高さ ${f1(H)} m(16m 超)`);
+    if (on(v, 'kou56') && H > 13) go.push(`3 号:(5)(6) 項の特殊建築物で高さ ${f1(H)} m(13m 超)`);
+    const big = A > 3000;
+    const blank = [Number.isNaN(fl) && '地上階数', Number.isNaN(H) && '高さ', Number.isNaN(A) && '延べ面積'].filter(Boolean) as string[];
+    if (go.length) {
+      lines.push({ k: '法 21 条 1 項', v: go.join(' / ') });
+      lines.push({
+        k: '1 項の構造',
+        v: on(v, 'yard')
+          ? '周囲に延焼防止上有効な空地があるため 1 項は適用しない(ただし書・令 109 条の 6)'
+          : '特定主要構造部を火災時倒壊防止構造(通常火災終了時間。令和元年国交告第 193 号)か耐火構造等とする',
+      });
+    }
+    if (big) lines.push({ k: '法 21 条 2 項', v: `延べ ${f1(A)} m²(3,000m² 超):令 109 条の 7 のいずれか、または火熱遮断壁等で別の建築物とみなせる部分に分ける` });
+    if (blank.length) lines.push({ k: '未入力', v: `${blank.join('・')}が空欄のため、その号は判定していません` });
+    const need1 = go.length > 0 && !on(v, 'yard');
+    const summary = need1 && big ? '1 項・2 項とも対象' : need1 ? '1 項の対象(火災時倒壊防止構造等)' : big ? '2 項の対象(延べ 3,000m² 超)' : blank.length ? '一部未判定' : '法 21 条の対象外';
+    if (!go.length && !big) lines.push({ k: '規模', v: '地上 4 階未満・高さ 16m 以下(倉庫・車庫は 13m 以下)・延べ 3,000m² 以下' });
+    return { verdict: need1 || big ? 'info' : blank.length ? 'info' : 'ok', summary, lines };
+  },
+};
+
 /* ───────── 接道(法 42 条・43 条) ───────── */
 const access: CalcSpec = {
   title: '接道と 2 項道路の後退の判定',
@@ -791,6 +949,8 @@ export const CALCS: Record<string, CalcSpec> = {
   'design|建蔽率・容積率の算定': coverage,
   'design|接道・前面道路の確認': access,
   'design|防火地域・準防火地域の構造制限': fireStruct,
+  'design|特殊建築物の耐火要求(法27条)': art27,
+  'design|大規模木造の主要構造部(法21条)': art21,
   'design|採光・換気の検討': daylight,
   'design|階段の寸法': stair,
   'design|避難経路・歩行距離': walk,

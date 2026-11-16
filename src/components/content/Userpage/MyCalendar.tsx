@@ -16,6 +16,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useTaskContext } from '../../providers/TaskProvider';
 import { db } from '@/lib/firebaseClient';
 import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, where, writeBatch } from 'firebase/firestore';
+import { addOfficeEvent, deleteOfficeEvent, subscribeOfficeEvents, updateOfficeEvent, useMyOffice, type OfficeEvent } from '@/lib/office';
 
 // --- Types ---
 
@@ -111,6 +112,11 @@ const formatFullDateJP = (dateStr: string) => {
 const MONO = 'yy-mono text-[10px] tracking-[0.12em] uppercase';
 /** 外部カレンダー（URL 購読）の予定は id が ics- で始まる。読むだけ */
 const isFeedEvent = (ev: { id: string }) => ev.id.startsWith('ics-');
+/** 事務所の共有の予定（offices/{id}/events）は id が office- で始まる。メンバー全員が見る */
+const OFFICE_PREFIX = 'office-';
+const isOfficeEvent = (ev: { id: string }) => ev.id.startsWith(OFFICE_PREFIX);
+/** 升目・週・Schedule で事務所の予定と分かるよう、題の頭に付ける印 */
+const OFFICE_MARK = '［所］';
 /** Firestore の 1 回の書き込みは 500 件まで。余裕を見て 400 件ずつ */
 const BATCH_LIMIT = 400;
 /** 繰り返しで作る回数の上限（毎日を 1 年分） */
@@ -193,6 +199,19 @@ const MyCalendar: React.FC = () => {
   const [remind, setRemind] = useState(false);
   // 外部カレンダーの予定を開いたとき、その名前（読むだけ・保存すると自分の予定として複製）
   const [readonlySource, setReadonlySource] = useState<string | null>(null);
+  // 事務所の予定として入れる（新しい予定のとき）／編集中の事務所の予定の id
+  const [toOffice, setToOffice] = useState(false);
+  const [officeEditId, setOfficeEditId] = useState<string | null>(null);
+
+  // 事務所（入っていれば、共有の予定を自分の予定と並べて出す）
+  const myOffice = useMyOffice();
+  const officeId = myOffice.office?.id ?? null;
+  const [officeRaw, setOfficeRaw] = useState<OfficeEvent[]>([]);
+  useEffect(() => {
+    setOfficeRaw([]);
+    if (!officeId) return;
+    return subscribeOfficeEvents(officeId, setOfficeRaw);
+  }, [officeId]);
 
   // Category Manager State
   const [categoryName, setCategoryName] = useState('');
@@ -220,6 +239,21 @@ const MyCalendar: React.FC = () => {
   const [icsFeeds, setIcsFeeds] = useState<IcsFeed[]>([]);
   // 外部カレンダーから読んだ予定（読み取り専用）と、フィードごとの失敗理由
   const [icsEvents, setIcsEvents] = useState<CalendarEvent[]>([]);
+  // 事務所の予定を画面用の形に。題の頭に［所］を付けて、自分の予定と見分ける
+  const officeEvents = useMemo<CalendarEvent[]>(() => officeRaw.map((o) => ({
+    id: `${OFFICE_PREFIX}${o.id}`,
+    title: `${OFFICE_MARK}${o.title}`,
+    date: o.date,
+    allDay: !!o.allDay,
+    startHour: o.startHour || '09', startMinute: o.startMinute || '00',
+    endHour: o.endHour || '10', endMinute: o.endMinute || '00',
+    category: o.category || '',
+    details: o.details || '',
+    color: o.color || '#52AA96',
+    spanPart: 'single' as const,
+  })), [officeRaw]);
+  // 自分の予定以外に重ねるもの（外部カレンダー・事務所）。どちらもドラッグでは動かさない
+  const sideEvents = useMemo(() => [...icsEvents, ...officeEvents], [icsEvents, officeEvents]);
   const [icsErrors, setIcsErrors] = useState<Record<string, string>>({});
   const [icsLoading, setIcsLoading] = useState(false);
   const [newIcsName, setNewIcsName] = useState('');
@@ -493,13 +527,13 @@ const MyCalendar: React.FC = () => {
     const map = new Map<string, CalendarEvent[]>();
     // 外部カレンダーの予定も同じ日付の箱に入れる。読むだけなので
     // 編集・削除・ドラッグの対象にはしない（id を ics- で始めて見分ける）。
-    [...events, ...icsEvents].forEach((event) => {
+    [...events, ...sideEvents].forEach((event) => {
       const list = map.get(event.date) || [];
       list.push(event);
       map.set(event.date, list);
     });
     return map;
-  }, [events, icsEvents]);
+  }, [events, sideEvents]);
 
   const getEventsForDate = (date: Date) => eventsByDate.get(formatDateForStorage(date)) || [];
 
@@ -536,7 +570,7 @@ const MyCalendar: React.FC = () => {
 
     // 外部カレンダー（URL 購読）の予定も升目に出す。以前は左の「Schedule」にしか出ず、
     // 購読しても月の表には何も出なかった
-    const relevantEvents = [...events, ...icsEvents].filter(e => {
+    const relevantEvents = [...events, ...sideEvents].filter(e => {
         const d = new Date(`${e.date}T00:00:00`);
         return d >= startDate && d <= endDate;
     });
@@ -589,7 +623,7 @@ const MyCalendar: React.FC = () => {
         });
     });
     return slots;
-  }, [events, icsEvents, currentDate]);
+  }, [events, sideEvents, currentDate]);
 
   // --- Actions ---
 
@@ -639,6 +673,7 @@ const MyCalendar: React.FC = () => {
     setEventTitle(''); setEventCategory(''); setEventDetails(''); setEditingEventId(null);
     setStartHour('09'); setStartMinute('00'); setEndHour('10'); setEndMinute('00'); setAllDay(false);
     setRemind(false); setReadonlySource(null);
+    setToOffice(false); setOfficeEditId(null);
     // 繰り返しは既定で「しない」。終わりの日は 3 か月先を入れておく
     const until = parseYmd(base);
     until.setMonth(until.getMonth() + 3);
@@ -648,6 +683,28 @@ const MyCalendar: React.FC = () => {
   };
 
   const editEvent = (event: CalendarEvent) => {
+    // 事務所の予定は、元の（［所］を付けていない）中身で開き、保存すると事務所の予定を書き換える
+    if (isOfficeEvent(event)) {
+      const raw = officeRaw.find((o) => `${OFFICE_PREFIX}${o.id}` === event.id);
+      if (!raw) return;
+      setReadonlySource(null);
+      setEditingEventId(null);
+      setOfficeEditId(raw.id);
+      setToOffice(true);
+      setEventTitle(raw.title);
+      setEventCategory(raw.category || '');
+      setEventDetails(raw.details || '');
+      setAllDay(!!raw.allDay);
+      setRemind(false);
+      setStartHour(raw.startHour || '09'); setStartMinute(raw.startMinute || '00');
+      setEndHour(raw.endHour || '10'); setEndMinute(raw.endMinute || '00');
+      setRecurrenceType('none'); setApplySeries(false);
+      setStartDateInput(raw.date); setEndDateInput(raw.date);
+      setShowModal(true);
+      return;
+    }
+    setOfficeEditId(null);
+    setToOffice(false);
     // 外部カレンダーの予定は書き換えられない。中身を見せて、保存したら自分の予定として複製する
     const fromFeed = isFeedEvent(event);
     setReadonlySource(fromFeed ? event.category : null);
@@ -690,8 +747,29 @@ const MyCalendar: React.FC = () => {
     ?? BUILDING_CATEGORIES.find(c => c.name === name)?.color
     ?? '#6B7280';
 
+  /** 事務所の予定の保存（1 日ずつ。繰り返し・通知は付けない） */
+  const saveOfficeEvent = async () => {
+    if (!officeId || !uid) return;
+    const input = {
+      title: eventTitle.trim(), date: startDateInput, allDay,
+      startHour, startMinute, endHour, endMinute,
+      category: eventCategory, color: eventCategory ? colorOfCategory(eventCategory) : '#52AA96',
+      details: eventDetails,
+    };
+    setShowModal(false);
+    try {
+      if (officeEditId) await updateOfficeEvent(officeId, uid, officeEditId, input);
+      else await addOfficeEvent(officeId, uid, currentUser?.username ?? '', input);
+    } catch {
+      setNotice('事務所の予定を保存できませんでした（事務所から外れた可能性があります）');
+    }
+    setOfficeEditId(null);
+    setToOffice(false);
+  };
+
   const saveEvent = async () => {
     if (!eventTitle.trim()) return;
+    if (toOffice || officeEditId) { await saveOfficeEvent(); return; }
     // 建築の種別を入力欄から選んだときは、ここで初めて種別を作る
     const building = BUILDING_CATEGORIES.find(c => c.name === eventCategory);
     if (building) await ensureCategories([building]);
@@ -815,6 +893,17 @@ const MyCalendar: React.FC = () => {
   };
 
   const deleteEvent = async () => {
+    if (officeEditId && officeId) {
+      if (!confirm('事務所の予定を削除しますか？メンバー全員のカレンダーから消えます。')) return;
+      setShowModal(false);
+      try {
+        await deleteOfficeEvent(officeId, officeEditId);
+      } catch {
+        setNotice('事務所の予定を削除できるのは、入れた人とオーナーだけです');
+      }
+      setOfficeEditId(null);
+      return;
+    }
     if (!editingEventId) return;
     const target = events.find(e => e.id === editingEventId);
     if (!target) return;
@@ -1000,7 +1089,7 @@ const MyCalendar: React.FC = () => {
   };
 
   const onDragStartEvent = (ev: React.DragEvent, event: CalendarEvent) => {
-    if (isFeedEvent(event)) { ev.preventDefault(); return; }
+    if (isFeedEvent(event) || isOfficeEvent(event)) { ev.preventDefault(); return; }
     setDraggingEventId(event.id);
     const group = event.spanGroupId ? events.filter(e => e.spanGroupId === event.spanGroupId) : [event];
     const cellElement = (ev.target as HTMLElement).closest('.calendar-cell');
@@ -1243,6 +1332,7 @@ const MyCalendar: React.FC = () => {
                             {ev.allDay ? 'ALL DAY' : `${ev.startHour}:${ev.startMinute}`}
                             {ev.remind ? ' · 通知' : ''}
                             {isFeedEvent(ev) ? ` · ${ev.category}` : ''}
+                            {isOfficeEvent(ev) ? ` · 事務所` : ''}
                           </div>
                         </div>
                       </div>
@@ -1437,7 +1527,7 @@ const MyCalendar: React.FC = () => {
                 holidayOf={(ds) => (showHolidays ? isHoliday(ds) : null)}
                 onSelect={setSelectedDate}
                 onAdd={(d) => openModal(d)}
-                onOpenEvent={(ev) => { const full = [...events, ...icsEvents].find((e) => e.id === ev.id); if (full) editEvent(full); }}
+                onOpenEvent={(ev) => { const full = [...events, ...sideEvents].find((e) => e.id === ev.id); if (full) editEvent(full); }}
                 onToggleTask={(t) => { if (!t.isTeamTask && t.categoryId) toggleTaskComplete(t.categoryId, t.id); }}
               />
             ) : (<>
@@ -1565,9 +1655,9 @@ const MyCalendar: React.FC = () => {
                                     ${isStart ? '' : 'pl-2'}
                                   `}
                                   style={barStyle}
-                                  title={fromFeed ? `${ev.title}（${ev.category}・読むだけ）` : ev.title}
+                                  title={fromFeed ? `${ev.title}（${ev.category}・読むだけ）` : isOfficeEvent(ev) ? `${ev.title}（事務所の予定・メンバー全員に見えます）` : ev.title}
                                   onClick={(e) => { e.stopPropagation(); editEvent(ev); }}
-                                  draggable={!fromFeed}
+                                  draggable={!fromFeed && !isOfficeEvent(ev)}
                                   onDragStart={(e) => onDragStartEvent(e, ev)}
                                   onDragEnd={onDragEndEvent}
                                 >
@@ -1614,7 +1704,7 @@ const MyCalendar: React.FC = () => {
               <div className="px-4 py-2 border-b border-[#3b3b3b] flex justify-between items-center">
                 <div>
                   <p className={`${MONO} text-gray-500`}>[ EVENT ]</p>
-                  <h3 className="text-[12px] font-bold text-[#141414]">{readonlySource ? '外部カレンダーの予定' : editingEventId ? '予定を編集' : '新しい予定'}</h3>
+                  <h3 className="text-[12px] font-bold text-[#141414]">{readonlySource ? '外部カレンダーの予定' : officeEditId ? '事務所の予定を編集' : editingEventId ? '予定を編集' : '新しい予定'}</h3>
                 </div>
                 <button onClick={() => {setShowModal(false); setEditingEventId(null);}} aria-label="閉じる" className="text-gray-500 hover:text-[#141414]"><FiX size={14} /></button>
               </div>
@@ -1625,9 +1715,22 @@ const MyCalendar: React.FC = () => {
                     「{readonlySource}」から読んでいる予定です。ここでは書き換えられません。保存すると自分の予定として複製します。
                   </p>
                 )}
+                {/* 事務所に入っていれば、新しい予定を事務所の予定（メンバー全員に見える）として入れられる */}
+                {myOffice.office && !readonlySource && !editingEventId && (
+                  officeEditId ? (
+                    <p className="text-[11px] text-gray-600 border-l border-[#52AA96] pl-2">
+                      事務所「{myOffice.office.name}」の予定です。メンバー全員に見え、書き換えも全員に反映されます。
+                    </p>
+                  ) : (
+                    <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-gray-700 border-l border-[#52AA96] pl-2">
+                      <input type="checkbox" checked={toOffice} onChange={e => { setToOffice(e.target.checked); if (e.target.checked) setEndDateInput(startDateInput); }} className="w-3 h-3 accent-[#3b3b3b]" />
+                      事務所「{myOffice.office.name}」の予定にする（メンバー全員に見える・1 日ずつ）
+                    </label>
+                  )
+                )}
                 <div>
                   <label className="yy-label">タイトル</label>
-                  <input className={fieldCls} placeholder="予定のタイトルを入力" value={eventTitle} onChange={e => setEventTitle(e.target.value)} required autoFocus />
+                  <input className={fieldCls} placeholder="予定のタイトルを入力" value={eventTitle} onChange={e => setEventTitle(e.target.value)} required autoFocus maxLength={toOffice ? 200 : undefined} />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -1637,7 +1740,7 @@ const MyCalendar: React.FC = () => {
                   </div>
                   <div>
                     <label className="yy-label">終了日</label>
-                    <input type="date" className={fieldCls} value={endDateInput} onChange={e => setEndDateInput(e.target.value)} min={startDateInput} />
+                    <input type="date" className={fieldCls} value={toOffice ? startDateInput : endDateInput} onChange={e => setEndDateInput(e.target.value)} min={startDateInput} disabled={toOffice} title={toOffice ? '事務所の予定は 1 日ずつ入れます' : undefined} />
                   </div>
                 </div>
 
@@ -1688,14 +1791,16 @@ const MyCalendar: React.FC = () => {
                     <input type="checkbox" checked={allDay} onChange={e => setAllDay(e.target.checked)} className="w-3 h-3 accent-[#3b3b3b]" />
                     終日
                   </label>
+                  {!toOffice && (
                   <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-gray-700" title="前日と当日に、サイト内の通知（ベル）でお知らせします">
                     <input type="checkbox" checked={remind} onChange={e => setRemind(e.target.checked)} className="w-3 h-3 accent-[#3b3b3b]" />
                     前日と当日に通知{guestMode && <span className="text-gray-400">（ログインすると届きます）</span>}
                   </label>
+                  )}
                 </div>
 
                 {/* 繰り返し。新しい 1 日の予定のときだけ（複数日の帯とは組み合わせない） */}
-                {!editingEventId && !readonlySource && (
+                {!editingEventId && !readonlySource && !toOffice && (
                   startDateInput === endDateInput ? (
                     <div className="flex items-end gap-3 flex-wrap">
                       <div>
@@ -1738,10 +1843,10 @@ const MyCalendar: React.FC = () => {
                 </div>
 
                 <div className="pt-2 flex justify-between items-center">
-                  {editingEventId ? <button type="button" onClick={deleteEvent} className="text-[11px] text-red-700 underline underline-offset-2">削除</button> : <div></div>}
+                  {(editingEventId || officeEditId) ? <button type="button" onClick={deleteEvent} className="text-[11px] text-red-700 underline underline-offset-2">削除</button> : <div></div>}
                   <div className="flex gap-2">
                     <button type="button" onClick={() => setShowModal(false)} className="yy-btn">キャンセル</button>
-                    <button type="submit" className="yy-btn yy-btn--primary">{readonlySource ? '自分の予定に複製' : '保存'}</button>
+                    <button type="submit" className="yy-btn yy-btn--primary">{readonlySource ? '自分の予定に複製' : toOffice ? '事務所の予定として保存' : '保存'}</button>
                   </div>
                 </div>
               </form>

@@ -5,16 +5,17 @@ import Link from 'next/link';
 import { MATERIAL_LINKS } from '@/lib/materialLinks';
 import { subcategoryLabel } from '@/lib/materialCategories';
 import { DESIGN_TOOL_MENU } from '@/lib/designToolsMenu';
-import { Store } from '@/lib/karte/engine';
 import { TOOL_ART } from '@/components/home/toolArt';
 import { ScreenLink } from '@/components/home/HomeParts';
 import { useInfoRows } from '@/lib/useInfoRows';
+import CaseMaterials from '@/components/materials/CaseMaterials';
+import makers from '@/data/makers.json';
 
 /**
  * 建材ページの周り(モック「高級感 3」Q9)。
  *   MaterialSponsor … 左 210px の掲載枠(以前は右の広告欄に出していた分類ごとの見本画像)
  *   MakerNews       … II メーカーのお知らせ(src/data/maker-feeds.json。各社サイトの更新情報)
- *   MaterialSide    … 右列。案件の帯 / III この分類のツール / IV 調べもの
+ *   MaterialSide    … 右列。案件で使う建材(CaseMaterials) / III この分類のツール / IV 調べもの
  */
 
 const SPONSOR_IMG: Record<string, string> = {
@@ -125,65 +126,26 @@ export function MakerNews({ category }: { category: string }) {
   );
 }
 
-const CASE_KEY = 'yy-case-materials';
+type MakerRow = { name: string; pages: string[] };
+const MAKERS = makers as unknown as Record<string, MakerRow[]>;
 const toolLabel = (cat: string, sub: string) =>
   DESIGN_TOOL_MENU.find((c) => c.id === cat)?.subTabs.find((t) => t.id === sub)?.label ?? sub;
 
 export function MaterialSide({ category, subcategory }: { category: string; subcategory: string }) {
   const link = MATERIAL_LINKS[category];
-  const [proj, setProj] = useState<{ id: string; name: string } | null | undefined>(undefined);
-  const [added, setAdded] = useState(false);
-
-  useEffect(() => {
-    const db = Store.load();
-    const p = db ? db.projects.find((x) => x.id === db.current) ?? db.projects[0] : null;
-    setProj(p ? { id: p.id, name: p.name } : null);
-    if (p) {
-      try {
-        const all = JSON.parse(localStorage.getItem(CASE_KEY) || '{}') as Record<string, string[]>;
-        setAdded((all[p.id] || []).includes(subcategory));
-      } catch {}
-    }
-  }, [subcategory]);
+  // 案件の欄でメーカーの候補に出す、この小分類に載っている社(makers.json の pages は id か表示名)
+  const subMakers = React.useMemo(() => {
+    const label = subcategoryLabel(subcategory);
+    const rows = MAKERS[link?.maker ?? ''] ?? [];
+    return [...new Set(rows.filter((m) => m.pages.includes(subcategory) || m.pages.includes(label)).map((m) => m.name))];
+  }, [link?.maker, subcategory]);
 
   // 建築の調べもの(材料情報の章・設計情報の記事)。2026-11-14 まで条文の目次を出していた
   const info = useInfoRows(link?.info.sections, link?.info.posts);
 
-  const toggleAdd = () => {
-    if (!proj) return;
-    try {
-      const all = JSON.parse(localStorage.getItem(CASE_KEY) || '{}') as Record<string, string[]>;
-      const list = new Set(all[proj.id] || []);
-      if (list.has(subcategory)) list.delete(subcategory);
-      else list.add(subcategory);
-      all[proj.id] = [...list];
-      localStorage.setItem(CASE_KEY, JSON.stringify(all));
-      setAdded(list.has(subcategory));
-    } catch {}
-  };
-
-  const label = subcategoryLabel(subcategory);
   return (
     <aside className="yy-matpage__side">
-      <div className="yy-gray yy-gray--case">
-        <span className="yy-label">case — 案件で使う</span>
-        {proj === undefined ? null : proj ? (
-          <>
-            <span className="yy-gray__title">{proj.name}</span>
-            <span className="yy-gray__text">この案件で使う建材として「{label}」を控えておく(この端末に保存)</span>
-            <button type="button" className={`yy-pill${added ? ' is-on' : ''}`} onClick={toggleAdd}>
-              {added ? '✓ 使う建材に追加済み' : '＋ 使う建材に追加'}
-            </button>
-          </>
-        ) : (
-          <>
-            <span className="yy-gray__text">物件カルテで案件を作ると、使う建材を案件ごとに控えておけます</span>
-            <a className="yy-pill" href="/karte/">
-              物件カルテを開く
-            </a>
-          </>
-        )}
-      </div>
+      <CaseMaterials category={category} subcategory={subcategory} makers={subMakers} />
 
       {link && link.tools.length > 0 && (
         <section>

@@ -16,6 +16,7 @@ export const SHEET_IDS = new Set(['condensation', 'vent-24h']);
 const BASIS: Record<string, string> = {
   'shadow-regulation': '建築基準法 第 56 条の 2・別表第 4。冬至日の真太陽時で日影時間を数える',
   'setback-regulation': '建築基準法 第 56 条・別表第 3。道路斜線・隣地斜線・北側斜線と後退距離の緩和',
+  'volume-study': '建築基準法 第 52 条・第 53 条・第 55 条・第 56 条・第 56 条の 2。容積率・建蔽率・斜線・絶対高さ・日影の目安をまとめて見る',
   'load-calc': '建築基準法施行令 第 84 条(固定荷重)・第 85 条(積載荷重)・第 86 条(積雪荷重)',
   'slope-calc': 'バリアフリー法施行令 第 19 条・駐車場法施行令 第 8 条・SHASE-S206',
   illumination: '光束法。推奨照度は JIS Z 9110',

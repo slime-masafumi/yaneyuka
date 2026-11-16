@@ -70,7 +70,7 @@ const USES: { group: string; items: [UseCode, string][] }[] = [
   },
 ];
 
-const useLabel = (u: UseCode) => USES.flatMap((g) => g.items).find(([c]) => c === u)?.[1] ?? u;
+const labelOfUse = (u: UseCode) => USES.flatMap((g) => g.items).find(([c]) => c === u)?.[1] ?? u;
 /** 項の頭(1i → 1、6ro2 → 6、16-2 → 16-2) */
 const head = (u: UseCode) => (u === '16-2' ? '16-2' : u.replace(/[a-z]+\d?$/, ''));
 const inHead = (u: UseCode, heads: string[]) => heads.includes(head(u));
@@ -517,7 +517,7 @@ const FireEquipment: React.FC<FireEquipmentProps> = ({ hideHeader }) => {
 
           {/* 結果表示(索引の組み方。設置が必要な行は薄い緑) */}
           <div>
-            <h2 className="yy-dt-sec">判定結果{use ? ` — ${useLabel(use as UseCode)}` : ''}</h2>
+            <h2 className="yy-dt-sec">判定結果{use ? ` — ${labelOfUse(use as UseCode)}` : ''}</h2>
             {results ? (
               <>
                 <table className="w-full text-[12px]">

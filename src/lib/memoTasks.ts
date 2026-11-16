@@ -76,6 +76,32 @@ export function projectOfMemo(plainText: string, folder: string): string | null 
   return GENERIC_FOLDERS.has(folder.trim()) ? null : folder.trim();
 }
 
+/** メモの本文（contentEditable の HTML）を、行の区切りを残した文字にする */
+export function memoHtmlToText(html: string): string {
+  return html
+    .replace(/<\s*br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|li|h[1-6])\s*>/gi, '\n')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&');
+}
+
+const sameKey = (s: string) => s.normalize('NFKC').replace(/\s+/g, '').replace(/[()（）【】「」]/g, '').toLowerCase();
+
+/**
+ * このメモがその物件のものか（物件ハブ用）。フォルダが物件名か、本文の「物件名」見出しの下が物件名。
+ * 表記ゆれ（全角/半角・空白・括弧）は同じ物件とみなす。
+ */
+export function memoBelongsTo(html: string, folder: string, projectName: string): boolean {
+  const k = sameKey(projectName);
+  if (!k) return false;
+  if (folder && sameKey(folder) === k) return true;
+  const p = projectOfMemo(memoHtmlToText(html), '');
+  return !!p && sameKey(p) === k;
+}
+
 /** Myタスクに入れる文言（【物件】本文（担当）） */
 export function taskContent(h: Homework, project: string | null): string {
   return `${project ? `【${project}】` : ''}${h.text}${h.who ? `（${h.who}）` : ''}`;

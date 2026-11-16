@@ -47,6 +47,12 @@ export default function ProjectPicker({ value, onChange, placeholder = '物件�
         aria-label={label}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          // Enter で確定:台帳にある名前は表記をそろえ、無い名前は登録する
+          if (e.key !== 'Enter' || e.nativeEvent.isComposing) return;
+          normalize();
+          if (!known) void register();
+        }}
         onBlur={() => {
           normalize();
           if (autoRegister) void register();

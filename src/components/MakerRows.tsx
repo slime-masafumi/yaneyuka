@@ -7,9 +7,10 @@ import makers from '@/data/makers.json';
 import makerIcons from '@/data/maker-icons.json';
 import { makerHost } from '@/lib/makerHost';
 import { PICK_MAX, useMakerPick } from '@/components/MakerPick';
-import SaveToMakerBox from '@/components/SaveToMakerBox';
+import SaveRowToMakerBox from '@/components/materials/SaveRowToMakerBox';
 import MakerLinkLogger from '@/components/MakerLinkLogger';
 import { subcategoryLabel } from '@/lib/materialCategories';
+import '@/components/materials/makerRows.css';
 
 /**
  * 建材メーカーの一覧行。
@@ -28,6 +29,9 @@ import { subcategoryLabel } from '@/lib/materialCategories';
  *
  * ログイン中に「お問い合わせ」「カタログ」「サンプル」を押すと、担当者連絡先の
  * やり取りの履歴に自動で残る（MakerLinkLogger。data-maker-slot で押したリンクを見分ける）。
+ *
+ * 行末の「資料箱」は押した行(分類 + 小分類 + 群)のリンクを控える(SaveRowToMakerBox)。
+ * 週次の検査で 404 だったリンクは「要更新」と出し、押すと会社トップを開く(MakerLink)。
  */
 
 type Maker = {
@@ -56,7 +60,8 @@ const SLOTS: { key: keyof Maker; label: string; short: string }[] = [
   { key: 'contact', label: 'お問い合わせ', short: '問合せ' },
   { key: 'sample', label: 'サンプル', short: 'サンプル' },
   { key: 'cad', label: 'CADDOWNLOAD', short: 'CAD' },
-]
+];
+const usable = (u?: string) => Boolean(u && u !== '#' && u.trim() !== '');
 
 type MakerRowsProps = {
   /** makers.json のキー（例: 屋根） */
@@ -94,6 +99,9 @@ const MakerRows: React.FC<MakerRowsProps> = ({
     ) : null;
   // シンボルが 1 つも無い表はその列ごと出さない(空の列が続くのを避ける)
   const hasPic = rows.some((m) => iconOf(m));
+  // サンプルのリンクはほとんどの社に無い(2026-11-16 時点で 2 行)。この表のどの行にも無ければ列ごと出さない
+  const hasSample = rows.some((m) => usable(m.sample));
+  const slots = hasSample ? SLOTS : SLOTS.filter((s) => s.key !== 'sample');
   const part = subcategoryLabel(page);
 
   // モック「高級感 3」Q9 の表：番号・社名（明朝）・扱い・リンク 6 列・保存。
@@ -101,13 +109,13 @@ const MakerRows: React.FC<MakerRowsProps> = ({
   void nameWidth;
   void topMargin;
   return (
-    <div className={`yy-mk${hasPic ? '' : ' is-nopic'}`} role="table" aria-label={`${page} のメーカー`}>
+    <div className={`yy-mk${hasPic ? '' : ' is-nopic'}${hasSample ? '' : ' is-nosample'}`} role="table" aria-label={`${page} のメーカー`}>
       <div className="yy-mk__row yy-mk__row--head" role="row">
         <span className="yy-mk__no">{pick ? <span title={`選んだ社にまとめて問い合わせ(${PICK_MAX} 社まで)`}>選ぶ</span> : null}</span>
         {hasPic && <span />}
         <span>メーカー</span>
         <span className="yy-mk__pages">ほかの扱い</span>
-        {SLOTS.map((slot) => (
+        {slots.map((slot) => (
           <span key={slot.key}>{slot.short}</span>
         ))}
         <span />
@@ -140,12 +148,12 @@ const MakerRows: React.FC<MakerRowsProps> = ({
           <span className="yy-mk__pages">{m.pages.filter((p) => p !== page).map(subcategoryLabel).join(' · ')}</span>
           {/* MakerLinkLogger の span は CSS で display: contents にして、中の 7 つを表の列に並べる */}
           <MakerLinkLogger name={m.name} page={page}>
-            {SLOTS.map((slot) => (
+            {slots.map((slot) => (
               <span key={slot.key} className="yy-mk__cell" data-maker-slot={slot.key}>
                 <MakerLink url={m[slot.key] as string} label={slot.label} variant="cell" />
               </span>
             ))}
-            <SaveToMakerBox name={m.name} />
+            <SaveRowToMakerBox name={m.name} category={category} page={page} group={group} />
           </MakerLinkLogger>
         </div>
       ))}

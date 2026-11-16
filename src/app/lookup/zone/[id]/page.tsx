@@ -165,6 +165,9 @@ export default async function ZonePage({ params }: { params: Promise<{ id: strin
                 {z.bcr.includes(80) ? '建蔽率 80% の地域の防火地域内にある耐火建築物等は、建蔽率の制限がかかりません。' : ''}(法 53 条 3 項・6 項)
               </li>
             </ul>
+            <p className="yy-di-p">
+              敷地の条件から、建てられる延べ面積・階数と、容積率・斜線・日影のどれが効くかは、<Link href={`/calc/volume-study/?zone=${z.id}`}>ボリューム検討のツール</Link>で{z.name}を選んだ状態から出せます。
+            </p>
 
             <Ch n={3} />
             <div className="yy-di-tblwrap">
@@ -351,6 +354,7 @@ export default async function ZonePage({ params }: { params: Promise<{ id: strin
             <SecHead no="III" title="計算ツール" />
             <ul className="yy-info-toc">
               {[
+                [`/calc/volume-study/?zone=${z.id}`, 'ボリューム検討', '何階まで'],
                 ['/calc/use-zone/', '用途地域', '建てられるもの'],
                 ['/calc/building-regulations/', '建蔽率・容積率', '面積'],
                 ['/calc/setback-regulation/', '斜線制限', '高さ'],

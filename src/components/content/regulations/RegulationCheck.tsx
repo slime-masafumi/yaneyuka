@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from 'react';
 import {
+  BEPPYO_KOU_LABEL,
   SITE_FLAGS,
   STRUCTURE_OPTIONS,
   USE_GROUPS,
@@ -10,7 +11,7 @@ import {
   ZONING_OPTIONS,
 } from '@/data/regulations/options';
 import { MUNICIPALITY_OPTIONS } from '@/data/regulations/municipalities';
-import type { ProjectInput, StructureType, WorkType } from '@/data/regulations/types';
+import type { BeppyoKou, FireUseInput, ProjectInput, StructureType } from '@/data/regulations/types';
 import {
   CONFIDENCE_LABEL,
   DISCLAIMER,
@@ -32,43 +33,142 @@ import {
  * 通信も課金も発生しないし、条文にない項目が出てくることもない。
  */
 
-const INITIAL: ProjectInput = {
+/**
+ * 入力欄は文字列のまま持つ。空欄を 0 にしてしまうと「0 を入れた」と「入れていない」が区別できず、
+ * 判定が黙って「該当なし」に倒れる(2026-11-16 まで。地下階数・形質変更面積などで起きていた)。
+ * 判定に回すときに空欄は 0 にして blank に名前を入れ、ルール側で「入力の確認」に回す。
+ */
+const NUM_KEYS = [
+  'siteArea',
+  'buildingArea',
+  'totalFloorArea',
+  'floorsAbove',
+  'floorsBelow',
+  'maxHeight',
+  'storeArea',
+  'demolitionArea',
+  'formChangeArea',
+  'contractAmountManYen',
+] as const;
+type NumKey = (typeof NUM_KEYS)[number];
+
+const FIRE_NUM_KEYS = ['topFloor', 'area', 'area2F', 'area3FUp', 'seatArea', 'outdoorSeatArea'] as const;
+type FireNumKey = (typeof FIRE_NUM_KEYS)[number];
+type FireForm = Partial<Record<FireNumKey, string>> & { mainFloorNot1F?: '' | 'yes' | 'no' };
+
+type FormState = Omit<ProjectInput, NumKey | 'blank' | 'fireUses'> &
+  Record<NumKey, string> & { fire: Partial<Record<BeppyoKou, FireForm>> };
+
+const parseNum = (s: string | undefined): number | null => {
+  if (s === undefined || s.trim() === '') return null;
+  const v = Number(s);
+  return Number.isFinite(v) ? v : null;
+};
+
+function toInput(f: FormState): ProjectInput {
+  const { fire, ...rest } = f;
+  const blank: string[] = [];
+  const nums = {} as Record<NumKey, number>;
+  NUM_KEYS.forEach((k) => {
+    const v = parseNum(f[k]);
+    if (v === null) blank.push(k);
+    nums[k] = v ?? 0;
+  });
+  const fireUses: Partial<Record<BeppyoKou, FireUseInput>> = {};
+  (Object.keys(fire) as unknown as BeppyoKou[]).forEach((key) => {
+    const k = Number(key) as BeppyoKou;
+    const d = fire[k];
+    if (!d) return;
+    const out: FireUseInput = {};
+    FIRE_NUM_KEYS.forEach((fk) => {
+      out[fk] = parseNum(d[fk]);
+    });
+    out.mainFloorNot1F = d.mainFloorNot1F === 'yes' ? true : d.mainFloorNot1F === 'no' ? false : null;
+    fireUses[k] = out;
+  });
+  return { ...rest, ...nums, blank, fireUses };
+}
+
+/** 選んだ用途が当たる別表第一の項 */
+const kousOf = (useIds: string[]): BeppyoKou[] => {
+  const s = new Set<BeppyoKou>();
+  useIds.forEach((id) => USE_OPTIONS.find((u) => u.id === id)?.beppyoKou?.forEach((k) => s.add(k)));
+  return [...s].sort((a, b) => a - b);
+};
+
+/** 初期値は「未入力」。構造・都市計画区域の内外も勝手に決めない */
+const INITIAL: FormState = {
   municipalityId: 'shizuoka',
   workTypes: ['new'],
   useIds: [],
-  totalFloorArea: 0,
-  buildingArea: 0,
-  siteArea: 0,
-  floorsAbove: 1,
-  floorsBelow: 0,
-  maxHeight: 0,
-  structure: 'wood',
+  totalFloorArea: '',
+  buildingArea: '',
+  siteArea: '',
+  floorsAbove: '',
+  floorsBelow: '',
+  maxHeight: '',
+  structure: '',
   zoning: '未選択',
-  inCityPlanningArea: true,
+  inCityPlanningArea: null,
   urbanizationControlArea: false,
-  storeArea: 0,
-  contractAmountManYen: 0,
-  formChangeArea: 0,
-  demolitionArea: 0,
+  storeArea: '',
+  contractAmountManYen: '',
+  formChangeArea: '',
+  demolitionArea: '',
   siteFlags: [],
+  fire: {},
 };
 
 /** 動作を見るためのサンプル。静岡市で医療モールを建てる想定 */
-const SAMPLE: ProjectInput = {
+const SAMPLE: FormState = {
   ...INITIAL,
   municipalityId: 'shizuoka',
   workTypes: ['new'],
   useIds: ['clinicNoBeds', 'pharmacy', 'office'],
-  siteArea: 1200,
-  buildingArea: 600,
-  totalFloorArea: 2400,
-  floorsAbove: 4,
-  floorsBelow: 0,
-  maxHeight: 16.5,
+  siteArea: '1200',
+  buildingArea: '600',
+  totalFloorArea: '2400',
+  floorsAbove: '4',
+  floorsBelow: '0',
+  maxHeight: '16.5',
   structure: 'rc',
   zoning: '第一種住居地域',
   inCityPlanningArea: true,
+  storeArea: '120',
+  formChangeArea: '0',
   siteFlags: ['buriedCulturalProperty'],
+  // 薬局(物品販売業を営む店舗 = 別表第一(四)項)を 1 階に 120m2
+  fire: { 4: { topFloor: '1', area: '120', area2F: '0' } },
+};
+
+/** 法27条の入力欄。項ごとに要る欄だけ出す */
+const FIRE_FIELDS: Record<BeppyoKou, { k: FireNumKey; label: string }[]> = {
+  1: [
+    { k: 'topFloor', label: '最も上の階' },
+    { k: 'seatArea', label: '客席の床面積 (m2)' },
+    { k: 'outdoorSeatArea', label: '屋外観覧席 (m2)' },
+  ],
+  2: [
+    { k: 'topFloor', label: '最も上の階' },
+    { k: 'area2F', label: '2階の部分 (m2)' },
+  ],
+  3: [
+    { k: 'topFloor', label: '最も上の階' },
+    { k: 'area', label: '床面積の合計 (m2)' },
+  ],
+  4: [
+    { k: 'topFloor', label: '最も上の階' },
+    { k: 'area', label: '床面積の合計 (m2)' },
+    { k: 'area2F', label: '2階の部分 (m2)' },
+  ],
+  5: [
+    { k: 'area', label: '床面積の合計 (m2)' },
+    { k: 'area3FUp', label: '3階以上の部分 (m2)' },
+  ],
+  6: [
+    { k: 'topFloor', label: '最も上の階' },
+    { k: 'area', label: '床面積の合計 (m2)' },
+  ],
 };
 
 const card = 'bg-white p-4 rounded border border-gray-300';
@@ -84,27 +184,30 @@ const badgeStyle: Record<string, string> = {
 };
 
 const RegulationCheck: React.FC = () => {
-  const [input, setInput] = useState<ProjectInput>(INITIAL);
+  const [form, setForm] = useState<FormState>(INITIAL);
   const [submitted, setSubmitted] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  const input = useMemo(() => toInput(form), [form]);
   const result = useMemo(() => evaluate(input), [input]);
-  const municipality = MUNICIPALITY_OPTIONS.find((m) => m.id === input.municipalityId);
+  const municipality = MUNICIPALITY_OPTIONS.find((m) => m.id === form.municipalityId);
+  const kous = kousOf(form.useIds);
 
-  const set = <K extends keyof ProjectInput>(key: K, value: ProjectInput[K]) =>
-    setInput((prev) => ({ ...prev, [key]: value }));
+  const set = <K extends keyof FormState>(key: K, value: FormState[K]) => setForm((prev) => ({ ...prev, [key]: value }));
 
   const toggle = (key: 'useIds' | 'siteFlags' | 'workTypes', id: string) =>
-    setInput((prev) => {
+    setForm((prev) => {
       const list = prev[key] as string[];
       const next = list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
-      return { ...prev, [key]: next } as ProjectInput;
+      return { ...prev, [key]: next } as FormState;
     });
 
-  const num = (key: keyof ProjectInput) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    const v = e.target.value === '' ? 0 : Number(e.target.value);
-    set(key, (Number.isFinite(v) ? v : 0) as never);
-  };
+  /** 数値欄は入力の文字列をそのまま持つ(空欄は空欄のまま) */
+  const num = (key: NumKey) => (e: React.ChangeEvent<HTMLInputElement>) => set(key, e.target.value);
+  const numProps = (key: NumKey) => ({ value: form[key], onChange: num(key), placeholder: '未入力' });
+
+  const setFire = (k: BeppyoKou, key: keyof FireForm, value: string) =>
+    setForm((prev) => ({ ...prev, fire: { ...prev.fire, [k]: { ...(prev.fire[k] ?? {}), [key]: value } } }));
 
   const handleCopy = async () => {
     try {
@@ -175,7 +278,7 @@ const RegulationCheck: React.FC = () => {
               <button
                 type="button"
                 onClick={() => {
-                  setInput(SAMPLE);
+                  setForm(SAMPLE);
                   setSubmitted(true);
                 }}
                 className="text-[10px] text-blue-700 bg-blue-50 border border-blue-200 rounded px-2 py-1 hover:bg-blue-100"
@@ -189,7 +292,7 @@ const RegulationCheck: React.FC = () => {
                 <label className={labelCls}>建設地</label>
                 <select
                   className={inputCls}
-                  value={input.municipalityId}
+                  value={form.municipalityId}
                   onChange={(e) => set('municipalityId', e.target.value)}
                 >
                   {MUNICIPALITY_OPTIONS.map((m) => (
@@ -201,7 +304,7 @@ const RegulationCheck: React.FC = () => {
               </div>
               <div>
                 <label className={labelCls}>用途地域</label>
-                <select className={inputCls} value={input.zoning} onChange={(e) => set('zoning', e.target.value)}>
+                <select className={inputCls} value={form.zoning} onChange={(e) => set('zoning', e.target.value)}>
                   {ZONING_OPTIONS.map((z) => (
                     <option key={z} value={z}>
                       {z}
@@ -214,7 +317,7 @@ const RegulationCheck: React.FC = () => {
             <label className={labelCls}>工事種別</label>
             <div className="flex flex-wrap gap-1.5 mb-2">
               {WORK_TYPES.map((w) => {
-                const on = input.workTypes.includes(w.id);
+                const on = form.workTypes.includes(w.id);
                 return (
                   <button
                     key={w.id}
@@ -228,19 +331,23 @@ const RegulationCheck: React.FC = () => {
               })}
             </div>
 
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <label className="flex items-center gap-1 text-[11px] text-gray-700">
-                <input
-                  type="checkbox"
-                  checked={input.inCityPlanningArea}
-                  onChange={(e) => set('inCityPlanningArea', e.target.checked)}
-                />
-                都市計画区域等の内
+                都市計画区域・準都市計画区域等
+                <select
+                  className="border border-gray-300 rounded px-1 py-0.5 text-[11px]"
+                  value={form.inCityPlanningArea === null ? '' : form.inCityPlanningArea ? 'in' : 'out'}
+                  onChange={(e) => set('inCityPlanningArea', e.target.value === '' ? null : e.target.value === 'in')}
+                >
+                  <option value="">未入力</option>
+                  <option value="in">区域の内</option>
+                  <option value="out">区域の外</option>
+                </select>
               </label>
               <label className="flex items-center gap-1 text-[11px] text-gray-700">
                 <input
                   type="checkbox"
-                  checked={input.urbanizationControlArea}
+                  checked={form.urbanizationControlArea}
                   onChange={(e) => set('urbanizationControlArea', e.target.checked)}
                 />
                 市街化調整区域
@@ -255,7 +362,7 @@ const RegulationCheck: React.FC = () => {
                 <div className="text-[10px] text-gray-500 mb-1">{g}</div>
                 <div className="flex flex-wrap gap-1.5">
                   {USE_OPTIONS.filter((u) => u.group === g).map((u) => {
-                    const on = input.useIds.includes(u.id);
+                    const on = form.useIds.includes(u.id);
                     return (
                       <button
                         key={u.id}
@@ -277,35 +384,36 @@ const RegulationCheck: React.FC = () => {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
               <div>
                 <label className={labelCls}>敷地面積 (m2)</label>
-                <input type="number" className={inputCls} value={input.siteArea || ''} onChange={num('siteArea')} />
+                <input type="number" className={inputCls} {...numProps('siteArea')} />
               </div>
               <div>
                 <label className={labelCls}>建築面積 (m2)</label>
-                <input type="number" className={inputCls} value={input.buildingArea || ''} onChange={num('buildingArea')} />
+                <input type="number" className={inputCls} {...numProps('buildingArea')} />
               </div>
               <div>
                 <label className={labelCls}>延べ面積 (m2)</label>
-                <input type="number" className={inputCls} value={input.totalFloorArea || ''} onChange={num('totalFloorArea')} />
+                <input type="number" className={inputCls} {...numProps('totalFloorArea')} />
               </div>
               <div>
                 <label className={labelCls}>地上階数</label>
-                <input type="number" className={inputCls} value={input.floorsAbove || ''} onChange={num('floorsAbove')} />
+                <input type="number" className={inputCls} {...numProps('floorsAbove')} />
               </div>
               <div>
-                <label className={labelCls}>地下階数</label>
-                <input type="number" className={inputCls} value={input.floorsBelow || ''} onChange={num('floorsBelow')} />
+                <label className={labelCls}>地下階数(無ければ 0)</label>
+                <input type="number" className={inputCls} {...numProps('floorsBelow')} />
               </div>
               <div>
                 <label className={labelCls}>最高高さ (m)</label>
-                <input type="number" step="0.1" className={inputCls} value={input.maxHeight || ''} onChange={num('maxHeight')} />
+                <input type="number" step="0.1" className={inputCls} {...numProps('maxHeight')} />
               </div>
               <div>
                 <label className={labelCls}>構造</label>
                 <select
                   className={inputCls}
-                  value={input.structure}
-                  onChange={(e) => set('structure', e.target.value as StructureType)}
+                  value={form.structure}
+                  onChange={(e) => set('structure', e.target.value as StructureType | '')}
                 >
+                  <option value="">未入力</option>
                   {STRUCTURE_OPTIONS.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.label}
@@ -315,27 +423,84 @@ const RegulationCheck: React.FC = () => {
               </div>
               <div>
                 <label className={labelCls}>店舗面積 (m2)</label>
-                <input type="number" className={inputCls} value={input.storeArea || ''} onChange={num('storeArea')} />
+                <input type="number" className={inputCls} {...numProps('storeArea')} />
               </div>
               <div>
                 <label className={labelCls}>解体床面積 (m2)</label>
-                <input type="number" className={inputCls} value={input.demolitionArea || ''} onChange={num('demolitionArea')} />
+                <input type="number" className={inputCls} {...numProps('demolitionArea')} />
               </div>
               <div>
-                <label className={labelCls}>形質変更面積 (m2)</label>
-                <input type="number" className={inputCls} value={input.formChangeArea || ''} onChange={num('formChangeArea')} />
+                <label className={labelCls}>形質変更面積 (m2・無ければ 0)</label>
+                <input type="number" className={inputCls} {...numProps('formChangeArea')} />
               </div>
               <div>
                 <label className={labelCls}>請負金額 (万円)</label>
-                <input
-                  type="number"
-                  className={inputCls}
-                  value={input.contractAmountManYen || ''}
-                  onChange={num('contractAmountManYen')}
-                />
+                <input type="number" className={inputCls} {...numProps('contractAmountManYen')} />
               </div>
             </div>
+            <p className="text-[10px] text-gray-500 mt-2">
+              空欄は「未入力」として扱い、その値で決まる法令は「入力の確認」に回します(0 とはみなしません)。
+            </p>
           </div>
+
+          {kous.length > 0 && (
+            <div className={card}>
+              <h3 className="font-bold mb-1 text-[13px] border-b pb-1 border-gray-100">
+                特殊建築物の階と床面積(法27条)
+              </h3>
+              <p className="text-[10px] text-gray-500 mb-2">
+                別表第一の項ごとに、その用途に供する部分の最も上の階と床面積を入れます(同じ項の用途は合算)。
+                空欄なら建物の地上階数・延べ面積を上限として当てはめ、決めきれないものは「入力の確認」に出します。
+              </p>
+              <div className="space-y-2">
+                {kous.map((k) => {
+                  const d = form.fire[k] ?? {};
+                  const uses = form.useIds
+                    .filter((id) => USE_OPTIONS.find((u) => u.id === id)?.beppyoKou?.includes(k))
+                    .map((id) => USE_OPTIONS.find((u) => u.id === id)?.label ?? id);
+                  return (
+                    <div key={k} className="border border-gray-200 rounded p-2">
+                      <div className="text-[11px] font-bold text-gray-700 mb-1">
+                        {BEPPYO_KOU_LABEL[k]}
+                        <span className="ml-1 font-normal text-gray-500">({uses.join('・')})</span>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                        {FIRE_FIELDS[k].map((f) => (
+                          <div key={f.k}>
+                            <label className={labelCls}>{f.label}</label>
+                            <input
+                              type="number"
+                              className={inputCls}
+                              placeholder="未入力"
+                              value={d[f.k] ?? ''}
+                              onChange={(e) => setFire(k, f.k, e.target.value)}
+                            />
+                          </div>
+                        ))}
+                        {k === 1 && form.useIds.includes('theater') && (
+                          <div>
+                            <label className={labelCls}>劇場・映画館・演芸場の主階</label>
+                            <select
+                              className={inputCls}
+                              value={d.mainFloorNot1F ?? ''}
+                              onChange={(e) => setFire(k, 'mainFloorNot1F', e.target.value)}
+                            >
+                              <option value="">未入力</option>
+                              <option value="no">1階にある</option>
+                              <option value="yes">1階にない</option>
+                            </select>
+                          </div>
+                        )}
+                      </div>
+                      {k === 2 && uses.some((l) => l.includes('病院') || l.includes('診療所')) && (
+                        <p className="text-[10px] text-gray-500 mt-1">病院・診療所の2階の部分は、患者の収容施設がある部分だけを入れます。</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <div className={card}>
             <h3 className="font-bold mb-1 text-[13px] border-b pb-1 border-gray-100">立地条件</h3>
@@ -344,7 +509,7 @@ const RegulationCheck: React.FC = () => {
             </p>
             <div className="flex flex-wrap gap-1.5">
               {SITE_FLAGS.map((f) => {
-                const on = input.siteFlags.includes(f.id);
+                const on = form.siteFlags.includes(f.id);
                 return (
                   <button
                     key={f.id}
@@ -371,7 +536,7 @@ const RegulationCheck: React.FC = () => {
             <button
               type="button"
               onClick={() => {
-                setInput(INITIAL);
+                setForm(INITIAL);
                 setSubmitted(false);
               }}
               className="text-[12px] text-gray-700 bg-gray-100 border border-gray-300 rounded px-4 py-2 hover:bg-gray-200"

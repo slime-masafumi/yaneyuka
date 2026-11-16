@@ -40,7 +40,8 @@ export default function MakerCount({ category, page, group }: { category: string
     <>
       <span className="yy-mk2-count">{n} 社</span>
       <span className="yy-mkf" role="group" aria-label="メーカーを絞り込む">
-        {KEYS.map(({ key, label }) => {
+        {/* サンプルはほぼ載っていないので、載せている社が 0 のときは出さない(2026-11-16) */}
+        {KEYS.filter(({ key }) => key !== 'sample' || has(key) > 0).map(({ key, label }) => {
           const c = has(key);
           return (
             <button

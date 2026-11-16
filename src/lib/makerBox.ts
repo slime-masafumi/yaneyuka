@@ -38,22 +38,53 @@ const usable = (u?: string) => !!u && u !== '#' && u.trim() !== '';
 /** Firestore のドキュメント ID（/ は使えない） */
 export const boxId = (name: string) => name.normalize('NFKC').trim().replace(/\//g, '／').slice(0, 200);
 
-/** makers.json から 1 社ぶんをまとめる（分類ごとに行が分かれているので、空でないリンクを拾い集める） */
-export function mergeMaker(data: MakerData, name: string): { name: string; categories: string[]; links: MakerLinks } | null {
+/** 建材ページで押した行(分類 + 小分類 + 群)。資料箱にはこの行のリンクを先に控える */
+export type MakerRowRef = { category: string; page?: string; group?: string };
+
+/**
+ * mergeMaker が返した links ごとの「その社が makers.json に持っているリンクの全候補」。
+ * 同じ社でも分類ごとにカタログの URL が違うので、控えたリンクがどれかの行に残っていれば「更新」とは数えない
+ * (linkChanges)。Firestore に書かれないよう、links 本体ではなく WeakMap に持つ。
+ */
+const ALTS = new WeakMap<MakerLinks, Record<keyof MakerLinks, string[]>>();
+
+/**
+ * makers.json から 1 社ぶんをまとめる（分類ごとに行が分かれているので、空でないリンクを拾い集める）。
+ * prefer を渡すとその行のリンクを先に取り、無い列だけほかの行で埋める(2026-11-16。以前は分類をまたいだ
+ * 最初の行が勝ち、屋根のページで押しても外壁のカタログが控えられていた)。
+ */
+export function mergeMaker(data: MakerData, name: string, prefer?: MakerRowRef): { name: string; categories: string[]; links: MakerLinks } | null {
   const links: MakerLinks = { products: '', catalog: '', office: '', contact: '', sample: '', cad: '' };
+  const alts: Record<keyof MakerLinks, string[]> = { products: [], catalog: [], office: [], contact: [], sample: [], cad: [] };
   const categories: string[] = [];
-  let found = false;
   // 2026-11-15 に半角カタカナの社名を全角へ直した。以前に保存した「ｱﾄﾑﾘﾋﾞﾝﾃｯｸ」も同じ社として引けるよう、幅をそろえて比べる
   const key = name.normalize('NFKC');
+  const hits: Array<{ cat: string; r: MakerRow; rank: number }> = [];
+  let order = 0;
   for (const [cat, rows] of Object.entries(data)) {
     for (const r of rows) {
       if (r.name.normalize('NFKC') !== key) continue;
-      found = true;
-      if (!categories.includes(cat)) categories.push(cat);
-      for (const { key } of BOX_SLOTS) if (!usable(links[key]) && usable(r[key])) links[key] = r[key];
+      // 押した行 → 同じ分類の同じ小分類 → 同じ分類 → ほか(同じ順位なら makers.json の並び)
+      let rank = 3;
+      if (prefer && cat === prefer.category) {
+        const samePage = prefer.page !== undefined && r.pages.includes(prefer.page);
+        rank = samePage && (r.group || '') === (prefer.group ?? r.group ?? '') ? 0 : samePage ? 1 : 2;
+      }
+      hits.push({ cat, r, rank: rank * 100000 + order++ });
     }
   }
-  return found ? { name, categories, links } : null;
+  if (!hits.length) return null;
+  hits.sort((a, b) => a.rank - b.rank);
+  for (const { cat, r } of hits) {
+    if (!categories.includes(cat)) categories.push(cat);
+    for (const { key } of BOX_SLOTS) {
+      if (!usable(r[key])) continue;
+      if (!usable(links[key])) links[key] = r[key];
+      if (!alts[key].includes(r[key])) alts[key].push(r[key]);
+    }
+  }
+  ALTS.set(links, alts);
+  return { name, categories, links };
 }
 
 const norm = (s: string) =>
@@ -91,10 +122,13 @@ export function searchMakers(data: MakerData, q: string, limit = 20): Array<{ na
 /** 登録時のリンクと今の makers.json の差（yaneyuka 側で直したもの） */
 export function linkChanges(saved: MakerLinks, current: MakerLinks): Array<{ key: keyof MakerLinks; label: string; from: string; to: string }> {
   const out: Array<{ key: keyof MakerLinks; label: string; from: string; to: string }> = [];
+  const alts = current ? ALTS.get(current) : undefined;
   for (const { key, label } of BOX_SLOTS) {
     // 古い・壊れたカードで links が無いことがあるので、落ちないように読む
     const a = saved?.[key] ?? '';
     const b = current?.[key] ?? '';
+    // 控えたリンクがその社のどれかの行にまだあるなら、更新ではない(別の分類の行から控えただけ)
+    if (usable(a) && alts?.[key].includes(a)) continue;
     if (usable(b) && a !== b) out.push({ key, label, from: a, to: b });
   }
   return out;

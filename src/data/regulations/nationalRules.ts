@@ -1,6 +1,6 @@
 import { egovSource } from './lawSources';
 import { STRUCTURE_OPTIONS, USE_OPTIONS } from './options';
-import type { ProjectInput, RegulationRule, RuleSource } from './types';
+import type { BeppyoKou, ProjectInput, RegulationRule, RuleSource } from './types';
 
 /**
  * 全国共通レイヤー
@@ -37,7 +37,20 @@ const isWork = (p: ProjectInput, ...w: string[]) => w.some((x) => p.workTypes.in
 /** 新築・増築・改築のいずれか(建物ができる工事) */
 const isBuilding = (p: ProjectInput) => isWork(p, 'new', 'extension', 'rebuild');
 const m2 = (n: number) => `${n.toLocaleString()}m2`;
-const structLabel = (p: ProjectInput) => STRUCTURE_OPTIONS.find((s) => s.id === p.structure)?.label ?? p.structure;
+const structLabel = (p: ProjectInput) =>
+  p.structure === '' ? '構造未入力' : STRUCTURE_OPTIONS.find((s) => s.id === p.structure)?.label ?? p.structure;
+
+/**
+ * 数値の項目が空欄か。RegulationCheck は空欄を 0 にして blank に名前を入れて渡す。
+ * blank を持たない呼び出し元(法規ページの案件判定など)では 0 以下を空欄とみなす。
+ * ただし地下階数は 0 が普通なので、blank が無いときは空欄とみなさない。
+ */
+function isBlank(p: ProjectInput, key: keyof ProjectInput): boolean {
+  if (p.blank) return p.blank.includes(key);
+  if (key === 'floorsBelow') return false;
+  const v = p[key];
+  return typeof v === 'number' && !(v > 0);
+}
 
 /** e-Gov の法令ページ(lawSources.ts の登録外の法令用。ID は e-Gov 法令API で法令名を確かめたもの) */
 const egovById = (name: string, lawId: string): RuleSource => ({
@@ -53,7 +66,7 @@ const isGo1 = (p: ProjectInput) => usesWith(p, 'beppyo1').length > 0 && p.totalF
 /** 法第6条第1項第二号: 一号以外で 階数2以上 または 延べ面積 > 200m2 */
 const isGo2 = (p: ProjectInput) => !isGo1(p) && (floorsAll(p) >= 2 || p.totalFloorArea > 200);
 /** 法第6条第1項第三号: 一号・二号以外で都市計画区域等の内 */
-const isGo3 = (p: ProjectInput) => !isGo1(p) && !isGo2(p) && p.inCityPlanningArea && p.totalFloorArea > 0;
+const isGo3 = (p: ProjectInput) => !isGo1(p) && !isGo2(p) && p.inCityPlanningArea === true && p.totalFloorArea > 0;
 
 /**
  * 建築確認が要る工事か。
@@ -90,6 +103,275 @@ function structuralClass(p: ProjectInput): 1 | 2 | 3 | 4 {
 }
 
 // ---------------------------------------------------------------------------
+// 法27条(耐火建築物等としなければならない特殊建築物)・法21条(大規模の建築物の主要構造部)
+// 2026-11-16 に e-Gov の法27条・法21条・別表第一・令109条の4〜109条の8・令110条〜110条の5・令115条の3・
+// 令115条の4 の現行条文で確かめた。告示(平成27年国交告第255号・令和元年国交告第193号)は国交省の公開 PDF
+// (制定時と令和2年の改正)で確かめたが、その後の改正後の号番号は確かめていない。
+// ---------------------------------------------------------------------------
+
+/** 判定の三値。unknown は入力が足りず決められない */
+type Tri = 'yes' | 'no' | 'unknown';
+/** 値。exact でないものは上限(用途の床面積 ≤ 延べ面積、用途の最上階 ≤ 地上階数) */
+type Bound = { v: number; exact: boolean } | null;
+
+const given = (x: number | null | undefined): x is number => typeof x === 'number' && Number.isFinite(x) && x >= 0;
+
+/** b ≥ t か。上限しか分からないときは、上限が t 未満なら「当たらない」と言える */
+function atLeast(b: Bound, t: number): Tri {
+  if (!b) return 'unknown';
+  if (b.exact) return b.v >= t ? 'yes' : 'no';
+  return b.v < t ? 'no' : 'unknown';
+}
+
+/** 選んだ用途が当たる別表第一の項(重複なし・昇順) */
+function kousOf(p: ProjectInput): BeppyoKou[] {
+  const s = new Set<BeppyoKou>();
+  p.useIds.forEach((id) => USE_OPTIONS.find((u) => u.id === id)?.beppyoKou?.forEach((k) => s.add(k)));
+  return [...s].sort((a, b) => a - b);
+}
+const usesInKou = (p: ProjectInput, k: BeppyoKou) =>
+  p.useIds.filter((id) => USE_OPTIONS.find((u) => u.id === id)?.beppyoKou?.includes(k)).map(useLabel);
+const KOU = ['', '(一)', '(二)', '(三)', '(四)', '(五)', '(六)'];
+
+/** 項ごとの値。項目別の入力が無ければ、建物全体の値を上限として使う */
+function fireBounds(p: ProjectInput, k: BeppyoKou) {
+  const d = p.fireUses?.[k] ?? {};
+  const top: Bound = given(d.topFloor)
+    ? { v: d.topFloor, exact: true }
+    : !isBlank(p, 'floorsAbove')
+      ? { v: p.floorsAbove, exact: false }
+      : null;
+  const area: Bound = given(d.area)
+    ? { v: d.area, exact: true }
+    : !isBlank(p, 'totalFloorArea')
+      ? { v: p.totalFloorArea, exact: false }
+      : null;
+  const part = (x: number | null | undefined, lowest: number): Bound =>
+    given(x) ? { v: x, exact: true } : top && top.v < lowest ? { v: 0, exact: true } : area ? { v: area.v, exact: false } : null;
+  return {
+    top,
+    area,
+    /** 2 階の部分(最上階が 1 階以下なら 0) */
+    area2F: part(d.area2F, 2),
+    /** 3 階以上の部分(最上階が 2 階以下なら 0) */
+    area3F: part(d.area3FUp, 3),
+    seat: given(d.seatArea) ? ({ v: d.seatArea, exact: true } as Bound) : area ? ({ v: area.v, exact: false } as Bound) : null,
+    outdoor: given(d.outdoorSeatArea) ? d.outdoorSeatArea : 0,
+    mainNot1F: d.mainFloorNot1F ?? null,
+  };
+}
+
+/** 法27条の項目 1 件 */
+type Art27Item = { para: 1 | 2 | 3; go: string; tri: Tri; text: string; need?: string };
+
+/**
+ * 法27条1項の除外。一号は「階数が3で延べ面積が200m2未満」、四号は「階数が3以下で延べ面積が200m2未満」。
+ * 階数は地階を含む。
+ */
+function small3(p: ProjectInput, mode: 'eq3' | 'le3'): Tri {
+  if (isBlank(p, 'floorsAbove') || isBlank(p, 'floorsBelow') || isBlank(p, 'totalFloorArea')) return 'unknown';
+  const all = floorsAll(p);
+  const okFloors = mode === 'eq3' ? all === 3 : all <= 3;
+  return okFloors && p.totalFloorArea < 200 ? 'yes' : 'no';
+}
+
+/** 法27条1項〜3項の各号を、選んだ用途の項ごとに当てる */
+function evalArt27(p: ProjectInput): Art27Item[] {
+  const items: Art27Item[] = [];
+  for (const k of kousOf(p)) {
+    const b = fireBounds(p, k);
+    const who = `${KOU[k]}項(${usesInKou(p, k).join('・')})`;
+    const topNeed = `${who}の用途に供する最も上の階`;
+    const areaNeed = `${who}の用途に供する部分の床面積の合計`;
+    if (k <= 4) {
+      // 1項一号: 3階以上の階をその用途に供する(階数3・延べ200m2未満を除く)
+      const t = atLeast(b.top, 3);
+      if (t !== 'no') {
+        const ex = small3(p, 'eq3');
+        if (ex === 'yes') {
+          if (t === 'yes') items.push({
+            para: 1,
+            go: '一号',
+            tri: 'no',
+            text: `${who}を3階以上の階に置くが、階数3・延べ面積200m2未満のため除外${
+              k === 2 ? '(令110条の4の用途は令110条の5の警報設備を設けた場合に限る)' : ''
+            }`,
+          });
+        } else {
+          items.push({
+            para: 1,
+            go: '一号',
+            tri: t,
+            text: `${who}を${b.top?.exact ? `${b.top.v}階` : '3階以上の階'}に置く(3階以上の階)${
+              ex === 'unknown' ? '。階数3で延べ面積200m2未満なら除外(地上・地下階数と延べ面積で確かめる)' : ''
+            }`,
+            need: t === 'unknown' ? topNeed : undefined,
+          });
+        }
+      }
+      // 1項二号: (は)欄の面積
+      const T2 = k === 1 ? 200 : k === 2 ? 300 : k === 3 ? 2000 : 500;
+      const val = k === 1 ? b.seat : k === 3 ? b.area : b.area2F;
+      const what = k === 1 ? '客席' : k === 3 ? 'その用途に供する部分' : '2階の部分';
+      const t2 = atLeast(val, T2);
+      if (t2 !== 'no') {
+        items.push({
+          para: 1,
+          go: '二号',
+          tri: t2,
+          text: `${who}の${what}の床面積${val?.exact ? ` ${m2(val.v)}` : ''}が ${m2(T2)} 以上${
+            k === 2 && usesInKou(p, 2).some((l) => l.includes('病院') || l.includes('診療所')) ? '(病院・診療所はその部分に患者の収容施設がある場合)' : ''
+          }`,
+          need: t2 === 'unknown' ? `${who}の${what}の床面積` : undefined,
+        });
+      }
+      if (k === 1 && b.outdoor >= 1000) {
+        items.push({ para: 1, go: '二号', tri: 'yes', text: `${who}の屋外観覧席 ${m2(b.outdoor)} が 1,000m2 以上` });
+      }
+      // 1項三号: (四)項 3,000m2 以上
+      if (k === 4) {
+        const t3 = atLeast(b.area, 3000);
+        if (t3 !== 'no') {
+          items.push({
+            para: 1,
+            go: '三号',
+            tri: t3,
+            text: `${who}の用途に供する部分の床面積${b.area?.exact ? ` ${m2(b.area.v)}` : ''}が 3,000m2 以上`,
+            need: t3 === 'unknown' ? areaNeed : undefined,
+          });
+        }
+      }
+    }
+    if (k === 5) {
+      // 2項一号: 3階以上の部分 200m2 以上 → 耐火建築物
+      const t = atLeast(b.area3F, 200);
+      if (t !== 'no') {
+        items.push({
+          para: 2,
+          go: '一号',
+          tri: t,
+          text: `${who}の3階以上の部分の床面積${b.area3F?.exact ? ` ${m2(b.area3F.v)}` : ''}が 200m2 以上`,
+          need: t === 'unknown' ? `${who}の3階以上の部分の床面積` : undefined,
+        });
+      }
+      // 3項一号: 1,500m2 以上 → 耐火または準耐火
+      const t3 = atLeast(b.area, 1500);
+      if (t3 !== 'no') {
+        items.push({
+          para: 3,
+          go: '一号',
+          tri: t3,
+          text: `${who}の用途に供する部分の床面積${b.area?.exact ? ` ${m2(b.area.v)}` : ''}が 1,500m2 以上`,
+          need: t3 === 'unknown' ? areaNeed : undefined,
+        });
+      }
+    }
+    if (k === 6) {
+      // 2項二号: 3階以上の階をその用途に供する → 耐火建築物
+      const t = atLeast(b.top, 3);
+      if (t !== 'no') {
+        items.push({ para: 2, go: '二号', tri: t, text: `${who}を3階以上の階に置く`, need: t === 'unknown' ? topNeed : undefined });
+      }
+      // 3項一号: 150m2 以上 → 耐火または準耐火(法2条九号の三ロのうち令115条の4のものを除く)
+      const t3 = atLeast(b.area, 150);
+      if (t3 !== 'no') {
+        items.push({
+          para: 3,
+          go: '一号',
+          tri: t3,
+          text: `${who}の用途に供する部分の床面積${b.area?.exact ? ` ${m2(b.area.v)}` : ''}が 150m2 以上`,
+          need: t3 === 'unknown' ? areaNeed : undefined,
+        });
+      }
+    }
+  }
+  // 1項四号: 劇場・映画館・演芸場で主階が1階にない(階数3以下で延べ200m2未満を除く)
+  if (hasUse(p, 'theater')) {
+    const d = p.fireUses?.[1]?.mainFloorNot1F ?? null;
+    if (d !== false) {
+      const ex = small3(p, 'le3');
+      if (ex === 'yes') {
+        if (d === true) items.push({ para: 1, go: '四号', tri: 'no', text: '劇場・映画館・演芸場の主階が1階にないが、階数3以下・延べ面積200m2未満のため除外' });
+      } else {
+        items.push({
+          para: 1,
+          go: '四号',
+          tri: d === true ? 'yes' : 'unknown',
+          text: '劇場・映画館・演芸場の主階が1階にない',
+          need: d === null ? '劇場・映画館・演芸場の主階が1階にあるか' : undefined,
+        });
+      }
+    }
+  }
+  // 3項二号: 危険物の貯蔵場・処理場(令116条の数量を超えないものを除く)
+  if (hasUse(p, 'dangerousGoods')) {
+    items.push({
+      para: 3,
+      go: '二号',
+      tri: 'yes',
+      text: '危険物の貯蔵場・処理場の用途。貯蔵・処理する危険物の数量が令116条の限度を超えるなら対象(数量は判定していない)',
+    });
+  }
+  return items;
+}
+
+/** 法27条の判定をする工事か(用途変更は法87条3項で準用) */
+const art27Work = (p: ProjectInput) => isBuilding(p) || isWork(p, 'useChange');
+
+/** 法21条の対象になる構造か(主要構造部の令109条の4の部分に木材・プラスチック等の可燃材料を使う) */
+function combustibleFrame(p: ProjectInput): Tri {
+  if (p.structure === '') return 'unknown';
+  if (p.structure === 'wood') return 'yes';
+  if (p.structure === 'other') return 'unknown';
+  return 'no';
+}
+
+type Art21Item = { para: 1 | 2; go: string; tri: Tri; text: string; need?: string };
+
+function evalArt21(p: ProjectInput): Art21Item[] {
+  const items: Art21Item[] = [];
+  const F = p.floorsAbove;
+  const H = p.maxHeight;
+  const fBlank = isBlank(p, 'floorsAbove');
+  const hBlank = isBlank(p, 'maxHeight');
+  const t1: Tri = fBlank ? 'unknown' : F >= 4 ? 'yes' : 'no';
+  if (t1 !== 'no') items.push({ para: 1, go: '一号', tri: t1, text: `地階を除く階数${fBlank ? '' : ` ${F}`}が4以上`, need: t1 === 'unknown' ? '地上階数' : undefined });
+  const t2: Tri = hBlank ? 'unknown' : H > 16 ? 'yes' : 'no';
+  if (t2 !== 'no') items.push({ para: 1, go: '二号', tri: t2, text: `高さ${hBlank ? '' : ` ${H}m`}が16mを超える`, need: t2 === 'unknown' ? '最高高さ' : undefined });
+  const kous = kousOf(p).filter((k) => k === 5 || k === 6);
+  if (kous.length) {
+    const t3: Tri = hBlank ? 'unknown' : H > 13 ? 'yes' : 'no';
+    if (t3 !== 'no') {
+      items.push({
+        para: 1,
+        go: '三号',
+        tri: t3,
+        text: `別表第一${kous.map((k) => KOU[k]).join('・')}項の特殊建築物で高さ${hBlank ? '' : ` ${H}m`}が13mを超える`,
+        need: t3 === 'unknown' ? '最高高さ' : undefined,
+      });
+    }
+  }
+  const aBlank = isBlank(p, 'totalFloorArea');
+  const t4: Tri = aBlank ? 'unknown' : p.totalFloorArea > 3000 ? 'yes' : 'no';
+  if (t4 !== 'no') {
+    items.push({ para: 2, go: '', tri: t4, text: `延べ面積${aBlank ? '' : ` ${m2(p.totalFloorArea)}`}が3,000m2を超える`, need: t4 === 'unknown' ? '延べ面積' : undefined });
+  }
+  return items;
+}
+
+/**
+ * 入力の確認に出す、法27条を決めきれない理由。
+ * 法21条に要る地上階数・高さ・延べ面積・構造は、それぞれの項目の未入力として別に挙げる。
+ */
+function fireMissing(p: ProjectInput): string[] {
+  if (!art27Work(p)) return [];
+  const needs = evalArt27(p)
+    .filter((x) => x.tri === 'unknown' && x.need)
+    .map((x) => x.need as string);
+  return needs.length ? [`${[...new Set(needs)].join('・')}(法27条の耐火要求を判定していない)`] : [];
+}
+
+// ---------------------------------------------------------------------------
 // 入力の確認(判定できていない項目を「該当なし」に見せないため)
 // ---------------------------------------------------------------------------
 
@@ -115,26 +397,39 @@ const inputRules: RegulationRule[] = [
       if (p.useIds.length === 0 && (building || isWork(p, 'renovation'))) {
         miss.push('用途(確認申請の区分・消防・バリアフリー法・用途固有の許可を判定していない)');
       }
-      if (building && p.totalFloorArea <= 0) {
-        miss.push('延べ面積(確認申請の区分・構造計算・省エネ・バリアフリー法・建築士法等を判定していない)');
+      if (building && isBlank(p, 'totalFloorArea')) {
+        miss.push('延べ面積(確認申請の区分・構造計算・省エネ・バリアフリー法・建築士法・法21条・法27条等を判定していない)');
       }
-      if (isBuilding(p) && p.maxHeight <= 0) {
-        miss.push('最高高さ(構造計算の区分・非常用昇降機・航空法・労働安全衛生法等を判定していない)');
+      if (building && isBlank(p, 'floorsAbove')) {
+        miss.push('地上階数(確認申請の区分・構造計算・防火地域の構造・法21条・法27条等を判定していない)');
       }
-      if (isBuilding(p) && p.siteArea <= 0) miss.push('敷地面積(開発許可・工場立地法・緑化率を判定していない)');
-      if (isBuilding(p) && p.formChangeArea <= 0) {
-        miss.push('形質変更面積(土壌汚染対策法の届出・盛土規制法の規模を判定していない)');
+      if (building && isBlank(p, 'floorsBelow')) {
+        miss.push('地下階数(地階が無ければ 0 を入れる。階数で決まる確認申請の区分・防火地域の構造・法27条の除外を判定していない)');
       }
-      if ((isBuilding(p) || isWork(p, 'useChange')) && p.inCityPlanningArea && !p.urbanizationControlArea && p.zoning === '未選択') {
+      if (isBuilding(p) && isBlank(p, 'maxHeight')) {
+        miss.push('最高高さ(構造計算の区分・法21条・非常用昇降機・航空法・労働安全衛生法等を判定していない)');
+      }
+      if ((isBuilding(p) || isWork(p, 'majorRepair')) && p.structure === '') {
+        miss.push('構造(構造計算の区分・中間検査・建築士法・法21条を判定していない)');
+      }
+      if ((isBuilding(p) || isWork(p, 'useChange')) && p.inCityPlanningArea === null) {
+        miss.push('都市計画区域等の内外(確認申請の第三号・開発許可・駐車場の附置義務を判定していない)');
+      }
+      if (isBuilding(p) && isBlank(p, 'siteArea')) miss.push('敷地面積(開発許可・工場立地法・緑化率を判定していない)');
+      if (isBuilding(p) && isBlank(p, 'formChangeArea')) {
+        miss.push('形質変更面積(土壌汚染対策法の届出・盛土規制法の規模を判定していない。形質変更が無ければ 0 を入れる)');
+      }
+      if ((isBuilding(p) || isWork(p, 'useChange')) && p.inCityPlanningArea !== false && !p.urbanizationControlArea && p.zoning === '未選択') {
         miss.push('用途地域(用途制限・駐車場の附置義務を判定していない)');
       }
-      if (isWork(p, 'demolition', 'rebuild') && p.demolitionArea <= 0) {
+      if (isWork(p, 'demolition', 'rebuild') && isBlank(p, 'demolitionArea')) {
         miss.push('解体床面積(建設リサイクル法80m2・石綿の事前調査結果の報告を判定していない)');
       }
-      if (isWork(p, 'majorRepair', 'renovation', 'useChange') && p.contractAmountManYen <= 0) {
+      if (isWork(p, 'majorRepair', 'renovation', 'useChange') && isBlank(p, 'contractAmountManYen')) {
         miss.push('請負金額(建設リサイクル法1億円・石綿の事前調査結果の報告100万円を判定していない)');
       }
-      if (usesWith(p, 'retail').length > 0 && p.storeArea <= 0) {
+      miss.push(...fireMissing(p));
+      if (usesWith(p, 'retail').length > 0 && isBlank(p, 'storeArea')) {
         miss.push('店舗面積(大規模小売店舗立地法を延べ面積で近似している)');
       }
       if (p.siteFlags.length === 0) {
@@ -244,7 +539,7 @@ const kenchikuKijunRules: RegulationRule[] = [
     note: '令和7年4月1日施行の改正で、木造の二号の基準が「高さ13m超・軒高9m超」から「地上4階以上・高さ16m超」に、三号が「延べ500m2超」から「延べ300m2超」に変わった。採用する計算ルートによって適判の要否が決まるため、構造設計者と早期に確認すること。',
     match: (p) => {
       if (!isBuilding(p)) return null;
-      if (p.totalFloorArea <= 0 && p.maxHeight <= 0) return null;
+      if ((p.totalFloorArea <= 0 && p.maxHeight <= 0) || p.structure === '') return null;
       const cls = structuralClass(p);
       const head = `${structLabel(p)}で 地上 ${p.floorsAbove} 階 / 高さ ${p.maxHeight}m / 延べ面積 ${m2(p.totalFloorArea)}`;
       if (cls === 1) return null; // 高さ60m超は大臣認定(bsl-20-1-1)
@@ -295,7 +590,7 @@ const kenchikuKijunRules: RegulationRule[] = [
     match: (p) => {
       if (!isBuilding(p) && !isWork(p, 'majorRepair')) return null;
       if (!needsKakunin(p)) return null;
-      if (hasUse(p, 'apartment') && floorsAll(p) >= 3 && p.structure !== 'wood') {
+      if (hasUse(p, 'apartment') && floorsAll(p) >= 3 && p.structure !== 'wood' && p.structure !== '') {
         return `階数 ${floorsAll(p)} の共同住宅(${structLabel(p)})。2階の床・はりの配筋工事で中間検査が要る(全国一律)。特定行政庁の指定も確認する`;
       }
       return '確認申請を要する工事。特定行政庁による特定工程の指定の有無を確認する';
@@ -357,6 +652,101 @@ const kenchikuKijunRules: RegulationRule[] = [
         return `準防火地域内で 地上 ${F} 階 / 延べ面積 ${m2(A)}。木造なら外壁・軒裏を防火構造等(同条第三号)、それ以外も延焼のおそれのある開口部に防火設備(同条第四号)`;
       }
       return null;
+    },
+  },
+  {
+    id: 'bsl-27',
+    category: '建築基準法の手続',
+    title: '耐火建築物等としなければならない特殊建築物',
+    law: '建築基準法',
+    provision: '法第27条・別表第一・令第110条〜第110条の5・令第115条の3・令第115条の4(用途変更は法第87条第3項で準用)',
+    action: '適合義務',
+    authority: '建築主事(特定行政庁)または指定確認検査機関',
+    summary:
+      '別表第一の用途の特殊建築物は、その用途に供する階と床面積で構造が決まる(防火地域の指定とは別に効く)。' +
+      '第1項(一〜四号)は、特定主要構造部を特定避難時間(在館者全員が地上まで避難を終えるまでの時間)に基づく基準(令第110条)に適合させ、外壁の開口部で延焼のおそれのあるもの(令第110条の2)に20分間の遮炎性能の防火設備(令第110条の3)を設ける。耐火建築物はこれを満たす。' +
+      '第2項は耐火建築物、第3項は耐火建築物または準耐火建築物((六)項は法第2条第九号の三ロの準耐火建築物のうち令第115条の4のもの(令第109条の3第一号の外壁耐火型で、同条第二号に適合しないもの)を除く)。',
+    threshold:
+      '1項: (一)〜(四)項を3階以上の階に置く(階数3で延べ200m2未満を除く) / (一)客席200m2以上(屋外観覧席1,000m2以上)・(二)2階の部分300m2以上・(三)2,000m2以上・(四)2階の部分500m2以上 / (四)3,000m2以上 / 劇場・映画館・演芸場で主階が1階にない(階数3以下で延べ200m2未満を除く)。' +
+      '2項: (五)3階以上の部分200m2以上 / (六)を3階以上の階に置く。3項: (五)1,500m2以上 / (六)150m2以上 / 令第116条の数量を超える危険物の貯蔵場・処理場',
+    scope: 'national',
+    asOf: VERIFIED,
+    confidence: 'likely',
+    sources: [egovSource('建築基準法'), egovSource('建築基準法施行令')],
+    note:
+      '床面積は同じ項の用途を合算した「その用途に供する部分の床面積の合計」で判定している(合算の扱いは審査機関に確認)。項ごとの階・床面積が空欄のときは、建物の地上階数・延べ面積を上限として当てはめ、決めきれないものは「入力の確認」に出す。' +
+      '第1項の構造方法は平成27年国交告第255号: 特定避難時間に応じた避難時倒壊防止構造(令和2年改正で追加。病院・診療所・就寝用途の児童福祉施設等・特別支援学校等には使えない)、第1項二号だけに当たるもの(客席の(一)項を除く)は準耐火構造、地上3階の下宿・共同住宅・寄宿舎(防火地域外、避難上有効なバルコニー・周囲3mの通路等)や地上3階の学校等は1時間準耐火構造、など。' +
+      '告示は令和2年改正(令和2年国交告第174号)で号が繰り下がっている。以後の改正の有無を含め、号番号・細目は原文で要確認。第1項一号の除外のうち(二)項の用途(令第110条の4)は、令第110条の5の警報設備を設けた場合に限る。火熱遮断壁等(令第109条の8)で区画した部分は別の建築物とみなす(法第27条第4項)。',
+    match: (p) => {
+      if (!art27Work(p)) return null;
+      const items = evalArt27(p);
+      const yes = items.filter((x) => x.tri === 'yes');
+      if (!yes.length) return null;
+      const paras = new Set(yes.map((x) => x.para));
+      const need = paras.has(2)
+        ? '耐火建築物(法第27条第2項)'
+        : paras.has(1)
+          ? '耐火建築物、または特定主要構造部を令第110条の基準(特定避難時間)に適合させ外壁開口部に防火設備を設けた建築物(法第27条第1項)'
+          : `耐火建築物または準耐火建築物(法第27条第3項)${kousOf(p).includes(6) ? '。(六)項は令第115条の4の準耐火建築物(外壁耐火型)を除く' : ''}`;
+      const list = yes.map((x) => `第${x.para}項${x.go}: ${x.text}`).join(' / ');
+      const pending = items.filter((x) => x.tri === 'unknown').map((x) => `第${x.para}項${x.go}(${x.text})`);
+      const excluded = items.filter((x) => x.tri === 'no').map((x) => x.text);
+      return `${need}が要る。${list}${excluded.length ? `。除外: ${excluded.join(' / ')}` : ''}${
+        pending.length ? `。入力が足りず未判定: ${pending.join(' / ')}` : ''
+      }${isWork(p, 'useChange') && !isBuilding(p) ? '。用途変更は法第87条第3項で準用' : ''}`;
+    },
+  },
+  {
+    id: 'bsl-21-1',
+    category: '建築基準法の手続',
+    title: '大規模の木造建築物等の主要構造部(高さ・階数)',
+    law: '建築基準法',
+    provision: '法第21条第1項・令第109条の4〜第109条の6',
+    action: '適合義務',
+    authority: '建築主事(特定行政庁)または指定確認検査機関',
+    summary:
+      '主要構造部(床・屋根・階段を除く)のうち自重・積載荷重を支える部分(令第109条の4)に木材・プラスチック等の可燃材料を使う建築物で、地上4階以上・高さ16m超・(五)(六)項の特殊建築物で高さ13m超のものは、特定主要構造部を通常火災終了時間(通常の火災が消火の措置で終わるまでの時間)が経過するまで倒壊・延焼しない構造とする(令第109条の5第一号。45分間未満なら45分間)か、耐火構造・耐火性能検証法等(同条第二号)とする。周囲に延焼防止上有効な空地(各部分から空地の反対側の境界線までの水平距離が各部分の高さ以上。令第109条の6)がある建築物は除く。',
+    threshold: '可燃材料の主要構造部 かつ(地上4階以上 / 高さ > 16m / (五)(六)項で高さ > 13m)',
+    scope: 'national',
+    asOf: VERIFIED,
+    confidence: 'likely',
+    sources: [egovSource('建築基準法'), egovSource('建築基準法施行令')],
+    note:
+      '平成30年改正(令和元年6月25日施行)で、耐火構造に限らず通常火災終了時間に基づく準耐火構造(火災時倒壊防止構造)を選べるようになった。構造方法は令和元年国交告第193号: 制定時は地上4階以下で75分間準耐火構造(200m2以内ごとの区画・スプリンクラー・周囲3mの通路・用途地域内など)、倉庫・車庫以外で地上3階以下は1時間準耐火構造(周囲3mの通路等)、倉庫・車庫以外で地上2階以下は令第115条の2第1項の基準など。令和2年改正で通常火災終了時間を計算して決める方法に広げられた。現行の号番号・細目は原文で要確認。混構造は令第109条の4の部分に可燃材料を使うかで決まる。',
+    match: (p) => {
+      if (!isBuilding(p)) return null;
+      const c = combustibleFrame(p);
+      if (c === 'no' || p.structure === '') return null;
+      const yes = evalArt21(p).filter((x) => x.para === 1 && x.tri === 'yes');
+      if (!yes.length) return null;
+      return `${structLabel(p)}で ${yes.map((x) => `第1項${x.go}: ${x.text}`).join(' / ')}${
+        c === 'unknown' ? '。混構造・その他の構造は、自重・積載荷重を支える主要構造部に可燃材料を使う場合に限り対象' : ''
+      }。特定主要構造部を火災時倒壊防止構造(通常火災終了時間)か耐火構造等とする`;
+    },
+  },
+  {
+    id: 'bsl-21-2',
+    category: '建築基準法の手続',
+    title: '延べ面積3,000m2超の木造建築物等',
+    law: '建築基準法',
+    provision: '法第21条第2項・第3項・令第109条の7・令第109条の8',
+    action: '適合義務',
+    authority: '建築主事(特定行政庁)または指定確認検査機関',
+    summary:
+      '主要構造部(床・屋根・階段を除く)の令第109条の4の部分に可燃材料を使う建築物で延べ面積が3,000m2を超えるものは、壁・柱・床等と防火設備を、通常の火災時の火熱が周囲に防火上有害な影響を及ぼさない構造とする。令第109条の7: 周辺高火熱面積の規模を国土交通大臣が定める規模以下とできる構造(第一号)、または特定主要構造部を令第109条の5の基準(火災時倒壊防止構造・耐火構造等)とする(第二号)。火熱遮断壁等(令第109条の8)で区画した部分は別の建築物とみなす(法第21条第3項)。',
+    threshold: '可燃材料の主要構造部 かつ 延べ面積 > 3,000m2',
+    scope: 'national',
+    asOf: VERIFIED,
+    confidence: 'likely',
+    sources: [egovSource('建築基準法'), egovSource('建築基準法施行令')],
+    note: '周辺高火熱面積の規模・算出方法を定める告示の番号は確かめていない(要確認)。',
+    match: (p) => {
+      if (!isBuilding(p)) return null;
+      const c = combustibleFrame(p);
+      if (c === 'no' || p.structure === '') return null;
+      const hit = evalArt21(p).find((x) => x.para === 2 && x.tri === 'yes');
+      if (!hit) return null;
+      return `${structLabel(p)}で ${hit.text}${c === 'unknown' ? '(可燃材料の主要構造部がある場合)' : ''}。令第109条の7のいずれか、または火熱遮断壁等で3,000m2以下ごとに別の建築物とみなせるよう区画する`;
     },
   },
   {
@@ -426,7 +816,7 @@ const kenchikuKijunRules: RegulationRule[] = [
       const A = p.totalFloorArea;
       const H = p.maxHeight;
       const F = p.floorsAbove;
-      if (A <= 0) return null;
+      if (A <= 0 || p.structure === '') return null;
       const wood = p.structure === 'wood';
       const head = `${structLabel(p)} / 延べ面積 ${m2(A)} / 地上 ${F} 階 / 高さ ${H}m`;
       const ikkyu: string[] = [];
@@ -635,7 +1025,7 @@ const cityPlanningRules: RegulationRule[] = [
       if (p.urbanizationControlArea) return null; // 調整区域は cpa-29-43
       if (!isBuilding(p)) return null;
       const area = Math.max(p.siteArea, p.formChangeArea);
-      if (!p.inCityPlanningArea) {
+      if (p.inCityPlanningArea === false) {
         return area >= 10000 ? `都市計画区域等の外で敷地・形質変更 ${m2(area)} が 1ha 以上` : null;
       }
       if (area < 300) return null;

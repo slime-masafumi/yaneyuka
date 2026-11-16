@@ -16,6 +16,9 @@ import HtmlDocx from 'html-docx-js/dist/html-docx';
 import HomeworkToTasks from './memo/HomeworkToTasks';
 import ToolHeader from '../ToolHeader';
 import GuestNote from './GuestNote';
+import ProjectPicker from '@/components/ui/ProjectPicker';
+import { projectKey, useProjectRegistry } from '@/lib/projectRegistry';
+import { daysLeftInTrash, fillProjectName, isExpired, TRASH_DAYS } from './memo/memoTrash';
 
 interface Memo {
   id: string;
@@ -252,6 +255,37 @@ const writeGuestFolders = (names: string[]) => {
   try { localStorage.setItem(GUEST_FOLDERS_KEY, JSON.stringify(names)); } catch { /* 容量超過は諦める */ }
 };
 
+/** ゴミ箱のメモ（削除した時刻つき）。中身は削除した時点のまま（保存前の打ちかけも含む） */
+type TrashedMemo = Memo & { deletedAt: number };
+const GUEST_TRASH_KEY = 'yy-guest-memo-trash';
+const readGuestTrash = (): TrashedMemo[] => {
+  try {
+    const v = JSON.parse(localStorage.getItem(GUEST_TRASH_KEY) || '[]');
+    return Array.isArray(v) ? v.filter((m) => m && m.id).map((m) => ({ ...fromStored(m), deletedAt: Number(m.deletedAt) || Date.now() })) : [];
+  } catch {
+    return [];
+  }
+};
+/** 書けたら true（容量超過は false） */
+const writeGuestTrash = (list: TrashedMemo[]): boolean => {
+  try {
+    if (!list.length) { localStorage.removeItem(GUEST_TRASH_KEY); return true; }
+    localStorage.setItem(
+      GUEST_TRASH_KEY,
+      JSON.stringify(list.map((m) => ({ ...m, createdAt: m.createdAt.getTime(), updatedAt: m.updatedAt.getTime() }))),
+    );
+    return true;
+  } catch {
+    return false;
+  }
+};
+/** Firestore に置く形（日付は ms） */
+const memoDoc = (m: Memo) => ({
+  title: m.title, content: m.content, category: m.category, tags: m.tags,
+  createdAt: m.createdAt.getTime(), updatedAt: m.updatedAt.getTime(),
+  isFavorite: !!m.isFavorite, isLocked: !!m.isLocked, order: m.order ?? 0,
+});
+
 /** 本文に埋め込んだ画像（dataURL）を自分の保管場所へ上げ、URL に差し替える（ログイン時の移行用） */
 const uploadInlineImages = async (html: string, uid: string): Promise<string> => {
   const found = Array.from(new Set(html.match(/data:image\/[a-z+]+;base64,[A-Za-z0-9+/=]+/g) || []));
@@ -424,6 +458,38 @@ const MemoTool: React.FC = () => {
     return () => unsub();
   }, [currentUser]);
 
+  // --- ゴミ箱（30 日）。削除したメモはここへ移し、元に戻せるようにする ---
+  const [trash, setTrash] = useState<TrashedMemo[]>([]);
+  const [showTrash, setShowTrash] = useState(false);
+  useEffect(() => {
+    if (!currentUser) {
+      const all = readGuestTrash();
+      const keep = all.filter((m) => !isExpired(m.deletedAt));
+      if (keep.length !== all.length) writeGuestTrash(keep);
+      setTrash(keep.sort((a, b) => b.deletedAt - a.deletedAt));
+      return;
+    }
+    const col = collection(db, 'users', currentUser.uid, 'memoTrash');
+    const unsub = onSnapshot(col, (snap) => {
+      const list: TrashedMemo[] = [];
+      snap.docs.forEach((d) => {
+        const data = d.data() as any;
+        const m: TrashedMemo = { ...fromStored({ ...data, id: d.id }), deletedAt: Number(data.deletedAt) || Date.now() };
+        // 30 日を過ぎたものはここで片付ける（期限どおりに消えるのは、この画面を開いたときだけ）
+        if (isExpired(m.deletedAt)) { void deleteDoc(d.ref).catch(() => {}); return; }
+        list.push(m);
+      });
+      setTrash(list.sort((a, b) => b.deletedAt - a.deletedAt));
+    }, () => { /* 読めないときはゴミ箱を空として出す（メモ本体には触らない） */ });
+    return () => unsub();
+  }, [currentUser]);
+
+  // 物件の台帳（src/lib/projectRegistry.ts）。フォルダ名が台帳の物件ならその物件のメモとして扱う
+  const registry = useProjectRegistry();
+  const projectOfFolder = (name: string) => (name ? registry.find(name) : null);
+  // 新しく作るメモの物件（＝入れるフォルダ）。物件のフォルダを開くとそれに合わせる
+  const [newMemoProject, setNewMemoProject] = useState('');
+
   // 未ログインのとき、メモの変更（作成・本文・★・ロック・並べ替え・フォルダ移動・削除）を
   // まとめてこのブラウザへ書く。書けなかった（容量超過）ことは必ず画面に出す。
   const [guestSaveFailed, setGuestSaveFailed] = useState(false);
@@ -440,7 +506,8 @@ const MemoTool: React.FC = () => {
     if (!currentUser) return;
     const guest = readGuestMemos();
     const guestFolders = readGuestFolders();
-    if (!guest.length && !guestFolders.length) return;
+    const guestTrash = readGuestTrash().filter((m) => !isExpired(m.deletedAt));
+    if (!guest.length && !guestFolders.length && !guestTrash.length) return;
     // 同じ人の移行は 1 回だけ（開発時の effect 二重実行で、移し終えたものを書き戻さないように）
     if (migratedForRef.current === currentUser.uid) return;
     migratedForRef.current = currentUser.uid;
@@ -469,6 +536,18 @@ const MemoTool: React.FC = () => {
           console.error('フォルダの移行に失敗しました', e);
         }
       }
+      // ゴミ箱も一緒に移す（ログインした途端に、30 日は戻せるはずのメモが見えなくならないように）
+      const trashLeft: TrashedMemo[] = [];
+      for (const m of guestTrash) {
+        try {
+          const content = await uploadInlineImages(m.content, currentUser.uid);
+          await setDoc(doc(db, 'users', currentUser.uid, 'memoTrash', m.id), { ...memoDoc({ ...m, content }), deletedAt: m.deletedAt });
+        } catch (e) {
+          console.error('ゴミ箱のメモの移行に失敗しました', e);
+          trashLeft.push(m);
+        }
+      }
+      if (guestTrash.length) writeGuestTrash(trashLeft);
       if (left.length) writeGuestMemos(left);
       else { try { localStorage.removeItem(GUEST_MEMOS_KEY); } catch { /* 無視 */ } }
       if (moved) flashHeadNotice(`このブラウザのメモ ${moved} 件をアカウントに移しました。`);
@@ -500,8 +579,10 @@ const MemoTool: React.FC = () => {
       : memos.filter((m) => (m.category || UNFILED) === name).length;
 
   const addFolder = async () => {
-    const name = newFolderName.trim();
-    if (!name) return;
+    const typed = newFolderName.trim();
+    if (!typed) return;
+    // 台帳の物件なら台帳の書き方にそろえる（「Ａ邸」と「A邸」で別のフォルダにしない）
+    const name = registry.find(typed)?.name ?? typed;
     if (folderNames.includes(name)) {
       setSelectedFolder(name);
     } else {
@@ -882,8 +963,12 @@ const MemoTool: React.FC = () => {
 
     // ひな形から作る場合は、日付入りの表題と見出しを先に入れておく
     const title = template ? `${template.title} ${now.toLocaleDateString('ja-JP')}` : '新しいメモ';
-    const content = template ? template.content : '';
-    const category = template ? template.category : '';
+    // 物件を選んでいれば、その物件のフォルダに入れ、ひな形の「物件名」にも入れる（台帳の名前にそろえる）
+    const typedProject = newMemoProject.trim();
+    const project = typedProject ? registry.find(typedProject)?.name ?? typedProject : '';
+    const content = template ? fillProjectName(template.content, project) : '';
+    const category = project || (template ? template.category : '');
+    if (project && !folderNames.includes(project)) void persistFolders([...savedFolders, project]);
 
     const created: Memo = { id: newMemoId(), title, content, category, tags: [], createdAt: now, updatedAt: now, isFavorite: false, isLocked: false, order: newOrder }
     // 絞り込み中のフォルダに作ったメモが見えなくならないよう、フォルダの絞り込みを外す
@@ -995,10 +1080,47 @@ const MemoTool: React.FC = () => {
   const saveMemoRef = useRef(saveMemo);
   saveMemoRef.current = saveMemo;
 
+  /**
+   * 削除 = ゴミ箱へ移す（30 日は「ゴミ箱」から元に戻せる）。
+   * ★以前は確認のあと即座に消え、取り返せなかった。
+   * ゴミ箱へ書けたことを確かめてから元のメモを消す（ゴミ箱にも元にも無い、を作らない）。
+   */
   const deleteCurrentMemo = async () => {
     if (!currentMemo) return
-    if(!confirm('本当に削除しますか？')) return;
+    if (!confirm(`「${memoTitle || currentMemo.title || '無題'}」をゴミ箱へ移します。\n${TRASH_DAYS} 日間は左の「ゴミ箱」から元に戻せます。`)) return;
     const id = currentMemo.id
+    // 打ちかけの自動保存を止める（消したあとに保存が走って、メモが作り直されないように）
+    if (autoSaveTimeoutRef.current) { clearTimeout(autoSaveTimeoutRef.current); autoSaveTimeoutRef.current = null }
+    isEditingRef.current = false
+    // 中身は画面のいま（保存前の打ちかけも含む）
+    const snapshot: TrashedMemo = {
+      ...currentMemo,
+      title: memoTitle || currentMemo.title,
+      content: editorRef.current?.innerHTML ?? currentMemo.content,
+      category: memoCategory,
+      tags: memoTags.split(',').map(t => t.trim()).filter(Boolean),
+      deletedAt: Date.now(),
+    }
+    if (currentUser) {
+      try {
+        await setDoc(doc(db, 'users', currentUser.uid, 'memoTrash', id), { ...memoDoc(snapshot), deletedAt: snapshot.deletedAt })
+      } catch (e) {
+        console.error('ゴミ箱へ移せませんでした', e)
+        alert('ゴミ箱へ移せなかったので、削除をやめました。通信の状態を確かめて、もう一度押してください。')
+        return
+      }
+    } else {
+      // このブラウザ: 先にメモの一覧から外して容量を空けてから、ゴミ箱へ書く
+      const rest = memos.filter(m => m.id !== id)
+      writeGuestMemos(rest)
+      const nextTrash = [snapshot, ...readGuestTrash().filter(m => m.id !== id)]
+      if (!writeGuestTrash(nextTrash)) {
+        writeGuestMemos(memos)
+        if (!confirm('このブラウザの保存容量が足りず、ゴミ箱に入れられません。\nゴミ箱を通さずに完全に削除しますか？（元に戻せません）')) return
+      } else {
+        setTrash(nextTrash)
+      }
+    }
     setMemos(prev => prev.filter(m => m.id !== id))
     // 一覧で次に並んでいるメモを開く（以前は空の画面になり、続けて打つと新しいメモができていた）
     const next = filteredMemos.find(m => m.id !== id) ?? null
@@ -1013,6 +1135,48 @@ const MemoTool: React.FC = () => {
     }
     if (!currentUser) return
     try { await deleteDoc(doc(db, 'users', currentUser.uid, 'memos', id)) } catch {}
+  };
+
+  /** ゴミ箱から戻す。元のフォルダ（カテゴリ）のまま一覧に戻る */
+  const restoreFromTrash = async (t: TrashedMemo) => {
+    const { deletedAt: _d, ...memo } = t
+    const restored: Memo = { ...memo, updatedAt: new Date() }
+    if (currentUser) {
+      try {
+        await setDoc(doc(db, 'users', currentUser.uid, 'memos', t.id), memoDoc(restored))
+      } catch (e) {
+        console.error('ゴミ箱から戻せませんでした', e)
+        flashHeadNotice('元に戻せませんでした。通信の状態を確かめて、もう一度押してください。')
+        return
+      }
+      try { await deleteDoc(doc(db, 'users', currentUser.uid, 'memoTrash', t.id)) } catch { /* 次に開いたとき残っていても、戻したメモは消えない */ }
+    } else {
+      const nextMemos = [restored, ...memos.filter(m => m.id !== t.id)]
+      if (!writeGuestMemos(nextMemos)) {
+        flashHeadNotice('このブラウザの保存容量が足りず、元に戻せませんでした。ほかのメモの画像を減らしてください。')
+        return
+      }
+      const nextTrash = trash.filter(m => m.id !== t.id)
+      writeGuestTrash(nextTrash)
+      setTrash(nextTrash)
+      setMemos(nextMemos)
+    }
+    setShowTrash(false)
+    setSelectedFolder(ALL_FOLDERS)
+    selectMemo(restored)
+    flashHeadNotice(`「${restored.title || '無題'}」を元に戻しました。`)
+  };
+
+  /** ゴミ箱から完全に消す（ここだけは元に戻せない） */
+  const purgeFromTrash = async (t: TrashedMemo) => {
+    if (!confirm(`「${t.title || '無題'}」を完全に削除します。元に戻せません。`)) return
+    if (currentUser) {
+      try { await deleteDoc(doc(db, 'users', currentUser.uid, 'memoTrash', t.id)) } catch { flashHeadNotice('削除できませんでした。'); return }
+    } else {
+      const nextTrash = trash.filter(m => m.id !== t.id)
+      writeGuestTrash(nextTrash)
+      setTrash(nextTrash)
+    }
   };
 
   const exportMemoToDocx = async () => {
@@ -1304,6 +1468,17 @@ const MemoTool: React.FC = () => {
                 <FiPlus className="w-3 h-3" />
                 新規メモ
               </button>
+              {/* 物件を選ぶと、新しいメモ（ひな形も）はその物件のフォルダに入る。物件は台帳（ほかのツールと共通）から */}
+              <div className="mb-2">
+                <p className="yy-mono text-[10px] tracking-[0.12em] uppercase text-gray-500 mb-1">物件（入れるフォルダ）</p>
+                <ProjectPicker
+                  value={newMemoProject}
+                  onChange={setNewMemoProject}
+                  placeholder="なし（ひな形のフォルダ）"
+                  label="新しいメモの物件"
+                  className="w-full flex-wrap [&_input]:!w-full [&_input]:!h-7 [&_input]:!text-[11px]"
+                />
+              </div>
 
               {/* ひな形から作る。白紙だと「誰が・いつまでに」が毎回抜けるので。 */}
               <div ref={templatesRef} className="scroll-mt-2 mb-2">
@@ -1348,17 +1523,22 @@ const MemoTool: React.FC = () => {
               </div>
 
               {showFolderInput && (
-                <div className="flex gap-1 p-1.5 border-b border-gray-200">
-                  <input
-                    type="text"
+                // フォルダ名は物件の台帳から選べる（議事録・現場のような物件でないフォルダもそのまま作れる）
+                <div
+                  className="flex gap-1 p-1.5 border-b border-gray-200 items-start"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.nativeEvent.isComposing && (e.target as HTMLElement).tagName === 'INPUT') addFolder();
+                    if (e.key === 'Escape') setShowFolderInput(false);
+                  }}
+                >
+                  <ProjectPicker
                     value={newFolderName}
-                    onChange={(e) => setNewFolderName(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') addFolder(); if (e.key === 'Escape') setShowFolderInput(false); }}
-                    placeholder="フォルダ名"
-                    autoFocus
-                    className="flex-1 text-[11px] px-2 py-1 border border-gray-200 focus:outline-none"
+                    onChange={setNewFolderName}
+                    placeholder="フォルダ名・物件"
+                    label="新しいフォルダの名前"
+                    className="flex-1 min-w-0 flex-wrap [&_input]:!w-full [&_input]:!h-7 [&_input]:!text-[11px]"
                   />
-                  <button type="button" onClick={addFolder} className="yy-btn yy-btn--primary !px-2 !py-1 text-[10px]">追加</button>
+                  <button type="button" onClick={addFolder} className="yy-btn yy-btn--primary !px-2 !py-1 text-[10px] shrink-0">追加</button>
                 </div>
               )}
 
@@ -1384,11 +1564,19 @@ const MemoTool: React.FC = () => {
                     >
                       <button
                         type="button"
-                        onClick={() => setSelectedFolder(folder)}
+                        onClick={() => {
+                          setSelectedFolder(folder);
+                          setShowTrash(false);
+                          // 物件のフォルダを開いたら、新しいメモもその物件に入れる
+                          if (folder && projectOfFolder(folder)) setNewMemoProject(projectOfFolder(folder)!.name);
+                        }}
                         className="flex-1 text-left truncate bg-transparent border-0 p-0"
                       >
                         {!isAll && <FiFolder className="inline w-3 h-3 mr-1 -mt-px text-gray-400" />}{label}
                         <span className="yy-mono ml-1 text-[10px] text-gray-400">{countInFolder(folder)}</span>
+                        {!isAll && !isUnfiled && projectOfFolder(folder as string) && (
+                          <span className="yy-mono ml-1 text-[9px] tracking-[0.08em] text-[#2f7f6d]" title="物件の台帳にある物件">物件</span>
+                        )}
                       </button>
                       {!isAll && !isUnfiled && (
                         <span className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100">
@@ -1413,6 +1601,15 @@ const MemoTool: React.FC = () => {
                     </div>
                   );
                 })}
+                {/* ゴミ箱（30 日で消える。それまでは元に戻せる） */}
+                {trash.length > 0 && (
+                  <div className={`flex items-center gap-1 px-2 py-1 text-[11px] cursor-pointer border-t border-gray-200 ${showTrash ? 'bg-gray-200 font-bold' : 'hover:bg-gray-50'}`}>
+                    <button type="button" onClick={() => setShowTrash(v => !v)} className="flex-1 text-left truncate bg-transparent border-0 p-0 text-gray-600">
+                      <FiTrash2 className="inline w-3 h-3 mr-1 -mt-px text-gray-400" />ゴミ箱
+                      <span className="yy-mono ml-1 text-[10px] text-gray-400">{trash.length}</span>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1443,7 +1640,26 @@ const MemoTool: React.FC = () => {
               </select>
             </div>
             <div className="space-y-2 overflow-y-auto pr-2 flex-1 max-h-56 md:max-h-none">
-              {filteredMemos.map((memo, index) => {
+              {showTrash ? (
+                <div className="space-y-1">
+                  <p className="text-[10px] text-gray-500 leading-relaxed">
+                    削除したメモは {TRASH_DAYS} 日ここに残り、過ぎると消えます。
+                  </p>
+                  {trash.map((t) => (
+                    <div key={t.id} className="p-2 border border-gray-200">
+                      <div className="text-[11px] truncate">{t.title || '無題'}</div>
+                      <div className="yy-mono text-[10px] tracking-[0.08em] text-gray-500 mt-0.5">
+                        {new Date(t.deletedAt).toLocaleDateString()} 削除 · あと {daysLeftInTrash(t.deletedAt)} 日{t.category ? ` · ${t.category}` : ''}
+                      </div>
+                      <div className="flex gap-3 mt-1 text-[10px]">
+                        <button type="button" onClick={() => void restoreFromTrash(t)} className="underline underline-offset-2 font-bold text-gray-900">元に戻す</button>
+                        <button type="button" onClick={() => void purgeFromTrash(t)} className="underline underline-offset-2 text-gray-500 hover:text-red-600">完全に削除</button>
+                      </div>
+                    </div>
+                  ))}
+                  {trash.length === 0 && <p className="text-[11px] text-gray-400">ゴミ箱は空です</p>}
+                </div>
+              ) : filteredMemos.map((memo, index) => {
                 const isDragging = isDragEnabled && draggedMemoId === memo.id;
                 const isOver = isDragEnabled && dragOverMemoId === memo.id;
                 
@@ -1477,8 +1693,9 @@ const MemoTool: React.FC = () => {
                 >
                   <div className="flex-1 min-w-0">
                   <div className={`text-[11px] truncate ${currentMemo?.id === memo.id ? 'font-bold' : ''}`}>{memo.title}</div>
-                  <div className="yy-mono text-[10px] tracking-[0.08em] text-gray-500 mt-1">
+                  <div className="yy-mono text-[10px] tracking-[0.08em] text-gray-500 mt-1 truncate">
                     {memo.updatedAt.toLocaleDateString()}
+                    {selectedFolder === ALL_FOLDERS && projectOfFolder(memo.category) && <span className="ml-1 text-[#2f7f6d]">{projectOfFolder(memo.category)!.name}</span>}
                     </div>
                   </div>
                   <div className="flex flex-col gap-0.5 items-center">
@@ -1581,13 +1798,26 @@ const MemoTool: React.FC = () => {
                   <FolderPicker
                     value={memoCategory}
                     folders={folderNames}
+                    projects={registry.active.map(p => p.name).filter(n => !folderNames.some(f => projectKey(f) === projectKey(n)))}
+                    isProject={(name) => !!projectOfFolder(name)}
                     disabled={!currentMemo || !!currentMemo.isLocked}
-                    onPick={(name) => {
+                    onPick={(typed) => {
+                      const name = typed ? registry.find(typed)?.name ?? typed : typed;
                       setMemoCategory(name);
                       if (currentMemo) void moveMemoToFolder(currentMemo.id, name);
                     }}
                   />
                 </div>
+                {/* このメモの物件（フォルダが台帳の物件のとき）。物件ハブでタスク・メール・ボードと並べて見られる */}
+                {currentMemo && projectOfFolder(memoCategory) && (
+                  <a
+                    href={`/bukken/?p=${encodeURIComponent(projectOfFolder(memoCategory)!.id)}`}
+                    className="self-center text-[10px] text-[#2f7f6d] underline underline-offset-2 shrink-0"
+                    title="この物件のタスク・メモ・メール・ボードを 1 画面で見る"
+                  >
+                    物件: {projectOfFolder(memoCategory)!.name}
+                  </a>
+                )}
                 <div className={`flex-1 min-w-[10rem] flex items-stretch border border-gray-200 bg-white ${currentMemo?.isLocked ? 'bg-gray-100 opacity-60' : ''}`}>
                   <span className="flex items-center px-2 text-gray-400 shrink-0">
                     <FiTag className="w-3 h-3" />
@@ -1829,11 +2059,16 @@ const MemoTool: React.FC = () => {
 function FolderPicker({
   value,
   folders,
+  projects = [],
+  isProject = () => false,
   disabled,
   onPick,
 }: {
   value: string;
   folders: string[];
+  /** 物件の台帳にあって、まだフォルダになっていない物件（選ぶとその名前のフォルダになる） */
+  projects?: string[];
+  isProject?: (name: string) => boolean;
   disabled: boolean;
   onPick: (name: string) => void;
 }) {
@@ -1864,7 +2099,7 @@ function FolderPicker({
     if (name !== value) onPick(name);
   };
   const typed = draft.trim();
-  const isNew = typed !== '' && !folders.includes(typed);
+  const isNew = typed !== '' && !folders.includes(typed) && !projects.includes(typed);
 
   return (
     <div ref={boxRef} className="relative">
@@ -1926,10 +2161,22 @@ function FolderPicker({
               <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => pick(name)} className={`w-full text-left px-3 py-1.5 hover:bg-gray-100 flex items-center gap-2 ${value === name ? 'font-bold' : ''}`}>
                 <span className="w-3">{value === name && <FiCheck className="w-3 h-3" />}</span>
                 {name}
+                {isProject(name) && <span className="yy-mono ml-auto text-[9px] tracking-[0.08em] text-[#2f7f6d]">物件</span>}
               </button>
             </li>
           ))}
-          {folders.length === 0 && !isNew && <li className="px-3 py-1.5 text-gray-400">フォルダはまだありません。名前を打つと作れます</li>}
+          {projects.length > 0 && (
+            <li className="px-3 pt-2 pb-0.5 text-[10px] text-gray-500 border-t border-gray-200">物件の台帳から（選ぶとフォルダになる）</li>
+          )}
+          {projects.map((name) => (
+            <li key={`p:${name}`}>
+              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => pick(name)} className="w-full text-left px-3 py-1.5 hover:bg-gray-100 flex items-center gap-2">
+                <span className="w-3"><FiPlus className="w-3 h-3 text-gray-400" /></span>
+                {name}
+              </button>
+            </li>
+          ))}
+          {folders.length === 0 && projects.length === 0 && !isNew && <li className="px-3 py-1.5 text-gray-400">フォルダはまだありません。名前を打つと作れます</li>}
         </ul>
       )}
     </div>

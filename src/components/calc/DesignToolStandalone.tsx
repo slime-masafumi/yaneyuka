@@ -22,6 +22,7 @@ const TOOLS: Record<string, React.ComponentType> = {
   'jpma-search': d(() => import('@/components/content/Userpage/design-tools/5_ColorProposal').then((m) => ({ default: () => <m.default defaultTab="jpma" hideTabBar /> }))),
   'shadow-regulation': d(() => import('@/components/content/Userpage/design-tools/ShadowCalc')),
   'setback-regulation': d(() => import('@/components/content/Userpage/design-tools/SetbackCalc')),
+  'volume-study': d(() => import('@/components/content/Userpage/design-tools/VolumeStudy')),
   condensation: d(() => import('@/components/content/Userpage/design-tools/MultiLayerCondensation').then((m) => ({ default: () => <m.default hideHeader sheet /> }))),
   'building-rainwater': d(() => import('@/components/content/Userpage/design-tools/2_RainwaterCalculation').then((m) => ({ default: () => <m.default mode="building" hideTabBar /> }))),
   section: d(() => import('@/components/content/Userpage/design-tools/10_StructuralTools').then((m) => ({ default: () => <m.default defaultTab="section" hideTabBar /> }))),

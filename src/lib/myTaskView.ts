@@ -31,14 +31,17 @@ export const ymdOf = (ms: number) => {
 
 export type Placed<T extends MyTaskLike> = { task: T; sheetId: string; sheetTitle: string; rest: string };
 
-/** 物件ごと（未完了の多い順、物件なしは最後）。各物件の中は未完了→期日順 */
-export function groupByProject<T extends MyTaskLike>(sheets: SheetLike<T>[], today: string, includeDone = false) {
+/**
+ * 物件ごと（未完了の多い順、物件なしは最後）。各物件の中は未完了→期日順。
+ * canon を渡すと、物件名をそろえてから束ねる（物件の台帳の名前に寄せ、表記ゆれで束が割れないように）。
+ */
+export function groupByProject<T extends MyTaskLike>(sheets: SheetLike<T>[], today: string, includeDone = false, canon?: (name: string) => string) {
   const map = new Map<string, Placed<T>[]>();
   for (const s of sheets) {
     for (const t of s.tasks) {
       if (!includeDone && t.completed) continue;
       const { project, rest } = projectOf(t.content);
-      const key = project ?? '';
+      const key = project ? (canon ? canon(project) : project) : '';
       const arr = map.get(key) ?? [];
       arr.push({ task: t, sheetId: s.id, sheetTitle: s.title, rest });
       map.set(key, arr);
@@ -58,6 +61,19 @@ export function groupByProject<T extends MyTaskLike>(sheets: SheetLike<T>[], tod
       overdue: items.filter((i) => !i.task.completed && !!i.task.dueDate && i.task.dueDate < today).length,
     }))
     .sort((a, b) => (a.project === '' ? 1 : b.project === '' ? -1 : b.open - a.open || a.project.localeCompare(b.project, 'ja')));
+}
+
+/**
+ * 物件の比較用の名前（全角/半角・空白・括弧の違いを吸収）。projectRegistry.projectKey と同じ規則。
+ * ここはブラウザの外（node のテスト）でも読むので、台帳のモジュールを読み込まずに同じ式を持つ。
+ */
+export const sameProjectKey = (name: string) =>
+  name.normalize('NFKC').replace(/\s+/g, '').replace(/[()（）【】「」]/g, '').toLowerCase();
+
+/** この物件のタスクか（【】・# の物件名を表記ゆれ込みで比べる） */
+export function isTaskOf(content: string, projectName: string): boolean {
+  const { project } = projectOf(content);
+  return !!project && sameProjectKey(project) === sameProjectKey(projectName);
 }
 
 /** 完了の履歴（新しい日から）。完了日の記録が無い古いものは最後に「日付なし」 */

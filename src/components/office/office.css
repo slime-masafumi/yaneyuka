@@ -1,0 +1,206 @@
+/* 事務所（/office）。サイトの今の顔（細い罫線・小さな等幅ラベル・差し色 #52AA96）にそろえる */
+.yy-office {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 16px 32px;
+  color: #141414;
+  font-size: 12px;
+}
+.yy-office__sec {
+  margin-top: 20px;
+  border-top: 1px solid #3b3b3b;
+  padding-top: 10px;
+}
+.yy-office__sechead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.yy-office__sectitle {
+  font-size: 13px;
+  font-weight: 700;
+}
+.yy-office__kicker {
+  font-family: var(--yy-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #6b6b6b;
+}
+.yy-office__note {
+  font-size: 11px;
+  color: #555;
+  border-left: 1px solid #52aa96;
+  padding-left: 8px;
+  margin: 8px 0;
+  line-height: 1.7;
+}
+.yy-office__err {
+  font-size: 11px;
+  color: #a33;
+  margin: 6px 0;
+}
+.yy-office__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.yy-office input[type='text'],
+.yy-office input[type='email'],
+.yy-office select {
+  border: 1px solid #c8c8c8;
+  background: #fff;
+  padding: 5px 8px;
+  font-size: 12px;
+  min-width: 0;
+}
+.yy-office input:focus,
+.yy-office select:focus {
+  outline: none;
+  border-color: #3b3b3b;
+}
+.yy-office__link {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-size: 11px;
+  color: #555;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.yy-office__link:hover { color: #141414; }
+.yy-office__link--danger { color: #a33; }
+.yy-office__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.yy-office__list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid #e5e5e5;
+}
+.yy-office__tag {
+  font-size: 10px;
+  border: 1px solid #52aa96;
+  color: #2f7a68;
+  padding: 0 4px;
+}
+.yy-office__tablewrap {
+  overflow-x: auto;
+  max-width: 100%;
+}
+.yy-office__table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 11px;
+}
+.yy-office__table th,
+.yy-office__table td {
+  border-bottom: 1px solid #e5e5e5;
+  padding: 5px 8px;
+  text-align: right;
+  white-space: nowrap;
+}
+.yy-office__table th:first-child,
+.yy-office__table td:first-child {
+  text-align: left;
+  white-space: normal;
+  min-width: 140px;
+}
+.yy-office__table thead th {
+  border-bottom: 1px solid #3b3b3b;
+  font-weight: 700;
+}
+.yy-office__table tfoot td {
+  border-top: 1px solid #3b3b3b;
+  border-bottom: 0;
+  font-weight: 700;
+}
+.yy-office__num {
+  font-family: var(--yy-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+}
+.yy-office__muted { color: #9a9a9a; }
+
+/* 業務管理の「事務所へ送る」 */
+.yy-office-share {
+  border: 1px solid #e5e5e5;
+  padding: 8px 10px;
+  font-size: 11px;
+  color: #333;
+}
+.yy-office-share__rows {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) 56px;
+  gap: 4px 8px;
+  align-items: center;
+  margin: 8px 0;
+}
+.yy-office-share__rows .yy-projpick input {
+  width: 100%;
+  border: 1px solid #c8c8c8;
+  padding: 3px 6px;
+  font-size: 11px;
+}
+@media (max-width: 640px) {
+  .yy-office-share__rows { grid-template-columns: 1fr 56px; }
+  .yy-office-share__rows .yy-office-share__src { grid-column: 1 / -1; color: #777; }
+}
+
+/* 担当連絡先の「事務所で共有」 */
+.yy-office-contacts {
+  margin-top: 12px;
+  border: 1px solid #3b3b3b;
+  background: #fff;
+}
+.yy-office-contacts__head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  border-bottom: 1px solid #e5e5e5;
+}
+.yy-office-contacts__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+  padding: 12px;
+}
+.yy-office-contacts__card {
+  border: 1px solid #d0d0d0;
+  font-size: 11px;
+}
+.yy-office-contacts__card input,
+.yy-office-contacts__card textarea {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid #eee;
+  padding: 3px 6px;
+  font-size: 11px;
+  background: #fff;
+  resize: none;
+}
+.yy-office-contacts__card input:focus,
+.yy-office-contacts__card textarea:focus { outline: none; border-bottom-color: #3b3b3b; }
+.yy-office-contacts__cardhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 3px 6px;
+  border-bottom: 1px solid #3b3b3b;
+}
+.yy-office-contacts__cardhead input { font-weight: 700; font-size: 12px; border: 0; padding: 0; }
+.yy-office-contacts__by {
+  padding: 3px 6px;
+  font-size: 10px;
+  color: #888;
+}
