@@ -56,12 +56,22 @@ export interface ThicknessSearchResult {
 const E_GLASS_MPA = 7.16e4;
 
 /**
- * フロート板ガラスの短期許容応力（面内 σac） [MPa]
- * 出典：「板ガラスの強度と安全」 各種板ガラスの短期・長期許容応力 表
+ * 短期許容応力 [MPa]。出典：NSG『ガラス建材総合カタログ 技術資料編』5-3「板ガラスの強度と強度設計」表3
+ * （各種板ガラスの短期・長期許容応力。板硝子協会推奨基準 表2.1.1 と同じ値）
+ *
+ * 面内 σac は面中央の応力（四辺支持の σc）と、エッジ σae は辺中央の応力（二辺支持の自由辺 σe）と比べる
+ * （同資料 5-3「σc、σe は許容応力の面内 σac、またはエッジ σae と比較し判定」）。
+ *
+ * 2026-11-16 監査で直した点:
+ *  - 二辺支持も面内の値（24.5 など）と比べていた → 自由辺はエッジの値（フロート 17.7）で比べる
+ *  - 強化ガラスを 58.8（600 kgf/cm²。出典なし）としていた → 面内 88.3・エッジ 79.4
  */
-function getFloatGlassShortTermAllowableMpa(thicknessMm: number): number {
-  const t = thicknessMm;
+type StressSite = 'inPlane' | 'edge';
 
+/** フロート板ガラスの短期許容応力 [MPa]。面内は厚さで変わり、エッジは厚さによらず 17.7 */
+function getFloatGlassShortTermAllowableMpa(thicknessMm: number, site: StressSite): number {
+  if (site === 'edge') return 17.7;
+  const t = thicknessMm;
   if (t <= 8)   return 24.5;
   if (t <= 12)  return 22.1;
   if (t <= 20)  return 19.6;
@@ -69,28 +79,33 @@ function getFloatGlassShortTermAllowableMpa(thicknessMm: number): number {
   return 18.6;
 }
 
-/**
- * 強化ガラスの短期許容応力 [MPa]
- * 出典：日本板硝子「板ガラスの強度と安全」
- * 強化ガラスは熱処理により表面に圧縮応力層を形成し、
- * フロートガラスの約3倍の曲げ強度を持つ。
- * 実務上の短期許容応力として 58.8 MPa（= 600 kgf/cm²）を採用。
- */
-function getTemperedGlassShortTermAllowableMpa(): number {
-  return 58.8;
+/** 強化ガラス（水平強化）の短期許容応力 [MPa]。面内 88.3｛900｝・エッジ 79.4｛810｝ */
+function getTemperedGlassShortTermAllowableMpa(site: StressSite): number {
+  return site === 'edge' ? 79.4 : 88.3;
+}
+
+/** 支持条件から、比べる許容応力の位置（面内かエッジか）を決める */
+function stressSiteOf(support: SupportCondition): StressSite {
+  return support === 'TWO_EDGES_LONG_EDGES_SUPPORTED' ? 'edge' : 'inPlane';
 }
 
 /**
  * ガラス種別に応じた短期許容応力を返す
+ *
+ * 合わせガラス（素板はフロート）は、同資料 5-3「6 合わせガラス」により
+ * 「合計板厚と同厚のフロート板ガラスの許容応力」と「構成する各ガラスの許容応力」の最も低い値とする。
+ * 素板がフロートだけなら、構成ガラスは合計板厚より薄く許容応力は同じか大きいので、合計板厚のフロートの値になる。
+ * このため合わせガラスでは thicknessMm に合計板厚 T を渡す（等価単板厚 t ではない）。
+ * 2026-11-16 まで等価単板厚 t で引いていた（例: FL12+FL10 で 19.6。正しくは 18.6）。
  */
-function getGlassShortTermAllowableMpa(glassType: GlassType, thicknessMm: number): number {
+function getGlassShortTermAllowableMpa(glassType: GlassType, thicknessMm: number, site: StressSite): number {
   switch (glassType) {
     case 'tempered':
-      return getTemperedGlassShortTermAllowableMpa();
+      return getTemperedGlassShortTermAllowableMpa(site);
     case 'float':
     case 'laminated':
     default:
-      return getFloatGlassShortTermAllowableMpa(thicknessMm);
+      return getFloatGlassShortTermAllowableMpa(thicknessMm, site);
   }
 }
 
@@ -129,22 +144,21 @@ const BETA_ALPHA_FOUR_EDGES_UNIFORM: BetaAlphaRow[] = [
 ];
 
 /**
- * 二辺単純支持 × 等分布荷重（④）の β・α
+ * 二辺単純支持 × 等分布荷重（NSG 技術資料 5-3 の ④「等分布荷重を受ける二辺単純支持矩形板」）の β・α
  * ※「a はフリー辺とする」
  *   → ここでは shortSideMm をフリー辺 a とみなし、
  *      longSideMm を支持辺 b として b/a を計算している。
  *
- * b/a = 0.5, 0.7, 1, 1.2, 1.5, 2, 3, ∞
+ * b/a = 0.5, 1, 2, ∞
  *  ∞ は「十分大きい値」として 1e6 で代用
+ *
+ * 2026-11-16 まで、この表に ③「三辺単純支持矩形板」の値（b/a = 0.5 で β 0.350 など）を入れていた。
+ * 板硝子協会の正誤表（2025-10-27）でも、その数列は三辺支持の表とされている。
  */
 const BETA_ALPHA_TWO_EDGES_UNIFORM: BetaAlphaRow[] = [
-  { aspectBa: 0.5, beta: 0.350, alpha: 0.076 },
-  { aspectBa: 0.7, beta: 0.511, alpha: 0.108 },
-  { aspectBa: 1.0, beta: 0.661, alpha: 0.139 },
-  { aspectBa: 1.2, beta: 0.715, alpha: 0.150 },
-  { aspectBa: 1.5, beta: 0.758, alpha: 0.158 },
-  { aspectBa: 2.0, beta: 0.783, alpha: 0.164 },
-  { aspectBa: 3.0, beta: 0.791, alpha: 0.165 },
+  { aspectBa: 0.5, beta: 0.765, alpha: 0.160 },
+  { aspectBa: 1.0, beta: 0.782, alpha: 0.163 },
+  { aspectBa: 2.0, beta: 0.791, alpha: 0.165 },
   { aspectBa: 1e6, beta: 0.791, alpha: 0.165 }, // b/a → ∞ の近似
 ];
 
@@ -216,6 +230,11 @@ export interface CheckOptions {
   deflectionLimitRatio?: number;
   /** ガラス種別（デフォルト 'float'） */
   glassType?: GlassType;
+  /**
+   * 許容応力を引く板厚 [mm]。省略時は計算に使う板厚。
+   * 合わせガラスは応力・たわみを等価単板厚で計算し、許容応力は合計板厚で引く（findRequiredLaminatedGlassThickness が渡す）
+   */
+  allowableThicknessMm?: number;
 }
 
 /**
@@ -257,7 +276,12 @@ export function checkThickness(
   const deltaMax =
     alpha * w * Math.pow(a, 4) / (E_GLASS_MPA * Math.pow(thicknessMm, 3));
 
-  const sigmaAllow = getGlassShortTermAllowableMpa(options?.glassType ?? 'float', thicknessMm);
+  // 四辺支持は面中央の応力 σc を面内の許容応力と、二辺支持は自由辺の応力 σe をエッジの許容応力と比べる
+  const sigmaAllow = getGlassShortTermAllowableMpa(
+    options?.glassType ?? 'float',
+    options?.allowableThicknessMm ?? thicknessMm,
+    stressSiteOf(support),
+  );
   const deflectionAllow = getDeflectionAllowMm(
     a,
     options?.deflectionLimitRatio ?? 200,
@@ -399,8 +423,8 @@ export function findRequiredLaminatedGlassThickness(
     // 等価単板厚を計算
     const equivalentThickness = calculateLaminatedGlassEquivalentThickness(totalThickness);
     
-    // 等価単板厚で応力・たわみをチェック
-    const r = checkThickness(panel, equivalentThickness, options);
+    // 等価単板厚で応力・たわみをチェック。許容応力は合計板厚のフロートの値（NSG 技術資料 5-3「6 合わせガラス」）
+    const r = checkThickness(panel, equivalentThickness, { ...options, allowableThicknessMm: totalThickness });
     
     // 結果に実際の合計板厚を記録（表示用）
     const result: ThicknessCheckResult = {

@@ -528,7 +528,7 @@ export const ITEMS: ItemDef[] = [
   { cat: 'struct', label: '地盤調査と地耐力の設定', basis: '令93条・H13告1113' },
   { cat: 'struct', label: '基礎形式の選定', basis: '令38条・H12告1347・基礎指針' },
   { cat: 'struct', label: '構造計算ルートの判定', basis: '法20条・令81条' },
-  { cat: 'struct', label: '壁量計算・四分割法', basis: '令46条・H12告1352', na: (p) => (p.str !== 'w' ? '木造以外のため対象外' : null) },
+  { cat: 'struct', label: '壁量計算・四分割法', basis: '令46条・S56告1100', na: (p) => (p.str !== 'w' ? '木造以外のため対象外' : null) },
   { cat: 'struct', label: 'N値計算と接合金物', basis: '令47条・H12告1460', na: (p) => (p.str !== 'w' ? '木造以外のため対象外' : null) },
   {
     cat: 'struct',

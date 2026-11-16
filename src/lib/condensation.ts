@@ -34,7 +34,10 @@ export const CATEGORY_LABELS: Record<string, string> = {
 
 export const DEFAULT_MATERIALS: Material[] = [
   // --- 外装 ---
-  { id: 'ext_siding', name: '窯業系サイディング', lambda: 1.0, mu: 40, category: 'finish' },
+  // μ（透湿抵抗比）は 空気の透湿率 192 ng/(m·s·Pa) ÷ 材料の透湿率 で換算（2026-11-16）。
+  //   材料の透湿率は JFEロックファイバー技術資料・硝子繊維協会（IBEC『住宅の省エネルギー基準の解説』からの転載）の表による
+  // 窯業系サイディング: 透湿率 2.1 ng/(m·s·Pa)（塗装なし）→ μ ≒ 91（旧値 40）。λ1.0 は公的資料で出典未確認
+  { id: 'ext_siding', name: '窯業系サイディング', lambda: 1.0, mu: 90, category: 'finish' },
   { id: 'metal_siding', name: '金属サイディング', lambda: 0.04, mu: 1000, category: 'finish' }, // 断熱裏打込
   { id: 'alc', name: 'ALCパネル', lambda: 0.17, mu: 10, category: 'finish' },
   { id: 'ecp', name: '押出成形セメント板(ECP)', lambda: 0.40, mu: 60, category: 'finish' }, // JIS A 5441 解説: 約0.34〜0.47
@@ -42,6 +45,7 @@ export const DEFAULT_MATERIALS: Material[] = [
   { id: 'galvalume', name: 'ガルバリウム鋼板', lambda: 50, mu: 100000, category: 'finish' },
 
   // --- 屋根 ---
+  // 化粧スレート: λ1.0・μ150 とも公的資料で出典未確認（建築研究所の熱物性値の表は「かわら 1.0」のみ）
   { id: 'roof_slate', name: '化粧スレート', lambda: 1.0, mu: 150, category: 'roof' },
   { id: 'roof_metal', name: '金属屋根(鋼板)', lambda: 50, mu: 100000, category: 'roof' },
   { id: 'roof_folded', name: '折板(ダブル折板用鋼板)', lambda: 50, mu: 100000, category: 'roof' },
@@ -61,8 +65,10 @@ export const DEFAULT_MATERIALS: Material[] = [
   { id: 'vapor_barrier', name: '可変透湿気密シート', lambda: 0.33, mu: 10000, category: 'membrane' },
 
   // --- 構造 ---
-  { id: 'plywood', name: '構造用合板', lambda: 0.16, mu: 20, category: 'structure' },
-  { id: 'osb', name: 'OSB合板', lambda: 0.13, mu: 50, category: 'structure' },
+  // 構造用合板: λ0.16 は建築研究所の熱物性値（合板）。透湿率 1.11 ng/(m·s·Pa) → μ ≒ 173（旧値 20 は外側の合板の透湿抵抗を 1/8 に見て結露を見逃す側）
+  { id: 'plywood', name: '構造用合板', lambda: 0.16, mu: 170, category: 'structure' },
+  // OSB: 透湿率 0.594 ng/(m·s·Pa) → μ ≒ 323（旧値 50）。λ0.13 は公的資料で出典未確認
+  { id: 'osb', name: 'OSB合板', lambda: 0.13, mu: 320, category: 'structure' },
   { id: 'concrete', name: 'コンクリート', lambda: 1.6, mu: 40, category: 'structure' },
 
   // --- 断熱材 ---
@@ -605,6 +611,10 @@ const LEGACY_DEFAULTS: Record<string, { lambda: number; mu: number }> = {
   ecp: { lambda: 1.0, mu: 60 },
   breathable: { lambda: 0.2, mu: 0.5 },
   air_stat: { lambda: 0.14, mu: 1 },
+  // 2026-11-16 に μ を透湿率からの換算値へ直した材料
+  ext_siding: { lambda: 1.0, mu: 40 },
+  plywood: { lambda: 0.16, mu: 20 },
+  osb: { lambda: 0.13, mu: 50 },
 };
 type MaterialOverride = { lambda?: number; mu?: number; fixedR?: number };
 export interface StoredMaterials { overrides: Record<string, MaterialOverride>; custom: Material[] }

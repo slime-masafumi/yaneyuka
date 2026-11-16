@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { CASE_EVENT, getMode, loadCases, saveStudy, selectCase, setMode, studiesOf, touchRecent, type CaseInfo } from '@/lib/caseStudies';
+import { CASE_EVENT, getMode, isStudyStale, loadCases, saveStudy, selectCase, setMode, studiesOf, touchRecent, type CaseInfo } from '@/lib/caseStudies';
 import { useInfoRows } from '@/lib/useInfoRows';
 
 /**
@@ -203,7 +203,7 @@ export function CaseSave({ tool, result, ok }: { tool: string; result: string; o
             <label key={c.id} className={sel === c.id ? 'is-on' : undefined}>
               <input type="radio" name={`case-${tool}`} checked={sel === c.id} onChange={() => setSel(c.id)} />
               <span className="yy-casepick__name">{c.name}</span>
-              <span className="yy-casepick__st">{done ? `済 · ${done.result}` : '未'}</span>
+              <span className="yy-casepick__st">{done ? (isStudyStale(done) ? `要再計算(算定式を直す前の結果) · ${done.result}` : `済 · ${done.result}`) : '未'}</span>
             </label>
           );
         })}

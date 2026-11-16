@@ -2766,7 +2766,7 @@ const MaterialInfo: React.FC<{ embedded?: boolean; initialSection?: string | nul
               <tbody>
                 <tr>
                   <td>幹線サイズ計算</td>
-                  <td>許容電流・電圧降下5％以内・同時使用率を考慮（CVケーブル選定）</td>
+                  <td>許容電流・電圧降下（供給点から最遠端の負荷まで 2％以下、電気使用場所内の変圧器から供給する場合は 3％以下。こう長 60m 超は内線規程 1310 節の表で 4〜7％）・同時使用率を考慮（CVケーブル選定）</td>
                 </tr>
                 <tr>
                   <td>負荷分散設計</td>

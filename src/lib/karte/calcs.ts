@@ -641,7 +641,7 @@ const vdrop: CalcSpec = {
     { k: 'i', label: '負荷電流', kind: 'num', unit: 'A', step: 1 },
     { k: 'l', label: '亘長(こう長)', kind: 'num', unit: 'm', step: 1 },
     { k: 'a', label: '電線の断面積', kind: 'num', unit: 'mm²', step: 1 },
-    { k: 'lim', label: '許容する電圧降下', kind: 'num', unit: '%', step: 0.5, def: () => '2', hint: '幹線・分岐それぞれ 2%。亘長 60m 超は内線規程の表(4〜7%)' },
+    { k: 'lim', label: '許容する電圧降下', kind: 'num', unit: '%', step: 0.5, def: () => '2', hint: '幹線・分岐それぞれ 2%。亘長 60m 超の内線規程 1310 節の表(4〜7%)は供給点から最遠端の負荷までの合計の値なので、この区間の値としてそのまま入れない' },
   ],
   note: 'e = K × L × I ÷(1000 × A)。K は単相 2 線 35.6・三相 3 線 30.8・単相 3 線と三相 4 線 17.8(電線 1 本と中性線の間)。力率・リアクタンスは見ない略算です。',
   run(v) {

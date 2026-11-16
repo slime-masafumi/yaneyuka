@@ -7,7 +7,8 @@
  */
 import { Store } from './karte/engine';
 
-export type CaseStudy = { tool: string; result: string; ok?: boolean; at: string };
+/** v: 保存したときのツールの算定式の版(TOOL_VERSION)。無ければ 1 */
+export type CaseStudy = { tool: string; result: string; ok?: boolean; at: string; v?: number };
 export type CaseInfo = { id: string; name: string; sub: string };
 
 const KEY = 'yy-case-studies';
@@ -59,11 +60,27 @@ export function studiesOf(caseId: string): CaseStudy[] {
   return read()[caseId] || [];
 }
 
+/**
+ * ツールの算定式の版。式や基準値を直したら上げる。保存した結果の版がこれより古ければ「要再計算」と出す。
+ * 2026-11-16: ガラス(二辺支持の係数・エッジの許容応力・強化・合わせガラス)と結露(合板・OSB・サイディングの透湿比抵抗)を直した
+ */
+export const TOOL_VERSION: Record<string, number> = {
+  'glass-thickness': 2,
+  condensation: 2,
+};
+
+/** 保存した後に算定式を直したツールの結果か */
+export function isStudyStale(s: CaseStudy): boolean {
+  const v = TOOL_VERSION[s.tool];
+  return !!v && (s.v ?? 1) < v;
+}
+
 /** 同じツールの結果は上書き(最新だけ持つ) */
-export function saveStudy(caseId: string, s: Omit<CaseStudy, 'at'>) {
+export function saveStudy(caseId: string, s: Omit<CaseStudy, 'at' | 'v'>) {
   const all = read();
   const list = (all[caseId] || []).filter((x) => x.tool !== s.tool);
-  list.unshift({ ...s, at: new Date().toISOString() });
+  const v = TOOL_VERSION[s.tool];
+  list.unshift({ ...s, at: new Date().toISOString(), ...(v ? { v } : {}) });
   all[caseId] = list;
   try {
     localStorage.setItem(KEY, JSON.stringify(all));

@@ -51,6 +51,14 @@ const SUPPORT_LABEL: Record<SupportCondition, string> = {
 const METHOD_LABEL = { NSG_SIMPLE: 'NSG 簡略', KOKUJI_SIMPLE: '告示1458', KOKUJI_FULL: '告示フル' } as const;
 
 /**
+ * 許容応力の決め方の注記(画面 2 か所で同じ文)。2026-11-16 に glassDesignEngine.ts を NSG 技術資料 5-3 に合わせた。
+ * 設計ツールで「案件に保存」した結果(src/lib/caseStudies.ts)には算定式の版を持たせていないので、
+ * 物件カルテのガラス厚(engine.ts の staleOf)のように自動で要確認には戻らない。ここで再計算を促す
+ */
+const GLASS_ALLOW_NOTE =
+  '許容応力は NSG 技術資料の短期許容応力(表3)。4 辺支持は面中央の応力を面内の値と、2 辺支持は自由辺の応力をエッジの値(フロート 17.7・強化 79.4 MPa)と比べます。強化の面内は 88.3 MPa、合わせガラスは合計板厚と同じ厚さのフロートの値です。2026-11-16 に直しました(それまでは 2 辺支持に三辺支持の係数と面内の値、強化に 58.8 MPa、合わせに等価単板厚の値を使っていました)。2 辺支持と合わせガラスは必要な厚さが増えることがあります。それより前に保存した結果は計算し直してください。';
+
+/**
  * 図:左に建物の立面と基準高さ・基準風速、右にガラスの立面と寸法・設計風圧(モック gen-x-svg.js の glassSvg を入力値で描く)
  * 値が無いところは「—」。ガラスの縦横比は入力した短辺・長辺に合わせる
  */
@@ -304,6 +312,7 @@ const GlassThickness: React.FC<GlassThicknessProps> = ({ hideHeader, sheet }) =>
       log.push(`ピーク風力係数 Ĉf: 正 ${wr.cPos.toFixed(2)}（Cpe ${wr.kz.toFixed(2)} × Gpe ${wr.gpe.toFixed(2)} + 0.5）/ 負 ${wr.cNeg.toFixed(2)}（${isCorner ? '隅角部' : '一般部'}）→ ${wr.c.toFixed(2)}`);
     }
     log.push(`支持条件: ${supportCondition === 'FOUR_EDGES_SIMPLY_SUPPORTED' ? '四辺単純支持' : '二辺単純支持（長辺支持）'}`);
+    log.push(`許容応力: ${supportCondition === 'FOUR_EDGES_SIMPLY_SUPPORTED' ? '面内 σac(面中央の応力と比較)' : 'エッジ σae(自由辺の応力と比較)'}`);
     log.push(`たわみ制限: L/${deflectionLimitRatio}`);
     log.push(
       `ガラス種別: ${
@@ -327,14 +336,13 @@ const GlassThickness: React.FC<GlassThicknessProps> = ({ hideHeader, sheet }) =>
           glassType: 'float', // 合わせガラスの素板はフロートガラスとして評価
         });
 
-        if (!singleResult.ok || !singleResult.recommendedThicknessMm) {
-          setCalculationResult(singleResult);
-          setCalculationLog(log.join('\n'));
-          return;
+        // 単板の候補(19mm まで)で足りなくても、合わせガラスは合計 30mm まで探す。
+        // 2026-11-16 に 2 辺支持をエッジの許容応力で比べるようにしてから、単板 19mm では不足・合わせ 24mm で足りる例が出る
+        if (singleResult.ok && singleResult.recommendedThicknessMm) {
+          log.push(`必要な等価単板厚: ${singleResult.recommendedThicknessMm.toFixed(1)} mm`);
+        } else {
+          log.push('単板の候補(19mm まで)では足りないため、合わせガラスの合計板厚で探します');
         }
-
-        const requiredEquivalentThickness = singleResult.recommendedThicknessMm;
-        log.push(`必要な等価単板厚: ${requiredEquivalentThickness.toFixed(1)} mm`);
 
         // 合わせガラスの候補合計板厚（実務的な組み合わせ）
         const candidateTotalThicknesses = [12, 14, 16, 18, 20, 22, 24, 26, 28, 30];
@@ -364,7 +372,7 @@ const GlassThickness: React.FC<GlassThicknessProps> = ({ hideHeader, sheet }) =>
 
         log.push(`推奨板厚: ${result.recommendedThicknessMm} mm`);
         if (glassType === 'tempered') {
-          log.push(`※ 強化ガラス許容応力: 58.8 MPa を適用`);
+          log.push(`※ 強化ガラスの短期許容応力: 面内 88.3 / エッジ 79.4 MPa(NSG 技術資料 表3)`);
         }
       }
 
@@ -593,6 +601,7 @@ const GlassThickness: React.FC<GlassThicknessProps> = ({ hideHeader, sheet }) =>
             </p>
           )}
           <p className="glass-sheet__note">W は高さ・風速から自動で入ります。直接入力もできます(風の条件を変えると入れ直します)。</p>
+          <p className="glass-sheet__note">{GLASS_ALLOW_NOTE}</p>
           {windErrorMessage && <p className="glass-sheet__err">{windErrorMessage}</p>}
           {glassErrorMessage && <p className="glass-sheet__err">{glassErrorMessage}</p>}
         </section>
@@ -1103,6 +1112,7 @@ const GlassThickness: React.FC<GlassThicknessProps> = ({ hideHeader, sheet }) =>
                     <p className="text-[10px] text-gray-500">許容たわみ: {calculationResult.selected.deflectionAllowMm.toFixed(2)} mm</p>
                   </div>
                 </div>
+                <p className="text-[10px] text-gray-500 mt-3 leading-relaxed">{GLASS_ALLOW_NOTE}</p>
                 <div className="bg-gray-50 border-l-4 border-gray-400 p-3 rounded mt-3">
                   <p className="text-[10px] text-gray-700 mb-2 font-semibold">計算ログ</p>
                   <pre className="text-[9px] text-gray-600 whitespace-pre-wrap font-mono max-h-80 overflow-auto">

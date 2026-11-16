@@ -37,7 +37,10 @@ check('氷点下は氷面で判定するので水面より飽和圧が低い', s
   check('木造外壁 通気層側の Rse は Rsi と同じ', p.rseUsed, 0.11);
   check('木造外壁 外側 2 つの界面は判定しない', p.interfaces.slice(0, 2).map((f) => f.status), ['vent', 'vent']);
   check('木造外壁 通気層の内側の面は判定する', p.interfaces[2].status, 'ok');
-  check('木造外壁 −30℃でも結露しない', findLimitTemp(L, cond('wall_wood', { ti: 22 }), M), null);
+  // 2026-11-16 に構造用合板の μ を 20 → 170(透湿率 1.11 ng/(m·s·Pa) からの換算)に直した。
+  // 外側の合板の透湿抵抗が 8 倍になり、室内 22℃・50% では外気 −12.6℃ を下回ると合板の内側で結露する(旧値では −30℃でも結露しなかった)
+  const lim = findLimitTemp(L, cond('wall_wood', { ti: 22 }), M);
+  check('木造外壁 結露しない外気温の下限は −12.6℃(合板 μ170)', lim === null ? null : r1(lim), -12.6);
 }
 
 // --- 空気層は厚さによらず R 0.09
@@ -94,7 +97,9 @@ check('氷点下は氷面で判定するので水面より飽和圧が低い', s
   const stored = toStoredMaterials([...edited, { id: 'custom_1', name: '自作', lambda: 0.1, mu: 5, category: 'board' }]);
   check('保存は変えた値と自作材料だけ', [Object.keys(stored.overrides), stored.custom.length], [['gb'], 1]);
   check('読み込むと既定値に差分が重なる', fromStoredMaterials(stored).find((m) => m.id === 'gb')!.lambda, 0.3);
-  const legacy = M.map((m) => (m.id === 'ecp' ? { ...m, lambda: 1.0 } : m.id === 'breathable' ? { ...m, mu: 0.5 } : m));
+  // 旧形式は旧既定値で保存されている。2026-11-16 に μ を直した窯業系サイディング・構造用合板・OSB も旧値(40・20・50)で入れる
+  const OLD_MU: Record<string, number> = { breathable: 0.5, ext_siding: 40, plywood: 20, osb: 50 };
+  const legacy = M.map((m) => (m.id === 'ecp' ? { ...m, lambda: 1.0 } : m.id in OLD_MU ? { ...m, mu: OLD_MU[m.id] } : m));
   check('旧形式の旧既定値はユーザー編集とみなさない', Object.keys(migrateLegacyMaterials(legacy).overrides), []);
 }
 

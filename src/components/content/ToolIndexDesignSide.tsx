@@ -5,7 +5,7 @@ import { FORCE_FLOW_PUBLIC } from '@/lib/forceFlowGate';
 import { DESIGN_TOOL_MENU } from '@/lib/designToolsMenu';
 import { Store, itemStatus, type ItemStatus } from '@/lib/karte/engine';
 import { CATS, ITEMS, itemKey } from '@/lib/karte/masters';
-import { ago, recentTools, setMode, studiesOf, type RecentTool } from '@/lib/caseStudies';
+import { ago, isStudyStale, recentTools, setMode, studiesOf, type RecentTool } from '@/lib/caseStudies';
 import { SecHead, useCase } from '@/components/ui/Sheet';
 
 /**
@@ -70,7 +70,9 @@ export function useToolStates(): { mode: 'case' | 'free'; states: Record<string,
         const own = saved.find((s) => s.tool === t.id);
         const item = TOOL_TO_ITEM[t.id];
         const st = item ? byLabel.get(item) : undefined;
-        if (own) states[t.id] = { item, status: 'done', note: own.result };
+        // 保存した後に算定式を直したツールは「未着手」に戻して、再計算を促す
+        if (own && isStudyStale(own)) states[t.id] = { item, status: 'todo', note: `要再計算(算定式を直す前の結果): ${own.result}` };
+        else if (own) states[t.id] = { item, status: 'done', note: own.result };
         else if (!item || !st) states[t.id] = { status: 'out' };
         else states[t.id] = { item, status: st === 'na' ? 'na' : st === 'done' ? 'done' : 'todo' };
       }
