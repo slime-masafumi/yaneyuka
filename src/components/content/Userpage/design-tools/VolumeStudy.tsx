@@ -3,11 +3,14 @@
  * 基本設計 › ボリューム検討。1 組の敷地条件から「この敷地に何 m²・何階まで建つか」と、どの制限が効くかを出す。
  * 計算は src/lib/volume.ts(建蔽率は karte/site.ts、斜線・絶対高さは setback.ts、日影の目安は shadow.ts を使う)。2026-11-16
  * 見た目は斜線制限(SetbackCalc.tsx)と同じ組み方: 左に入力、右に答えの面 1 つと 1px 罫線の表。
+ * 2026-11-16: 塔屋(令 2 条 1 項 6 号ロ)の入力と、天空率(法 56 条 7 項)で斜線を超えられる階数の表を足した。
+ *   2 本目の前面道路は令 132 条で幅員をみなす(volume.ts)。答えの延べ面積は従来どおり斜線で比べた値。
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ResultRow } from '@/components/ui/Sheet';
 import DtResult from './DtResult';
+import SkyTable from './SkyTable';
 import { ZONES, zoneOf } from '@/lib/setback';
 import { CITIES, SHADOW_ZONES, hm } from '@/lib/shadow';
 import { ZONE_GUIDES } from '@/lib/zoneGuide';
@@ -155,6 +158,8 @@ export default function VolumeStudy() {
   const [ftf, setFtf] = useState('3');
   const [extra, setExtra] = useState('1');
   const [basement, setBasement] = useState('0');
+  const [pArea, setPArea] = useState('');
+  const [pH, setPH] = useState('');
   const [absH, setAbsH] = useState<10 | 12>(10);
   const [kodo, setKodo] = useState('');
   const [note3, setNote3] = useState(false);
@@ -224,8 +229,9 @@ export default function VolumeStudy() {
       side25,
       noneSlope,
       shadow: sz && shGo ? { group: sz.id, go: shGo, plane: Number(shPlane), lat: Number(lat) || 35.68, hokkaido } : null,
+      pent: Number(pArea) > 0 && Number(pH) > 0 ? { area: Number(pArea), height: Number(pH) } : null,
     }),
-    [parts, frontPart, r1Dir, r1W, r2On, r2DirEff, r2W, nisetsu, deemed, oneSide, tokutei, tokuteiL, corner, fr, siteW, siteD, roadSet, sideSet, northOv, ftf, extra, basement, absH, kodo, note3, side25, noneSlope, sz, shGo, shPlane, lat, hokkaido]
+    [parts, frontPart, r1Dir, r1W, r2On, r2DirEff, r2W, nisetsu, deemed, oneSide, tokutei, tokuteiL, corner, fr, siteW, siteD, roadSet, sideSet, northOv, ftf, extra, basement, absH, kodo, note3, side25, noneSlope, sz, shGo, shPlane, lat, hokkaido, pArea, pH]
   );
   const r = useMemo(() => calcVolume(v), [v]);
 
@@ -366,7 +372,7 @@ export default function VolumeStudy() {
               </div>
             )}
             <Check v={r2On} set={setR2On}>
-              2 本目の前面道路がある
+              2 本目の前面道路がある(道路斜線は令 132 条で幅員をみなす)
             </Check>
             {r2On && (
               <div className="grid grid-cols-2 gap-2 pl-4">
@@ -407,6 +413,11 @@ export default function VolumeStudy() {
               <Num k="1FL + パラペット等(m)" v={extra} set={setExtra} />
               <Num k="地階の数" v={basement} set={setBasement} step="1" />
             </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Num k="塔屋の面積(m²・なければ空欄)" v={pArea} set={setPArea} />
+              <Num k="塔屋の高さ(屋上から・m)" v={pH} set={setPH} />
+            </div>
+            <p className="text-[10px] text-gray-400">階段室・昇降機塔など。建築面積の 1/8 以内なら高さの一部を算入しない(令 2 条 1 項 6 号ロ)。箱の中央に置いて日影・天空率に入れる。</p>
           </div>
 
           <div className={box}>
@@ -652,6 +663,16 @@ export default function VolumeStudy() {
                     </tr>
                   );
                 })}
+                {r.pent && (
+                  <tr className="border-b border-[#e3e1db] text-[10.5px] text-gray-500">
+                    <td className="py-1 pr-2 align-top">
+                      └ 塔屋 {f2(r.pent.area)} m²(1/8 = {f2(r.pent.limit)} m²{r.pent.within ? ' 以内' : ' を超える'})
+                    </td>
+                    <td className="py-1" colSpan={3}>
+                      高さ {f2(r.pent.height)} m のうち算入: {r.pent.rows.map((x) => `${x.k} ${f2(x.counted)} m`).join(' · ')}(令 2 条 1 項 6 号ロ{r.pent.within ? '。高度地区は斜線型なら全部算入なので安全側で全部算入・要確認' : ''})
+                    </td>
+                  </tr>
+                )}
                 <tr className="border-b border-[#3b3b3b]">
                   <td className="py-1 pr-2 align-top whitespace-nowrap" style={gov === 'far' ? { color: ACC } : undefined}>
                     {gov === 'far' && <span className="yy-dot" style={{ background: ACC }} />}
@@ -668,9 +689,41 @@ export default function VolumeStudy() {
             {multi && <p className="yy-dt-note text-[10.5px] text-gray-500 mt-1">敷地が 2 以上の地域にわたるので、隣地斜線・北側斜線・絶対高さは建物がかかる地域のうち厳しい方で見ています。道路斜線は前面道路に接する部分の地域(令 130 条の 11)。</p>}
           </div>
 
+          {r.ok && (
+            <div>
+              <div className="yy-sec">
+                <span className="yy-sec__no">003</span>
+                <span className="yy-sec__title">天空率</span>
+                <span className="yy-sec__right">法 56 条 7 項 · 箱のまま斜線を超える階数を試す</span>
+              </div>
+              {r.sky ? (
+                <>
+                  <p className="text-[11.5px] mb-1">
+                    {r.sky.gain > 0
+                      ? `天空率なら地上 ${r.sky.floors} 階・${f2(r.sky.height)} m・延べ ${f2(r.sky.area)} m² まで(斜線で比べると ${r.floors} 階)`
+                      : `天空率でも地上 ${r.floors} 階のまま`}
+                    {r.sky.capBy ? `。${r.sky.capBy}` : ''}
+                    {r.sky.checks.some((c) => c.close) ? '。差が誤差の範囲の点があるので要確認' : ''}
+                  </p>
+                  <p className="text-[10.5px] text-gray-500 mb-1">地上 {r.sky.at} 階({f2(r.sky.at * (Number(ftf) || 3) + (Number(extra) || 0))} m)で測った結果。斜線を超える種類だけ判定する。日影・絶対高さ・高度地区は天空率では緩和されない。</p>
+                  {r.sky.checks.length > 0 && <SkyTable checks={r.sky.checks} />}
+                  {r.sky.unsure.length > 0 && (
+                    <ul className="text-[10px] text-gray-500 leading-relaxed mt-1">
+                      {r.sky.unsure.map((x) => (
+                        <li key={x}>要確認: {x}</li>
+                      ))}
+                    </ul>
+                  )}
+                </>
+              ) : (
+                <p className="text-[10.5px] text-gray-500">{r.governing.key === 'far' ? '容積率を使い切れるので、天空率は要らない。' : '斜線で頭打ちになっていないので、天空率では階数は増えない。'}</p>
+              )}
+            </div>
+          )}
+
           <div>
             <div className="yy-sec">
-              <span className="yy-sec__no">003</span>
+              <span className="yy-sec__no">004</span>
               <span className="yy-sec__title">平面</span>
               <span className="yy-sec__right">真北が上 · 東西南北に正対した長方形で近似 · 差し色 = 効いている面</span>
             </div>
@@ -679,7 +732,7 @@ export default function VolumeStudy() {
 
           <div>
             <div className="yy-sec">
-              <span className="yy-sec__no">004</span>
+              <span className="yy-sec__no">005</span>
               <span className="yy-sec__title">見ていないもの</span>
             </div>
             <ul className="text-[10.5px] text-gray-500 leading-relaxed list-none space-y-0.5">
@@ -690,7 +743,7 @@ export default function VolumeStudy() {
               ))}
             </ul>
             <p className="text-[10px] text-gray-400 leading-relaxed mt-2">
-              ※ 建築基準法 第 42 条 2 項・52 条・53 条・55 条・56 条・56 条の 2・58 条、施行令 2 条・130 条の 11・135 条の 18 による目安です(e-Gov の現行本文で確認)。建物は 1 つの直方体で、上階のセットバックは見ていません。最終的な数値は特定行政庁・確認検査機関に確認してください。個別の検討は
+              ※ 建築基準法 第 42 条 2 項・52 条・53 条・55 条・56 条・56 条の 2・58 条、施行令 2 条・130 条の 11・132 条・135 条の 5〜11・135 条の 18 による目安です(e-Gov の現行本文で確認)。建物は 1 つの直方体で、上階のセットバックは見ていません。最終的な数値は特定行政庁・確認検査機関に確認してください。個別の検討は
               <Link href="/calc/building-regulations/">建蔽率・容積率</Link>・<Link href="/calc/setback-regulation/">斜線制限</Link>・<Link href="/calc/shadow-regulation/">日影規制</Link>で。
             </p>
           </div>

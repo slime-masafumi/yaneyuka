@@ -8,6 +8,10 @@
  * 太陽の位置は赤緯 −23.44°(冬至)と真太陽時の時角から計算する(均時差は真太陽時なので不要)。
  * 56 条の 2 第 1 項は「(に)欄の時間以上日影となる部分を生じさせない」なので、規制時間ちょうども不適合(画面側で >= で判定)。
  * 2026-11-16: 道路・水面・線路敷等の緩和と高低差の緩和(令 135 条の 12 第 3 項)を足した。
+ * 2026-11-16: 塔屋の影(pent)と、日影時間の制限の異なる区域にまたがる場合(法 56 条の 2 第 5 項・令 135 条の 13、
+ *   対象区域外の建物の影が対象区域に落ちる場合 同 4 項)を足した → computeShadowZones()。
+ *   塔屋の高さは、規制の対象になるか(別表第 4(ろ)欄二・三・四の項ロの「高さ 10m 超」と 56 条の 2 第 4 項)では
+ *   建築面積の 1/8 以内なら 5m まで算入しない(令 2 条 1 項 6 号ロ)。日影そのものは塔屋の影も含めて数える(実際に落ちる影)。
  */
 
 export type ShadowZone = { id: string; label: string; item: string; applies: string; planes: number[]; rows: { go: string; near: number; far: number; nearH: number; farH: number }[] };
@@ -158,6 +162,10 @@ export type ShadowIn = {
   wayW?: number;
   /** 隣地(日影の生ずる土地)の地盤面 − 敷地の平均地盤面(m)。1m 以上で平均地盤面を(差 − 1)/ 2 高くみなす(同 2 号) */
   diff?: number;
+  /** 塔屋(建物と同じ軸。x0..x1 × y0..y1 は建物の南西の角から・h は屋上からの高さ) */
+  pent?: { x0: number; y0: number; x1: number; y1: number; h: number } | null;
+  /** 格子の範囲を決める測定面の高さ(2 つの測定面で同じ格子にそろえるとき。既定 = plane) */
+  gridPlane?: number;
 };
 
 /**
@@ -208,7 +216,9 @@ export function computeShadow(v: ShadowIn): ShadowOut {
   };
   // 影がいちばん長い時刻(始まり)の長さで範囲を決める
   const s0 = sunAt(v.lat, t0);
-  const maxLen = he > 0 && s0.alt > 0 ? he / Math.tan(s0.alt) : 0;
+  const pentH = v.pent && v.pent.h > 0 ? v.pent.h : 0;
+  const heGrid = v.bh + pentH - (v.gridPlane ?? v.plane) - diffRaiseShadow(v.diff);
+  const maxLen = heGrid > 0 && s0.alt > 0 ? heGrid / Math.tan(s0.alt) : 0;
   const reach = Math.min(Math.max(maxLen, 15), 200);
   const gx0 = site.x0 - reach - 2;
   const gx1 = site.x1 + reach + 2;
@@ -229,35 +239,48 @@ export function computeShadow(v: ShadowIn): ShadowOut {
       dist[j * nx + i] = Math.hypot(dx, dy);
     }
   }
-  if (he > 0) {
+  // 影を落とす直方体: [平面の 4 隅, 下端の測定面からの高さ, 上端の測定面からの高さ]
+  const boxes: { base: Pt[]; zb: number; zt: number }[] = [];
+  const rect = (x0: number, y0: number, x1: number, y1: number): Pt[] => [
+    [x0, y0],
+    [x1, y0],
+    [x1, y1],
+    [x0, y1],
+  ];
+  if (he > 0) boxes.push({ base: rect(0, 0, v.bw, v.bd), zb: 0, zt: he });
+  if (v.pent && pentH > 0 && he + pentH > 0) boxes.push({ base: rect(v.pent.x0, v.pent.y0, v.pent.x1, v.pent.y1), zb: Math.max(0, he), zt: he + pentH });
+  if (boxes.length) {
     const rot = v.rot * D2R;
-    const base: Pt[] = [
-      [0, 0],
-      [v.bw, 0],
-      [v.bw, v.bd],
-      [0, v.bd],
-    ];
-    for (let t = t0 + DT / 2; t < t1; t += DT) {
+    // 同じ時刻に 2 つの影が重なった点を 2 度数えない
+    const stamp = new Int32Array(nx * ny).fill(-1);
+    let ti = 0;
+    for (let t = t0 + DT / 2; t < t1; t += DT, ti++) {
       const s = sunAt(v.lat, t);
       if (s.alt <= 0) continue;
-      const L = he / Math.tan(s.alt);
       // 影は太陽の反対へ。真北基準の方位(真南から西回り az)→ 敷地軸へ回す
-      const sx = Math.sin(s.az) * L;
-      const sy = Math.cos(s.az) * L;
-      const ox = sx * Math.cos(rot) - sy * Math.sin(rot);
-      const oy = sx * Math.sin(rot) + sy * Math.cos(rot);
-      const poly = hull([...base, ...base.map(([x, y]) => [x + ox, y + oy] as Pt)]);
-      const xs = poly.map((p) => p[0]);
-      const ys = poly.map((p) => p[1]);
-      const i0 = Math.max(0, Math.floor((Math.min(...xs) - gx0) / step));
-      const i1 = Math.min(nx - 1, Math.ceil((Math.max(...xs) - gx0) / step));
-      const j0 = Math.max(0, Math.floor((Math.min(...ys) - gy0) / step));
-      const j1 = Math.min(ny - 1, Math.ceil((Math.max(...ys) - gy0) / step));
-      for (let j = j0; j <= j1; j++) {
-        const y = gy0 + (j + 0.5) * step;
-        for (let i = i0; i <= i1; i++) {
-          const x = gx0 + (i + 0.5) * step;
-          if (inConvex(poly, x, y)) hours[j * nx + i] += DT;
+      const ux = Math.sin(s.az) / Math.tan(s.alt);
+      const uy = Math.cos(s.az) / Math.tan(s.alt);
+      const ox1 = ux * Math.cos(rot) - uy * Math.sin(rot);
+      const oy1 = ux * Math.sin(rot) + uy * Math.cos(rot);
+      for (const b of boxes) {
+        const poly = hull([...b.base.map(([x, y]) => [x + ox1 * b.zb, y + oy1 * b.zb] as Pt), ...b.base.map(([x, y]) => [x + ox1 * b.zt, y + oy1 * b.zt] as Pt)]);
+        const xs = poly.map((p) => p[0]);
+        const ys = poly.map((p) => p[1]);
+        const i0 = Math.max(0, Math.floor((Math.min(...xs) - gx0) / step));
+        const i1 = Math.min(nx - 1, Math.ceil((Math.max(...xs) - gx0) / step));
+        const j0 = Math.max(0, Math.floor((Math.min(...ys) - gy0) / step));
+        const j1 = Math.min(ny - 1, Math.ceil((Math.max(...ys) - gy0) / step));
+        for (let j = j0; j <= j1; j++) {
+          const y = gy0 + (j + 0.5) * step;
+          for (let i = i0; i <= i1; i++) {
+            const k = j * nx + i;
+            if (stamp[k] === ti) continue;
+            const x = gx0 + (i + 0.5) * step;
+            if (inConvex(poly, x, y)) {
+              hours[k] += DT;
+              stamp[k] = ti;
+            }
+          }
         }
       }
     }
@@ -277,3 +300,131 @@ export const hm = (h: number) => {
   const m = Math.round(h * 60);
   return `${Math.floor(m / 60)} 時間 ${String(m % 60).padStart(2, '0')} 分`;
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 日影時間の制限の異なる区域にまたがる場合(法 56 条の 2 第 4 項・第 5 項・令 135 条の 13)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** 区域の規制。group = SHADOW_ZONES の id、'out' = 対象区域外(商業地域など・条例で指定のない区域) */
+export type AreaRule = { group: string; go: string; plane: number };
+/**
+ * 区域の境界線。敷地(実際の境界線)の dir 側に、境界線から dist(m)離れた直線で区域が分かれ、その外側が 2 つ目の区域。
+ * dist が負なら敷地の内側(建物が区域の内外にわたる)
+ */
+export type ZoneSplit = { dir: 'N' | 'E' | 'S' | 'W'; dist: number };
+
+export const LOW_GROUPS = ['low', 'none-i'];
+
+export type ZoneResult = {
+  rule: AreaRule;
+  label: string;
+  item: string;
+  /** 規制時間(対象区域外なら null) */
+  near: number | null;
+  far: number | null;
+  plane: number;
+  /** この区域の規制がかかるか */
+  applies: boolean;
+  /** その区域の別表第 4(ろ)欄だけで見たとき対象か */
+  ownCovered: boolean;
+  maxNear: number;
+  maxFar: number;
+  ngNear: boolean;
+  ngFar: boolean;
+};
+
+export type ShadowZonesOut = {
+  /** 測定面ごとに数えた日影時間を、点の区域で選んで 1 枚にしたもの */
+  out: ShadowOut;
+  /** 各点の区域(0 = 敷地のある区域、1 = 2 つ目の区域) */
+  zoneIdx: Uint8Array;
+  zones: ZoneResult[];
+  /** 令 135 条の 13 の対象建築物(56 条の 2 第 4 項の 10m 超を含む) */
+  target: boolean;
+  unsure: string[];
+};
+
+export function inSplit(split: ZoneSplit, real: ShadowOut['real'], x: number, y: number): boolean {
+  if (split.dir === 'N') return y > real.y1 + split.dist;
+  if (split.dir === 'S') return y < real.y0 - split.dist;
+  if (split.dir === 'E') return x > real.x1 + split.dist;
+  return x < real.x0 - split.dist;
+}
+
+/**
+ * 区域ごとに規制時間・測定面を当てて日影時間の最大を出す。
+ *   eave = 軒の高さ(m)、floors3 = 地階を除く階数 3 以上、h10 = 「高さ 10m 超」を判定する高さ(塔屋 1/8 以内なら 5m まで不算入した値)
+ *   敷地のある区域: その区域の(ろ)欄で対象なら規制
+ *   2 つ目の区域: 令 135 条の 13 の対象建築物(低層・無指定イの区域内で軒高 7m 超 / 3 階以上、または高さ 10m 超)なら、
+ *     その区域に建物があるものとして、その区域の規制時間・測定面を当てる。敷地が対象区域外なら 56 条の 2 第 4 項(高さ 10m 超)
+ *   5m・10m の線は、どちらの区域でも敷地境界線(道路等の緩和でみなした線)から測る(56 条の 2 第 1 項)
+ */
+export function computeShadowZones(v: ShadowIn, a: AreaRule, b: AreaRule | null, split: ZoneSplit | null, hokkaido: boolean, opt: { eave: number; floors3: boolean; h10: number }): ShadowZonesOut {
+  const rules = b && split ? [a, b] : [a];
+  const zoneOfRule = (r: AreaRule) => SHADOW_ZONES.find((z) => z.id === r.group) ?? null;
+  const covers = (g: string | null) => (g === null ? false : LOW_GROUPS.includes(g) ? opt.eave > 7 || opt.floors3 : opt.h10 > 10);
+  const za = zoneOfRule(a);
+  const target = (za !== null && LOW_GROUPS.includes(za.id) && (opt.eave > 7 || opt.floors3)) || opt.h10 > 10;
+  const planes = rules.map((r) => {
+    const z = zoneOfRule(r);
+    return z ? (z.planes.includes(r.plane) ? r.plane : z.planes[0]) : null;
+  });
+  const realPlanes = planes.filter((p): p is number => p !== null);
+  const gridPlane = realPlanes.length ? Math.min(...realPlanes) : 0;
+  const runs = new Map<number, ShadowOut>();
+  const run = (p: number) => {
+    if (!runs.has(p)) runs.set(p, computeShadow({ ...v, plane: p, gridPlane }));
+    return runs.get(p)!;
+  };
+  const base = run(planes[0] ?? planes[1] ?? gridPlane);
+  const n = base.nx * base.ny;
+  const zoneIdx = new Uint8Array(n);
+  const hours = new Float32Array(n);
+  const unsure: string[] = [];
+  if (split && b) {
+    for (let j = 0; j < base.ny; j++) {
+      for (let i = 0; i < base.nx; i++) {
+        const x = base.x0 + (i + 0.5) * base.step;
+        const y = base.y0 + (j + 0.5) * base.step;
+        if (inSplit(split, base.real, x, y)) zoneIdx[j * base.nx + i] = 1;
+      }
+    }
+  }
+  const zones: ZoneResult[] = rules.map((r, zi) => {
+    const z = zoneOfRule(r);
+    const row = z ? (z.rows.find((x) => x.go === r.go) ?? z.rows[0]) : null;
+    const ownCovered = covers(z?.id ?? null);
+    const applies = z !== null && (zi === 0 ? ownCovered : target);
+    if (zi === 1 && applies && !ownCovered) unsure.push(`2 つ目の区域(${z!.label})の(ろ)欄だけで見ると対象外の建物です。令 135 条の 13 で対象建築物としてその区域の規制を当てています`);
+    const plane = planes[zi] ?? gridPlane;
+    const src = z ? run(plane) : base;
+    let maxNear = 0;
+    let maxFar = 0;
+    for (let k = 0; k < n; k++) {
+      if (zoneIdx[k] !== zi) continue;
+      const h = src.hours[k];
+      hours[k] = h;
+      const d = base.dist[k];
+      if (d > 10) maxFar = Math.max(maxFar, h);
+      else if (d > 5) maxNear = Math.max(maxNear, h);
+    }
+    const near = row ? (hokkaido ? row.nearH : row.near) : null;
+    const far = row ? (hokkaido ? row.farH : row.far) : null;
+    return {
+      rule: r,
+      label: z ? z.label : '対象区域外',
+      item: z ? z.item : '',
+      near,
+      far,
+      plane,
+      applies,
+      ownCovered,
+      maxNear,
+      maxFar,
+      // 56 条の 2: 規制時間「以上」日影となる部分を生じさせない(ちょうども不適合)
+      ngNear: applies && near !== null && maxNear >= near - 1e-6,
+      ngFar: applies && far !== null && maxFar >= far - 1e-6,
+    };
+  });
+  return { out: { ...base, hours }, zoneIdx, zones, target, unsure };
+}

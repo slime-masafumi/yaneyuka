@@ -4,11 +4,37 @@
  * 計算は src/lib/setback.ts(建築基準法 第 55 条・第 56 条・別表第 3、令 134 条・135 条の 2〜4)。2026-11-14
  * 2026-11-16: 適用距離を「前面道路の幅員で下げた後の容積率」で引くように直した(別表第 3(ろ)欄は 52 条 1・2・7・9 項の限度)。
  *   備考 3 を 1中高・2中高では容積率 400% 以上に限った。隣地斜線 31m + 2.5 の指定、絶対高さ、高低差・公園等の緩和を足した。
+ * 2026-11-16: 2 本目の前面道路(令 132 条・134 条 2 項)、塔屋の高さの不算入(令 2 条 1 項 6 号ロ)、天空率(法 56 条 7 項・skyFactor.ts)を足した。
+ *   どれも入れなければ(道路 1 本・塔屋なし)これまでと同じ値。天空率は答えの高さには入れず、下の表に別に出す。
  */
 import React, { useMemo, useState } from 'react';
 import { ResultRow } from '@/components/ui/Sheet';
 import DtResult from './DtResult';
-import { ZONES, absLimit, farLimit, m2, northLimit, note3Allowed, roadLimit, roadLine, side25Allowed, sideLimit, zoneOf, type SetbackIn, type ZoneId } from '@/lib/setback';
+import SkyTable from './SkyTable';
+import {
+  ZONES,
+  absLimit,
+  faceRoadLimit,
+  farLimit,
+  m2,
+  northLimit,
+  note3Allowed,
+  penthouseCounted,
+  road132,
+  roadLimit,
+  roadLine,
+  side25Allowed,
+  sideLimit,
+  zoneOf,
+  type HeightUse,
+  type Penthouse,
+  type SetbackIn,
+  type ZoneId,
+} from '@/lib/setback';
+import { DIR_JA, evalSky, prepareSky, type SkyCheck, type SkyDir, type SkyModel } from '@/lib/skyFactor';
+
+const DIRS4: SkyDir[] = ['N', 'E', 'S', 'W'];
+const OPP: Record<SkyDir, SkyDir> = { N: 'S', S: 'N', E: 'W', W: 'E' };
 
 const field = 'w-full text-[12px] px-2 py-1.5';
 const label = 'block text-[11px] font-bold text-gray-700 mb-1';
@@ -120,6 +146,23 @@ export default function SetbackCalc() {
   const [sidePark, setSidePark] = useState('0');
   const [northDiff, setNorthDiff] = useState('0');
   const [northWater, setNorthWater] = useState('0');
+  // 敷地の形(2 本目の前面道路・天空率に使う)
+  const [r1Dir, setR1Dir] = useState<SkyDir>('S');
+  const [siteW, setSiteW] = useState('12');
+  const [siteD, setSiteD] = useState('20');
+  // 2 本目の前面道路(令 132 条)
+  const [r2On, setR2On] = useState(false);
+  const [r2Dir, setR2Dir] = useState<SkyDir>('E');
+  const [r2W, setR2W] = useState('4');
+  const [r2Set, setR2Set] = useState('1');
+  const [r2Park, setR2Park] = useState('0');
+  const [use134, setUse134] = useState(false);
+  // 塔屋(令 2 条 1 項 6 号ロ)
+  const [bArea, setBArea] = useState('');
+  const [pArea, setPArea] = useState('');
+  const [pH, setPH] = useState('');
+  // 天空率
+  const [skyOn, setSkyOn] = useState(true);
 
   const z = zoneOf(zone);
   const v: SetbackIn = useMemo(
@@ -154,11 +197,116 @@ export default function SetbackCalc() {
   const north = northLimit(v);
   const abs = absLimit(v);
   const H = Number(height);
-  const limits = [road.limitAtFace, side?.limitAtFace ?? null, north?.limitAtFace ?? null, abs].filter((x): x is number => x !== null);
+
+  // --- 敷地の形(x = 東・y = 北。敷地の南西の角が原点)。2 本目の前面道路と天空率に使う ---
+  const geo = useMemo(() => {
+    const sW = Number(siteW) || 0;
+    const sD = Number(siteD) || 0;
+    const a1 = Math.max(0, Number(roadSet) || 0);
+    const sideS = Math.max(0, Number(sideSet) || 0);
+    const dep = Number(depth) || 10;
+    const d2: SkyDir = r2Dir !== r1Dir ? r2Dir : (DIRS4.find((d) => d !== r1Dir) as SkyDir);
+    const layout: 'corner' | 'opposite' = OPP[r1Dir] === d2 ? 'opposite' : 'corner';
+    const rear = OPP[r1Dir];
+    const set: Record<SkyDir, number> = { N: sideS, E: sideS, S: sideS, W: sideS };
+    set[r1Dir] = a1;
+    set[rear] = sD - a1 - dep;
+    if (r2On && layout === 'corner') set[d2] = Math.max(0, Number(r2Set) || 0);
+    const a2 = r2On ? set[d2] : 0;
+    const along = r1Dir === 'N' || r1Dir === 'S';
+    const ew = along ? sW : sD;
+    const ns = along ? sD : sW;
+    const bldg = { x0: set.W, y0: set.S, x1: ew - set.E, y1: ns - set.N };
+    // 道路に沿った建物の幅(敷地の間口 − 両側の距離)
+    const bw = along ? bldg.x1 - bldg.x0 : bldg.y1 - bldg.y0;
+    const ok = sW > 0 && sD > 0 && bldg.x1 > bldg.x0 && bldg.y1 > bldg.y0 && set[rear] >= 0;
+    return { sW, sD, a1, a2, dep, d2, layout, set, ew, ns, bldg, bw, ok };
+  }, [siteW, siteD, roadSet, sideSet, depth, r1Dir, r2Dir, r2On, r2Set]);
+
+  // --- 2 本目の前面道路(令 132 条・134 条 2 項) ---
+  const m132 = useMemo(
+    () =>
+      r2On
+        ? road132({
+            roads: [
+              { width: Number(roadW) || 0, set: geo.a1, park: Number(roadPark) || 0 },
+              { width: Number(r2W) || 0, set: geo.a2, park: Number(r2Park) || 0 },
+            ],
+            layout: geo.layout,
+            reach: [geo.a2 + geo.bw, geo.a1 + geo.dep],
+            depth: geo.sD,
+            use134,
+          })
+        : null,
+    [r2On, roadW, roadPark, r2W, r2Park, geo, use134]
+  );
+  const fr1 = m132 ? faceRoadLimit(v, m132.faces[0], geo.a1) : null;
+  const fr2 = m132 ? faceRoadLimit(v, m132.faces[1], geo.a2) : null;
+  const road1Lim = fr1 ? fr1.lim : road.limitAtFace;
+  const road2Lim = fr2 ? fr2.lim : null;
+
+  // --- 塔屋(令 2 条 1 項 6 号ロ) ---
+  const pent: Penthouse | null = Number(pArea) > 0 && Number(pH) > 0 ? { area: Number(pArea), height: Number(pH), bldgArea: Number(bArea) > 0 ? Number(bArea) : geo.ok ? geo.bw * geo.dep : 0 } : null;
+  const Hk = (use: HeightUse) => H + penthouseCounted(pent, use).counted;
+
+  const limits = [road1Lim, road2Lim, side?.limitAtFace ?? null, north?.limitAtFace ?? null, abs].filter((x): x is number => x !== null);
   const min = limits.length ? Math.min(...limits) : null;
-  const ng = H > 0 && min !== null && H > min;
-  const okText = (lim: number | null) => (lim === null || !(H > 0) ? '' : H <= lim ? ' · 収まる' : ' · 超える');
+  const over = (lim: number | null, use: HeightUse) => lim !== null && H > 0 && Hk(use) > lim;
+  const ng = over(road1Lim, 'road') || over(road2Lim, 'road') || over(side?.limitAtFace ?? null, 'side') || over(north?.limitAtFace ?? null, 'north') || over(abs, 'abs');
+  const okText = (lim: number | null, use: HeightUse = 'road') => (lim === null || !(H > 0) ? '' : Hk(use) <= lim ? ' · 収まる' : ' · 超える');
   const raiseTxt = (r: number) => (r > 0 ? ` + 高低差 ${m2(r)}` : '');
+  const segTxt = (s: NonNullable<typeof fr1>['segs'][number], a: number) =>
+    `${s.deemed ? '最大幅員とみなす' : 'その道路のまま'}${Number.isFinite(s.to) && s.to > s.from ? `(最大幅員の道路から ${m2(s.from)}〜${m2(s.to)}m)` : ''} ${s.r.slope} × (${m2(s.width)}${s.park > 0 ? ` + 公園等 ${m2(s.park)}` : ''} + 2 × ${m2(a)})${raiseTxt(s.r.raise)}${v.roadDiff ? ` − ${m2(v.roadDiff)}` : ''} = ${s.r.limitAtFace !== null ? `${m2(s.r.limitAtFace)} m` : '適用距離の外'}`;
+
+  // --- 天空率(法 56 条 7 項)。斜線を超える種類だけ判定に使う ---
+  const skyModel: SkyModel | null = useMemo(() => {
+    if (!skyOn || !geo.ok || !(v.far > 0) || !(v.roadW > 0)) return null;
+    const roads: SkyModel['roads'] = {};
+    const r1 = roadLimit({ ...v, roadSet: geo.a1 });
+    roads[r1Dir] = { width: v.roadW, park: v.roadPark ?? 0, slope: r1.slope, dist: r1.dist, slope15From: r1.slope15From, diff: v.roadDiff ?? 0 };
+    if (r2On && Number(r2W) > 0) {
+      const r2 = roadLimit({ ...v, roadW: Number(r2W), roadPark: Number(r2Park) || 0, roadSet: geo.a2 });
+      roads[geo.d2] = { width: Number(r2W), park: Number(r2Park) || 0, slope: r2.slope, dist: r2.dist, slope15From: r2.slope15From, diff: v.roadDiff ?? 0 };
+    }
+    const s = sideLimit(v);
+    const nl = northLimit(v);
+    const pa = Number(pArea);
+    const ph = Number(pH);
+    let pentR: SkyModel['pent'] = null;
+    if (pa > 0 && ph > 0) {
+      const b = geo.bldg;
+      const pw = Math.min(b.x1 - b.x0, Math.sqrt(pa));
+      const pd = Math.min(b.y1 - b.y0, pa / pw);
+      const cx = (b.x0 + b.x1) / 2;
+      const cy = (b.y0 + b.y1) / 2;
+      pentR = { r: { x0: cx - pw / 2, y0: cy - pd / 2, x1: cx + pw / 2, y1: cy + pd / 2 }, height: ph };
+    }
+    return {
+      ew: geo.ew,
+      ns: geo.ns,
+      bldg: geo.bldg,
+      height: 0,
+      pent: pentR,
+      roads,
+      side: s ? { rise: s.rise, slope: s.slope, diff: v.sideDiff ?? 0 } : null,
+      north: nl ? { rise: nl.rise, low: zoneOf(v.zone).north === 5, diff: v.northDiff ?? 0 } : null,
+    };
+  }, [skyOn, geo, v, r1Dir, r2On, r2W, r2Park, pArea, pH]);
+  const sky = useMemo(() => (skyModel && H > 0 ? evalSky(prepareSky(skyModel), H) : null), [skyModel, H]);
+  const skyNeed = new Set<SkyCheck['kind']>();
+  if (over(road1Lim, 'road') || over(road2Lim, 'road')) skyNeed.add('road');
+  if (over(side?.limitAtFace ?? null, 'side')) skyNeed.add('side');
+  if (over(north?.limitAtFace ?? null, 'north')) skyNeed.add('north');
+  const skyUsed = sky ? sky.filter((c) => skyNeed.has(c.kind)) : [];
+  // 斜線を超えたものがすべて天空率で適合し、絶対高さは収まっている
+  const skyPass = skyNeed.size > 0 && skyUsed.length > 0 && skyUsed.every((c) => c.ok) && !over(abs, 'abs');
+  const skyClose = skyUsed.some((c) => c.close);
+  const skyUnsure = [
+    ...(sky ? sky.flatMap((c) => c.unsure) : []),
+    ...((Number(sidePark) || 0) > 0 ? ['隣地側の公園等(令 135 条の 3)は天空率の測定線に入れていない'] : []),
+    ...((Number(northWater) || 0) > 0 ? ['北側の水面等(令 135 条の 4)は天空率の測定線に入れていない'] : []),
+    ...(sky && sky.some((c) => c.kind !== 'road') ? ['天空率の隣地・北側の距離は、上の入力(北側の境界線までの距離など)ではなく、敷地の形(間口・奥行・道路の方位)から取る'] : []),
+  ].filter((x, i, a) => a.indexOf(x) === i);
 
   return (
     <div className="p-4 text-[12px] text-gray-700">
@@ -261,6 +409,85 @@ export default function SetbackCalc() {
             {z.north !== null && <Num k="北側の水面・線路敷等の幅(m)" v={northWater} set={setNorthWater} />}
             <p className="text-[10px] text-gray-400">特定行政庁が規則で別の高さを定めている場合(令 135 条の 2 第 2 項ほか)はそちらが優先します。</p>
           </details>
+          <div className={box}>
+            <span className={label}>敷地の形(2 本目の前面道路・天空率に使う)</span>
+            <div className="grid grid-cols-3 gap-2">
+              <label className="block">
+                <span className="block text-[10px] text-gray-500 mb-1">道路の方位</span>
+                <select value={r1Dir} onChange={(e) => setR1Dir(e.target.value as SkyDir)} className={field}>
+                  {DIRS4.map((d) => (
+                    <option key={d} value={d}>
+                      {DIR_JA[d]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <Num k="間口(道路に沿って・m)" v={siteW} set={setSiteW} />
+              <Num k="奥行(m)" v={siteD} set={setSiteD} />
+            </div>
+            <p className="text-[10px] text-gray-400">
+              長方形の敷地に、道路から後退距離・両側の隣地から上の距離をとり、奥行きは断面図用の値で建物の箱を置く(道路に沿った建物の幅 {geo.ok ? `${m2(geo.bw)} m` : '—'})。
+            </p>
+            {!geo.ok && <p className="text-[10px] text-[#b4402f]">敷地の間口・奥行が、建物と後退距離の合計より小さくなっています。</p>}
+          </div>
+          <details className={box} open={r2On}>
+            <summary className="text-[11px] font-bold text-gray-700 cursor-pointer">2 本目の前面道路(令 132 条・134 条 2 項)</summary>
+            <Check v={r2On} set={setR2On}>
+              2 本目の前面道路がある(角地・二方道路)
+            </Check>
+            {r2On && (
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="block">
+                    <span className="block text-[10px] text-gray-500 mb-1">方位</span>
+                    <select value={geo.d2} onChange={(e) => setR2Dir(e.target.value as SkyDir)} className={field}>
+                      {DIRS4.filter((d) => d !== r1Dir).map((d) => (
+                        <option key={d} value={d}>
+                          {DIR_JA[d]}({OPP[r1Dir] === d ? '二方道路' : '角地'})
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <Num k="幅員(m)" v={r2W} set={setR2W} />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {geo.layout === 'corner' ? (
+                    <Num k="道路境界線から建物まで(m)" v={r2Set} set={setR2Set} />
+                  ) : (
+                    <label className="block">
+                      <span className="block text-[10px] text-gray-500 mb-1">道路境界線から建物まで(m)</span>
+                      <span className="block text-[12px] px-2 py-1.5">{m2(geo.a2)}(奥行 − 後退距離 − 建物の奥行き)</span>
+                    </label>
+                  )}
+                  <Num k="反対側の公園・水面等の幅(m)" v={r2Park} set={setR2Park} />
+                </div>
+                {((Number(roadPark) || 0) > 0 || (Number(r2Park) || 0) > 0) && (
+                  <Check v={use134} set={setUse134}>
+                    公園等がある道路を基準にする(令 134 条 2 項・選択)
+                  </Check>
+                )}
+                <p className="text-[10px] text-gray-400">
+                  幅員の最大な道路の境界線から 2 × 幅員かつ 35m 以内と、他の道路の中心線から 10m を超える部分は、すべての道路を最大の幅員とみなす(1 項)。それ以外は接する道路だけ(3 項)。狭い道路側の面は、区間ごとの厳しい方で比べる。
+                </p>
+              </>
+            )}
+          </details>
+          <details className={box} open={!!pent}>
+            <summary className="text-[11px] font-bold text-gray-700 cursor-pointer">塔屋(令 2 条 1 項 6 号ロ)</summary>
+            <div className="grid grid-cols-3 gap-2">
+              <Num k="塔屋の水平投影面積の合計(m²)" v={pArea} set={setPArea} />
+              <Num k="塔屋の高さ(屋上から・m)" v={pH} set={setPH} />
+              <Num k="建築面積(m²)" v={bArea} set={setBArea} hint={`空欄 = 箱の ${geo.ok ? m2(geo.bw * geo.dep) : '—'}`} />
+            </div>
+            <p className="text-[10px] text-gray-400">
+              階段室・昇降機塔・装飾塔・物見塔・屋窓など。建築面積の 1/8 以内なら、その高さは 12m(絶対高さは 5m)まで算入しない。北側斜線は全部算入。1/8 を超えると全部算入。天空率の計画建築物には塔屋も入れる(箱の中央に正方形で置く)。
+            </p>
+          </details>
+          <div className={box}>
+            <Check v={skyOn} set={setSkyOn}>
+              天空率(法 56 条 7 項)も計算する
+            </Check>
+          </div>
         </div>
 
         <div className="space-y-3">
@@ -272,24 +499,53 @@ export default function SetbackCalc() {
                 unit={!blank && min !== null ? 'm' : undefined}
                 ng={ng && !blank}
                 text={blank || min === null}
-                sub={blank ? '容積率と前面道路の幅員を入れてください' : H > 0 && min !== null ? `建物の高さ ${H} m は${ng ? '超えています' : '収まっています'}(面の位置で比べた目安。天空率は見ていません)` : undefined}
+                sub={
+                  blank
+                    ? '容積率と前面道路の幅員を入れてください'
+                    : H > 0 && min !== null
+                      ? `建物の高さ ${H} m${pent ? '(塔屋は下の行)' : ''}は${ng ? '超えています' : '収まっています'}(面の位置で比べた目安。${sky ? '天空率は下の表' : '天空率は見ていません'})`
+                      : undefined
+                }
               >
                 <ResultRow
                   k={`適用距離に使う容積率(別表第 3(ろ))`}
                   v={farDirect ? `${m2(fl.far)}%(直接入力)` : fl.byRoad !== null ? `min(${Number(far)}, ${Number(roadW)} × ${roadK} × 100 = ${m2(fl.byRoad)}) = ${m2(fl.far)}%` : `${m2(fl.far)}%`}
                 />
                 <ResultRow
-                  k={`道路斜線(別表第 3 ${z.roadItem}の項${road.note3Applied ? '・備考 3' : ''}・勾配 ${road.slope}・適用距離 ${road.dist}m)`}
+                  k={`道路斜線${m132 ? `(道路 1・${DIR_JA[r1Dir]})` : ''}(別表第 3 ${z.roadItem}の項${road.note3Applied ? '・備考 3' : ''}・勾配 ${road.slope}・適用距離 ${road.dist}m)`}
                   v={
-                    road.limitAtFace !== null
-                      ? `${road.slope} × ${m2(road.startToFace)}${raiseTxt(road.raise)}${v.roadDiff ? ` − ${m2(v.roadDiff)}` : ''} = ${m2(road.limitAtFace)} m${okText(road.limitAtFace)}`
-                      : `面が適用距離の外(かからない)`
+                    fr1
+                      ? `${fr1.segs.map((s) => segTxt(s, geo.a1)).join(' / ')}${okText(road1Lim)}`
+                      : road.limitAtFace !== null
+                        ? `${road.slope} × ${m2(road.startToFace)}${raiseTxt(road.raise)}${v.roadDiff ? ` − ${m2(v.roadDiff)}` : ''} = ${m2(road.limitAtFace)} m${okText(road.limitAtFace)}`
+                        : `面が適用距離の外(かからない)`
                   }
                 />
-                <ResultRow k="隣地斜線" v={side ? `${side.rise} + ${side.slope} × (${m2(side.dist)} × 2)${raiseTxt(side.raise)} = ${m2(side.limitAtFace)} m${okText(side.limitAtFace)}` : 'かからない'} />
-                <ResultRow k="北側斜線" v={north ? `${north.rise} + 1.25 × ${m2(north.dist)}${raiseTxt(north.raise)} = ${m2(north.limitAtFace)} m${okText(north.limitAtFace)}` : 'かからない'} />
-                {abs !== null && <ResultRow k="絶対高さ(法 55 条)" v={`${abs} m${okText(abs)}`} />}
+                {m132 && fr2 && (
+                  <ResultRow
+                    k={`道路斜線(道路 2・${DIR_JA[geo.d2]}・令 132 条${m132.use134 ? '・134 条 2 項' : ''})`}
+                    v={`${fr2.segs.map((s) => segTxt(s, geo.a2)).join(' / ')}${okText(road2Lim)}`}
+                  />
+                )}
+                {m132 && <ResultRow k="令 132 条 1 項の区域" v={`幅員 ${m2(m132.zoneW)}m の道路の境界線から ${m2(m132.zone)}m 以内(2 × 幅員かつ 35m 以内)と、他の道路の中心線から 10m 超`} />}
+                {m132 && m132.unsure.map((x) => <ResultRow key={x} k="要確認" v={x} />)}
+                <ResultRow k="隣地斜線" v={side ? `${side.rise} + ${side.slope} × (${m2(side.dist)} × 2)${raiseTxt(side.raise)} = ${m2(side.limitAtFace)} m${okText(side.limitAtFace, 'side')}` : 'かからない'} />
+                <ResultRow k="北側斜線" v={north ? `${north.rise} + 1.25 × ${m2(north.dist)}${raiseTxt(north.raise)} = ${m2(north.limitAtFace)} m${okText(north.limitAtFace, 'north')}` : 'かからない'} />
+                {abs !== null && <ResultRow k="絶対高さ(法 55 条)" v={`${abs} m${okText(abs, 'abs')}`} />}
                 {road.slope15From !== null && <ResultRow k="道路斜線 1.5 の区域(56 条 3 項)" v={`起点から ${m2(road.slope15From)} m 以上の部分`} />}
+                {pent && (
+                  <ResultRow
+                    k={`塔屋 ${m2(pent.area)} m² / 建築面積 ${m2(pent.bldgArea)} m² の 1/8 = ${m2(pent.bldgArea / 8)} m²(令 2 条 1 項 6 号ロ)`}
+                    v={(['road', 'north', 'abs'] as HeightUse[])
+                      .filter((u) => u !== 'north' || north)
+                      .filter((u) => u !== 'abs' || abs !== null)
+                      .map((u) => `${u === 'road' ? '道路・隣地斜線' : u === 'north' ? '北側斜線' : '絶対高さ'} ${m2(Hk(u))} m(${penthouseCounted(pent, u).basis})`)
+                      .join(' / ')}
+                  />
+                )}
+                {sky && skyNeed.size > 0 && (
+                  <ResultRow k="天空率(法 56 条 7 項)" v={skyClose ? '要確認(差が誤差の範囲・下の表)' : skyPass ? '斜線を超える分は天空率で適合(下の表)' : '天空率でも不適合(下の表)'} />
+                )}
               </DtResult>
             </div>
           </div>
@@ -302,10 +558,32 @@ export default function SetbackCalc() {
             <RoadSection v={v} depth={Number(depth) || 10} />
           </div>
 
+          {sky && (
+            <div>
+              <div className="yy-sec">
+                <span className="yy-sec__title">天空率</span>
+                <span className="yy-sec__right">
+                  {skyNeed.size === 0 ? '斜線に収まっているので天空率は要らない(参考に計算)' : skyClose ? '要確認' : skyPass ? '斜線を超える分は天空率で適合' : '不適合'} · 建物の高さ {m2(H)} m{pent ? ' + 塔屋' : ''}
+                </span>
+              </div>
+              <SkyTable checks={sky} needed={skyNeed} />
+              {over(abs, 'abs') && <p className="text-[10px] text-[#b4402f] mt-1">絶対高さ(法 55 条)は天空率では緩和されません。</p>}
+              {skyUnsure.length > 0 && (
+                <ul className="text-[10px] text-gray-500 leading-relaxed mt-1">
+                  {skyUnsure.map((x) => (
+                    <li key={x}>要確認: {x}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
           <p className="text-[10px] text-gray-400 leading-relaxed">
             ※ 建築基準法 第 55 条・第 56 条・別表第 3、施行令 134 条・135 条の 2〜4 による目安です(e-Gov の現行本文で確認)。道路斜線の高さは前面道路の路面の中心から、隣地・北側斜線と絶対高さは地盤面からです。結果は地盤面からの高さにそろえています。
             <br />※ 隣地斜線は、立上り(20m または 31m)を超える部分について、その部分から隣地境界線までの距離を加える緩和を入れています(面の位置で計算)。建物の上部をセットバックした形は、面ごとに距離を入れ直してください。
-            <br />※ 入っていないもの: 2 以上の前面道路(令 132 条)、天空率(56 条 7 項。斜線を超えても天空率で適合させられることがあります)、高度地区・地区計画・条例の高さ制限、塔屋等の高さの不算入(令 2 条 1 項 6 号)。最終的な判定は申請先と確認してください。
+            <br />※ 2 本目の前面道路は令 132 条 1 項・3 項(と選べば 134 条 2 項)で、狭い道路側の面を区間に分けて比べます。3 本以上の前面道路(132 条 2 項)は入っていません。
+            <br />※ 天空率は長方形の敷地と箱 1 つ(と塔屋)での目安です。前面道路が 2 以上・地域が 2 以上・高低差 3m 超のときの区域ごとの測り方(令 135 条の 6〜11 の各 2・3 項)は入っていません。
+            <br />※ 入っていないもの: 高度地区・地区計画・条例の高さ制限、棟飾・防火壁の屋上突出部(令 2 条 1 項 6 号ハ。高さに算入しない)。最終的な判定は申請先と確認してください。
           </p>
         </div>
       </div>

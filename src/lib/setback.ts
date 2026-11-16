@@ -21,6 +21,16 @@
  *     許される高さ = 立上り + 1.25 × 真北方向の水平距離(隣地境界線か、前面道路の反対側の境界線まで)
  *     水面・線路敷等 → 幅の 1/2 外側(令 135 条の 4 第 1 項 1 号)/ 北側の隣地より 1m 以上低い → (高低差 − 1)/ 2(同 2 号)
  *   絶対高さ(55 条 1 項): 1低・2低・田園は 10m または 12m(都市計画で定める)
+ *   2 以上の前面道路(令 132 条)… road132()。2026-11-16 追加
+ *     1 項: 幅員の最大な前面道路の境界線から 2W かつ 35m 以内の区域と、その他の前面道路の中心線から 10m を超える区域は、
+ *           すべての前面道路が最大の幅員を持つとみなす。3 項: それ以外の区域は、接する前面道路だけを前面道路とする
+ *     (2 項は 3 本以上の前面道路のときだけ意味を持つ。2 本では 1 項の区域と重なるので入れていない)
+ *     令 134 条 2 項: 公園等がある前面道路を基準に、2 ×(公園等の反対側の境界線〜道路の境界線)かつ 35m 以内などで、
+ *           すべての前面道路を同じ幅員・同じ公園等があるとみなせる(選択。この場合も 132 条 2・3 項を準用)
+ *   塔屋(令 2 条 1 項 6 号ロ)… penthouseCounted()。2026-11-16 追加
+ *     階段室・昇降機塔・装飾塔・物見塔・屋窓等の屋上部分で、水平投影面積の合計が建築面積の 1/8 以内なら、
+ *     その部分の高さは 12m(法 55 条 1〜3 項・法 56 条の 2 第 4 項・別表第 4(ろ)欄二・三・四の項ロは 5m)まで算入しない。
+ *     北側斜線(法 56 条 1 項 3 号)の高さは除外の対象外 = 全部算入
  */
 
 export type ZoneId = '1lr' | '2lr' | 'den' | '1mh' | '2mh' | '1r' | '2r' | 'qr' | 'nc' | 'c' | 'qi' | 'i' | 'ie' | 'none';
@@ -235,6 +245,149 @@ export function northLimit(v: SetbackIn): NorthOut {
 export function absLimit(v: SetbackIn): number | null {
   const z = zoneOf(v.zone);
   return z.absHeight ? v.absHeight ?? 10 : null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 2 以上の前面道路(令 132 条・令 134 条 2 項)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type FrontRoad = {
+  /** 幅員(m) */
+  width: number;
+  /** 道路境界線から建物までの距離 = 後退距離(m) */
+  set: number;
+  /** 反対側の公園・広場・水面等の幅(m)。令 134 条 */
+  park?: number;
+};
+
+export type MultiRoadIn = {
+  roads: [FrontRoad, FrontRoad];
+  /** corner = 角地(2 本が直交)/ opposite = 二方道路(敷地の両側で平行) */
+  layout: 'corner' | 'opposite';
+  /**
+   * corner のとき: reach[j] = もう一方の道路の境界線から、道路 j 側の建物の面の遠い端までの水平距離(m)。
+   * 例: 道路 1 が南・道路 2 が東なら reach[1] = 道路 1 側の後退距離 + 建物の南北の奥行き
+   */
+  reach: [number, number];
+  /** opposite のとき: 2 本の道路境界線の間の距離(敷地の奥行き・m) */
+  depth: number;
+  /** 令 134 条 2 項による(公園等がある前面道路を基準にする) */
+  use134?: boolean;
+};
+
+/** 建物の面に沿った区間。from / to は基準の道路(幅員の最大な前面道路)の境界線からの水平距離(m) */
+export type RoadSeg = { from: number; to: number; width: number; park: number; deemed: boolean };
+
+export type MultiRoadOut = {
+  /** 幅員の最大な前面道路(134 条 2 項なら公園等がある前面道路)の番号 */
+  base: 0 | 1;
+  /** 1 項の区域の奥行 = min(2 × 幅員, 35)(m) */
+  zone: number;
+  /** 区域を決めるのに使った幅員(134 条 2 項なら 道路 + 公園等) */
+  zoneW: number;
+  use134: boolean;
+  /** 道路 j 側の面の区間(幅員をどうみなすか) */
+  faces: [RoadSeg[], RoadSeg[]];
+  /** 条文で確かめきれなかったところ(画面に「要確認」で出す) */
+  unsure: string[];
+};
+
+/**
+ * 令 132 条 1 項・3 項(2 本の前面道路)。各道路側の建物の面が、どの幅員の道路に面しているとみなすかを区間で返す。
+ * 区間の高さの限度は faceRoadLimit()(roadLimit に roadW = width・roadPark = park を入れる)で出し、面で最も厳しい区間が効く。
+ */
+export function road132(m: MultiRoadIn): MultiRoadOut {
+  const [r0, r1] = m.roads;
+  const unsure: string[] = [];
+  const parks = [pos(r0.park), pos(r1.park)];
+  let base: 0 | 1 = r1.width > r0.width ? 1 : 0;
+  let use134 = false;
+  let zoneW = m.roads[base].width;
+  let deemW = m.roads[base].width;
+  let deemP = 0;
+  if (m.use134 && (parks[0] > 0 || parks[1] > 0)) {
+    // 134 条 2 項: 公園等がある前面道路(2 以上あるときは、そのうちの一。ここでは 道路 + 公園等 が大きい方)
+    use134 = true;
+    base = parks[1] > 0 && (parks[0] === 0 || r1.width + parks[1] > r0.width + parks[0]) ? 1 : 0;
+    zoneW = m.roads[base].width + parks[base];
+    deemW = m.roads[base].width;
+    deemP = parks[base];
+  }
+  const zone = Math.min(2 * zoneW, 35);
+  const other: 0 | 1 = base === 0 ? 1 : 0;
+  const ro = m.roads[other];
+  const rb = m.roads[base];
+  // 基準の道路側の面: その道路自身(134 条 1 項の公園等も)
+  const baseFace: RoadSeg[] = [{ from: 0, to: Infinity, width: rb.width, park: parks[base], deemed: false }];
+  const own = { width: ro.width, park: parks[other], deemed: false };
+  const deem = { width: deemW, park: use134 ? deemP : 0, deemed: true };
+  // その他の前面道路の中心線から 10m を超える区域 → 面の全部をみなす
+  const farFromCenter = ro.width / 2 + Math.max(0, ro.set) > 10;
+  let otherFace: RoadSeg[];
+  if (rb.width <= ro.width && !use134) {
+    otherFace = [{ from: 0, to: Infinity, ...own }];
+  } else if (farFromCenter) {
+    otherFace = [{ from: 0, to: Infinity, ...deem }];
+  } else if (m.layout === 'corner') {
+    const a = Math.max(0, rb.set);
+    const end = Math.max(a, m.reach[other]);
+    otherFace = [];
+    if (a < zone) otherFace.push({ from: a, to: Math.min(zone, end), ...deem });
+    if (end > zone) otherFace.push({ from: Math.max(zone, a), to: end, ...own });
+    if (!otherFace.length) otherFace.push({ from: a, to: end, ...own });
+  } else {
+    const at = m.depth - Math.max(0, ro.set);
+    otherFace = [{ from: at, to: at, ...(at <= zone ? deem : own) }];
+  }
+  if (!use134 && parks[other] > 0 && otherFace.some((s) => s.deemed)) {
+    unsure.push('最大の幅員とみなした道路の反対側の公園等(令 134 条 1 項)を重ねて使えるか。ここでは重ねていない(安全側)');
+  }
+  if (use134) unsure.push('令 134 条 2 項の「公園等の反対側の境界線から前面道路の境界線までの水平距離」を 道路の幅員 + 公園等の幅 として扱った');
+  const faces = (base === 0 ? [baseFace, otherFace] : [otherFace, baseFace]) as [RoadSeg[], RoadSeg[]];
+  return { base, zone, zoneW, use134, faces, unsure };
+}
+
+/** 区間ごとの道路斜線を roadLimit で出し、面で最も厳しい値を返す。set = その道路側の後退距離 */
+export function faceRoadLimit(v: SetbackIn, segs: RoadSeg[], set: number): { lim: number | null; segs: (RoadSeg & { r: RoadOut })[] } {
+  const out = segs.map((s) => ({ ...s, r: roadLimit({ ...v, roadW: s.width, roadPark: s.park, roadSet: set }) }));
+  const lims = out.map((s) => s.r.limitAtFace).filter((x): x is number => x !== null);
+  return { lim: lims.length ? Math.min(...lims) : null, segs: out };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 塔屋(令 2 条 1 項 6 号ロ)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type Penthouse = {
+  /** 階段室・昇降機塔等の水平投影面積の合計(m²) */
+  area: number;
+  /** 塔屋の高さ(屋上から頂部まで・m) */
+  height: number;
+  /** 建築物の建築面積(m²) */
+  bldgArea: number;
+};
+
+/**
+ * 何の高さか。road / side = 道路・隣地斜線(12m まで不算入)、north = 北側斜線(全部算入)、
+ * abs = 絶対高さ(法 55 条 1〜3 項 → 5m)、shadow10 = 日影規制の対象かどうか(別表第 4(ろ)欄二・三・四の項ロと法 56 条の 2 第 4 項 → 5m)、
+ * kodo = 高度地区(最高限度型なら 12m まで不算入だが、斜線型は全部算入。種別を入れないので安全側で全部算入)
+ */
+export type HeightUse = 'road' | 'side' | 'north' | 'abs' | 'shadow10' | 'kodo';
+
+export function penthouseCounted(p: Penthouse | null | undefined, use: HeightUse): { counted: number; within: boolean; exempt: number; basis: string } {
+  const h = p ? pos(p.height) : 0;
+  if (!p || !(h > 0) || !(pos(p.area) > 0)) return { counted: 0, within: true, exempt: 0, basis: '' };
+  const within = p.bldgArea > 0 && p.area <= p.bldgArea / 8 + 1e-9;
+  const exempt = use === 'north' || use === 'kodo' ? 0 : use === 'abs' || use === 'shadow10' ? 5 : 12;
+  const counted = within ? Math.max(0, h - exempt) : h;
+  const basis = !within
+    ? '建築面積の 1/8 を超えるので全部算入'
+    : use === 'north'
+      ? '北側斜線は不算入の対象外(令 2 条 1 項 6 号ロ)'
+      : use === 'kodo'
+        ? '高度地区は斜線型なら全部算入(安全側で全部算入・要確認)'
+        : `${exempt}m まで不算入(令 2 条 1 項 6 号ロ${exempt === 5 ? (use === 'abs' ? '・法 55 条' : '・別表第 4(ろ)欄') : ''})`;
+  return { counted, within, exempt, basis };
 }
 
 export const m2 = (n: number) => (Number.isFinite(n) ? n.toLocaleString('ja-JP', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—');
