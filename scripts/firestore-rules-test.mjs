@@ -1,7 +1,7 @@
 // firestore.rules の検証用スクリプト（使い捨て。検証後に削除する）
 import { initializeApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { getFirestore, connectFirestoreEmulator, doc, setDoc, updateDoc, deleteDoc, getDoc, getDocs, collection, query, where, writeBatch, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { getFirestore, connectFirestoreEmulator, doc, setDoc, updateDoc, deleteDoc, getDoc, getDocs, collection, query, where, writeBatch, arrayUnion, arrayRemove, Timestamp } from 'firebase/firestore';
 
 const app = initializeApp({ apiKey: 'fake-api-key', projectId: 'testsite-7f2a6' });
 const auth = getAuth(app);
@@ -492,6 +492,30 @@ await check('会員: 会員限定の一覧は覗けない', 'deny', () => getDoc
 await signOut(auth);
 await check('未ログイン: 会員限定は開けない', 'deny', () => getDoc(doc(db, 'schedules', MEM)));
 await check('未ログイン: 会員限定に回答できない', 'deny', () => setDoc(doc(db, 'schedules', MEM, 'participants', 'p-anon'), { name: '外', createdAt: Date.now() }));
+console.log('--- yychat の招待リンク（2026-11-16） ---');
+const uidIA = await as('inv-a@example.com');
+const uidIB = (await as('inv-b@example.com'), auth.currentUser.uid);
+const uidIN = (await as('inv-new@example.com'), auth.currentUser.uid);
+await as('inv-a@example.com');
+const GRP = 'inv-group-room';
+await check('A: 3 人のグループを作る', 'allow', () => setDoc(doc(db, 'chatRooms', GRP), { participants: [uidIA, uidIB, 'someone-x'], participantUsernames: { [uidIA]: 'a' }, isGroup: true, ownerUid: uidIA }));
+const TOK = 'abcdefghijkmnpqrstuvwxyz';
+const exp = () => Timestamp.fromMillis(Date.now() + 7 * 24 * 3600 * 1000);
+await check('A(参加者): 招待リンクを作る', 'allow', () => setDoc(doc(db, 'chatInvites', TOK), { roomId: GRP, roomName: 'g', isGroup: true, createdBy: uidIA, createdByName: 'a', createdAt: Date.now(), expiresAt: exp() }));
+await check('A: 期限 30 日の招待は作れない', 'deny', () => setDoc(doc(db, 'chatInvites', 'zzzzzzzzzzzzzzzzzzzzzzzz'), { roomId: GRP, isGroup: true, createdBy: uidIA, expiresAt: Timestamp.fromMillis(Date.now() + 30 * 24 * 3600 * 1000) }));
+await check('A: グループを 2 人の部屋と偽った招待は作れない', 'deny', () => setDoc(doc(db, 'chatInvites', 'yyyyyyyyyyyyyyyyyyyyyyyy'), { roomId: GRP, isGroup: false, createdBy: uidIA, expiresAt: exp() }));
+await as('inv-new@example.com');
+await check('新しい人: 招待の一覧は覗けない', 'deny', () => getDocs(collection(db, 'chatInvites')));
+await check('新しい人: 部屋の外からは招待を作れない', 'deny', () => setDoc(doc(db, 'chatInvites', 'xxxxxxxxxxxxxxxxxxxxxxxx'), { roomId: GRP, isGroup: true, createdBy: uidIN, expiresAt: exp() }));
+await check('新しい人: リンクの招待を読める', 'allow', () => getDoc(doc(db, 'chatInvites', TOK)));
+await check('新しい人: 偽の招待ではグループに入れない', 'deny', () => updateDoc(doc(db, 'chatRooms', GRP), { participants: arrayUnion(uidIN), ['participantUsernames.' + uidIN]: 'n', joinedVia: 'nosuchtokennosuchtoken00' }));
+await check('新しい人: 招待で他人も一緒に足すことはできない', 'deny', () => updateDoc(doc(db, 'chatRooms', GRP), { participants: arrayUnion(uidIN, 'other-y'), ['participantUsernames.' + uidIN]: 'n', joinedVia: TOK }));
+await check('新しい人: 招待でほかの項目は変えられない', 'deny', () => updateDoc(doc(db, 'chatRooms', GRP), { participants: arrayUnion(uidIN), joinedVia: TOK, ownerUid: uidIN }));
+await check('新しい人: 招待でグループに自分を足す', 'allow', () => updateDoc(doc(db, 'chatRooms', GRP), { participants: arrayUnion(uidIN), ['participantUsernames.' + uidIN]: 'n', joinedVia: TOK }));
+await check('新しい人: 入った部屋を読める', 'allow', () => getDoc(doc(db, 'chatRooms', GRP)));
+await check('新しい人: 招待は消せない（作った人だけ）', 'deny', () => deleteDoc(doc(db, 'chatInvites', TOK)));
+await as('inv-a@example.com');
+await check('A: 自分の招待を取り消す', 'allow', () => deleteDoc(doc(db, 'chatInvites', TOK)));
 const failed = results.filter((r) => !r.pass).length;
 console.log(`\n${results.length - failed}/${results.length} 件成功`);
 process.exit(failed === 0 && intact ? 0 : 1);

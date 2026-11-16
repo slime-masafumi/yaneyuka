@@ -1,4 +1,4 @@
-// 手元の試験用 Firebase(エミュレータ)に試験用の会員を 2 人作る。2026-11-16
+// 手元の試験用 Firebase(エミュレータ)に試験用の会員を 3 人作る。2026-11-16
 //   npm run emulators   (別の端末で)
 //   node scripts/emulator-seed.mjs
 //   npm run dev:emu     → http://localhost:3200 で下の会員でログインして試す
@@ -8,6 +8,8 @@ const PROJECT = 'testsite-7f2a6';
 export const SEED_USERS = [
   { email: 'emu-alice@example.com', password: 'emu-pass-alice-1', displayName: 'エミュ 有栖' },
   { email: 'emu-bob@example.com', password: 'emu-pass-bob-1', displayName: 'エミュ 坊' },
+  // 招待リンクで入る人(登録したばかりの人の想定)
+  { email: 'emu-carol@example.com', password: 'emu-pass-carol-1', displayName: 'エミュ 花' },
 ];
 
 for (const u of SEED_USERS) {

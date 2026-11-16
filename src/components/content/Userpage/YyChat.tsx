@@ -24,6 +24,7 @@ import { useTaskContext } from '@/components/providers/TaskProvider';
 import { searchTerms, matchesAll, snippet, splitHits, parseDueHint, mentionsIn, taskTextFrom, minutesHtml, formatTaken } from '@/lib/chatTools';
 import { compressForChat, fitsInMessage, shrinkDataUrl, utf8Bytes } from './yyChatImage';
 import { CHAT_FILE_MAX_BYTES, deleteChatFile, formatFileSize, uploadChatFile, type ChatFile } from './yyChatFiles';
+import { acceptChatInvite, createChatInvite, holdPendingInvite, INVITE_DAYS, inviteUrl, readChatInvite, readInviteFromUrl, takePendingInvite, type ChatInvite } from './yyChatInvite';
 
 /** 部屋を開いたときに読む発言の数(古い発言は「前の発言を読む」で足す)。2026-11-16 */
 const MESSAGE_PAGE = 60;
@@ -191,12 +192,49 @@ const YyChat: React.FC = () => {
   const [taskDone, setTaskDone] = useState('');
   // 見出し帯の「できること」用。使い方が分からない機能を押したときの一言と、検索欄へのフォーカス
   const [chatNotice, setChatNotice] = useState('');
+  // 招待リンク(yyChatInvite.ts)。受け取った招待・未ログインで開いたか・出したリンク・入った部屋を選ぶ待ち
+  const [incomingInvite, setIncomingInvite] = useState<ChatInvite | null>(null);
+  const [guestInvited, setGuestInvited] = useState(false);
+  const [inviteLink, setInviteLink] = useState('');
+  const [inviteBusy, setInviteBusy] = useState(false);
+  const [selectAfterJoin, setSelectAfterJoin] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   /** 写真を原寸で見る(一覧では高さを抑えて出す。配筋・ひび割れは拡大して見る) */
   const [viewImage, setViewImage] = useState<{ src: string; takenAt?: string | null; original?: boolean } | null>(null);
   const [imageBusy, setImageBusy] = useState(false);
 
   // --- Effects ---
+
+  // 招待リンク: URL の ?invite= か、ログイン前に預けたもの
+  useEffect(() => {
+    const fromUrl = readInviteFromUrl();
+    if (!isLoggedIn || !currentUser) {
+      if (fromUrl) {
+        holdPendingInvite(fromUrl);
+        setGuestInvited(true);
+      }
+      return;
+    }
+    const token = fromUrl || takePendingInvite();
+    if (!token) return;
+    setGuestInvited(false);
+    readChatInvite(token)
+      .then((inv) => {
+        if (inv) setIncomingInvite(inv);
+        else setChatNotice('招待リンクが見つかりません（取り消されたか、URL が途中で切れています）');
+      })
+      .catch(() => setChatNotice('招待リンクを読めませんでした。通信を確かめて、リンクを開き直してください'));
+  }, [isLoggedIn, currentUser?.uid]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 招待で入った・作った部屋が一覧に来たら開く
+  useEffect(() => {
+    if (!selectAfterJoin) return;
+    const r = rooms.find((x) => x.id === selectAfterJoin);
+    if (r) {
+      setSelectedRoom(r);
+      setSelectAfterJoin(null);
+    }
+  }, [rooms, selectAfterJoin]);
 
   useEffect(() => {
     setSelectedRoom(null);
@@ -1074,11 +1112,72 @@ const YyChat: React.FC = () => {
     </>
   );
 
+  const acceptInvite = async () => {
+    if (!incomingInvite || !currentUser) return;
+    setInviteBusy(true);
+    try {
+      const id = await acceptChatInvite(incomingInvite, { uid: currentUser.uid, username: currentUser.username }, (uid) =>
+        rooms.find((r) => r.participants.length === 2 && r.participants.includes(uid) && !r.project && !r.isGroup)?.id ?? null,
+      );
+      setIncomingInvite(null);
+      setSelectAfterJoin(id);
+      setChatNotice(incomingInvite.isGroup ? 'グループに入りました' : `${incomingInvite.createdByName || '招待した人'} さんとの部屋を開きました`);
+    } catch (e) {
+      setChatNotice(e instanceof Error && /期限|自分/.test(e.message) ? e.message : '参加できませんでした。招待が取り消されたか、グループが 20 人に達している可能性があります');
+    } finally {
+      setInviteBusy(false);
+    }
+  };
+
+  const makeInvite = async () => {
+    if (!selectedRoom || !currentUser) return;
+    setShowRoomMenu(false);
+    setInviteBusy(true);
+    try {
+      const token = await createChatInvite(selectedRoom, currentUser.uid, currentUser.username);
+      const url = inviteUrl(token);
+      setInviteLink(url);
+      try { await navigator.clipboard.writeText(url); } catch { /* 手で写す */ }
+    } catch {
+      setChatNotice('招待リンクを作れませんでした。通信を確かめて、もう一度押してください');
+    } finally {
+      setInviteBusy(false);
+    }
+  };
+
+  const invitePanels = (
+    <>
+      {incomingInvite && (
+        <div className="mx-4 mt-3 border border-[#17302A] bg-[#17302A] text-white px-4 py-3 text-[12px] flex flex-wrap items-center gap-3" role="status">
+          <span className="flex-1 min-w-[12rem]">
+            {incomingInvite.createdByName || '会員'} さんから、yychat の{incomingInvite.isGroup ? `グループ「${incomingInvite.roomName || '名前なし'}」` : '部屋'}への招待です（期限 {incomingInvite.expiresAt.toLocaleDateString('ja-JP')}）。
+          </span>
+          <button type="button" disabled={inviteBusy} onClick={() => void acceptInvite()} className="px-3 py-1 bg-[#52AA96] text-[#17302A] font-bold disabled:opacity-50">参加する</button>
+          <button type="button" onClick={() => setIncomingInvite(null)} className="underline underline-offset-2 text-gray-200">今はしない</button>
+        </div>
+      )}
+      {inviteLink && (
+        <div className="mx-4 mt-3 border border-gray-300 bg-white px-4 py-3 text-[12px] space-y-2" role="status">
+          <div>招待リンクを作りました（コピー済み）。メールなどで送ってください。開いた人は、無料の会員登録（またはログイン）の後にこの部屋に入れます。期限は {INVITE_DAYS} 日です。</div>
+          <div className="flex gap-2 items-center">
+            <input readOnly value={inviteLink} onFocus={(e) => e.currentTarget.select()} className="flex-1 border border-gray-300 px-2 py-1 yy-mono text-[11px]" aria-label="招待リンク" />
+            <button type="button" onClick={() => setInviteLink('')} className="underline underline-offset-2 text-gray-500">閉じる</button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+
   // 未ログインでも帯は出す。帯が無いとツール名が画面から消えてしまう。
   if (!isLoggedIn || !currentUser) {
     return (
       <div className="pb-4">
         {chatHeader}
+        {guestInvited && (
+          <div className="mx-4 mt-3 border border-[#17302A] bg-[#17302A] text-white px-4 py-3 text-[12px]" role="status">
+            yychat に招待されています。左下の「無料会員登録」（アカウントがあれば「ログイン」）の後に、この yychat を開くと招待の部屋に入れます。
+          </div>
+        )}
         <YyChatGuestDemo />
       </div>
     );
@@ -1087,6 +1186,7 @@ const YyChat: React.FC = () => {
   return (
     <div className="pt-0 pb-4">
       {chatHeader}
+      {invitePanels}
       <div className="flex h-[600px] bg-white border border-[#3b3b3b] overflow-hidden font-sans mx-4 mt-3">
       <div className={`${selectedRoom ? 'hidden md:flex' : 'flex'} w-full md:w-72 flex-col border-r bg-gray-50`}>
         <div className="px-4 py-3 bg-white border-b flex items-center justify-between z-10">
@@ -1379,6 +1479,9 @@ const YyChat: React.FC = () => {
                 </button>
                 {showRoomMenu && (
                   <div className="absolute right-0 top-full mt-1 w-64 bg-white border border-[#3b3b3b] overflow-hidden z-20 py-1 max-h-[70vh] overflow-y-auto">
+                     <button type="button" disabled={inviteBusy} onClick={() => void makeInvite()} className="w-full text-left px-3 py-2 text-[11px] text-gray-700 hover:bg-gray-50 border-b border-gray-100" title="アカウントの無い人にも送れます。開いた人は会員登録の後に入れます">
+                       招待リンクを作る{selectedRoom.isGroup ? '（このグループに入る）' : '（あなたとの部屋を作る）'}
+                     </button>
                      {selectedRoom.isGroup && (
                        <>
                          <div className="px-3 py-2 space-y-1">
