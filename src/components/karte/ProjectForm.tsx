@@ -18,6 +18,7 @@ import {
   type StructureType,
   type UseType,
 } from '@/lib/karte/masters';
+import { OVERLAY_KEYS, hasHd, shadeLabel, shadeOptions, type HeightDistrict, type Overlay, type OverlayKey } from '@/lib/karte/overlay';
 import { effectiveFire, heightNotes, majorityZone, partsOf, siteAreaOf, type SitePart } from '@/lib/karte/site';
 import { ZONE_GUIDES } from '@/lib/zoneGuide';
 
@@ -26,15 +27,63 @@ type Props = {
   onSave: (p: Project) => void;
 };
 
-type Form = { [K in Exclude<keyof Project, 'parts'>]: string };
+/** 文字列の欄で持たない項目(敷地の部分・地区計画・建築協定・条例は別の state) */
+type ObjKey = 'parts' | 'dp' | 'agree' | 'ord';
+const OBJ_KEYS: string[] = ['parts', 'dp', 'agree', 'ord'];
+type Form = { [K in Exclude<keyof Project, ObjKey>]: string };
 
 // 後から足した項目(前面道路・その他の制限)は古い物件に無いので空で始める
 const toForm = (p: Project): Form =>
   ({
     road: '',
     other: '',
-    ...Object.fromEntries(Object.entries(p).filter(([k]) => k !== 'parts').map(([k, v]) => [k, String(v ?? '')])),
+    ...Object.fromEntries(Object.entries(p).filter(([k]) => !OBJ_KEYS.includes(k)).map(([k, v]) => [k, String(v ?? '')])),
   }) as Form;
+
+/* 地区計画・建築協定・条例の入力(2026-11-16)。数値は空欄 = 定めなし */
+type OvForm = { on: boolean; name: string; text: string; uses: string; byLaw: boolean; bc: string; far: string; hMax: string; hMin: string; wall: string; minSite: string; access: string };
+const ns = (x?: number) => (x && x > 0 ? String(x) : '');
+const ovForm = (o?: Overlay): OvForm => ({
+  on: !!o,
+  name: o?.name ?? '',
+  text: o?.text ?? '',
+  uses: o?.uses ?? '',
+  byLaw: !!o?.byLaw,
+  bc: ns(o?.bc),
+  far: ns(o?.far),
+  hMax: ns(o?.hMax),
+  hMin: ns(o?.hMin),
+  wall: ns(o?.wall),
+  minSite: ns(o?.minSite),
+  access: ns(o?.access),
+});
+const pos = (s: string | number | undefined) => {
+  const x = Number(s);
+  return Number.isFinite(x) && x > 0 ? x : 0;
+};
+/** 印の無いものは保存しない(古い物件と同じ形のまま) */
+function ovOut(key: OverlayKey, f: OvForm): Overlay | undefined {
+  if (!f.on) return undefined;
+  const o: Overlay = { name: f.name.trim(), text: f.text.trim(), bc: pos(f.bc), far: pos(f.far), hMax: pos(f.hMax), hMin: pos(f.hMin), wall: pos(f.wall), minSite: pos(f.minSite) };
+  if (key === 'dp') {
+    o.uses = f.uses.trim();
+    o.byLaw = f.byLaw;
+  }
+  if (key === 'ord') o.access = pos(f.access);
+  return o;
+}
+/** 敷地の部分を保存の形に。高度地区・日影規制が空なら項目ごと持たない */
+function cleanPart(x: SitePart): SitePart {
+  const { hd, shade, ...rest } = x;
+  const out: SitePart = { ...rest, area: Number(x.area) || 0, bc: Number(x.bc) || 0, far: Number(x.far) || 0 };
+  if (hd) {
+    const h: HeightDistrict = { name: (hd.name ?? '').trim(), max: pos(hd.max), min: pos(hd.min), rise: pos(hd.rise), grad: pos(hd.grad), brk: pos(hd.brk), grad2: pos(hd.grad2) };
+    if (hasHd(h)) out.hd = h;
+  }
+  if (shade) out.shade = shade;
+  return out;
+}
+const EMPTY_HD: HeightDistrict = { name: '', max: 0, min: 0, rise: 0, grad: 0, brk: 0, grad2: 0 };
 
 /** 指定建蔽率・指定容積率の選択肢(法 53 条 1 項・52 条 1 項)。用途地域の指定のない区域は 53 条 1 項 6 号・52 条 1 項 8 号 */
 const NONE_ZONE = '用途地域の指定のない区域';
@@ -90,6 +139,13 @@ export default function ProjectForm({ project, onSave }: Props) {
   const fireRule = effectiveFire(parts);
   const siteArea = siteAreaOf(parts);
   const hNotes = heightNotes(parts);
+  const setHd = (i: number, patch: Partial<HeightDistrict>) => setParts((prev) => prev.map((x, j) => (j === i ? { ...x, hd: { ...EMPTY_HD, ...x.hd, ...patch } } : x)));
+  // 地区計画・建築協定・条例
+  const [ov, setOvRaw] = useState<Record<OverlayKey, OvForm>>(() => ({ dp: ovForm(project.dp), agree: ovForm(project.agree), ord: ovForm(project.ord) }));
+  const setOv = (key: OverlayKey, patch: Partial<OvForm>) => {
+    setDirty(true);
+    setOvRaw((prev) => ({ ...prev, [key]: { ...prev[key], ...patch } }));
+  };
   const [saved, setSaved] = useState(false);
   const set = (k: keyof Form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setDirty(true);
@@ -97,13 +153,19 @@ export default function ProjectForm({ project, onSave }: Props) {
   };
 
   const save = () => {
+    const ovs: Partial<Pick<Project, OverlayKey>> = {};
+    for (const key of OVERLAY_KEYS) {
+      const o = ovOut(key, ov[key]);
+      if (o) ovs[key] = o;
+    }
     onSave({
+      ...ovs,
       id: project.id,
       name: f.name.trim() || '無題',
       addr: f.addr,
       zone: major.zone,
       fire: fireRule.fire,
-      parts: parts.map((x) => ({ ...x, area: Number(x.area) || 0, bc: Number(x.bc) || 0, far: Number(x.far) || 0 })),
+      parts: parts.map(cleanPart),
       H: num(f.H, project.H),
       v0: num(f.v0, project.v0),
       rough: (f.rough as Roughness) || '3',
@@ -180,7 +242,7 @@ export default function ProjectForm({ project, onSave }: Props) {
         <div className="yy-kt-parts">
           <div className="yy-kt-parts__head">
             <span className="yy-kt-parts__title">敷地の地域</span>
-            <span className="yy-kt-parts__hint">敷地が 2 以上の用途地域・防火指定にわたるときは、行を足して部分ごとの面積を入れる</span>
+            <span className="yy-kt-parts__hint">敷地が 2 以上の用途地域・防火指定にわたるときは、行を足して部分ごとの面積を入れる。高度地区と日影規制は各行の下の段に、その部分の指定を入れる</span>
           </div>
           <div className="yy-kt-parts__scroll">
             <table className="yy-kt-parts__tbl">
@@ -198,52 +260,91 @@ export default function ProjectForm({ project, onSave }: Props) {
               <tbody>
                 {parts.map((x, i) => {
                   const opt = ratioOptions(x.zone);
+                  const sh = shadeOptions(x.zone);
+                  const hd = x.hd ?? EMPTY_HD;
+                  const hdNum = (k: Exclude<keyof HeightDistrict, 'name'>, label: string, unit: string, step: number) => (
+                    <label>
+                      {label}
+                      <input type="number" aria-label={`${i + 1} 行目の高度地区の${label}`} min={0} step={step} value={hd[k] || ''} onChange={(e) => setHd(i, { [k]: Number(e.target.value) })} />
+                      {unit && <span className="yy-kt-unit">{unit}</span>}
+                    </label>
+                  );
                   return (
-                    <tr key={i}>
-                      <td>
-                        <select aria-label={`${i + 1} 行目の用途地域`} value={x.zone} onChange={(e) => setPart(i, { zone: e.target.value, bc: 0, far: 0 })}>
-                          {ZONES.map((z) => <option key={z}>{z}</option>)}
-                        </select>
-                      </td>
-                      <td>
-                        <select aria-label={`${i + 1} 行目の防火指定`} value={x.fire} onChange={(e) => setPart(i, { fire: e.target.value })}>
-                          {FIRE_ZONES.map((z) => <option key={z}>{z}</option>)}
-                        </select>
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          aria-label={`${i + 1} 行目の面積`}
-                          min={0}
-                          step={0.01}
-                          value={x.area || ''}
-                          placeholder={parts.length === 1 ? '敷地面積' : ''}
-                          onChange={(e) => setPart(i, { area: Number(e.target.value) })}
-                        />
-                      </td>
-                      <td>
-                        <select aria-label={`${i + 1} 行目の指定建蔽率`} value={x.bc || ''} onChange={(e) => setPart(i, { bc: Number(e.target.value) })}>
-                          <option value="">—</option>
-                          {opt.bc.map((n) => <option key={n} value={n}>{n}%</option>)}
-                        </select>
-                      </td>
-                      <td>
-                        <select aria-label={`${i + 1} 行目の指定容積率`} value={x.far || ''} onChange={(e) => setPart(i, { far: Number(e.target.value) })}>
-                          <option value="">—</option>
-                          {opt.far.map((n) => <option key={n} value={n}>{n}%</option>)}
-                        </select>
-                      </td>
-                      <td className="is-c">
-                        <input type="checkbox" aria-label={`${i + 1} 行目に建物がかかる`} checked={x.bldg} onChange={(e) => setPart(i, { bldg: e.target.checked })} />
-                      </td>
-                      <td className="is-c">
-                        {parts.length > 1 && (
-                          <button type="button" className="yy-kt-parts__del" onClick={() => removePart(i)} aria-label={`${i + 1} 行目を消す`}>
-                            ×
-                          </button>
-                        )}
-                      </td>
-                    </tr>
+                    <React.Fragment key={i}>
+                      <tr className="is-top">
+                        <td>
+                          <select aria-label={`${i + 1} 行目の用途地域`} value={x.zone} onChange={(e) => setPart(i, { zone: e.target.value, bc: 0, far: 0, shade: undefined })}>
+                            {ZONES.map((z) => <option key={z}>{z}</option>)}
+                          </select>
+                        </td>
+                        <td>
+                          <select aria-label={`${i + 1} 行目の防火指定`} value={x.fire} onChange={(e) => setPart(i, { fire: e.target.value })}>
+                            {FIRE_ZONES.map((z) => <option key={z}>{z}</option>)}
+                          </select>
+                        </td>
+                        <td>
+                          <input
+                            type="number"
+                            aria-label={`${i + 1} 行目の面積`}
+                            min={0}
+                            step={0.01}
+                            value={x.area || ''}
+                            placeholder={parts.length === 1 ? '敷地面積' : ''}
+                            onChange={(e) => setPart(i, { area: Number(e.target.value) })}
+                          />
+                        </td>
+                        <td>
+                          <select aria-label={`${i + 1} 行目の指定建蔽率`} value={x.bc || ''} onChange={(e) => setPart(i, { bc: Number(e.target.value) })}>
+                            <option value="">—</option>
+                            {opt.bc.map((n) => <option key={n} value={n}>{n}%</option>)}
+                          </select>
+                        </td>
+                        <td>
+                          <select aria-label={`${i + 1} 行目の指定容積率`} value={x.far || ''} onChange={(e) => setPart(i, { far: Number(e.target.value) })}>
+                            <option value="">—</option>
+                            {opt.far.map((n) => <option key={n} value={n}>{n}%</option>)}
+                          </select>
+                        </td>
+                        <td className="is-c">
+                          <input type="checkbox" aria-label={`${i + 1} 行目に建物がかかる`} checked={x.bldg} onChange={(e) => setPart(i, { bldg: e.target.checked })} />
+                        </td>
+                        <td className="is-c">
+                          {parts.length > 1 && (
+                            <button type="button" className="yy-kt-parts__del" onClick={() => removePart(i)} aria-label={`${i + 1} 行目を消す`}>
+                              ×
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                      <tr className="is-sub">
+                        <td colSpan={7}>
+                          <div className="yy-kt-parts__more">
+                            <label>
+                              高度地区
+                              <input className="is-name" aria-label={`${i + 1} 行目の高度地区の名称`} value={hd.name} placeholder="指定なし" onChange={(e) => setHd(i, { name: e.target.value })} />
+                            </label>
+                            {hdNum('max', '最高限度', 'm', 0.5)}
+                            {hdNum('rise', '斜線 立上り', 'm', 0.5)}
+                            {hdNum('grad', '勾配', '', 0.05)}
+                            {hdNum('brk', '折れ点', 'm', 0.5)}
+                            {hdNum('grad2', 'その先の勾配', '', 0.05)}
+                            {hdNum('min', '最低限度', 'm', 0.5)}
+                            <label>
+                              日影規制
+                              {sh.length ? (
+                                <select aria-label={`${i + 1} 行目の日影規制`} value={x.shade ?? ''} onChange={(e) => setPart(i, { shade: e.target.value || undefined })}>
+                                  <option value="">未確認</option>
+                                  <option value="none">条例の指定なし</option>
+                                  {sh.map((r) => <option key={r.key} value={r.key}>{shadeLabel(r)}</option>)}
+                                </select>
+                              ) : (
+                                <span className="yy-kt-unit">別表第 4 の地域外(規制なし)</span>
+                              )}
+                            </label>
+                          </div>
+                        </td>
+                      </tr>
+                    </React.Fragment>
                   );
                 })}
               </tbody>
@@ -286,6 +387,50 @@ export default function ProjectForm({ project, onSave }: Props) {
             </ul>
           )}
         </div>
+        <div className="yy-kt-parts">
+          <div className="yy-kt-parts__head">
+            <span className="yy-kt-parts__title">地区計画・建築協定・条例</span>
+            <span className="yy-kt-parts__hint">区域内なら印を付け、定めのある数値だけ入れる(空欄は定めなし)。建蔽率・容積率・高さの判定で、法による限度と比べて厳しい方を使う</span>
+          </div>
+          {OVERLAY_KEYS.map((key) => {
+            const o = ov[key];
+            const id = (s: string) => `p-${key}-${s}`;
+            const txt = (s: 'name' | 'text' | 'uses', label: string, ph?: string) => (
+              <KV k={L(id(s), label)} v={<input id={id(s)} className="is-text" value={o[s]} placeholder={ph} onChange={(e) => setOv(key, { [s]: e.target.value })} />} />
+            );
+            const nf = (s: 'bc' | 'far' | 'hMax' | 'hMin' | 'wall' | 'minSite' | 'access', label: string, unit: string, step: number) => (
+              <KV k={L(id(s), label)} v={numField({ id: id(s), value: o[s], unit, step, min: 0, onChange: (e) => setOv(key, { [s]: e.target.value }) })} />
+            );
+            return (
+              <div key={key} className="yy-kt-ov">
+                <label className="yy-kt-ov__on">
+                  <input type="checkbox" checked={o.on} onChange={(e) => setOv(key, { on: e.target.checked })} />
+                  {key === 'dp' ? '地区計画(地区整備計画)の区域内' : key === 'agree' ? '建築協定の区域内' : '自治体の条例による上乗せがある'}
+                </label>
+                {o.on && (
+                  <div className="yy-kt-form">
+                    {txt('name', key === 'dp' ? '地区計画の名称' : key === 'agree' ? '協定の名称' : '条例の名称', key === 'ord' ? '例: 建築安全条例・日影条例' : '')}
+                    {nf('bc', '建蔽率の最高限度', '%', 10)}
+                    {nf('far', '容積率の最高限度', '%', 10)}
+                    {nf('hMax', '高さの最高限度', 'm', 0.5)}
+                    {nf('hMin', '高さの最低限度', 'm', 0.5)}
+                    {nf('wall', '壁面の位置の制限(境界線からの距離)', 'm', 0.1)}
+                    {nf('minSite', '敷地面積の最低限度', 'm²', 1)}
+                    {key === 'ord' && nf('access', '敷地が道路に接する長さ(法 43 条 3 項)', 'm', 0.5)}
+                    {key === 'dp' && txt('uses', '用途の制限', '例: 風俗営業・倉庫は不可')}
+                    {key === 'dp' && (
+                      <KV
+                        k={L(id('bylaw'), '地区整備計画を条例にしている(法 68 条の 2)')}
+                        v={<input type="checkbox" id={id('bylaw')} checked={o.byLaw} onChange={(e) => setOv(key, { byLaw: e.target.checked })} />}
+                      />
+                    )}
+                    {txt('text', 'その他の内容(自由記述)', key === 'dp' ? '形態・意匠・垣や柵など' : key === 'agree' ? '用途・形態・意匠・建築設備など' : 'がけ・駐車場・緑化・ワンルームなど')}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
         <div className="yy-kt-form">
           <KV
             k={L('p-other', 'その他の制限(判定の外)')}
@@ -295,13 +440,13 @@ export default function ProjectForm({ project, onSave }: Props) {
                 className="is-text"
                 value={f.other}
                 onChange={set('other')}
-                placeholder="高度地区・地区計画・建築協定・景観地区・条例など"
+                placeholder="景観地区・風致地区・要綱など"
               />
             }
           />
         </div>
         <p className="yy-kt-note">
-          ここに入れた条件が、意匠・構造・設備・電気の各検討で共通に使われます。関係のない項目は自動でグレーになります。高さ H は地盤面からの建築物の高さ(令 2 条 1 項 6 号)。階段室・昇降機塔などで水平投影面積が建築面積の 1/8 以内の部分は、12m まで高さに入れない規定と入れる規定(北側斜線など)があるので、各項目で確かめてください。前面道路の幅員は 2 項道路なら後退後の 4m(指定区域は 6m)。高度地区・地区計画・建築協定・条例はカルテでは判定しないので、「その他の制限」に書いておくと確認書に残ります。V₀・粗度区分・Z・垂直積雪量は告示および自治体規則で地域ごとに定まります。所在地からの自動取得は今後の対応です。
+          ここに入れた条件が、意匠・構造・設備・電気の各検討で共通に使われます。関係のない項目は自動でグレーになります。高さ H は地盤面からの建築物の高さ(令 2 条 1 項 6 号)。階段室・昇降機塔などで水平投影面積が建築面積の 1/8 以内の部分は、12m まで高さに入れない規定と入れる規定(北側斜線など)があるので、各項目で確かめてください。前面道路の幅員は 2 項道路なら後退後の 4m(指定区域は 6m)。高度地区(法 58 条)と日影規制(法 56 条の 2・条例)は「敷地の地域」の行ごとに、地区計画・建築協定・条例は上の欄に入れると、建蔽率・容積率・高さ・日影の判定に使います。高度地区の斜線は「立上り + 勾配 × 真北方向の水平距離」で、2 段のときは折れ点(距離)から先の勾配を入れます。それ以外の制限は「その他の制限」に書いておくと確認書に残ります。V₀・粗度区分・Z・垂直積雪量は告示および自治体規則で地域ごとに定まります。所在地からの自動取得は今後の対応です。
         </p>
       </section>
 

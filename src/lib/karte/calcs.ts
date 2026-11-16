@@ -6,8 +6,9 @@
  * 判定は法令の「一般的な場合」だけを見る。特定行政庁の指定・条例・告示の緩和は判定の外で、
  * 画面の注記(note)に書く。
  */
-import { type Project } from './masters';
-import { isIndustrialZone, isResidentialZone, partsOf, weightedLimits, type FireRating } from './site';
+import { ZONES, type Project } from './masters';
+import { ALL_SHADE_RULES, hasHd, hdSlant, isLowZone, isMidZone, isShadeZone, overlaysOf, shadeJudge, shadeLabel, shadeRule, strictestOf, type ShadeRegion } from './overlay';
+import { isIndustrialZone, isResidentialZone, partsOf, siteAreaOf, weightedLimits, type FireRating, type SitePart } from './site';
 
 export type Field =
   | { k: string; label: string; kind: 'num'; unit?: string; step?: number; def?: (p: Project) => string; hint?: string }
@@ -21,9 +22,14 @@ export type CalcOut = { verdict: Verdict; summary: string; lines: CalcLine[] };
 export type CalcSpec = {
   title: string;
   fields: Field[];
+  /** 物件(敷地の部分の数など)や入力で増える欄。2026-11-16 */
+  more?: (p: Project, v: Vals) => Field[];
   run: (v: Vals, p: Project) => CalcOut | null;
   note?: string;
 };
+
+/** 項目の入力欄の全部(固定の欄 + 物件や入力で増える欄) */
+export const fieldsOf = (spec: CalcSpec, p: Project, v: Vals = {}): Field[] => (spec.more ? [...spec.fields, ...spec.more(p, v)] : spec.fields);
 
 export type Vals = Record<string, string>;
 
@@ -44,7 +50,7 @@ const isIndustrial = isIndustrialZone;
 /** 初期値:物件の条件から引ける値だけ */
 export function defaults(spec: CalcSpec, p: Project): Vals {
   const out: Vals = {};
-  for (const f of spec.fields) if (f.def) out[f.k] = f.def(p);
+  for (const f of fieldsOf(spec, p)) if (f.def) out[f.k] = f.def(p);
   return out;
 }
 
@@ -109,11 +115,11 @@ const coverage: CalcSpec = {
     },
   ],
   note:
-    '前面道路が 12m 未満のときは、幅員 × 0.4(住居系)/ 0.6(その他)と指定容積率の小さい方(法 52 条 2 項)。特定道路の緩和(同 9 項)と特定行政庁が指定した係数は欄で入れます。地区計画・高度利用地区・総合設計・住宅の容積緩和(同 8 項)などは判定の外です。敷地が 2 以上の用途地域・防火指定にわたるときは、物件条件の「敷地の地域」に部分ごとの面積(2 項道路の後退部分を除く)と指定値を入れると、部分ごとの限度(緩和を含む)を面積で加重平均します(法 52 条 7 項・53 条 2 項・7 項・8 項)。',
+    '前面道路が 12m 未満のときは、幅員 × 0.4(住居系)/ 0.6(その他)と指定容積率の小さい方(法 52 条 2 項)。特定道路の緩和(同 9 項)と特定行政庁が指定した係数は欄で入れます。物件条件に入れた地区計画・建築協定・条例の建蔽率と容積率の最高限度は法による上限と比べて厳しい方で、敷地面積の最低限度は敷地面積と比べて判定します(条例の緩和、既存の敷地の適用除外(法 68 条の 2 第 3 項)、再開発等促進区・誘導容積・容積の配分などの地区計画の特例(法 68 条の 3〜68 条の 5 の 2 ほか)は判定の外)。高度利用地区・総合設計・住宅の容積緩和(同 8 項)などは判定の外です。敷地が 2 以上の用途地域・防火指定にわたるときは、物件条件の「敷地の地域」に部分ごとの面積(2 項道路の後退部分を除く)と指定値を入れると、部分ごとの限度(緩和を含む)を面積で加重平均します(法 52 条 7 項・53 条 2 項・7 項・8 項)。',
   run(v, p) {
     // 敷地が 2 以上の地域にわたる(物件条件に面積と指定建蔽率を入れた部分が 2 つ以上)→ 面積で加重平均
     const multi = partsOf(p).filter((x) => x.area > 0 && x.bc > 0);
-    if (multi.length >= 2) return coverageMulti(v, multi);
+    if (multi.length >= 2) return coverageMulti(v, multi, p);
     const gross = n(v, 'site');
     const setback = n(v, 'setback');
     const site = gross - (setback > 0 ? setback : 0);
@@ -149,14 +155,25 @@ const coverage: CalcSpec = {
       reasons.push('準防火地域の耐火・準耐火建築物等 +10');
     }
     bcMax = unlimited ? 100 : Math.min(100, bc + up);
+    // 地区計画・建築協定・条例の最高限度(定めがあるときだけ行を足す。無い物件は今までと同じ行)
+    const ovs = overlaysOf(p);
+    const capBc = strictestOf(ovs, 'bc');
+    const capFar = strictestOf(ovs, 'far');
     let bcNg = false;
     if (doBc) {
       const bcNow = (bldg / site) * 100;
+      const lawText = unlimited ? '制限なし(指定 80% の防火地域内の耐火建築物等)' : `${f1(bcMax)} %${reasons.length ? `(指定 ${bc} / ${reasons.join(' · ')})` : ''}`;
+      if (capBc) lines.push({ k: `${capBc.label}の建蔽率`, v: `最高限度 ${f1(capBc.v)} %(${capBc.basis})` });
+      const capped = !!capBc && capBc.v < bcMax;
+      if (capped) {
+        bcMax = capBc.v;
+        unlimited = false;
+      }
       bcNg = bcNow > bcMax + 1e-9;
       lines.push({ k: '建蔽率', v: `${f1(bcNow)} %(建築面積 ${f1(bldg)} ÷ 敷地 ${f1(site)})` });
       lines.push({
         k: '建蔽率の上限',
-        v: unlimited ? '制限なし(指定 80% の防火地域内の耐火建築物等)' : `${f1(bcMax)} %${reasons.length ? `(指定 ${bc} / ${reasons.join(' · ')})` : ''}`,
+        v: capped ? `${f1(bcMax)} %(${capBc!.label}の最高限度。法 53 条による上限は ${lawText})` : lawText,
         ng: bcNg,
       });
     }
@@ -174,33 +191,47 @@ const coverage: CalcSpec = {
       const k = Number.isFinite(pick) && allowed.includes(pick) ? pick : base;
       if (Number.isFinite(pick) && !allowed.includes(pick)) lines.push({ k: '前面道路の係数', v: `${p.zone}では ${pick} は選べません(法 52 条 2 項)。${base} で計算`, ng: true });
       const byRoad = rd.w > 0 && rd.w < 12 ? rd.w * k * 100 : Infinity;
-      const farMax = Math.min(far, byRoad);
+      let farMax = Math.min(far, byRoad);
       const farNow = (floor / site) * 100;
-      farNg = farNow > farMax + 1e-9;
       if (rd.note) lines.push({ k: '前面道路の幅員', v: `${f2(rd.w)} m(${rd.note})` });
+      const lawText = rd.blank
+        ? `${f1(far)} %(指定 ${far}。前面道路の幅員が未入力のため、道路による低減を見ていません)`
+        : `${f1(farMax)} %${Number.isFinite(byRoad) ? `(指定 ${far} と 道路 ${r2(rd.w)}m × ${k} = ${f1(byRoad)} の小さい方)` : `(指定 ${far}。前面道路 12m 以上)`}`;
+      if (capFar) lines.push({ k: `${capFar.label}の容積率`, v: `最高限度 ${f1(capFar.v)} %(${capFar.basis})` });
+      const capped = !!capFar && capFar.v < farMax;
+      if (capped) farMax = capFar.v;
+      farNg = farNow > farMax + 1e-9;
       lines.push({ k: '容積率', v: `${f1(farNow)} %(延べ ${f1(floor)} ÷ 敷地 ${f1(site)})` });
       lines.push({
         k: '容積率の上限',
-        v: rd.blank
-          ? `${f1(far)} %(指定 ${far}。前面道路の幅員が未入力のため、道路による低減を見ていません)`
-          : `${f1(farMax)} %${Number.isFinite(byRoad) ? `(指定 ${far} と 道路 ${r2(rd.w)}m × ${k} = ${f1(byRoad)} の小さい方)` : `(指定 ${far}。前面道路 12m 以上)`}`,
+        v: capped ? `${f1(farMax)} %(${capFar!.label}の最高限度。法 52 条による上限は ${lawText})` : lawText,
         ng: farNg,
       });
       lines.push({ k: '残りの延べ面積', v: left((farMax / 100) * site - floor) });
     }
     if (doBc) lines.push({ k: '残りの建築面積', v: unlimited ? '—' : left((bcMax / 100) * site - bldg) });
-    const ng = bcNg || farNg;
+    const siteNg = minSiteLine(lines, ovs, site);
+    const ng = bcNg || farNg || siteNg;
     const part = [!doBc && '建蔽率は未入力', !doFar && '容積率は未入力', roadBlank && '前面道路未入力'].filter(Boolean).join('・');
     return {
       verdict: ng ? 'ng' : part ? 'info' : 'ok',
-      summary: `${ng ? `超過(${[bcNg && '建蔽率', farNg && '容積率'].filter(Boolean).join('・')})` : '適合'}${part ? `(${part})` : ''}`,
+      summary: `${ng ? `${siteNg ? '不適合' : '超過'}(${[bcNg && '建蔽率', farNg && '容積率', siteNg && '敷地面積の最低限度'].filter(Boolean).join('・')})` : '適合'}${part ? `(${part})` : ''}`,
       lines,
     };
   },
 };
 
+/** 地区計画・建築協定・条例の敷地面積の最低限度(定めがあるときだけ行を足す)。不足なら true */
+function minSiteLine(lines: CalcLine[], ovs: ReturnType<typeof overlaysOf>, site: number): boolean {
+  const m = strictestOf(ovs, 'minSite');
+  if (!m) return false;
+  const ng = site + 1e-9 < m.v;
+  lines.push({ k: '敷地面積の最低限度', v: `${f1(m.v)} m²(${m.label}・${m.basis})。敷地 ${f1(site)} m²${ng ? ' は不足' : ''}`, ng });
+  return ng;
+}
+
 /** 敷地が 2 以上の用途地域・防火指定にわたるとき(法 52 条 7 項・53 条 2 項・7 項・8 項) */
-function coverageMulti(v: Vals, parts: ReturnType<typeof partsOf>): CalcOut | null {
+function coverageMulti(v: Vals, parts: ReturnType<typeof partsOf>, p: Project): CalcOut | null {
   const bldg = n(v, 'bldg');
   const floor = n(v, 'floor');
   if (!(bldg >= 0)) return null;
@@ -217,27 +248,36 @@ function coverageMulti(v: Vals, parts: ReturnType<typeof partsOf>): CalcOut | nu
     });
   }
   if (w.deemed) lines.push({ k: '防火のみなし', v: `敷地の全部を${w.deemed}とみなして緩和を適用(法 53 条 ${w.deemed === '防火地域' ? 7 : 8} 項)` });
+  // 地区計画・建築協定・条例の最高限度(定めがあるときだけ)
+  const ovs = overlaysOf(p);
+  const capBc = strictestOf(ovs, 'bc');
+  const capFar = strictestOf(ovs, 'far');
+  const bcMax = capBc && capBc.v < w.bc ? capBc.v : w.bc;
+  const farMax = capFar && capFar.v < w.far ? capFar.v : w.far;
   const bcNow = (bldg / w.site) * 100;
-  const bcNg = bcNow > w.bc + 1e-9;
+  const bcNg = bcNow > bcMax + 1e-9;
+  if (capBc) lines.push({ k: `${capBc.label}の建蔽率`, v: `最高限度 ${f1(capBc.v)} %(${capBc.basis})` });
   lines.push({ k: '建蔽率', v: `${f1(bcNow)} %(建築面積 ${f1(bldg)} ÷ 敷地 ${f1(w.site)})` });
-  lines.push({ k: '建蔽率の上限(加重平均)', v: `${f1(w.bc)} %`, ng: bcNg });
+  lines.push({ k: '建蔽率の上限(加重平均)', v: bcMax < w.bc ? `${f1(bcMax)} %(${capBc!.label}の最高限度。加重平均は ${f1(w.bc)} %)` : `${f1(w.bc)} %`, ng: bcNg });
   let farNg = false;
   const hasFar = w.rows.every((r) => r.farLimit > 0);
   if (hasFar && floor >= 0) {
     const farNow = (floor / w.site) * 100;
-    farNg = farNow > w.far + 1e-9;
+    farNg = farNow > farMax + 1e-9;
+    if (capFar) lines.push({ k: `${capFar.label}の容積率`, v: `最高限度 ${f1(capFar.v)} %(${capFar.basis})` });
     lines.push({ k: '容積率', v: `${f1(farNow)} %(延べ ${f1(floor)} ÷ 敷地 ${f1(w.site)})` });
-    lines.push({ k: '容積率の上限(加重平均)', v: `${f1(w.far)} %`, ng: farNg });
-    lines.push({ k: '残りの延べ面積', v: left((w.far / 100) * w.site - floor) });
+    lines.push({ k: '容積率の上限(加重平均)', v: farMax < w.far ? `${f1(farMax)} %(${capFar!.label}の最高限度。加重平均は ${f1(w.far)} %)` : `${f1(w.far)} %`, ng: farNg });
+    lines.push({ k: '残りの延べ面積', v: left((farMax / 100) * w.site - floor) });
   } else {
     lines.push({ k: '容積率', v: '物件条件の地域ごとに指定容積率を入れると判定します' });
   }
-  lines.push({ k: '残りの建築面積', v: left((w.bc / 100) * w.site - bldg) });
-  const ng = bcNg || farNg;
+  lines.push({ k: '残りの建築面積', v: left((bcMax / 100) * w.site - bldg) });
+  const siteNg = minSiteLine(lines, ovs, w.site);
+  const ng = bcNg || farNg || siteNg;
   const partial = !(hasFar && floor >= 0) || (rd.blank && hasFar);
   return {
     verdict: ng ? 'ng' : partial ? 'info' : 'ok',
-    summary: `${ng ? `超過(${[bcNg && '建蔽率', farNg && '容積率'].filter(Boolean).join('・')})` : '適合'}${partial ? (hasFar && floor >= 0 ? '(前面道路未入力)' : '(容積率は未判定)') : ''} · ${parts.length} 地域の加重平均`,
+    summary: `${ng ? `${siteNg ? '不適合' : '超過'}(${[bcNg && '建蔽率', farNg && '容積率', siteNg && '敷地面積の最低限度'].filter(Boolean).join('・')})` : '適合'}${partial ? (hasFar && floor >= 0 ? '(前面道路未入力)' : '(容積率は未判定)') : ''} · ${parts.length} 地域の加重平均`,
     lines,
   };
 }
@@ -288,6 +328,48 @@ function lightCoef(zone: string, d: number, h: number, road: boolean, sky: boole
   return { k, how, assumed };
 }
 
+/** 採光補正係数の式の区分(令 20 条 2 項 1 号 住居系・2 号 工業系・3 号 商業系と無指定) */
+const lightGroup = (zone: string) => (isResidential(zone) ? 1 : isIndustrial(zone) ? 2 : 3);
+const LIGHT_GROUP_LABEL = ['', '住居系の式(令 20 条 2 項 1 号)', '工業系の式(同 2 号)', '商業系・無指定の式(同 3 号)'];
+/** 採光の式を見る敷地の部分:建物がかかる部分(印が 1 つも無ければ全部) */
+function lightParts(p: Project): SitePart[] {
+  const ps = partsOf(p);
+  const on = ps.filter((x) => x.bldg);
+  return on.length ? on : ps;
+}
+const lightSplit = (p: Project) => new Set(lightParts(p).map((x) => lightGroup(x.zone))).size > 1;
+
+/**
+ * 開口 1 つの採光補正係数を、敷地の部分ごとの式で出す。2026-11-16
+ * 建物が式の違う 2 以上の地域にかかり、開口がある部分を選んでいないときは、各部分の式で出して最も小さい値(k)と最も大きい値(kMax)を返す
+ */
+function openingCoef(p: Project, sel: string | undefined, d: number, h: number, road: boolean, sky: boolean, veranda: boolean) {
+  const ps = lightParts(p);
+  const groups = [...new Set(ps.map((x) => lightGroup(x.zone)))];
+  if (groups.length < 2) {
+    const c = lightCoef(ps[0]?.zone ?? p.zone, d, h, road, sky, veranda);
+    return { ...c, kMax: c.k, detail: '' };
+  }
+  const all = partsOf(p);
+  const idx = sel === undefined || sel === '' ? -1 : Number(sel);
+  if (idx >= 0 && all[idx]) {
+    const c = lightCoef(all[idx].zone, d, h, road, sky, veranda);
+    return { ...c, how: `${c.how}(${all[idx].zone}の式)`, kMax: c.k, detail: '' };
+  }
+  const cs = groups.map((g) => ({ g, c: lightCoef(ps.find((x) => lightGroup(x.zone) === g)!.zone, d, h, road, sky, veranda) })).sort((a, b) => a.c.k - b.c.k);
+  const lo = cs[0];
+  const hi = cs[cs.length - 1];
+  // どの式でも同じ値(d・h 未入力・道に面して 1.0 など)なら、式を分けて書かない
+  if (cs.every((x) => x.c.how === lo.c.how)) return { ...lo.c, kMax: lo.c.k, detail: '' };
+  return {
+    k: lo.c.k,
+    kMax: hi.c.k,
+    assumed: lo.c.assumed,
+    how: `${lo.c.how}(${LIGHT_GROUP_LABEL[lo.g]}。部分ごとの値のうち最も小さい)`,
+    detail: `${cs.map((x) => `${LIGHT_GROUP_LABEL[x.g]} ${f2(x.c.k)}`).join(' / ')}。開口がある敷地の部分を選ぶと、その部分の式で計算`,
+  };
+}
+
 const daylight: CalcSpec = {
   title: '採光・換気の判定(居室 1 室)',
   fields: [
@@ -326,37 +408,54 @@ const daylight: CalcSpec = {
     { k: 'extra', label: 'その他の開口の有効採光面積(別に計算した合計)', kind: 'num', unit: 'm²', step: 0.01, hint: '3 つ目以降の窓は、面積 × 補正係数を足して入れる' },
     { k: 'vent', label: '開けられる部分の面積(換気)', kind: 'num', unit: 'm²', step: 0.01, hint: 'すべての開口の合計。引違い窓はおおむね窓面積の 1/2' },
   ],
+  more: (p) => {
+    if (!lightSplit(p)) return [];
+    const options: Array<[string, string]> = partsOf(p).map((x, i) => [String(i), `${i + 1}: ${x.zone}${x.area > 0 ? ` ${f1(x.area)} m²` : ''}`]);
+    const hint = '採光補正係数の式は用途地域の区分で変わる(令 20 条 2 項)。選ばないと、建物がかかる部分の式のうち最も小さい値で判定する';
+    return [
+      { k: 'zp', label: '開口 1 がある敷地の部分', kind: 'sel', options, hint },
+      { k: 'zp2', label: '開口 2 がある敷地の部分', kind: 'sel', options },
+    ];
+  },
   note:
-    '採光補正係数は用途地域で式が変わります(住居系 d/h×6−1.4・工業系 d/h×8−1・商業系と無指定 d/h×10−1、天窓 ×3.0・縁側 ×0.7、上限 3.0。令 20 条)。敷地が 2 以上の用途地域にわたるときは過半の地域の式で計算しています。事務所・店舗・ホテルの客室などは採光の規定がありません(無窓居室の扱いは別に確認)。換気は機械換気(令 20 条の 2)を設ければ窓の 1/20 は不要です。',
+    '採光補正係数は用途地域で式が変わります(住居系 d/h×6−1.4・工業系 d/h×8−1・商業系と無指定 d/h×10−1、天窓 ×3.0・縁側 ×0.7、上限 3.0。令 20 条 2 項)。建物が式の違う 2 以上の用途地域にかかるときは、開口がある敷地の部分を選ぶとその部分の式で、選ばないと部分ごとの式で出して最も小さい値で判定します(令 20 条 2 項は地域の区分に応じると定めるだけで、敷地がまたがるときの扱いの明文はありません。審査機関に確かめてください)。事務所・店舗・ホテルの客室などは採光の規定がありません(無窓居室の扱いは別に確認)。換気は機械換気(令 20 条の 2)を設ければ窓の 1/20 は不要です。',
   run(v, p) {
     const floor = n(v, 'floor');
     const win = n(v, 'win');
     if (!(floor > 0) || !(win >= 0)) return null;
     const num = (k: string) => (v[k] === undefined || v[k] === '' ? NaN : n(v, k));
     const lines: CalcLine[] = [];
-    const c1 = lightCoef(p.zone, num('d'), num('h'), on(v, 'road'), on(v, 'sky'), on(v, 'en'));
+    const c1 = openingCoef(p, v.zp, num('d'), num('h'), on(v, 'road'), on(v, 'sky'), on(v, 'en'));
     let eff = win * c1.k;
+    // 部分の式が決まらない開口は、最も大きい値でも足りないかを別に見る
+    let effMax = win * c1.kMax;
     let assumed = c1.assumed;
     lines.push({ k: '開口 1 の採光補正係数', v: c1.how });
+    if (c1.detail) lines.push({ k: '開口 1 の部分ごとの値', v: c1.detail });
     lines.push({ k: '開口 1 の有効採光面積', v: `${f2(win * c1.k)} m²(${f2(win)} × ${f2(c1.k)})` });
     const win2 = n(v, 'win2');
     if (win2 > 0) {
-      const c2 = lightCoef(p.zone, num('d2'), num('h2'), on(v, 'road2'), on(v, 'sky2'), on(v, 'en2'));
+      const c2 = openingCoef(p, v.zp2, num('d2'), num('h2'), on(v, 'road2'), on(v, 'sky2'), on(v, 'en2'));
       eff += win2 * c2.k;
+      effMax += win2 * c2.kMax;
       assumed = assumed || c2.assumed;
       lines.push({ k: '開口 2 の採光補正係数', v: c2.how });
+      if (c2.detail) lines.push({ k: '開口 2 の部分ごとの値', v: c2.detail });
       lines.push({ k: '開口 2 の有効採光面積', v: `${f2(win2 * c2.k)} m²(${f2(win2)} × ${f2(c2.k)})` });
     }
     const extra = n(v, 'extra');
     if (extra > 0) {
       eff += extra;
+      effMax += extra;
       lines.push({ k: 'その他の開口', v: `${f2(extra)} m²` });
     }
     const den = parseFloat(v.ratio || '7');
     const need = floor / den;
-    const ngL = eff + 1e-9 < need;
-    lines.push({ k: '有効採光面積の合計', v: `${f2(eff)} m²` });
-    lines.push({ k: `必要(床面積の 1/${den})`, v: `${f2(need)} m²`, ng: ngL });
+    // 部分の式によって足りたり足りなかったりする(どの部分の式でも足りないときだけ不足と言い切る)
+    const split = eff + 1e-9 < need && !(effMax + 1e-9 < need);
+    const ngL = eff + 1e-9 < need && !split;
+    lines.push({ k: '有効採光面積の合計', v: effMax > eff + 1e-9 ? `${f2(eff)} m²(部分の式によっては ${f2(effMax)} m²)` : `${f2(eff)} m²` });
+    lines.push({ k: `必要(床面積の 1/${den})`, v: `${f2(need)} m²${split ? '。開口がある部分の式で足りるかが変わる' : ''}`, ng: ngL || split });
     let ngV = false;
     const vent = n(v, 'vent');
     if (vent >= 0) {
@@ -370,8 +469,14 @@ const daylight: CalcSpec = {
     const ng = ngL || ngV;
     // d・h を入れずに 1.0 と仮定した開口があるときは「適合」と言い切らない
     return {
-      verdict: ng ? 'ng' : assumed ? 'info' : 'ok',
-      summary: ng ? `不足(${[ngL && '採光', ngV && '換気'].filter(Boolean).join('・')})` : assumed ? '適合(d・h 未入力の開口は補正係数 1.0 と仮定)' : '適合',
+      verdict: ng ? 'ng' : assumed || split ? 'info' : 'ok',
+      summary: ng
+        ? `不足(${[ngL && '採光', ngV && '換気'].filter(Boolean).join('・')})`
+        : split
+          ? '要確認(採光は開口がある敷地の部分の式で結果が変わる。部分を選ぶ)'
+          : assumed
+            ? '適合(d・h 未入力の開口は補正係数 1.0 と仮定)'
+            : '適合',
       lines,
     };
   },
@@ -906,7 +1011,7 @@ const access: CalcSpec = {
     { k: 'six', label: '特定行政庁が幅員 6m を指定した区域(2 項道路は中心から 3m)', kind: 'bool' },
   ],
   note: '自動車専用道路・地区計画の一部の道路は接道に数えません(法 43 条 1 項)。特殊建築物・階数 3 以上・延べ 1000m² 超・無窓居室のある建物・袋路状道路だけに接する敷地などは、条例で接道の長さや道路の幅員が上乗せされます(法 43 条 3 項。東京都建築安全条例など)。',
-  run(v) {
+  run(v, p) {
     const kind = v.kind;
     const w = n(v, 'w');
     const len = n(v, 'len');
@@ -921,6 +1026,13 @@ const access: CalcSpec = {
       const ng = len + 1e-9 < 2;
       if (ng) ngs.push('接道 2m 未満');
       lines.push({ k: '接道の長さ', v: `${f2(len)} m(2 m 以上。法 43 条 1 項)`, ng });
+      // 物件条件に条例の接道の長さを入れたときだけ(法 43 条 3 項の上乗せ)
+      const acc = strictestOf(overlaysOf(p), 'access');
+      if (acc) {
+        const ngA = len + 1e-9 < acc.v;
+        if (ngA) ngs.push('条例の接道の長さ');
+        lines.push({ k: '条例の接道の長さ', v: `${f2(acc.v)} m 以上(${acc.label}。法 43 条 3 項)`, ng: ngA });
+      }
     }
     if (kind === '2' && w > 0) {
       const half = on(v, 'six') ? 3 : 2;
@@ -944,9 +1056,296 @@ const access: CalcSpec = {
   },
 };
 
+/* ───────── 高さ(法 55 条・56 条 1 項 3 号・58 条・地区計画・建築協定・条例)。2026-11-16 ─────────
+ * 高さの制限は法 91 条の対象外なので、建築物がかかる敷地の部分ごとに、その部分の地域・高度地区で見る。 */
+const heightParts = (p: Project) => {
+  const ps = partsOf(p).map((x, i) => ({ x, i }));
+  const on = ps.filter((o) => o.x.bldg);
+  return on.length ? on : ps;
+};
+/** 北側の距離を使う制限がある部分か(低層住居系・中高層住居専用の北側斜線、高度地区の斜線) */
+const usesNorth = (x: SitePart) => isLowZone(x.zone) || isMidZone(x.zone) || !!(x.hd && x.hd.rise > 0 && x.hd.grad > 0);
+/** 隣地斜線の立上り(法 56 条 1 項 2 号。低層住居系・田園住居はかからない) */
+function neighborRise(zone: string): number | null {
+  if (isLowZone(zone)) return null;
+  if (isMidZone(zone) || ['第一種住居地域', '第二種住居地域', '準住居地域', '用途地域の指定のない区域'].includes(zone)) return 20;
+  return 31;
+}
+
+const height: CalcSpec = {
+  title: '高さの判定(絶対高さ・北側斜線・高度地区・地区計画など)',
+  fields: [
+    {
+      k: 'abs',
+      label: '低層住居系の絶対高さの限度(都市計画で定めた値)',
+      kind: 'sel',
+      options: [
+        ['10', '10 m'],
+        ['12', '12 m'],
+      ],
+      hint: '第一種・第二種低層住居専用地域・田園住居地域の部分だけに使う。空欄なら 10m で判定(法 55 条 1 項)',
+    },
+  ],
+  more: (p) => {
+    const multi = partsOf(p).length > 1;
+    return heightParts(p).flatMap(({ x, i }): Field[] => {
+      const pre = multi ? `部分 ${i + 1}(${x.zone}):` : '';
+      const out: Field[] = [
+        { k: `h${i}`, label: `${pre}建築物の最も高い部分の高さ`, kind: 'num', unit: 'm', step: 0.1, def: (pp) => (pp.H > 0 ? String(pp.H) : ''), hint: multi ? 'この部分にある建築物の部分の最高の高さ(地盤面から)。初期値は物件の高さ' : '地盤面から。初期値は物件の高さ' },
+      ];
+      if (usesNorth(x)) {
+        out.push(
+          { k: `l${i}`, label: `${pre}その部分から真北方向の隣地境界線(道路の反対側の境界線)までの水平距離`, kind: 'num', unit: 'm', step: 0.1, hint: '北側斜線と高度地区の斜線に使う' },
+          { k: `hn${i}`, label: `${pre}北側の外壁の上端(軒先・パラペット)の高さ`, kind: 'num', unit: 'm', step: 0.1, hint: '斜線は北側に近い部分で効くことが多い。2 点目として入れる' },
+          { k: `ln${i}`, label: `${pre}北側の外壁の上端から真北方向の境界線までの水平距離`, kind: 'num', unit: 'm', step: 0.1 },
+        );
+      }
+      return out;
+    });
+  },
+  note:
+    '高さは地盤面から(令 2 条 1 項 6 号)。北側斜線と、北側の高さの最高限度を定めた高度地区の高さには階段室などの屋上部分も入れ、絶対高さ(法 55 条)では水平投影面積が建築面積の 1/8 以内なら 5m まで入れません(同号ロ)。高度地区の数値・測り方・緩和は都市計画の定めによるので、物件条件の「敷地の地域」に部分ごとに入れます。斜線は入れた点だけを見ており、敷地と道路・隣地の高低差や北側の道路などの緩和(令 135 条の 4 ほか)、天空率(法 56 条 7 項)は見ていません。道路斜線・隣地斜線は設計ツールの「斜線制限」で確かめます。建築物が 2 以上の地域にわたるときは、部分ごとにその部分がある地域の規定で見ます(法 91 条の対象外・法 56 条 5 項)。',
+  run(v, p) {
+    const hp = heightParts(p);
+    const multi = partsOf(p).length > 1;
+    const ovs = overlaysOf(p);
+    const capH = strictestOf(ovs, 'hMax');
+    const minH = strictestOf(ovs, 'hMin');
+    const absLim = v.abs === '12' ? 12 : 10;
+    const lines: CalcLine[] = [];
+    const checks: string[] = [];
+    const ngs: string[] = [];
+    let worst: { lim: number; label: string; margin: number } | null = null;
+    let any = false;
+    for (const { x, i } of hp) {
+      const H = nb(v, `h${i}`);
+      const tag = multi ? `部分 ${i + 1}(${x.zone})` : x.zone;
+      if (!(H > 0)) {
+        checks.push(`${tag}:建築物の高さが未入力`);
+        continue;
+      }
+      const L = nb(v, `l${i}`);
+      const hn = nb(v, `hn${i}`);
+      const ln = nb(v, `ln${i}`);
+      const pts = [{ h: H, L, what: '最も高い部分' }, ...(hn > 0 && ln >= 0 ? [{ h: hn, L: ln, what: '北側の外壁の上端' }] : [])].filter((q) => q.L >= 0);
+      const items: Array<{ name: string; lim: number; h: number; how: string; min?: boolean }> = [];
+      if (isLowZone(x.zone)) items.push({ name: '絶対高さ(法 55 条 1 項)', lim: absLim, h: H, how: `${absLim} m${v.abs ? '' : '(限度が未選択のため 10m)'}` });
+      // 北側斜線。中高層住居専用地域で日影規制(別表第 4 の二の項)の指定がある区域は除く(法 56 条 1 項 3 号かっこ書)
+      const midShade = isMidZone(x.zone) && shadeRule(x.shade)?.kou === '2';
+      if (isLowZone(x.zone) || (isMidZone(x.zone) && !midShade)) {
+        const base = isLowZone(x.zone) ? 5 : 10;
+        if (!pts.length) checks.push(`${tag}:北側斜線(${base}m + 1.25 × 真北方向の水平距離。法 56 条 1 項 3 号)は真北方向の距離を入れると判定`);
+        for (const q of pts) items.push({ name: `北側斜線・${q.what}(法 56 条 1 項 3 号)`, lim: base + 1.25 * q.L, h: q.h, how: `${base} + 1.25 × ${r2(q.L)} = ${r2(base + 1.25 * q.L)} m` });
+      } else if (midShade) {
+        lines.push({ k: `${multi ? `${tag}:` : ''}北側斜線`, v: '日影規制(別表第 4 の二の項)が指定された区域のため、法 56 条 1 項 3 号の北側斜線はかからない' });
+      }
+      // 高度地区(法 58 条)
+      const hd = x.hd;
+      if (hd && hasHd(hd)) {
+        const nm = hd.name?.trim() || '高度地区';
+        const slant = hd.rise > 0 && hd.grad > 0;
+        if (hd.max > 0) items.push({ name: `${nm}の最高限度(法 58 条)`, lim: hd.max, h: H, how: `${hd.max} m` });
+        if (slant) {
+          if (!pts.length) checks.push(`${tag}:${nm}の斜線は真北方向の距離を入れると判定`);
+          for (const q of pts) {
+            const s = hdSlant(hd, q.L)!;
+            items.push({ name: `${nm}の斜線・${q.what}(法 58 条)`, lim: s.lim, h: q.h, how: s.how });
+          }
+        }
+        if (hd.min > 0) items.push({ name: `${nm}の最低限度(法 58 条)`, lim: hd.min, h: H, how: `${hd.min} m 以上`, min: true });
+        if (!(hd.max > 0) && !(hd.min > 0) && !slant) checks.push(`${tag}:${nm}の数値が未入力のため要確認。都市計画で定めた最高限度・斜線を物件条件に入れる(法 58 条)`);
+      }
+      if (capH) items.push({ name: `${capH.label}の高さの最高限度`, lim: capH.v, h: H, how: `${capH.v} m(${capH.basis})` });
+      if (minH) items.push({ name: `${minH.label}の高さの最低限度`, lim: minH.v, h: H, how: `${minH.v} m 以上(${minH.basis})`, min: true });
+      const nr = neighborRise(x.zone);
+      if (nr !== null && H > nr) checks.push(`${tag}:高さ ${r2(H)} m が ${nr} m を超えるので、隣地斜線(${nr === 20 ? '20m + 1.25' : '31m + 2.5'} × 隣地境界線までの水平距離。法 56 条 1 項 2 号)を設計ツールの「斜線制限」で確かめる`);
+      for (const it of items) {
+        any = true;
+        const ng = it.min ? it.h + 1e-9 < it.lim : it.h > it.lim + 1e-9;
+        const name = `${multi ? `${tag}:` : ''}${it.name}`;
+        lines.push({ k: name, v: `${it.min ? '' : '限度 '}${it.how} · 計画 ${r2(it.h)} m${ng ? (it.min ? '(不足)' : `(${r2(it.h - it.lim)} m 超過)`) : ''}`, ng });
+        if (ng) ngs.push(name);
+        if (!it.min && (!worst || it.lim - it.h < worst.margin)) worst = { lim: it.lim, label: name, margin: it.lim - it.h };
+      }
+    }
+    if (worst) lines.push({ k: '最も厳しい制限', v: `${worst.label}:${r2(worst.lim)} m(${worst.margin >= 0 ? `余裕 ${r2(worst.margin)} m` : `${r2(-worst.margin)} m 超過`})` });
+    checks.forEach((c, j) => lines.push({ k: `要確認 ${j + 1}`, v: c }));
+    lines.push({ k: '道路斜線', v: '前面道路の幅員・後退距離・容積率で決まる(法 56 条 1 項 1 号・別表第 3)。設計ツールの「斜線制限」で確かめる' });
+    if (!any && !checks.length && !hp.some(({ i }) => nb(v, `h${i}`) > 0)) return null;
+    const ng = ngs.length > 0;
+    return {
+      verdict: ng ? 'ng' : checks.length ? 'info' : 'ok',
+      summary: ng
+        ? `超過(${ngs.length} 件)`
+        : worst
+          ? `適合 · 最も厳しいのは ${r2(worst.lim)} m${checks.length ? '(一部要確認)' : ''}`
+          : checks.length
+            ? '要確認'
+            : '絶対高さ・北側斜線・高度地区の制限なし(道路斜線は別)',
+      lines,
+    };
+  },
+};
+
+/* ───────── 日影規制(法 56 条の 2・別表第 4・令 135 条の 13)。2026-11-16 ───────── */
+const SHADE_OPTS: Array<[string, string]> = [['none', '条例の指定なし'], ...ALL_SHADE_RULES.map((r): [string, string] => [r.key, shadeLabel(r, true)])];
+
+const shade: CalcSpec = {
+  title: '日影規制の判定(区域ごと)',
+  fields: [
+    { k: 'H', label: '建築物の高さ', kind: 'num', unit: 'm', step: 0.1, def: (p) => (p.H > 0 ? String(p.H) : ''), hint: '屋上の階段室などは建築面積の 1/8 以内なら 5m まで入れない(令 2 条 1 項 6 号ロ。二・三の項・四の項ロ)' },
+    { k: 'eave', label: '軒の高さ', kind: 'num', unit: 'm', step: 0.1, hint: '低層住居系・田園住居・用途地域の指定のない区域(イ)の対象(軒の高さ 7m 超か地上 3 階以上)に使う' },
+    { k: 'fl', label: '地上階数(地階を除く)', kind: 'num', unit: '階', step: 1, def: (p) => (p.fl > 0 ? String(p.fl) : '') },
+    { k: 'hok', label: '北海道の区域内(9〜15 時・規制時間が短い)', kind: 'bool' },
+    { k: 'nz', label: '敷地の外で日影が落ちる別の区域の用途地域', kind: 'sel', options: ZONES.map((z): [string, string] => [z, z]), hint: '道路の向かい・隣地が、敷地と違う用途地域や規制の区域のとき(令 135 条の 13)' },
+    { k: 'ns', label: 'その区域の日影規制(条例の指定)', kind: 'sel', options: SHADE_OPTS },
+  ],
+  more: (p, v) => {
+    const ps = partsOf(p);
+    const multi = ps.length > 1;
+    const out: Field[] = [];
+    const hint = '日影図で、その区域の測定面(規制の欄の高さ)に生じる日影の最も長い時間';
+    ps.forEach((x, i) => {
+      if (!isShadeZone(x.zone)) return;
+      const pre = multi ? `部分 ${i + 1}(${x.zone})の側:` : '';
+      out.push(
+        { k: `t5_${i}`, label: `${pre}敷地境界線から 5m を超え 10m 以内の範囲の日影時間`, kind: 'num', unit: '時間', step: 0.1, hint },
+        { k: `t10_${i}`, label: `${pre}10m を超える範囲の日影時間`, kind: 'num', unit: '時間', step: 0.1 },
+      );
+    });
+    if (v.nz && isShadeZone(v.nz)) {
+      out.push(
+        { k: 't5_n', label: `別の区域(${v.nz}):5m を超え 10m 以内の範囲の日影時間`, kind: 'num', unit: '時間', step: 0.1, hint },
+        { k: 't10_n', label: `別の区域(${v.nz}):10m を超える範囲の日影時間`, kind: 'num', unit: '時間', step: 0.1 },
+      );
+    }
+    return out;
+  },
+  note:
+    '規制時間と測定面は、物件条件の「敷地の地域」に部分ごとの条例の指定を入れます。建築物が日影時間の制限の異なる区域にわたるときは建築物がある各区域内に、建築物がある区域の外に日影を落とすときは日影が落ちる各区域内に、それぞれ建築物があるものとして、その区域の対象建築物・測定面・規制時間で判定します(令 135 条の 13)。対象区域の外にある高さ 10m 超の建築物が対象区域に日影を落とすときは、対象区域内にあるものとみなします(法 56 条の 2 第 4 項)。敷地の部分の側に落ちる日影は、その部分と同じ区域に落ちるとして扱っています。日影時間は設計ツールの「日影規制」などで出した値を入れます。道路・水面に接する敷地や高低差の緩和(令 135 条の 12)、同じ敷地の 2 以上の建築物(法 56 条の 2 第 2 項)は日影図の側で扱います。',
+  run(v, p) {
+    const H = nb(v, 'H');
+    if (!(H > 0)) return null;
+    const ps = partsOf(p);
+    const multi = ps.length > 1;
+    const regions: ShadeRegion[] = ps.map((x, i) => ({
+      label: multi ? `部分 ${i + 1}(${x.zone})の側` : `敷地の周り(${x.zone})`,
+      zone: x.zone,
+      shade: x.shade,
+      own: true,
+      bldg: x.bldg,
+      t5: nb(v, `t5_${i}`),
+      t10: nb(v, `t10_${i}`),
+    }));
+    if (v.nz) regions.push({ label: `別の区域(${v.nz})`, zone: v.nz, shade: v.ns || undefined, own: false, bldg: false, t5: nb(v, 't5_n'), t10: nb(v, 't10_n') });
+    const fl = nb(v, 'fl');
+    const hok = on(v, 'hok');
+    const res = shadeJudge(regions, { H, eave: nb(v, 'eave'), fl: fl >= 0 ? fl : 0, hokkaido: hok });
+    const lines: CalcLine[] = [];
+    for (const r of res.rows) {
+      const t = r.region.t5 >= 0 || r.region.t10 >= 0 ? ` · 計画 ${r.region.t5 >= 0 ? f1(r.region.t5) : '—'} 時間 / ${r.region.t10 >= 0 ? f1(r.region.t10) : '—'} 時間` : '';
+      let text: string;
+      if (r.status === 'out' || r.status === 'unset') text = r.why;
+      else if (r.status === 'notsub') text = `対象外(${r.why})`;
+      else if (r.status === 'unknown') text = `${shadeLabel(r.rule!, true, hok)} · 要確認(${r.why})`;
+      else text = `${shadeLabel(r.rule!, true, hok)} · ${r.why}${t || ' · 日影時間を入れると判定'}`;
+      lines.push({ k: r.region.label, v: text, ng: r.status === 'ng' });
+    }
+    const ruled = res.rows.filter((r) => r.rule && r.status !== 'notsub' && r.status !== 'out');
+    if (new Set(ruled.map((r) => r.rule!.key)).size > 1 || (ruled.length > 0 && regions.some((r) => !r.own))) {
+      lines.push({ k: '区域にわたる日影(令 135 条の 13)', v: '区域ごとに、その区域内に建築物があるものとして、その区域の対象建築物・測定面・規制時間で判定' });
+    }
+    if (!res.inTarget && H > 10 && ruled.length) lines.push({ k: '法 56 条の 2 第 4 項', v: '対象区域の外にある高さ 10m 超の建築物なので、対象区域に落ちる日影は対象区域内にあるものとして判定' });
+    if (res.strictest && ruled.length > 1) lines.push({ k: '最も厳しい区域', v: `${res.strictest.region.label}:${shadeLabel(res.strictest.rule!, true, hok)}` });
+    const ngRows = res.rows.filter((r) => r.status === 'ng');
+    const live = res.rows.some((r) => ['ok', 'ng', 'nodata', 'unknown', 'unset'].includes(r.status));
+    return {
+      verdict: res.verdict,
+      summary: ngRows.length
+        ? `超過(${ngRows.map((r) => r.region.label).join('・')})`
+        : !live
+          ? '日影規制の対象外'
+          : res.verdict === 'ok'
+            ? `適合${res.strictest && ruled.length > 1 ? ` · 最も厳しいのは${res.strictest.region.label}` : ''}`
+            : '一部未判定(規制の指定か日影時間が未入力)',
+      lines,
+    };
+  },
+};
+
+/* ───────── 高度地区・地区計画・建築協定・条例の一覧と、壁面の位置・敷地面積の最低限度。2026-11-16 ───────── */
+const overlayCheck: CalcSpec = {
+  title: '物件条件に入れた上乗せの制限の確認',
+  fields: [
+    { k: 'wallD', label: '外壁・柱から敷地境界線(道路境界線)までの最小の水平距離', kind: 'num', unit: 'm', step: 0.01, hint: '壁面の位置の制限と比べる。制限が道路側だけなど方向で違うときは、その方向の距離を入れる' },
+  ],
+  note:
+    '高度地区は都市計画で定めた内容に適合させます(法 58 条)。地区計画は、地区整備計画の内容を市町村が条例にしたもの(法 68 条の 2・令 136 条の 2 の 5)が建築基準法に基づく制限として確認申請で審査されます。地区計画の区域内の建築は、着手の 30 日前までに市町村長への届出が要り、地区計画に適合しないときは勧告されます(都市計画法 58 条の 2。除外は同条 1 項ただし書)。建築協定(法 69 条)の基準は協定書で確かめます。数値は「建蔽率・容積率の算定」「高さ制限・斜線の検討」でも使います。',
+  run(v, p) {
+    const ps = partsOf(p);
+    const multi = ps.length > 1;
+    const ovs = overlaysOf(p);
+    const hds = ps.map((x, i) => ({ x, i })).filter(({ x }) => hasHd(x.hd));
+    if (!hds.length && !ovs.length) {
+      return {
+        verdict: 'info',
+        summary: '入力なし',
+        lines: [{ k: '物件条件', v: '高度地区は「敷地の地域」の各行に、地区計画・建築協定・条例は「地区計画・建築協定・条例」に入れると、建蔽率・容積率・高さの判定に反映します。都市計画図・計画書・協定書・条例で確かめる' }],
+      };
+    }
+    const lines: CalcLine[] = [];
+    const ngs: string[] = [];
+    let pending = false;
+    for (const { x, i } of hds) {
+      const hd = x.hd!;
+      const nums = [hd.max > 0 && `最高限度 ${hd.max} m`, hd.rise > 0 && hd.grad > 0 && `斜線 ${hd.rise} m + ${hd.grad} × L${hd.brk > 0 && hd.grad2 > 0 ? `(L > ${hd.brk} m は ${hd.grad2})` : ''}`, hd.min > 0 && `最低限度 ${hd.min} m`].filter(Boolean);
+      if (!nums.length) pending = true;
+      lines.push({ k: `${multi ? `部分 ${i + 1}の` : ''}${hd.name?.trim() || '高度地区'}`, v: `${nums.length ? nums.join(' · ') : '数値が未入力(要確認)'}(法 58 条。「高さ制限・斜線の検討」で判定)` });
+    }
+    const site = siteAreaOf(ps);
+    const wallD = nb(v, 'wallD');
+    for (const o of ovs) {
+      const x = o.o;
+      const nums = [x.bc > 0 && `建蔽率 ${x.bc} %`, x.far > 0 && `容積率 ${x.far} %`, x.hMax > 0 && `高さ ${x.hMax} m 以下`, x.hMin > 0 && `高さ ${x.hMin} m 以上`, x.access && x.access > 0 && `接道 ${x.access} m 以上`].filter(Boolean);
+      lines.push({ k: o.label, v: `${o.basis}${nums.length ? ` · ${nums.join(' · ')}` : ''}` });
+      if (x.uses?.trim()) {
+        pending = true;
+        lines.push({ k: `${o.label}:用途の制限`, v: `${x.uses.trim()}(要確認。「用途地域による用途の制限」と合わせて確かめる)` });
+      }
+      if (x.minSite > 0) {
+        const ng = site > 0 && site + 1e-9 < x.minSite;
+        if (!(site > 0)) pending = true;
+        if (ng) ngs.push('敷地面積の最低限度');
+        lines.push({ k: `${o.label}:敷地面積の最低限度`, v: `${f1(x.minSite)} m²${site > 0 ? ` · 敷地 ${f1(site)} m²${ng ? '(不足)' : ''}` : '(敷地面積が未入力)'}`, ng });
+      }
+      if (x.wall > 0) {
+        const has = wallD >= 0;
+        const ng = has && wallD + 1e-9 < x.wall;
+        if (!has) pending = true;
+        if (ng) ngs.push('壁面の位置');
+        lines.push({ k: `${o.label}:壁面の位置の制限`, v: `${f2(x.wall)} m${has ? ` · 計画 ${f2(wallD)} m${ng ? '(不足)' : ''}` : '(外壁までの距離を入れると判定)'}`, ng });
+      }
+      if (x.text?.trim()) {
+        pending = true;
+        lines.push({ k: `${o.label}:内容`, v: `${x.text.trim()}(要確認)` });
+      }
+      if (o.key === 'dp') lines.push({ k: `${o.label}:届出`, v: `着手の 30 日前までに市町村長へ届出(都市計画法 58 条の 2)${x.byLaw ? '。条例にした事項は確認申請でも審査される(法 68 条の 2)' : '。条例にしていない事項は確認申請の審査の外で、届出・勧告で扱われる'}` });
+    }
+    const ng = ngs.length > 0;
+    return {
+      verdict: ng ? 'ng' : pending ? 'info' : 'ok',
+      summary: ng ? `不適合(${ngs.join('・')})` : pending ? '要確認あり' : '入力した数値の範囲で適合',
+      lines,
+    };
+  },
+};
+
 /** 項目のキー(masters.ts の itemKey)→ 判定 */
 export const CALCS: Record<string, CalcSpec> = {
   'design|建蔽率・容積率の算定': coverage,
+  'design|高度地区・地区計画・条例の確認': overlayCheck,
+  'design|高さ制限・斜線の検討': height,
+  'design|日影規制の検討': shade,
   'design|接道・前面道路の確認': access,
   'design|防火地域・準防火地域の構造制限': fireStruct,
   'design|特殊建築物の耐火要求(法27条)': art27,

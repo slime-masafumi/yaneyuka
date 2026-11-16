@@ -12,6 +12,7 @@ import PageHead, { Stat } from '@/components/ui/PageHead';
 import { ROUGH_LABEL } from '@/lib/karte/glass';
 import { Store, defaultDb, defaultFnb, itemStatus, uid, type DB, type Fnb, type ItemRec, type StudyDraft, type TabView, type View } from '@/lib/karte/engine';
 import { CATS, ITEMS, STR_LABEL, USE_LABEL, itemKey, newProject, type CatKey, type Project, type ToolKey } from '@/lib/karte/masters';
+import { overlaySummary } from '@/lib/karte/overlay';
 import { partsSummary } from '@/lib/karte/site';
 import { downloadXlsx, printReport } from '@/lib/karte/report';
 import KarteGuide from './KarteGuide';
@@ -150,7 +151,7 @@ export default function KarteApp() {
   const pct = progress.total ? Math.round((progress.done / progress.total) * 100) : 0;
 
   const ps = partsSummary(proj);
-  const conds = [ps.zone, ps.fire, ...(proj.road && proj.road > 0 ? [`前面道路 ${proj.road} m`] : []), ...(proj.other?.trim() ? [proj.other.trim()] : []), `V₀ ${proj.v0} m/s`, `粗度 ${ROUGH_LABEL[proj.rough] ?? proj.rough}`, `降雨 ${proj.rain} mm/h`, `Z ${proj.z}`, `積雪 ${proj.snow} cm`];
+  const conds = [ps.zone, ps.fire, ...(proj.road && proj.road > 0 ? [`前面道路 ${proj.road} m`] : []), ...overlaySummary(proj), ...(proj.other?.trim() ? [proj.other.trim()] : []), `V₀ ${proj.v0} m/s`, `粗度 ${ROUGH_LABEL[proj.rough] ?? proj.rough}`, `降雨 ${proj.rain} mm/h`, `Z ${proj.z}`, `積雪 ${proj.snow} cm`];
   const sub = [
     proj.addr,
     `H ${proj.H} m`,

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { CALCS, defaults, type CalcOut, type Field } from '@/lib/karte/calcs';
+import { CALCS, defaults, fieldsOf, type CalcOut, type Field } from '@/lib/karte/calcs';
 import type { ItemRec, ItemStatus } from '@/lib/karte/engine';
 import { stamp } from '@/lib/karte/engine';
 import { GUIDES } from '@/lib/karte/guides';
@@ -97,6 +97,8 @@ export default function ItemPanel({ it, project, status, rec, checked, onRec, on
   const calc = CALCS[key];
   const vals = { ...(calc ? defaults(calc, project) : {}), ...(rec.vals ?? {}) };
   const out = calc ? calc.run(vals, project) : null;
+  // 敷地の部分の数や入力で増える欄(高さ・日影・採光の部分ごとの欄)も含める。2026-11-16
+  const fields = calc ? fieldsOf(calc, project, vals) : [];
   const stale = !!(rec.res && out && JSON.stringify(out.lines) !== JSON.stringify(rec.res.lines));
   const rows = useInfoRows(g?.sections, g?.posts);
   const ticks = new Set(rec.ticks ?? []);
@@ -178,9 +180,9 @@ export default function ItemPanel({ it, project, status, rec, checked, onRec, on
           {calc && (
             <>
               <h4 className="yy-kt-item__h">{calc.title}</h4>
-              {calc.fields.length > 0 && (
+              {fields.length > 0 && (
                 <div className="yy-kt-item__form">
-                  {calc.fields.map((f) => (
+                  {fields.map((f) => (
                     // 手で入れた欄だけを記録する。物件条件から入る初期値(敷地面積・指定建蔽率など)は、
                     // 条件を直せば追従させる(2026-11-16 まで 1 欄触ると全欄の初期値がその時点で固まっていた)
                     <Input key={f.k} f={f} value={vals[f.k] ?? ''} onChange={(v) => onRec({ vals: { ...(rec.vals ?? {}), [f.k]: v } })} />

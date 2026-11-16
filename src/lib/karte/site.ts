@@ -15,6 +15,7 @@
  *          日影は、建築物がある各区域の規制を受ける(令 135 条の 13)
  */
 import type { Project } from './masters';
+import type { HeightDistrict } from './overlay';
 
 export type SitePart = {
   zone: string;
@@ -27,6 +28,10 @@ export type SitePart = {
   far: number;
   /** 建築物がこの部分にかかるか(防火の判定は建築物で見る) */
   bldg: boolean;
+  /** この部分の高度地区(法 58 条。敷地がまたがっても部分ごと)。2026-11-16。無い物件は指定なし */
+  hd?: HeightDistrict;
+  /** この部分の日影規制(条例の指定。overlay.ts の ShadeRule.key、'none' = 指定なし)。2026-11-16。無い物件は未入力 */
+  shade?: string;
 };
 
 const RESIDENTIAL = [

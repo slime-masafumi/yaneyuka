@@ -7,6 +7,7 @@
  * 機器の代表値・質量・脚数、業種別原単位は「目安」。実施設計では機器表で上書きする。
  */
 import type { SitePart } from './site';
+import type { Overlay } from './overlay';
 import type { Roughness } from './glass';
 
 /* ══════ 物件 ══════ */
@@ -58,6 +59,12 @@ export type Project = {
   road?: number;
   /** 高度地区・地区計画・建築協定・景観地区・条例など、カルテで判定しない制限のメモ。2026-11-16 */
   other?: string;
+  /** 地区計画(地区整備計画で定める制限)。2026-11-16。無い物件は区域外として扱う */
+  dp?: Overlay;
+  /** 建築協定。2026-11-16 */
+  agree?: Overlay;
+  /** 自治体の条例による上乗せ。2026-11-16 */
+  ord?: Overlay;
 };
 
 export const ZONES = [

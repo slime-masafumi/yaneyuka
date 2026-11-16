@@ -5,6 +5,7 @@
  * 端末の中だけで作る(サーバーへ送らない)。
  */
 import { itemStatus, stamp, type DB, type ItemStatus } from './engine';
+import { overlaySummary } from './overlay';
 import { partsSummary } from './site';
 import { CATS, ITEMS, STR_LABEL, USE_LABEL, itemKey, type Project } from './masters';
 
@@ -74,6 +75,8 @@ export function buildReport(db: DB): Report {
     ['用途地域', partsSummary(p).zone],
     ['防火地域', partsSummary(p).fire],
     ['前面道路', p.road && p.road > 0 ? `${p.road} m` : '—'],
+    // 高度地区・地区計画・建築協定・条例(入れた物件だけ行を出す)。2026-11-16
+    ...(overlaySummary(p).length ? [['高度地区・地区計画など', overlaySummary(p).join(' / ')] as [string, string]] : []),
     ['その他の制限', p.other?.trim() || '—'],
   ];
   return {
