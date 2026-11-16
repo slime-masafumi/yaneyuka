@@ -13,23 +13,35 @@ import { createPortal } from 'react-dom';
 import { useAuth } from '@/lib/AuthContext';
 import { ChatMessage, ChatRoom } from '@/types/chat';
 import { db } from '@/lib/firebaseClient';
-import { 
-  collection, addDoc, serverTimestamp, orderBy, updateDoc, doc, getDocs, 
-  setDoc, where, arrayUnion, arrayRemove, writeBatch, getDoc, deleteField, 
-  query, onSnapshot, deleteDoc, increment
+import {
+  collection, addDoc, serverTimestamp, orderBy, updateDoc, doc, getDocs,
+  setDoc, where, arrayUnion, arrayRemove, writeBatch, getDoc, deleteField,
+  query, onSnapshot, deleteDoc, increment, limit
 } from 'firebase/firestore';
 import { getUsersByUids, listBoardsForUser, addBoardTask, type BoardDoc } from '@/lib/firebaseUserData';
 import { findUserByExactEmail, getPublicProfiles, setOwnAvatar } from '@/lib/userDirectory';
 import { useTaskContext } from '@/components/providers/TaskProvider';
 import { searchTerms, matchesAll, snippet, splitHits, parseDueHint, mentionsIn, taskTextFrom, minutesHtml, formatTaken } from '@/lib/chatTools';
 import { compressForChat, fitsInMessage, shrinkDataUrl, utf8Bytes } from './yyChatImage';
+import { CHAT_FILE_MAX_BYTES, deleteChatFile, formatFileSize, uploadChatFile, type ChatFile } from './yyChatFiles';
+
+/** 部屋を開いたときに読む発言の数(古い発言は「前の発言を読む」で足す)。2026-11-16 */
+const MESSAGE_PAGE = 60;
 
 // --- Types Expansion ---
 interface ExtendedChatMessage extends ChatMessage {
   imageUrl?: string;
   /** 写真の撮影日時（EXIF。現場写真は日付が証拠になる） */
   photoTakenAt?: string | null;
+  /** 元の写真(Storage)。imageUrl は一覧用の小さな写真 */
+  originalUrl?: string | null;
+  originalPath?: string | null;
+  /** 添付の PDF(Storage) */
+  file?: ChatFile | null;
 }
+
+/** 送る前の写真。inline は Storage に置けなかったときに文書へ入れる分 */
+type PendingImage = { inline: string; thumb: string; original: Blob; originalType: string; name: string };
 
 type SearchHit = { roomId: string; messageId: string; text: string; at: Date; senderId: string };
 
@@ -72,11 +84,11 @@ const LinkifiedText = ({ text, isMe }: { text: string, isMe: boolean }) => {
       {parts.map((part, i) => {
         if (part.match(urlRegex)) {
           return (
-            <a 
-              key={i} 
-              href={part} 
-              target="_blank" 
-              rel="noopener noreferrer" 
+            <a
+              key={i}
+              href={part}
+              target="_blank"
+              rel="noopener noreferrer"
               className={`underline break-all hover:opacity-80 ${isMe ? 'text-white' : 'text-gray-900'}`}
               onClick={(e) => e.stopPropagation()}
             >
@@ -93,8 +105,8 @@ const LinkifiedText = ({ text, isMe }: { text: string, isMe: boolean }) => {
 const formatMessageDate = (date: Date) => {
   if (!date) return '';
   const now = new Date();
-  const isToday = date.getDate() === now.getDate() && 
-                  date.getMonth() === now.getMonth() && 
+  const isToday = date.getDate() === now.getDate() &&
+                  date.getMonth() === now.getMonth() &&
                   date.getFullYear() === now.getFullYear();
 
   const timeStr = date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
@@ -120,6 +132,13 @@ const YyChat: React.FC = () => {
 
   const [inputValue, setInputValue] = useState('');
   const [inputImage, setInputImage] = useState<string | null>(null);
+  const [pendingImage, setPendingImage] = useState<PendingImage | null>(null);
+  const [inputPdf, setInputPdf] = useState<File | null>(null);
+  const [sending, setSending] = useState(false);
+  const [msgLimit, setMsgLimit] = useState(MESSAGE_PAGE);
+  const [hasOlder, setHasOlder] = useState(false);
+  /** 前の発言を足したときは一番下へ飛ばさない */
+  const keepScroll = useRef(false);
   const [roomsLoading, setRoomsLoading] = useState(true);
   const [showUserSelect, setShowUserSelect] = useState(false);
   const [availableUsers, setAvailableUsers] = useState<Array<{ uid: string; username: string; email: string | null }>>([]);
@@ -139,9 +158,9 @@ const YyChat: React.FC = () => {
   const [editingNameValue, setEditingNameValue] = useState('');
 
   const [showIconSettings, setShowIconSettings] = useState(false);
-  const [iconImageSrc, setIconImageSrc] = useState<string>(''); 
-  const [iconPosition, setIconPosition] = useState({ x: 0, y: 0 }); 
-  const [iconScale, setIconScale] = useState(1); 
+  const [iconImageSrc, setIconImageSrc] = useState<string>('');
+  const [iconPosition, setIconPosition] = useState({ x: 0, y: 0 });
+  const [iconScale, setIconScale] = useState(1);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
@@ -174,7 +193,7 @@ const YyChat: React.FC = () => {
   const [chatNotice, setChatNotice] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
   /** 写真を原寸で見る(一覧では高さを抑えて出す。配筋・ひび割れは拡大して見る) */
-  const [viewImage, setViewImage] = useState<{ src: string; takenAt?: string | null } | null>(null);
+  const [viewImage, setViewImage] = useState<{ src: string; takenAt?: string | null; original?: boolean } | null>(null);
   const [imageBusy, setImageBusy] = useState(false);
 
   // --- Effects ---
@@ -249,13 +268,16 @@ const YyChat: React.FC = () => {
       return;
     }
 
-    const q = query(collection(db, 'chatRooms', selectedRoom.id, 'messages'), orderBy('createdAt', 'asc'));
+    // 以前は部屋の全発言(写真の data URL ごと)を一度に読んでいた。新しい順に msgLimit 件だけ読む
+    const q = query(collection(db, 'chatRooms', selectedRoom.id, 'messages'), orderBy('createdAt', 'desc'), limit(msgLimit));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const newMessages: ExtendedChatMessage[] = snapshot.docs.map(doc => {
+      setHasOlder(snapshot.size >= msgLimit);
+      const newMessages: ExtendedChatMessage[] = snapshot.docs.slice().reverse().map(doc => {
         const d = doc.data();
         return {
           id: doc.id, roomId: selectedRoom.id, senderId: d.senderId, senderUsername: d.senderUsername,
           content: d.content, imageUrl: d.imageUrl, photoTakenAt: d.photoTakenAt ?? null,
+          originalUrl: d.originalUrl ?? null, originalPath: d.originalPath ?? null, file: d.file ?? null,
           // ★ここで安全な変換関数を使用
           createdAt: toDateSafe(d.createdAt),
           readAt: d.readAt ? toDateSafe(d.readAt) : undefined,
@@ -285,7 +307,12 @@ const YyChat: React.FC = () => {
       setListenError('この部屋の発言を読み込めませんでした。通信を確かめて、開き直してください');
     });
     return () => unsubscribe();
-  }, [selectedRoom?.id, currentUser]);
+  }, [selectedRoom?.id, currentUser, msgLimit]);
+
+  // 部屋を替えたら読む数を戻す
+  useEffect(() => {
+    setMsgLimit(MESSAGE_PAGE);
+  }, [selectedRoom?.id]);
 
   useEffect(() => {
     if (highlightId) {
@@ -294,11 +321,21 @@ const YyChat: React.FC = () => {
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return;
       }
+      // 検索で選んだ発言がまだ読んでいない古い発言なら、読む数を増やして探す
+      if (hasOlder && messages.length) {
+        keepScroll.current = true;
+        setMsgLimit((n) => n + 200);
+        return;
+      }
+    }
+    if (keepScroll.current) {
+      keepScroll.current = false;
+      return;
     }
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages, highlightId]);
+  }, [messages, highlightId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ルームを替えたら選択・強調をやめる
   useEffect(() => {
@@ -321,8 +358,8 @@ const YyChat: React.FC = () => {
     }
 
     // 自分のメッセージ以外で、かつ自分がまだ既読をつけていないものを抽出
-    const unreadMessages = messages.filter(m => 
-      m.senderId !== currentUser.uid && 
+    const unreadMessages = messages.filter(m =>
+      m.senderId !== currentUser.uid &&
       !m.readBy?.includes(currentUser.uid)
     );
 
@@ -354,7 +391,7 @@ const YyChat: React.FC = () => {
       // 1. 個別のメッセージに既読をつける
       unreadMessages.forEach(m => {
         batch.update(doc(db, 'chatRooms', selectedRoom.id, 'messages', m.id), {
-          readBy: arrayUnion(currentUser.uid), 
+          readBy: arrayUnion(currentUser.uid),
           readAt: serverTimestamp()
         });
         needsBatch = true;
@@ -362,8 +399,8 @@ const YyChat: React.FC = () => {
 
       // 2. ルーム全体の未読カウントを0にする（カウントがある場合のみ）
       if (currentUnreadCount > 0) {
-        batch.update(doc(db, 'chatRooms', selectedRoom.id), { 
-          [`unreadCount.${currentUser.uid}`]: 0 
+        batch.update(doc(db, 'chatRooms', selectedRoom.id), {
+          [`unreadCount.${currentUser.uid}`]: 0
         });
         needsBatch = true;
       }
@@ -374,7 +411,7 @@ const YyChat: React.FC = () => {
     }, 1500); // 1.5秒程度、実際に「見ている」時間を確保
 
     return () => clearTimeout(timer);
-  }, [messages.length, selectedRoom?.id, currentUser?.uid]); 
+  }, [messages.length, selectedRoom?.id, currentUser?.uid]);
   // 依存関係を整理：メッセージの「数」が変わった時と、ルームが切り替わった時だけに限定
 
   useEffect(() => {
@@ -390,9 +427,9 @@ const YyChat: React.FC = () => {
             // ★ここでも安全な変換を使用
             createdAt: toDateSafe(data.createdAt),
             lastActivityAt: toDateSafe(data.lastActivityAt),
-            lastMessage: data.lastMessage ? { 
-              ...data.lastMessage, 
-              createdAt: toDateSafe(data.lastMessage.createdAt) 
+            lastMessage: data.lastMessage ? {
+              ...data.lastMessage,
+              createdAt: toDateSafe(data.lastMessage.createdAt)
             } : undefined
           } as ChatRoom;
         })
@@ -473,47 +510,85 @@ const YyChat: React.FC = () => {
   };
 
   const handleSendMessage = async () => {
-    if ((!inputValue.trim() && !inputImage) || !selectedRoom || !currentUser) return;
+    if ((!inputValue.trim() && !inputImage && !inputPdf) || !selectedRoom || !currentUser || sending) return;
 
     const content = inputValue.trim();
-    const imageToSend = inputImage;
-    const takenAt = imageToSend ? inputPhotoTaken : null;
-    // 写真は発言の文書に入れるので、本文と合わせて 1MiB を超えると Firestore が受け付けない
+    const pending = pendingImage;
+    const pdf = inputPdf;
+    const takenAt = inputImage ? inputPhotoTaken : null;
+    const roomId = selectedRoom.id;
+
+    // 元の写真・PDF を Storage に置く。写真は置けなければ従来どおり文書の中に入れる
+    let imageToSend: string | null = inputImage;
+    let original: ChatFile | null = null;
+    let file: ChatFile | null = null;
+    setSending(true);
+    try {
+      if (pending && pending.original.size <= CHAT_FILE_MAX_BYTES) {
+        try {
+          original = await uploadChatFile(roomId, currentUser.uid, pending.original, pending.name, pending.originalType);
+          imageToSend = pending.thumb;
+        } catch (e) {
+          console.warn('元の写真を置けなかったので、縮めた写真を送ります', e);
+          imageToSend = pending.inline;
+        }
+      }
+      if (pdf) {
+        try {
+          file = await uploadChatFile(roomId, currentUser.uid, pdf, pdf.name, 'application/pdf');
+        } catch (e) {
+          console.error('PDF を置けませんでした', e);
+          setChatNotice('PDF を送れませんでした。通信を確かめて、もう一度送ってください（入力は残しています）');
+          if (original) void deleteChatFile(original.path);
+          return;
+        }
+      }
+    } finally {
+      setSending(false);
+    }
+    // 写真は発言の文書に入るので、本文と合わせて 1MiB を超えると Firestore が受け付けない
     if (!fitsInMessage(imageToSend, content)) {
       setChatNotice('写真と本文を合わせると 1 件に入りきりません。本文を短くするか、本文を別の発言に分けてください。');
+      if (original) void deleteChatFile(original.path);
+      if (file) void deleteChatFile(file.path);
       return;
     }
 
     setInputValue('');
     setInputImage(null);
+    setPendingImage(null);
+    setInputPdf(null);
     setInputPhotoTaken(null);
-    saveDraft(selectedRoom.id, '');
+    saveDraft(roomId, '');
 
     const tempId = `temp-${Date.now()}`;
     const newMsg: ExtendedChatMessage = {
-      id: tempId, roomId: selectedRoom.id, senderId: currentUser.uid, 
+      id: tempId, roomId, senderId: currentUser.uid,
       senderUsername: currentUser.username, content, imageUrl: imageToSend || undefined, photoTakenAt: takenAt,
+      originalUrl: original?.url ?? null, originalPath: original?.path ?? null, file,
       createdAt: new Date(), readBy: [currentUser.uid]
     };
     setMessages(prev => [...prev, newMsg]);
 
     let posted = false;
     try {
-      await addDoc(collection(db, 'chatRooms', selectedRoom.id, 'messages'), {
-        senderId: currentUser.uid, senderUsername: currentUser.username, 
-        content, 
+      await addDoc(collection(db, 'chatRooms', roomId, 'messages'), {
+        senderId: currentUser.uid, senderUsername: currentUser.username,
+        content,
         imageUrl: imageToSend || null,
         ...(takenAt ? { photoTakenAt: takenAt } : {}),
+        ...(original ? { originalUrl: original.url, originalPath: original.path } : {}),
+        ...(file ? { file } : {}),
         createdAt: serverTimestamp(), readBy: [currentUser.uid]
       });
       posted = true;
 
       const updateData: any = {
-        lastMessage: { 
-          content: imageToSend ? (content ? content : '画像が送信されました') : content, 
-          senderId: currentUser.uid, 
-          senderUsername: currentUser.username, 
-          createdAt: serverTimestamp() 
+        lastMessage: {
+          content: imageToSend ? (content ? content : '画像が送信されました') : file ? (content || `PDF: ${file.name}`) : content,
+          senderId: currentUser.uid,
+          senderUsername: currentUser.username,
+          createdAt: serverTimestamp()
         },
         lastActivityAt: serverTimestamp()
       };
@@ -523,7 +598,7 @@ const YyChat: React.FC = () => {
         if (uid !== currentUser.uid) updateData[`unreadCount.${uid}`] = increment(1);
       }
 
-      await updateDoc(doc(db, 'chatRooms', selectedRoom.id), updateData);
+      await updateDoc(doc(db, 'chatRooms', roomId), updateData);
     } catch (e) {
       console.error(e);
       if (posted) {
@@ -534,9 +609,13 @@ const YyChat: React.FC = () => {
       // 送れなかった発言を「送れたように」残さない。入力欄に戻して送り直せるようにする
       setMessages(prev => prev.filter(m => m.id !== tempId));
       setInputValue(content);
-      setInputImage(imageToSend);
+      setInputImage(inputImage);
+      setPendingImage(pending);
+      setInputPdf(pdf);
       setInputPhotoTaken(takenAt);
-      saveDraft(selectedRoom.id, content);
+      saveDraft(roomId, content);
+      if (original) void deleteChatFile(original.path);
+      if (file) void deleteChatFile(file.path);
       setChatNotice('送れませんでした。通信を確かめて、もう一度送ってください（入力は戻しました）');
     }
   };
@@ -545,8 +624,18 @@ const YyChat: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     const heic = /\.(heic|heif)$/i.test(file.name);
+    // PDF(図面・見積・議事録)は Storage に置いて送る
+    if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) {
+      e.target.value = '';
+      if (file.size > CHAT_FILE_MAX_BYTES) {
+        setChatNotice(`PDF は 1 つ ${formatFileSize(CHAT_FILE_MAX_BYTES)} までです（${formatFileSize(file.size)}）。大きい図面一式は「図面送付」で送ってください。`);
+        return;
+      }
+      setInputPdf(file);
+      return;
+    }
     if (!file.type.startsWith('image/') && !heic) {
-      alert('画像ファイルを選択してください');
+      alert('写真か PDF を選んでください');
       e.target.value = '';
       return;
     }
@@ -557,7 +646,14 @@ const YyChat: React.FC = () => {
         setChatNotice('この写真は小さくしても 1 件に入りきりませんでした。別の写真か、トリミングしてから送ってください。');
         return;
       }
-      setInputImage(compressed.dataUrl);
+      setInputImage(compressed.thumb);
+      setPendingImage({
+        inline: compressed.dataUrl,
+        thumb: compressed.thumb,
+        original: compressed.original,
+        originalType: compressed.originalType,
+        name: heic ? file.name.replace(/\.(heic|heif)$/i, '.jpg') : file.name,
+      });
       // 撮影日時（縮小すると EXIF が消えるので、元のファイルから読む）
       setInputPhotoTaken(null);
       try {
@@ -994,7 +1090,7 @@ const YyChat: React.FC = () => {
       <div className="flex h-[600px] bg-white border border-[#3b3b3b] overflow-hidden font-sans mx-4 mt-3">
       <div className={`${selectedRoom ? 'hidden md:flex' : 'flex'} w-full md:w-72 flex-col border-r bg-gray-50`}>
         <div className="px-4 py-3 bg-white border-b flex items-center justify-between z-10">
-          <div 
+          <div
              className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 -ml-1 transition"
              onClick={() => setShowIconSettings(true)}
              title="自分のプロフィール設定"
@@ -1010,14 +1106,14 @@ const YyChat: React.FC = () => {
              </div>
           </div>
           <div className="flex gap-1">
-             <button 
+             <button
               onClick={() => setShowIconSettings(true)}
               className="w-8 h-8 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 flex items-center justify-center transition"
               title="設定"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
             </button>
-            <button 
+            <button
               onClick={() => { setUserSelectMode('dm'); setGroupPicks(new Set()); setGroupName(''); setShowUserSelect(true); loadUsers(); }}
               className="w-8 h-8 border border-[#3b3b3b] text-gray-800 flex items-center justify-center hover:bg-gray-100 transition"
               title="新規チャット"
@@ -1094,9 +1190,9 @@ const YyChat: React.FC = () => {
                     グループ
                   </button>
                 )}
-                <input 
-                  className="flex-1 min-w-0 text-xs border px-2 py-1.5 focus:outline-none" 
-                  placeholder="名前で絞り込む・メールアドレスで探す" 
+                <input
+                  className="flex-1 min-w-0 text-xs border px-2 py-1.5 focus:outline-none"
+                  placeholder="名前で絞り込む・メールアドレスで探す"
                   value={userSearchTerm}
                   inputMode="email"
                   onChange={e => { setUserSearchTerm(e.target.value); setEmailLookup(''); }}
@@ -1250,7 +1346,7 @@ const YyChat: React.FC = () => {
 
                   {isEditingName ? (
                     <div className="flex items-center gap-1">
-                        <input 
+                        <input
                             autoFocus
                             className="text-[12px] border-b border-[#3b3b3b] px-1 py-0.5 focus:outline-none min-w-[120px]"
                             value={editingNameValue}
@@ -1373,6 +1469,13 @@ const YyChat: React.FC = () => {
             </div>
 
             <div className="flex-1 overflow-y-auto p-2 space-y-3 bg-[#F3F4F6] chat-message-list">
+              {hasOlder && (
+                <div className="text-center">
+                  <button type="button" className="yy-mono text-[10px] tracking-[0.08em] text-gray-500 underline underline-offset-2 hover:text-gray-800" onClick={() => { keepScroll.current = true; setMsgLimit((n) => n + MESSAGE_PAGE); }}>
+                    前の発言を読む
+                  </button>
+                </div>
+              )}
               {messages.map((m, i) => {
                 const isMe = m.senderId === currentUser.uid;
                 const avatarUrl = getAvatarUrl(m.senderId, selectedRoom.id);
@@ -1409,13 +1512,20 @@ const YyChat: React.FC = () => {
                     <div className={`max-w-[75%] group relative`}>
                       {!isMe && !isSequence && <div className="text-[9px] text-gray-400 mb-0.5 ml-1">{name}</div>}
                       <div className={`px-3 py-1.5 text-[12px] break-words whitespace-pre-wrap ${
-                        isMe 
-                          ? 'bg-[#3b3b3b] text-white' 
+                        isMe
+                          ? 'bg-[#3b3b3b] text-white'
                           : 'bg-white text-gray-800 border border-gray-200'
                       }`}>
+                        {m.file && (
+                          <a href={m.file.url} target="_blank" rel="noopener noreferrer" className={`mb-1 flex items-center gap-2 border px-2 py-1.5 no-underline ${isMe ? 'border-white/30 text-white' : 'border-gray-300 text-gray-800'}`} title="PDF を開く">
+                            <span className="yy-mono text-[9px] tracking-[0.12em] border px-1 border-current">PDF</span>
+                            <span className="truncate underline underline-offset-2">{m.file.name}</span>
+                            <span className="yy-mono text-[9px] opacity-70 shrink-0">{formatFileSize(m.file.size)}</span>
+                          </a>
+                        )}
                         {m.imageUrl && (
                           <div className="mb-1 overflow-hidden border border-black/10">
-                            <button type="button" className="block w-full cursor-zoom-in" onClick={() => setViewImage({ src: m.imageUrl!, takenAt: m.photoTakenAt })} title="原寸で見る">
+                            <button type="button" className="block w-full cursor-zoom-in" onClick={() => setViewImage({ src: m.originalUrl || m.imageUrl!, takenAt: m.photoTakenAt, original: !!m.originalUrl })} title={m.originalUrl ? '元の写真で見る' : '大きく見る'}>
                               <img src={m.imageUrl} alt="添付画像" loading="lazy" className="max-w-full max-h-72 h-auto object-contain" />
                             </button>
                             {m.photoTakenAt && (
@@ -1455,6 +1565,8 @@ const YyChat: React.FC = () => {
                               if (confirm('このメッセージを削除しますか？')) {
                                 try {
                                   await deleteDoc(doc(db, 'chatRooms', selectedRoom.id, 'messages', m.id));
+                                  void deleteChatFile(m.originalPath);
+                                  void deleteChatFile(m.file?.path);
                                   // 最後のメッセージが削除された場合、ルームのlastMessageを更新
                                   const remainingMessages = messages.filter(msg => msg.id !== m.id);
                                   if (remainingMessages.length > 0) {
@@ -1515,8 +1627,8 @@ const YyChat: React.FC = () => {
                 <div className="px-2 pb-2 flex items-center">
                    <div className="relative group">
                       <img src={inputImage} className="h-16 border border-gray-200" alt="preview" />
-                      <button 
-                        onClick={() => setInputImage(null)}
+                      <button
+                        onClick={() => { setInputImage(null); setPendingImage(null); }}
                         className="absolute -top-1 -right-1 w-4 h-4 bg-[#141414] text-white flex items-center justify-center hover:bg-black"
                         aria-label="画像を外す"
                       ><FiX className="w-2.5 h-2.5" /></button>
@@ -1524,21 +1636,30 @@ const YyChat: React.FC = () => {
                    <div className="ml-2 text-xs text-gray-400">画像を送信します{inputPhotoTaken ? `（撮影 ${inputPhotoTaken}）` : ''}</div>
                 </div>
               )}
+              {inputPdf && (
+                <div className="px-2 pb-2 flex items-center gap-2 text-xs text-gray-600">
+                  <span className="yy-mono text-[9px] tracking-[0.12em] border border-gray-400 px-1">PDF</span>
+                  <span className="truncate">{inputPdf.name}</span>
+                  <span className="yy-mono text-[10px] text-gray-400">{formatFileSize(inputPdf.size)}</span>
+                  <button type="button" onClick={() => setInputPdf(null)} className="text-gray-400 hover:text-gray-800" aria-label="PDF を外す"><FiX className="w-3 h-3" /></button>
+                </div>
+              )}
               {imageBusy && <div className="px-2 pb-2 text-xs text-gray-400" role="status">写真を準備中…</div>}
+              {sending && <div className="px-2 pb-2 text-xs text-gray-400" role="status">添付を送っています…</div>}
 
               <div className="flex gap-2 items-end bg-white p-1.5 border border-gray-300 focus-within:border-[#3b3b3b] transition-colors">
-                <button 
+                <button
                   onClick={() => fileInputRef.current?.click()}
                   className="p-1.5 text-gray-400 hover:text-gray-800 hover:bg-gray-100 transition"
-                  title="写真を添付（撮影日時が一緒に残ります）"
+                  title="写真・PDF を添付（写真は撮影日時と元の写真が残ります。1 つ 20MB まで）"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                 </button>
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  className="hidden" 
-                  accept="image/*,.heic,.heif"
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  className="hidden"
+                  accept="image/*,.heic,.heif,application/pdf,.pdf"
                   onChange={handleSelectImage}
                 />
 
@@ -1558,9 +1679,9 @@ const YyChat: React.FC = () => {
                   className="flex-1 bg-transparent !border-none !outline-none focus:ring-0 text-[12px] resize-none max-h-[100px] py-1 px-1"
                   rows={1}
                 />
-                <button 
+                <button
                   onClick={handleSendMessage}
-                  disabled={!inputValue.trim() && !inputImage}
+                  disabled={(!inputValue.trim() && !inputImage && !inputPdf) || sending}
                   className="p-1.5 bg-[#17302A] text-white rounded-full hover:bg-[#10241f] disabled:bg-gray-300 disabled:cursor-not-allowed transition mb-0.5"
                   title="送信（Enter）"
                 >
@@ -1650,7 +1771,7 @@ const YyChat: React.FC = () => {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <div 
+                  <div
                     ref={previewContainerRef}
                     className="relative w-full aspect-square bg-gray-100 overflow-hidden cursor-move border"
                     onMouseDown={e => { setIsDragging(true); setDragStart({x: e.clientX-iconPosition.x, y: e.clientY-iconPosition.y}); }}
@@ -1658,15 +1779,15 @@ const YyChat: React.FC = () => {
                     onMouseUp={() => setIsDragging(false)}
                     onMouseLeave={() => setIsDragging(false)}
                   >
-                    <img 
-                      src={iconImageSrc} 
+                    <img
+                      src={iconImageSrc}
                       className="absolute max-w-none select-none pointer-events-none"
                       style={{
                         left: '50%', top: '50%',
                         transform: `translate(-50%, -50%) translate(${iconPosition.x}px, ${iconPosition.y}px) scale(${iconScale})`
                       }}
                     />
-                    <div className="absolute inset-0 pointer-events-none" 
+                    <div className="absolute inset-0 pointer-events-none"
                          style={{background: 'radial-gradient(circle at center, transparent 48%, rgba(0,0,0,0.5) 49%)'}}></div>
                   </div>
 
@@ -1689,9 +1810,9 @@ const YyChat: React.FC = () => {
           // 原寸で見る。画面に合わせて出し、押すと原寸(はみ出した分はスクロール)に切り替える
           <div className="fixed inset-0 bg-black/85 z-[9999] flex flex-col" role="dialog" aria-label="写真を原寸で見る" onClick={() => setViewImage(null)}>
             <div className="flex items-center justify-between px-3 py-2 text-[11px] text-gray-200 shrink-0" onClick={(e) => e.stopPropagation()}>
-              <span className="yy-mono tracking-[0.08em]">{viewImage.takenAt ? `撮影 ${viewImage.takenAt}` : '写真'}</span>
+              <span className="yy-mono tracking-[0.08em]">{viewImage.takenAt ? `撮影 ${viewImage.takenAt}` : '写真'}{viewImage.original ? ' · 元の写真' : ''}</span>
               <span className="flex items-center gap-3">
-                <a href={viewImage.src} download={`yychat_${Date.now()}.jpg`} className="underline underline-offset-2">保存</a>
+                <a href={viewImage.src} download={`yychat_${Date.now()}.jpg`} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">保存</a>
                 <button type="button" onClick={() => setViewImage(null)} aria-label="閉じる" className="text-gray-200 hover:text-white"><FiX className="w-4 h-4" /></button>
               </span>
             </div>

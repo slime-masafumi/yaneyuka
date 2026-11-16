@@ -10,7 +10,7 @@ import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import TeamGantt from './teamTasks/TeamGantt';
 import { dueStatus, matchesFilter, ROLES, sortTasks, type TaskFilter, cascadeDelays } from '@/lib/teamTaskView';
 import GuestNote from './general-tools/GuestNote';
-import { clearGuestBoard, GUEST_BOARD_LIMIT, guestTaskId, readGuestBoard, uploadGuestBoard, writeGuestBoard } from './teamTasks/guestBoard';
+import { clearGuestBoard, GUEST_BOARD_LIMIT, GUEST_TEAM_EVENT, GUEST_TEAM_KEY, guestTaskId, readGuestBoard, uploadGuestBoard, writeGuestBoard } from './teamTasks/guestBoard';
 import ProjectPicker from '@/components/ui/ProjectPicker';
 import { useProjectRegistry } from '@/lib/projectRegistry';
 
@@ -146,19 +146,33 @@ const TeamTasks: React.FC = () => {
 
   // 未ログイン: このブラウザのボードを読む。書き換えたら保存する（読み終わってから）
   const [guestLoaded, setGuestLoaded] = useState(false);
+  const guestOrigin = useRef(`tt-${Math.random().toString(36).slice(2)}`);
   useEffect(() => {
     if (!guestMode) return;
-    const g = readGuestBoard();
-    setProjects(g?.projects ?? []);
-    setTasksByProject(g?.tasks ?? {});
+    const load = () => {
+      const g = readGuestBoard();
+      setProjects(g?.projects ?? []);
+      setTasksByProject(g?.tasks ?? {});
+    };
+    load();
     setMembersByProject({});
     setGuestLoaded(true);
-    return () => setGuestLoaded(false);
+    // 別のタブ(メモの「宿題を Teamタスクへ」など)が書き換えたら読み直す。
+    // 以前は開いたままの画面が古い中身で上書きして、別のタブで足したタスクが消えることがあった。2026-11-16
+    const onStorage = (e: StorageEvent) => { if (e.key === GUEST_TEAM_KEY) load(); };
+    const onLocal = (e: Event) => { if ((e as CustomEvent).detail?.origin !== guestOrigin.current) load(); };
+    window.addEventListener('storage', onStorage);
+    window.addEventListener(GUEST_TEAM_EVENT, onLocal);
+    return () => {
+      setGuestLoaded(false);
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener(GUEST_TEAM_EVENT, onLocal);
+    };
   }, [guestMode]);
   useEffect(() => {
     if (!guestMode || !guestLoaded) return;
     // 竣工済み・物件名も残す（以前は id・名前・色だけを書いていた）
-    writeGuestBoard({ projects: projects.map(({ id, name, color, archived, projectName }) => ({ id, name, color, ...(archived ? { archived } : {}), ...(projectName ? { projectName } : {}) })), tasks: tasksByProject });
+    writeGuestBoard({ projects: projects.map(({ id, name, color, archived, projectName }) => ({ id, name, color, ...(archived ? { archived } : {}), ...(projectName ? { projectName } : {}) })), tasks: tasksByProject }, guestOrigin.current);
   }, [guestMode, guestLoaded, projects, tasksByProject]);
 
   // ログインしたら、このブラウザのボードをアカウントのボードとして作れるようにする（共有の場所なので押されたときだけ）

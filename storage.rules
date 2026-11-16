@@ -38,6 +38,27 @@ service firebase.storage {
       allow update, delete: if false;
     }
 
+    // yychat の添付(元の写真・PDF)。2026-11-16
+    // 部屋の参加者(Firestore の chatRooms/{roomId}.participants)だけが読み書きできる。
+    // 置けるのは自分の uid の下だけ、画像と PDF だけ、1 つ 20MB まで。上書きはできない。
+    // Storage から Firestore を読む(クロスサービスのルール)ので、初回のデプロイで
+    // Storage のサービスエージェントに Firestore の読み取り権限を付ける確認が出る(付ける)。
+    match /chatRooms/{roomId}/{senderId}/{fileName} {
+      function isRoomMember() {
+        return request.auth != null
+          && request.auth.uid in firestore.get(/databases/(default)/documents/chatRooms/$(roomId)).data.participants;
+      }
+      allow read: if isRoomMember();
+      allow create: if isRoomMember()
+        && resource == null
+        && request.auth.uid == senderId
+        && request.resource.size <= 20 * 1024 * 1024
+        && (request.resource.contentType.matches('image/.*')
+            || request.resource.contentType == 'application/pdf');
+      allow delete: if request.auth != null && request.auth.uid == senderId;
+      allow update: if false;
+    }
+
     // その他のパスはデフォルトで拒否（既存のファイルがある場合は必要に応じて追加）
     match /{allPaths=**} {
       allow read, write: if false;

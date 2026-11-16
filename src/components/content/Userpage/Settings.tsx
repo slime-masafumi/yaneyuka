@@ -2,7 +2,7 @@
 import React, { useState } from 'react'
 import { useAuth } from '@/lib/AuthContext'
 import { auth, db } from '@/lib/firebaseClient'
-import { collection, getDocs, deleteDoc, doc, writeBatch, updateDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, getDocs, getDoc, deleteDoc, doc, writeBatch, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { EmailAuthProvider, deleteUser, reauthenticateWithCredential, updateProfile } from 'firebase/auth'
 import { listBoardsForUser, updateBoard } from '@/lib/firebaseUserData'
 import { publishOwnProfile, removeOwnProfile } from '@/lib/userDirectory'
@@ -21,6 +21,30 @@ const Settings: React.FC = () => {
   const [displayName, setDisplayName] = useState<string>('')
   const [displayNameMessage, setDisplayNameMessage] = useState<string>('')
   const [displayNameUpdating, setDisplayNameUpdating] = useState<boolean>(false)
+  // 朝のまとめメール(users/{uid}.digestEmail。送るのは functions/src/notifications.ts の毎朝 8 時の処理)。2026-11-16
+  const [digest, setDigest] = useState<boolean | null>(null)
+  const [digestMsg, setDigestMsg] = useState('')
+  React.useEffect(() => {
+    if (!currentUser?.uid) { setDigest(null); return }
+    let alive = true
+    getDoc(doc(db, 'users', currentUser.uid))
+      .then((snap) => { if (alive) setDigest(snap.data()?.digestEmail === true) })
+      .catch(() => { if (alive) setDigest(false) })
+    return () => { alive = false }
+  }, [currentUser?.uid])
+  const toggleDigest = async (next: boolean) => {
+    if (!currentUser?.uid) return
+    const prev = digest
+    setDigest(next)
+    setDigestMsg('')
+    try {
+      await updateDoc(doc(db, 'users', currentUser.uid), { digestEmail: next, updatedAt: serverTimestamp() })
+      setDigestMsg(next ? '毎朝 8 時に、その日のお知らせがあるときだけメールを送ります。' : 'メールを止めました。サイトのベルには引き続き出ます。')
+    } catch {
+      setDigest(prev)
+      setDigestMsg('保存できませんでした。通信を確かめて、もう一度切り替えてください。')
+    }
+  }
 
 
   // 連絡用プロフィール 読み込み
@@ -229,6 +253,21 @@ const Settings: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* 朝のまとめメール */}
+        {currentUser && (
+          <div className="p-4 border rounded bg-white">
+            <div className="text-sm font-semibold mb-2">朝のまとめをメールで受け取る</div>
+            <p className="text-[12px] text-gray-700 mb-3">
+              毎朝 8 時に、今日・明日が期限の Myタスク・Teamタスク、通知を付けた予定、締切の近いスケジュール調整、前日に担当になったタスクを 1 通にまとめて、登録のメールアドレスへ送ります。お知らせが無い日は送りません。
+            </p>
+            <label className="inline-flex items-center gap-2 text-[13px]">
+              <input type="checkbox" checked={!!digest} disabled={digest === null} onChange={(e) => void toggleDigest(e.target.checked)} />
+              メールで受け取る
+            </label>
+            {digestMsg && <div className="mt-2 text-[12px] text-gray-700">{digestMsg}</div>}
+          </div>
+        )}
 
         {/* 連絡用プロフィール（最上段） */}
         <div className="p-4 border rounded bg-white">

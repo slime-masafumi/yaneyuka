@@ -36,10 +36,11 @@ const uidA = await as('alice@example.com');
 await check('A: 自分の領域に 1MB をアップロード', 'allow', () =>
   uploadBytes(ref(storage, `userUploads/${uidA}/small`), blob(1 * MB)));
 
-await check('A: ちょうど上限 100MB', 'allow', () =>
+// 上限は 2GB(storage.rules の userUploads。実際の上限は /api/upload/guard で絞る)。2GB を作ると重いので 101MB が通ることだけ見る
+await check('A: 100MB', 'allow', () =>
   uploadBytes(ref(storage, `userUploads/${uidA}/exact`), blob(100 * MB)));
 
-await check('A: 上限超え 101MB  ★今回の修正対象', 'deny', () =>
+await check('A: 101MB(旧上限を超えても 2GB 以内なら置ける)', 'allow', () =>
   uploadBytes(ref(storage, `userUploads/${uidA}/toobig`), blob(101 * MB)));
 
 const uidB = await as('mallory@example.com');

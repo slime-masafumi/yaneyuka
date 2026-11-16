@@ -131,9 +131,11 @@ check(
   ['bsl-6-1-1', 'bsl-6-1-2', 'bsl-6-1-3']
 );
 check(
-  '特殊建築物で用途部分200m2超は一号',
+  // 二号は「前号に掲げる建築物を除くほか」(法6条1項二号)なので、一号に当たれば二号は立たない
+  '特殊建築物で用途部分200m2超は一号(二号は立たない)',
   p({ useIds: ['apartment'], totalFloorArea: 300, floorsAbove: 2 }),
-  ['bsl-6-1-1', 'bsl-6-1-2']
+  ['bsl-6-1-1'],
+  ['bsl-6-1-2']
 );
 check(
   '特殊建築物でも200m2ちょうどなら一号は立たない',
@@ -408,7 +410,8 @@ const ids = allRules.map((r) => r.id);
 const dupes = ids.filter((id, i) => ids.indexOf(id) !== i);
 ok('ルールIDが重複していない', dupes.length === 0, `重複: ${[...new Set(dupes)].join(', ')}`);
 
-const noSource = allRules.filter((r) => !r.sources || r.sources.length === 0);
+// 「入力の確認」(input-missing)は法令ではなく入力の抜けを出すだけなので出典を持たない
+const noSource = allRules.filter((r) => r.id !== 'input-missing' && (!r.sources || r.sources.length === 0));
 ok('すべてのルールに出典がある', noSource.length === 0, `出典なし: ${noSource.map((r) => r.id).join(', ')}`);
 
 const badUrl = allRules.filter((r) => r.sources.some((s) => !/^https?:\/\//.test(s.url)));

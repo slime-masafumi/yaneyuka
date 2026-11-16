@@ -34,13 +34,22 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.sendDeadlineReminders = exports.notifyTaskAssignee = void 0;
+exports.digestText = digestText;
 const functions = __importStar(require("firebase-functions"));
 const admin = __importStar(require("firebase-admin"));
 const scheduler_1 = require("firebase-functions/v2/scheduler");
+const nodemailer = __importStar(require("nodemailer"));
+/** この実行で届けた通知（朝のまとめメールに載せる）。uid → 通知 */
+let delivered = null;
 /** 同じ id が既にあれば書かない（定期実行が重なっても二重に届かず、既読も戻らない） */
 async function deliver(uid, id, notice) {
     try {
         await admin.firestore().doc(`users/${uid}/notifications/${id}`).create({ ...notice, createdAt: Date.now(), read: false });
+        if (delivered) {
+            const list = delivered.get(uid) ?? [];
+            list.push(notice);
+            delivered.set(uid, list);
+        }
         return true;
     }
     catch (e) {
@@ -111,6 +120,7 @@ exports.sendDeadlineReminders = (0, scheduler_1.onSchedule)({
     const today = ymdJst(now);
     const tomorrow = ymdJst(now + 24 * 3600 * 1000);
     let sent = 0;
+    delivered = new Map();
     const tasks = await db.collectionGroup('tasks').where('dueDate', 'in', [today, tomorrow]).limit(5000).get();
     const boards = new Map();
     for (const doc of tasks.docs) {
@@ -212,6 +222,90 @@ exports.sendDeadlineReminders = (0, scheduler_1.onSchedule)({
         old.docs.forEach((d) => batch.delete(d.ref));
         await batch.commit();
     }
-    console.log(`[sendDeadlineReminders] tasks=${tasks.size} events=${events.size} schedules=${schedules.size} sent=${sent} removed=${old.size}`);
+    const mails = await sendMorningDigests(delivered, now, today);
+    delivered = null;
+    console.log(`[sendDeadlineReminders] tasks=${tasks.size} events=${events.size} schedules=${schedules.size} sent=${sent} removed=${old.size} mails=${mails}`);
 });
+/**
+ * 朝のまとめメール（2026-11-16）。設定画面で「朝のまとめをメールで受け取る」にした人
+ * （users/{uid}.digestEmail === true）にだけ、1 日 1 通送る。
+ * 中身はこの実行で届けた期限の通知と、前日 8 時以降に付いたまだ読んでいない担当の通知。
+ * 何も無い日は送らない。
+ *
+ * SMTP は functions/.env（Git 管理外。サイトの .env.local と同じ SMTP_HOST / SMTP_PORT /
+ * SMTP_SECURE / SMTP_USER / SMTP_PASS / SMTP_FROM）。無ければ送らずにログだけ出す。
+ * 1 回の実行で送るのは 500 通まで（無限に送らない）。
+ */
+const DIGEST_MAX = 500;
+const SITE = 'https://yaneyuka.com';
+function digestText(items, today) {
+    const lines = items.map((n) => `・${n.title}
+  ${n.body}
+  ${SITE}${n.link}`);
+    return {
+        subject: `【yaneyuka】今日のお知らせ ${items.length} 件（${today}）`,
+        text: [
+            `yaneyuka の今日のお知らせ（${today}）`,
+            '',
+            ...lines,
+            '',
+            '――',
+            'このメールは、ユーザー設定で「朝のまとめをメールで受け取る」にした方にだけ送っています。',
+            `止めるときは ${SITE}/?m=settings で切り替えてください。`,
+            '合同会社slime / info@yaneyuka.com',
+        ].join('\n'),
+    };
+}
+async function sendMorningDigests(map, now, today) {
+    const db = admin.firestore();
+    const host = process.env.SMTP_HOST;
+    const user = process.env.SMTP_USER;
+    const pass = process.env.SMTP_PASS;
+    const optedIn = await db.collection('users').where('digestEmail', '==', true).limit(DIGEST_MAX).get();
+    if (optedIn.empty)
+        return 0;
+    const transport = host && user && pass
+        ? nodemailer.createTransport({ host, port: Number(process.env.SMTP_PORT || '587'), secure: String(process.env.SMTP_SECURE || 'false') === 'true', auth: { user, pass } })
+        : null;
+    const from = process.env.SMTP_FROM || user || 'info@yaneyuka.com';
+    let mails = 0;
+    for (const u of optedIn.docs) {
+        const uid = u.id;
+        try {
+            const items = [...(map.get(uid) ?? [])];
+            // 前日 8 時以降の、まだ読んでいない担当の通知（担当はその場で届くのでこの実行の分には入らない）
+            const assigned = await db.collection(`users/${uid}/notifications`)
+                .where('createdAt', '>', now - 24 * 3600 * 1000)
+                .limit(50)
+                .get();
+            for (const d of assigned.docs) {
+                const n = d.data();
+                if (n.type === 'teamTaskAssigned' && !n.read)
+                    items.push({ type: n.type, title: n.title, body: n.body, link: n.link });
+            }
+            if (!items.length)
+                continue;
+            // 同じ日に 2 回送らない（定期実行が重なったとき）
+            const mark = db.doc(`users/${uid}/digestLog/${today}`);
+            if ((await mark.get()).exists)
+                continue;
+            const email = u.data().email || (await admin.auth().getUser(uid)).email;
+            if (!email)
+                continue;
+            const { subject, text } = digestText(items, today);
+            if (!transport) {
+                console.log('[digest] (dry-run) to=%s subject=%s', email, subject);
+                continue;
+            }
+            await transport.sendMail({ from, to: email, subject, text });
+            // 送った印（ベルの通知とは別の場所に置く）
+            await mark.set({ subject, count: items.length, sentAt: Date.now() });
+            mails++;
+        }
+        catch (e) {
+            console.error('[digest]', uid, e);
+        }
+    }
+    return mails;
+}
 //# sourceMappingURL=notifications.js.map

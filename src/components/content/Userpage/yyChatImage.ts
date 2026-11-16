@@ -1,9 +1,9 @@
 /**
  * yychat の写真の縮め方(2026-11-16)。YyChat.tsx だけが使う。
  *
- * 写真は Firestore の発言(chatRooms/{room}/messages/{id})の imageUrl に data URL のまま入れている。
- * Storage のルール(storage.rules)にチャット用の場所が無く、userUploads/{uid} は本人しか読めないので、
- * 相手に見せる写真は今は Firestore に入れるしかない。
+ * 写真は Firestore の発言(chatRooms/{room}/messages/{id})の imageUrl に data URL で入れる。
+ * 2026-11-16 から、元の写真は Storage(chatRooms/{room}/{uid}/、yyChatFiles.ts)に置き、imageUrl には
+ * 一覧用の小さな写真(長辺 720px)だけを入れる。Storage に置けなかったときは、下の手順で縮めた写真を入れる。
  *
  * 以前は長辺 500px・画質 0.5 で、配筋のピッチやひび割れの幅が読めなかった。
  * Firestore の 1 文書は 1MiB(1,048,576 バイト)まで。本文・名前・既読の分を残して、
@@ -101,7 +101,7 @@ function drawJpeg(img: HTMLImageElement, long: number, quality: number): string 
  * 送る写真を作る。iPhone の HEIC は Chrome が描けないので、先に JPEG に起こす
  * (以前は HEIC を選ぶと読み込みが終わらないまま止まっていた)。
  */
-export async function compressForChat(file: File): Promise<Encoded | null> {
+export async function compressForChat(file: File): Promise<(Encoded & { thumb: string; original: Blob; originalType: string }) | null> {
   let src: Blob = file;
   if (isHeic(file)) {
     const { heicTo } = await import('heic-to');
@@ -110,7 +110,13 @@ export async function compressForChat(file: File): Promise<Encoded | null> {
   const url = URL.createObjectURL(src);
   try {
     const img = await loadImage(url);
-    return await pickInlineEncoding((long, q) => drawJpeg(img, long, q));
+    const inline = await pickInlineEncoding((long, q) => drawJpeg(img, long, q));
+    if (!inline) return null;
+    // 元の写真を Storage に置けたときは、発言には一覧用の小さな写真だけを入れる(部屋を開くときの読み込みを軽くする)
+    const thumb = drawJpeg(img, 720, 0.6);
+    // 元の写真: HEIC は他の端末で開けないので JPEG に起こしたものを、それ以外は選んだファイルそのものを置く
+    const originalType = src === file ? file.type || 'image/jpeg' : 'image/jpeg';
+    return { ...inline, thumb, original: src, originalType };
   } finally {
     URL.revokeObjectURL(url);
   }

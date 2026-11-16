@@ -38,8 +38,20 @@ export const readGuestBoard = (): GuestBoard | null => {
   }
 };
 
-export const writeGuestBoard = (data: GuestBoard) => {
-  try { window.localStorage.setItem(GUEST_TEAM_KEY, JSON.stringify(data)); } catch { /* 容量・プライベートモード */ }
+/** 同じタブの中で書き換えたことを知らせる(別のタブには storage イベントが届く)。2026-11-16 */
+export const GUEST_TEAM_EVENT = 'yy-guest-teamtasks';
+
+/**
+ * 保存する。中身が変わらなければ書かない(読み直し → 保存 → 読み直しの往復を止める)。
+ * origin は書いた側の印。Teamタスクの画面は自分が書いた知らせを読み直さない。
+ */
+export const writeGuestBoard = (data: GuestBoard, origin = '') => {
+  try {
+    const next = JSON.stringify(data);
+    if (window.localStorage.getItem(GUEST_TEAM_KEY) === next) return;
+    window.localStorage.setItem(GUEST_TEAM_KEY, next);
+    window.dispatchEvent(new CustomEvent(GUEST_TEAM_EVENT, { detail: { origin } }));
+  } catch { /* 容量・プライベートモード */ }
 };
 
 export const clearGuestBoard = () => {

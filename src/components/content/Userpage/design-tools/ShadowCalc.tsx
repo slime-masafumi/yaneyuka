@@ -138,7 +138,11 @@ export default function ShadowCalc() {
 
   const z = SHADOW_ZONES.find((x) => x.id === zone) ?? SHADOW_ZONES[0];
   const row = z.rows.find((x) => x.go === go) ?? z.rows[0];
-  const planeN = z.planes.includes(Number(plane)) ? Number(plane) : z.planes[0];
+  // 測定面の高さは数値だけを依存にする(z から直接求めると React Compiler が下の useMemo を最適化できなかった)
+  const planeN = useMemo(() => {
+    const planes = (SHADOW_ZONES.find((x) => x.id === zone) ?? SHADOW_ZONES[0]).planes;
+    return planes.includes(Number(plane)) ? Number(plane) : planes[0];
+  }, [zone, plane]);
   const near = hokkaido ? row.nearH : row.near;
   const far = hokkaido ? row.farH : row.far;
 
