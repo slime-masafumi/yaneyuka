@@ -112,7 +112,13 @@ service cloud.firestore {
     // 他人に見せてよい名前とアイコンは publicProfiles、メールでの相手探しは userDirectory。
     match /users/{uid} {
       allow read: if request.auth != null && request.auth.uid == uid;
-      allow write: if request.auth != null && request.auth.uid == uid;
+      // role(管理者かどうか)は本人が書けない。付けるのは管理画面(Admin SDK)だけ。2026-11-16
+      // 以前は本人が role: 'admin' を書けて、画面の管理者表示が出ていた
+      allow create: if request.auth != null && request.auth.uid == uid
+        && !('role' in request.resource.data);
+      allow update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.get('role', null) == resource.data.get('role', null);
+      allow delete: if request.auth != null && request.auth.uid == uid;
     }
 
     // 他人に見せる名前とアイコンだけ。uid を知っている人が 1 件ずつ読む。一覧は不可。
@@ -147,7 +153,9 @@ service cloud.firestore {
     }
 
     // そのほかユーザー配下データは原則本人のみ（必要に応じて拡張）
-    match /users/{uid}/{document=**} {
+    // {document=**} は 0 個の区切りにも当たり users/{uid} 自体にも効いて、上の role の制限を素通りさせていた。
+    // 配下のコレクション(1 段以上)だけに当てる。2026-11-16
+    match /users/{uid}/{sub}/{document=**} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
     }
 
@@ -384,10 +392,11 @@ service cloud.firestore {
       //   発行する前に「その slug が未使用か」を getDoc で確かめるため、
       //   ここを塞ぐとスケジュールが1件も作成できなくなる。
       //   未使用 slug の確認はログインユーザーにのみ許可する。
+      // 会員限定(isPublic == false)は、ログインしている人なら URL で開ける。2026-11-16
+      // 以前は主催者しか開けず、会員限定のスケジュールには誰も回答できなかった
       allow get: if resource == null
         ? request.auth != null
-        : (resource.data.isPublic == true
-           || (request.auth != null && resource.data.ownerUid == request.auth.uid));
+        : (resource.data.isPublic == true || request.auth != null);
 
       // 一覧取得（list）: 自分のスケジュールのみ。
       // get と list をまとめて read で許可すると、
@@ -408,7 +417,7 @@ service cloud.firestore {
       // オプション（候補）
       match /options/{optionId} {
         allow read: if get(/databases/$(database)/documents/schedules/$(scheduleId)).data.isPublic == true
-          || (request.auth != null && get(/databases/$(database)/documents/schedules/$(scheduleId)).data.ownerUid == request.auth.uid);
+          || request.auth != null;
         allow create, update, delete: if request.auth != null
           && get(/databases/$(database)/documents/schedules/$(scheduleId)).data.ownerUid == request.auth.uid;
       }
@@ -420,7 +429,7 @@ service cloud.firestore {
       //   Firestore の課金を膨らませることができた）。
       match /participants/{participantId} {
         allow read: if get(/databases/$(database)/documents/schedules/$(scheduleId)).data.isPublic == true
-          || (request.auth != null && get(/databases/$(database)/documents/schedules/$(scheduleId)).data.ownerUid == request.auth.uid);
+          || request.auth != null;
         // 作成・更新: 公開なら誰でも、非公開ならログインユーザーのみ。
         // ただし回答期限を過ぎたら主催者以外は書き込めない
         // （締切はこれまで画面表示だけで、ルール側は素通りだった）。
@@ -442,7 +451,7 @@ service cloud.firestore {
       // 回答
       match /responses/{responseId} {
         allow read: if get(/databases/$(database)/documents/schedules/$(scheduleId)).data.isPublic == true
-          || (request.auth != null && get(/databases/$(database)/documents/schedules/$(scheduleId)).data.ownerUid == request.auth.uid);
+          || request.auth != null;
         // 作成・更新: 公開なら誰でも、非公開ならログインユーザーのみ。
         // 参加者と同じく、回答期限を過ぎたら主催者以外は書き込めない。
         allow create, update: if (scheduleData().isPublic == true

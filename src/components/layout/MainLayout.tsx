@@ -127,7 +127,15 @@ const SearchParamsWatcher: React.FC<{ onChange: (pathname: string) => void }> = 
 };
 
 const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'topix' }) => {
-  const pathname = usePathname();
+  const realPathname = usePathname();
+  // 404 画面は「/_not-found」として前もって組んだ HTML を、どの URL にも返す。
+  // その HTML は広告欄あり・中身は 404 で組まれているので、ブラウザで実際の URL(/calc/xxx/ など、
+  // 広告欄を出さない・別の画面を組む URL)から組み直すと骨組みが食い違い、React #418 で全体を組み直していた。
+  // 配信 HTML に 404 の印(not-found.tsx の data-yy-not-found)があるときは、その URL の間は 404 と同じ組み方にする。2026-11-16
+  const [notFoundPath] = useState<string | null>(() =>
+    typeof document !== 'undefined' && document.querySelector('[data-yy-not-found]') ? realPathname : null,
+  );
+  const pathname = notFoundPath !== null && realPathname === notFoundPath ? '/_not-found' : realPathname;
   const router = useRouter();
 
   // URLパスからactiveContentを決定
@@ -1462,7 +1470,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, initialContent = 'top
                   globals.css 側でまとめて揃える。20本それぞれが別々の角丸・枠線を
                   持っていたので、1箇所で決められるようにした。 */}
               <div className={`flex-1 min-w-0${isGeneralToolScreen(activeContent) ? ' yy-tool' : ''}`}>
-                <Breadcrumbs />
+                <Breadcrumbs layoutPath={pathname} />
                 {/* 建材ページの頭：16 分類と小分類（左カラムは入口「建材」だけにした） */}
                 {CATEGORY_SUBCATEGORIES[activeContent] && (
                   <MaterialNav

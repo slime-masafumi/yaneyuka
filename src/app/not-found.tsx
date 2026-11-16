@@ -8,7 +8,8 @@ export const metadata: Metadata = {
 
 export default function NotFound() {
   return (
-    <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    // data-yy-not-found: MainLayout が「この HTML は 404」と知るための印(骨組みの食い違いを防ぐ)
+    <div data-yy-not-found="" style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ textAlign: 'center', padding: '2rem' }}>
         <h1 style={{ fontSize: '4rem', fontWeight: 700, color: '#3b3b3b', margin: 0 }}>404</h1>
         <p style={{ fontSize: '1.125rem', color: '#666', marginTop: '0.5rem' }}>

@@ -473,6 +473,25 @@ await check('オーナー: 1 人になったら解散できる（userOffice も�
   return b.commit();
 });
 
+console.log('--- users の role・会員限定のスケジュール調整（2026-11-16） ---');
+const uidR = await as('role-user@example.com');
+await check('本人: 自分の users を作る（role なし）', 'allow', () => setDoc(doc(db, 'users', uidR), { email: 'role-user@example.com', displayName: 'r' }, { merge: true }));
+await check('本人: 自分に role admin を付けられない', 'deny', () => updateDoc(doc(db, 'users', uidR), { role: 'admin' }));
+await check('本人: 朝のまとめメールの切り替えは書ける', 'allow', () => updateDoc(doc(db, 'users', uidR), { digestEmail: true }));
+const uidR2 = await as('role-new@example.com');
+await check('本人: 作るときにも role は付けられない', 'deny', () => setDoc(doc(db, 'users', uidR2), { role: 'admin' }));
+const MEM = 'member-only-sched-0001';
+await as('role-user@example.com');
+await check('主催者: 会員限定のスケジュールを作る', 'allow', () => setDoc(doc(db, 'schedules', MEM), { ownerUid: uidR, isPublic: false, title: '社内' }));
+await check('主催者: 候補を足す', 'allow', () => setDoc(doc(db, 'schedules', MEM, 'options', 'o1'), { date: '2026-12-01' }));
+await as('role-new@example.com');
+await check('会員: 会員限定のスケジュールを URL で開ける', 'allow', () => getDoc(doc(db, 'schedules', MEM)));
+await check('会員: 候補を読める', 'allow', () => getDocs(collection(db, 'schedules', MEM, 'options')));
+await check('会員: 回答できる', 'allow', () => setDoc(doc(db, 'schedules', MEM, 'participants', 'p-mem'), { name: '会員', createdAt: Date.now() }));
+await check('会員: 会員限定の一覧は覗けない', 'deny', () => getDocs(query(collection(db, 'schedules'), where('isPublic', '==', false))));
+await signOut(auth);
+await check('未ログイン: 会員限定は開けない', 'deny', () => getDoc(doc(db, 'schedules', MEM)));
+await check('未ログイン: 会員限定に回答できない', 'deny', () => setDoc(doc(db, 'schedules', MEM, 'participants', 'p-anon'), { name: '外', createdAt: Date.now() }));
 const failed = results.filter((r) => !r.pass).length;
 console.log(`\n${results.length - failed}/${results.length} 件成功`);
 process.exit(failed === 0 && intact ? 0 : 1);

@@ -20,6 +20,15 @@
         "3100"
       ],
       "port": 3100
+    },
+    {
+      "name": "yaneyuka-emu",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev:emu"
+      ],
+      "port": 3200
     }
   ]
 }

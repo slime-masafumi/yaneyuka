@@ -405,6 +405,12 @@ ok('条例レイヤーのない自治体には上書きがない', Object.keys(g
 // ルール定義そのものの健全性
 // ===========================================================================
 
+// --- 法27条: 同じ項の別の用途の床面積は合計で判定し、その旨を書き添える(2026-11-16) ---
+const r27 = NATIONAL_RULES.find((r) => r.id === 'bsl-27');
+const sum27 = r27.match(p({ useIds: ['apartment', 'dormitory'], totalFloorArea: 600, floorsAbove: 2, fireUses: { 2: { topFloor: 2, area: 600, area2F: 320 } } }));
+ok('法27条: 共同住宅と寄宿舎の2階の合計320m2で1項二号、合計で判定した旨が付く', !!sum27 && sum27.includes('二号') && sum27.includes('合計で判定'), `実際: ${sum27}`);
+const one27 = r27.match(p({ useIds: ['apartment'], totalFloorArea: 600, floorsAbove: 2, fireUses: { 2: { topFloor: 2, area: 600, area2F: 320 } } }));
+ok('法27条: 用途が1つなら合算の注記は付かない', !!one27 && !one27.includes('合計で判定'), `実際: ${one27}`);
 const allRules = [...NATIONAL_RULES, ...PACKS.flatMap((pack) => pack.rules)];
 const ids = allRules.map((r) => r.id);
 const dupes = ids.filter((id, i) => ids.indexOf(id) !== i);

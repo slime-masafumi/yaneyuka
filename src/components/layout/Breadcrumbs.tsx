@@ -10,8 +10,10 @@ interface BreadcrumbItem {
   href: string;
 }
 
-const Breadcrumbs: React.FC = () => {
-  const pathname = usePathname();
+/** layoutPath: 組み方に使う URL。404 の HTML を組み直すときは MainLayout が /_not-found を渡す(骨組みの食い違いを防ぐ) */
+const Breadcrumbs: React.FC<{ layoutPath?: string }> = ({ layoutPath }) => {
+  const realPath = usePathname();
+  const pathname = layoutPath ?? realPath;
 
   const getBreadcrumbs = (): BreadcrumbItem[] => {
     const items: BreadcrumbItem[] = [

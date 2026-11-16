@@ -35,7 +35,9 @@
     "test:force-flow": "node scripts/test-force-flow.ts",
     "check:regulations": "node scripts/check-regulation-sources.mjs",
     "test:regulations": "node scripts/test-regulation-rules.mjs",
-    "test:chat-storage-rules": "firebase emulators:exec --only firestore,auth,storage \"node scripts/chat-storage-rules-test.mjs\""
+    "test:chat-storage-rules": "firebase emulators:exec --only firestore,auth,storage \"node scripts/chat-storage-rules-test.mjs\"",
+    "dev:emu": "cross-env NEXT_PUBLIC_USE_EMULATORS=1 next dev -p 3200",
+    "emulators": "firebase emulators:start --only auth,firestore,storage"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",

@@ -775,7 +775,7 @@ const YyChat: React.FC = () => {
     }
     const otherUid = getOtherParticipantUid(room);
     if (!otherUid) return '不明';
-    return customNicknames[otherUid] || userDisplayNames[otherUid] || room.participantUsernames[otherUid] || '不明';
+    return customNicknames[otherUid] || userDisplayNames[otherUid] || room.participantUsernames?.[otherUid] || '不明';
   };
 
   const roomLabel = (room: ChatRoom) => getOtherParticipantName(room) + (room.project ? ` / ${room.project}` : '');

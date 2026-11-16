@@ -748,7 +748,7 @@ const art27: CalcSpec = {
   fields: [
     { k: 'kou', label: '用途(別表第 1 の項)', kind: 'sel', options: KOU_OPTS, def: kouDef, hint: '複合用途は項ごとに判定する。診療所は患者の収容施設(病床)があれば (2)。幼稚園は (3)、保育所・幼保連携型認定こども園は (2)' },
     { k: 'top', label: 'その用途に供する最も上の階', kind: 'num', unit: '階', step: 1, def: (p) => (p.fl > 0 ? String(p.fl) : '') },
-    { k: 'area', label: 'その用途に供する部分の床面積の合計', kind: 'num', unit: 'm²', step: 1, def: (p) => (p.area > 0 ? String(p.area) : ''), hint: '初期値は物件の延べ面積。複合用途ならその項の用途の部分だけ' },
+    { k: 'area', label: 'その用途に供する部分の床面積の合計', kind: 'num', unit: 'm²', step: 1, def: (p) => (p.area > 0 ? String(p.area) : ''), hint: '初期値は物件の延べ面積。複合用途ならその項の用途の部分だけ。同じ項の別の用途(共同住宅と寄宿舎、ホテルと共同住宅など)は合計を入れる(合算の扱いは国の資料に明記が無いので、用途ごとに数える審査機関もありうる。境目の案件は事前相談で確かめる)' },
     { k: 'a2', label: 'うち 2 階の部分の床面積((2)(4) 項)', kind: 'num', unit: 'm²', step: 1, def: (p) => (p.fl > 0 && p.fl < 2 ? '0' : ''), hint: '病院・診療所は患者の収容施設がある部分だけ' },
     { k: 'a3', label: 'うち 3 階以上の部分の床面積((5) 項)', kind: 'num', unit: 'm²', step: 1, def: (p) => (p.fl > 0 && p.fl < 3 ? '0' : '') },
     { k: 'seat', label: '客席の床面積((1) 項。屋外観覧席は 1,000m² 以上で対象)', kind: 'num', unit: 'm²', step: 1 },

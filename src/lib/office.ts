@@ -151,31 +151,55 @@ export function useMyOffice(): MyOffice {
   }, [uid, authReady]);
 
   // offices/{officeId}
+  // 作った直後・招待を受けた直後は、userOffice が手元に先に届き、事務所の文書がサーバーでまだ書き終わって
+  // いないことがある。そのときの読み取りは拒否される(ルールが「メンバーか」を見るため)ので、
+  // 拒否されたら少し待って読み直す(3 回まで)。以前は 1 回の拒否で「入っていた事務所を読めません」のまま止まった。2026-11-16
   useEffect(() => {
     setOffice(null);
     setStale(false);
     setLoadedFor(null);
     if (!uid || !officeId) return;
-    return onSnapshot(
-      officeRef(officeId),
-      (snap) => {
-        const d = snap.exists() ? (snap.data() as Omit<Office, 'id'>) : null;
-        if (!d || !Array.isArray(d.memberUids) || !d.memberUids.includes(uid)) {
+    let stop: (() => void) | null = null;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let alive = true;
+    const listen = (tries: number) => {
+      stop = onSnapshot(
+        officeRef(officeId),
+        (snap) => {
+          const d = snap.exists() ? (snap.data() as Omit<Office, 'id'>) : null;
+          if (!d || !Array.isArray(d.memberUids) || !d.memberUids.includes(uid)) {
+            // 書き込みが届く前の空の読み取りも、読み直しの対象にする
+            if (!snap.metadata.fromCache && tries < 3 && !d) {
+              stop?.();
+              timer = setTimeout(() => alive && listen(tries + 1), 800 * (tries + 1));
+              return;
+            }
+            setOffice(null);
+            setStale(true);
+          } else {
+            setOffice({ id: snap.id, name: d.name, ownerUid: d.ownerUid, memberUids: d.memberUids });
+            setStale(false);
+          }
+          setLoadedFor(officeId);
+        },
+        () => {
+          if (tries < 3) {
+            timer = setTimeout(() => alive && listen(tries + 1), 800 * (tries + 1));
+            return;
+          }
+          // メンバーでなくなると読めない（permission-denied）
           setOffice(null);
           setStale(true);
-        } else {
-          setOffice({ id: snap.id, name: d.name, ownerUid: d.ownerUid, memberUids: d.memberUids });
-          setStale(false);
-        }
-        setLoadedFor(officeId);
-      },
-      () => {
-        // メンバーでなくなると読めない（permission-denied）
-        setOffice(null);
-        setStale(true);
-        setLoadedFor(officeId);
-      },
-    );
+          setLoadedFor(officeId);
+        },
+      );
+    };
+    listen(0);
+    return () => {
+      alive = false;
+      if (timer) clearTimeout(timer);
+      stop?.();
+    };
   }, [uid, officeId]);
 
   // 自分宛ての招待・自分が出した招待

@@ -1,7 +1,7 @@
 import { initializeApp, getApps } from 'firebase/app'
-import { getAuth } from 'firebase/auth'
-import { getFirestore, initializeFirestore, enableIndexedDbPersistence, enableMultiTabIndexedDbPersistence } from 'firebase/firestore'
-import { getStorage } from 'firebase/storage'
+import { connectAuthEmulator, getAuth } from 'firebase/auth'
+import { connectFirestoreEmulator, getFirestore, initializeFirestore, enableIndexedDbPersistence, enableMultiTabIndexedDbPersistence } from 'firebase/firestore'
+import { connectStorageEmulator, getStorage } from 'firebase/storage'
 // 解析(analytics)とプッシュ通知(messaging)は、要るときだけ読み込む(2026-11-15)。
 // 以前は全ページの最初の読み込みに入っていた。解析は同意した人だけ、通知は今どこからも使っていない
 import type { Analytics } from 'firebase/analytics'
@@ -61,8 +61,28 @@ if (typeof window !== 'undefined') {
 export const db = dbInstance!
 // Firebase Storageの初期化
 export const storage = getStorage(app)
+
+/*
+ * 手元の試験用 Firebase(エミュレータ)につなぐ。npm run dev:emu のときだけ(2026-11-16)。
+ * ログインが要る画面(yychat・事務所・設定など)を、本番のデータに触れずに試すため。
+ * 本番のビルドには NEXT_PUBLIC_USE_EMULATORS を入れず、localhost 以外では動かない。
+ */
+// 本番のドメインでは値があっても使わない(localhost で開いたときだけ)
+const USE_EMULATORS =
+  process.env.NEXT_PUBLIC_USE_EMULATORS === '1' &&
+  typeof window !== 'undefined' &&
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+if (USE_EMULATORS && typeof window !== 'undefined') {
+  const w = window as unknown as { __yyEmu?: boolean }
+  if (!w.__yyEmu) {
+    w.__yyEmu = true
+    connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true })
+    connectFirestoreEmulator(db, '127.0.0.1', 8080)
+    connectStorageEmulator(storage, '127.0.0.1', 9199)
+  }
+}
 // オフライン永続化（IndexedDB）
-if (typeof window !== 'undefined') {
+if (typeof window !== 'undefined' && !USE_EMULATORS) {
   // 複数タブ対応。失敗したらシングルタブ永続化にフォールバック
   enableMultiTabIndexedDbPersistence(db).catch((err) => {
     console.warn('マルチタブ永続化失敗、シングルタブにフォールバック:', err?.code || err)
