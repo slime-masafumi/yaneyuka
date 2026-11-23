@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-15",
+  "updatedAt": "2026-11-23",
   "events": [
     {
       "id": "nikkei-architecture-materials-2026",
@@ -154,28 +154,15 @@
     },
     {
       "id": "japan-home-building-show-2026",
-      "title": "第48回 Japan Home & Building Show 2026",
+      "title": "第48回 Japan Home & Building Show 2027",
       "description": "住宅・建築の老舗総合展（日本能率協会主催、国内最大級）。",
-      "dateText": "2026年11月18日(水)～20日(金)",
-      "startDate": "2026-11-18",
-      "endDate": "2026-11-20",
+      "dateText": "2027年11月17日～19日",
+      "startDate": "2027-11-17",
+      "endDate": "2027-11-19",
       "venue": "東京ビッグサイト 西展示棟",
       "region": "tokyo",
       "link": "https://www.jma.or.jp/homeshow/tokyo/",
-      "isLinkActive": true,
-      "coShows": [
-        "Japan Home Show & Building Show 2026",
-        "第45回 JAPANTEX 2026",
-        "第11回 アジア・ファニシング・フェア 2026",
-        "ビルメンヒューマンフェア＆クリーンEXPO 2026",
-        "第48回ジャパンホームショー",
-        "第21回 ふるさと建材･家具見本市",
-        "第10回 団地・マンションリノベーション展",
-        "第10回 ホテル・オフィス・店舗・商業空間展",
-        "第4回 リフォーム・リノベーション展",
-        "第3回 建築ソフト・DX・業務サポート展",
-        "第1回 上質住空間・インテリア展"
-      ]
+      "isLinkActive": true
     },
     {
       "id": "japan-build-tokyo-2026",
@@ -243,6 +230,32 @@
       "link": "https://kgf-chubu.com/",
       "isLinkActive": true,
       "discovered": "portmesse"
+    },
+    {
+      "id": "auto-bigsight-09fb2947b5",
+      "title": "東京インターナショナル・ギフト・ショー春2027 第21回LIFE×DESIGN",
+      "description": "暮らし方から住まいをデザインする、リノベーションのための見本市",
+      "dateText": "2027年2月24日～26日",
+      "startDate": "2027-02-24",
+      "endDate": "2027-02-26",
+      "venue": "東京ビッグサイト 西1・2・4ホール",
+      "region": "tokyo",
+      "link": "https://www.giftshow.co.jp/tigs/life21/",
+      "isLinkActive": true,
+      "discovered": "bigsight"
+    },
+    {
+      "id": "auto-bigsight-91a0123800",
+      "title": "LIVING＆DESIGN2027",
+      "description": "トータルインテリアの国際見本市",
+      "dateText": "2027年2月24日～26日",
+      "startDate": "2027-02-24",
+      "endDate": "2027-02-26",
+      "venue": "東京ビッグサイト 西1ホール",
+      "region": "tokyo",
+      "link": "https://www.living-and-design.com/",
+      "isLinkActive": true,
+      "discovered": "bigsight"
     }
   ]
 }
