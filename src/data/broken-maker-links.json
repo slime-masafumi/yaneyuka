@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-11-15",
-  "checked": 2150,
+  "generatedAt": "2026-11-23",
+  "checked": 2146,
   "summary": {
-    "ok": 1637,
-    "broken": 325,
-    "unreachable": 170,
-    "error": 18
+    "ok": 1639,
+    "broken": 326,
+    "unreachable": 157,
+    "error": 24
   },
   "broken": [
     {
@@ -787,6 +787,11 @@
       "url": "https://www.kmew.co.jp/support/catalog/",
       "status": 404,
       "fallback": "https://www.kmew.co.jp"
+    },
+    {
+      "url": "https://www.koizumi-lt.co.jp/contact/",
+      "status": 404,
+      "fallback": "https://www.koizumi-lt.co.jp"
     },
     {
       "url": "https://www.kokensangyo.co.jp/product/masu/",
@@ -1740,18 +1745,6 @@
       "reason": "ENOTFOUND"
     },
     {
-      "url": "https://www.brass.co.jp/inq/",
-      "reason": "CERT_HAS_EXPIRED"
-    },
-    {
-      "url": "https://www.brass.co.jp/item_list/04601/",
-      "reason": "CERT_HAS_EXPIRED"
-    },
-    {
-      "url": "https://www.brass.co.jp/sub/company/",
-      "reason": "CERT_HAS_EXPIRED"
-    },
-    {
       "url": "https://www.chiyoda-steel.co.jp/company/access.php",
       "reason": "UND_ERR_CONNECT_TIMEOUT"
     },
@@ -1762,18 +1755,6 @@
     {
       "url": "https://www.chiyoda-steel.co.jp/product/#molded-article",
       "reason": "UND_ERR_CONNECT_TIMEOUT"
-    },
-    {
-      "url": "https://www.chubu-corp.co.jp/company/",
-      "reason": "ENOTFOUND"
-    },
-    {
-      "url": "https://www.chubu-corp.co.jp/contact/",
-      "reason": "ENOTFOUND"
-    },
-    {
-      "url": "https://www.chubu-corp.co.jp/products/",
-      "reason": "ENOTFOUND"
     },
     {
       "url": "https://www.cyclochem.co.jp/catalog/",
@@ -1912,24 +1893,8 @@
       "reason": "EAI_AGAIN"
     },
     {
-      "url": "https://www.koizumi-lt.co.jp/company/office.html",
-      "reason": "EAI_AGAIN"
-    },
-    {
-      "url": "https://www.koizumi-lt.co.jp/contact/",
-      "reason": "EAI_AGAIN"
-    },
-    {
       "url": "https://www.koizumi-lt.co.jp/l-design/",
-      "reason": "EAI_AGAIN"
-    },
-    {
-      "url": "https://www.koizumi-lt.co.jp/product/",
-      "reason": "EAI_AGAIN"
-    },
-    {
-      "url": "https://www.koizumi-lt.co.jp/support/",
-      "reason": "EAI_AGAIN"
+      "reason": "UND_ERR_CONNECT_TIMEOUT"
     },
     {
       "url": "https://www.kyowa-kb.co.jp/branch/",
@@ -2302,18 +2267,6 @@
     {
       "url": "https://www.y-y-k.co.jp/support/inquiry_step1/",
       "reason": "UNABLE_TO_VERIFY_LEAF_SIGNATURE"
-    },
-    {
-      "url": "https://www.yamanaka-jp.com/about/location/",
-      "reason": "EAI_AGAIN"
-    },
-    {
-      "url": "https://www.yamanaka-jp.com/catalog/?cat_filter=%25e7%2595%25b3%25e8%25b3%2587%25e6%259d%2590",
-      "reason": "EAI_AGAIN"
-    },
-    {
-      "url": "https://www.yamanaka-jp.com/contact/",
-      "reason": "EAI_AGAIN"
     }
   ],
   "error": [
@@ -2342,6 +2295,26 @@
       "status": 503
     },
     {
+      "url": "https://www.fujislate.com/airroof/",
+      "status": 500
+    },
+    {
+      "url": "https://www.fujislate.com/company/",
+      "status": 500
+    },
+    {
+      "url": "https://www.fujislate.com/contact/",
+      "status": 500
+    },
+    {
+      "url": "https://www.fujislate.com/download/",
+      "status": 500
+    },
+    {
+      "url": "https://www.fujislate.com/download/cad/",
+      "status": 500
+    },
+    {
       "url": "https://www.hokusei-kogyo.co.jp/catalog/",
       "status": 503
     },
@@ -2356,6 +2329,10 @@
     {
       "url": "https://www.hokusei-kogyo.co.jp/office/",
       "status": 503
+    },
+    {
+      "url": "https://www.maruni.com/jp/products",
+      "status": 500
     },
     {
       "url": "https://www.ohmura-trading.co.jp/products/list?category_id=1",
