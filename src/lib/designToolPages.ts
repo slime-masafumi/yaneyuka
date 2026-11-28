@@ -14,6 +14,8 @@ export const SHEET_IDS = new Set(['condensation', 'vent-24h']);
 
 /** 根拠・出典の 1 行(検索結果と本文に出す)。無いものは分野の説明だけ */
 const BASIS: Record<string, string> = {
+  'shadow-diagram': '建築基準法 第 56 条の 2・別表第 4。冬至日の真太陽時の時刻日影図と等時間日影線を DXF で入出力',
+  handrail: '優良住宅部品認定基準「墜落防止手すり」BLS SR:2026 表−6・表−7、日本アルミ手摺工業会 強度ガイドライン',
   'shadow-regulation': '建築基準法 第 56 条の 2・別表第 4。冬至日の真太陽時で日影時間を数える',
   'setback-regulation': '建築基準法 第 56 条・別表第 3。道路斜線・隣地斜線・北側斜線と後退距離の緩和',
   'volume-study': '建築基準法 第 52 条・第 53 条・第 55 条・第 56 条・第 56 条の 2。容積率・建蔽率・斜線・絶対高さ・日影の目安をまとめて見る',

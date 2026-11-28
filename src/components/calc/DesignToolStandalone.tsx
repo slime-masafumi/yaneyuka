@@ -20,6 +20,8 @@ const TOOLS: Record<string, React.ComponentType> = {
   'fire-equipment': d(() => import('@/components/content/Userpage/design-tools/3_FireEquipment').then((m) => ({ default: () => <m.default hideHeader /> }))),
   'color-palette': d(() => import('@/components/content/Userpage/design-tools/5_ColorProposal').then((m) => ({ default: () => <m.default defaultTab="harmony" hideTabBar /> }))),
   'jpma-search': d(() => import('@/components/content/Userpage/design-tools/5_ColorProposal').then((m) => ({ default: () => <m.default defaultTab="jpma" hideTabBar /> }))),
+  'shadow-diagram': d(() => import('@/components/content/Userpage/design-tools/ShadowDiagram')),
+  handrail: d(() => import('@/components/content/Userpage/design-tools/HandrailCalc')),
   'shadow-regulation': d(() => import('@/components/content/Userpage/design-tools/ShadowCalc')),
   'setback-regulation': d(() => import('@/components/content/Userpage/design-tools/SetbackCalc')),
   'volume-study': d(() => import('@/components/content/Userpage/design-tools/VolumeStudy')),

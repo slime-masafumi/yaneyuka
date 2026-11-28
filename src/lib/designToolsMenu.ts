@@ -1,6 +1,6 @@
 import { FORCE_FLOW_PUBLIC } from './forceFlowGate';
 /**
- * 設計ツールのメニュー定義（分野7 / ツール38）。
+ * 設計ツールのメニュー定義（分野7 / ツール40）。
  *
  * 左カラム（Sidebar の Ⅳ）と中央の DesignTools が同じ並びを出す必要があるので、
  * ラベルだけをここに置いて唯一の定義にする。ツール本体（React コンポーネント）は
@@ -42,6 +42,7 @@ const ALL_MENU: DesignToolCategory[] = [
       { id: 'fire-equipment', label: '消防設備', title: '消防設備判定', description: '防火対象物区分・面積・階数から消防設備の設置要否を簡易判定' },
       { id: 'color-palette', label: '配色パレット', title: '配色パレット', description: '基準色から調和する色の組み合わせを提案' },
       { id: 'jpma-search', label: '日塗工番号検索', title: '日塗工番号検索', description: '日塗工番号から近似色・マンセル値を検索' },
+      { id: 'shadow-diagram', label: '日影図', title: '日影図(DXF 入出力)', description: 'DXF の敷地・建物外形から時刻日影図・等時間日影線・5m / 10m の線を描き、同じ座標の DXF で返す(多角形・段のある建物)' },
       { id: 'shadow-regulation', label: '日影規制', title: '日影規制', description: '直方体の建物の日影時間を冬至日の真太陽時で数え、別表第 4 の規制時間(5m・10m の線)と比べる' },
       { id: 'setback-regulation', label: '斜線制限', title: '斜線制限', description: '道路斜線・隣地斜線・北側斜線で、建物の面で許される高さを出す(法 56 条・別表第 3。後退距離の緩和つき)' },
       { id: 'volume-study', label: 'ボリューム検討', title: 'ボリューム検討', description: '敷地条件を 1 回入れるだけで、建蔽率・容積率・斜線・絶対高さ・日影の目安から、建てられる延べ面積と階数、どの制限が効くかを出す' },
@@ -55,6 +56,7 @@ const ALL_MENU: DesignToolCategory[] = [
     description: '',
     subTabs: [
       { id: 'glass-thickness', label: 'ガラス厚計算', title: 'ガラス厚計算', description: '風圧力に対するガラス厚の検証（NSG技術資料準拠）' },
+      { id: 'handrail', label: '手すり強度', title: '手すりの強度検討', description: '支柱・笠木の曲げとたわみを BL・アルミ手摺工業会の荷重で判定。逆から支柱ピッチ・高さ・荷重の上限と必要な断面も出す' },
       { id: 'condensation', label: '結露検討', title: '結露検討', description: '多層壁体・土間の温度分布・露点から表面結露・内部結露を判定' },
       { id: 'building-rainwater', label: '建物雨水', title: '建物雨水排水', description: '降雨強度に基づく軒樋・ルーフドレンの設計検証' },
     ],

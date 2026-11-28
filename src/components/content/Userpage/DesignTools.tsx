@@ -24,6 +24,8 @@ import LoadCalc from '@/components/content/Userpage/design-tools/LoadCalc';
 import SetbackCalc from '@/components/content/Userpage/design-tools/SetbackCalc';
 import VolumeStudy from '@/components/content/Userpage/design-tools/VolumeStudy';
 import ShadowCalc from '@/components/content/Userpage/design-tools/ShadowCalc';
+import ShadowDiagram from '@/components/content/Userpage/design-tools/ShadowDiagram';
+import HandrailCalc from '@/components/content/Userpage/design-tools/HandrailCalc';
 import IlluminationCalc from '@/components/content/Userpage/design-tools/IlluminationCalc';
 import TrunkSizeCalc from '@/components/content/Userpage/design-tools/TrunkSizeCalc';
 import ElecCapacityCalc from '@/components/content/Userpage/design-tools/ElecCapacityCalc';
@@ -72,10 +74,12 @@ const TOOL_COMPONENTS: Record<string, React.ReactNode> = {
   'fire-equipment': <FireEquipment hideHeader />,
   'color-palette': <ColorProposal defaultTab="harmony" hideTabBar />,
   'jpma-search': <ColorProposal defaultTab="jpma" hideTabBar />,
+  'shadow-diagram': <ShadowDiagram />,
   'shadow-regulation': <ShadowCalc />,
   'setback-regulation': <SetbackCalc />,
   'volume-study': <VolumeStudy />,
   'glass-thickness': <GlassThickness hideHeader sheet />,
+  'handrail': <HandrailCalc />,
   'condensation': <MultiLayerCondensation hideHeader sheet />,
   'building-rainwater': <RainwaterCalculation mode="building" hideTabBar />,
   'section': <StructuralTools defaultTab="section" hideTabBar />,

@@ -33,6 +33,8 @@
     "makers:apply-cad": "node scripts/apply-cad-links.mjs",
     "events:update": "node scripts/update-events.mjs",
     "test:force-flow": "node scripts/test-force-flow.ts",
+    "test:handrail": "node scripts/test-handrail.ts",
+    "test:shadow-diagram": "node --import ./scripts/lib/register-ts.mjs scripts/test-shadow-diagram.ts",
     "check:regulations": "node scripts/check-regulation-sources.mjs",
     "test:regulations": "node scripts/test-regulation-rules.mjs",
     "test:chat-storage-rules": "firebase emulators:exec --only firestore,auth,storage \"node scripts/chat-storage-rules-test.mjs\"",
